@@ -1,0 +1,21 @@
+{
+  "created_utc": "2026-10-22T21:53:46.963972+00:00",
+  "python": "3.12.10",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "git_commit": "d922fef53fbf426ccfa224b24d78c55a9e496e19",
+  "git_status": "?? .gitignore\n?? README.md\n?? configs/\n?? docs/\n?? minecraft_bridge/\n?? minecraft_rl/\n?? pyproject.toml\n?? tests/",
+  "source_sha256": {
+    "minecraft_rl/__init__.py": "ca7a21a67f7b703a71b0b3aeffacd5de021af848a6cd3ae2171241816ac96955",
+    "minecraft_rl/__main__.py": "3e5f3cba2086dc1b8b3bcf483c3d080ce69cec4bb8423948347b3afe808785cf",
+    "minecraft_rl/agents.py": "bbd81a17ad696e161fc99ca6464cd28e4a6ec0373a623b0e70283133e4bfb56d",
+    "minecraft_rl/artifacts.py": "ae353c2d3e98665eb786213be3294747b97fa04c6bd31777f05e718bf3d75bbb",
+    "minecraft_rl/environment.py": "f7459908144db71c130850052725f187783a338d6d432116b786a211988c681d",
+    "minecraft_rl/experiments.py": "06b224635ba33b1dc27ec96bcf80030c57150873f347a3ddf4d86365f25aca17",
+    "minecraft_rl/live.py": "b79d757bef6518f6defac560c231d70d9727d736950bc540aae42bbc5836dbff",
+    "minecraft_rl/training.py": "fe059cf7316e5fc4469e904a1ea8f00b247ff37695f17639c423231142363b38",
+    "configs/course_experiment.json": "5bba62cc124d661aff0724a18418fb0235f921cae4d0ba273b54fd8e2db515e0",
+    "configs/smoke.json": "34678d80e9413f671c616149553ed3ffd48ad7b1de965f6216a96d79f40fd182"
+  },
+  "environment": "crafting_arena_v1",
+  "evidence": "SIMULATOR ONLY"
+}

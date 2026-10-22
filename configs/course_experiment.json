@@ -1,0 +1,15 @@
+{
+  "episodes": 15000,
+  "training_seeds": [0, 1, 2, 3, 4],
+  "algorithms": ["q_learning", "sarsa"],
+  "reward_modes": ["sparse", "shaped"],
+  "alphas": [0.1, 0.3],
+  "gammas": [0.9, 0.97],
+  "decay_fractions": [0.5, 0.9],
+  "validation_episodes": 200,
+  "test_episodes": 500,
+  "validation_seed_start": 3000000,
+  "test_seed_start": 4000000,
+  "max_steps": 100,
+  "slip_probability": 0.05
+}

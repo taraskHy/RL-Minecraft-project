@@ -1,0 +1,33 @@
+{
+  "terminated": true,
+  "truncated": false,
+  "state": [
+    4,
+    4,
+    0,
+    0,
+    1,
+    6
+  ],
+  "health": 20,
+  "food": 20,
+  "position": {
+    "x": 4.503569300101964,
+    "y": 64,
+    "z": 4.612537079829515
+  },
+  "inventory": {
+    "stick": 6,
+    "oak_planks": 1,
+    "wooden_pickaxe": 1
+  },
+  "success": true,
+  "death": false,
+  "backend": "minecraft-java-development-arena",
+  "game_version": "1.21.4",
+  "event": "craft_pickaxe",
+  "steps": 15,
+  "base_reward": 9.99,
+  "shaping_reward": 0.0,
+  "simulator_slip_applied": false
+}

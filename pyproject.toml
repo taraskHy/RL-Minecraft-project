@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "minecraft-rl-course"
+version = "0.1.0"
+description = "An explainable RL foundation for a Minecraft survival course project"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+plots = ["matplotlib>=3.9,<4"]
+
+[project.scripts]
+minecraft-rl = "minecraft_rl.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["minecraft_rl*"]

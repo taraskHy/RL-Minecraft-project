@@ -1,0 +1,4 @@
+{"timestamp":"2026-10-22T22:29:35.869Z","evidence":"Minecraft Survival connection only; no learned behavior","position":{"x":0.5,"y":75,"z":2.5},"health":20,"food":20,"dimension":"overworld","gamemode":"survival","inventory":[],"dead":false}
+{"timestamp":"2026-10-22T22:29:36.882Z","evidence":"Minecraft Survival connection only; no learned behavior","position":{"x":0.5,"y":75,"z":2.5},"health":20,"food":20,"dimension":"overworld","gamemode":"survival","inventory":[],"dead":false}
+{"timestamp":"2026-10-22T22:29:37.886Z","evidence":"Minecraft Survival connection only; no learned behavior","position":{"x":0.5,"y":75,"z":2.5},"health":20,"food":20,"dimension":"overworld","gamemode":"survival","inventory":[],"dead":false}
+{"event":"connection_check_complete","observations":3}
