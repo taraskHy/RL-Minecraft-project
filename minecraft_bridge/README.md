@@ -38,6 +38,8 @@ These commands belong only to episode setup in the dedicated development world. 
 
 After crafting, the bridge requests a server inventory synchronization through Mineflayer 4.39.0's private `_syncWindow` helper before checking results. This avoids treating the library's optimistic local crafting updates as confirmed inventory. The helper is version-specific; changing Mineflayer requires rechecking that contract.
 
+A successfully crafted wooden pickaxe is automatically equipped in the bot's main hand so spectators can see it. This uses ordinary inventory controls and adds no learned action or reward. Observations include `held_item` (the item name, or `null`); success still depends on the actual inventory.
+
 ## Python API
 
 ```python
@@ -52,6 +54,8 @@ with MinecraftEnv(EnvConfig(max_steps=100), dev_arena=True) as env:
 ```
 
 The constructor accepts `host`, `port`, `username`, `node`, `origin=(0,64,0)`, and `timeout=45`. It connects to the existing server. `reset(seed)` returns the same six-field state used by the simulator; `step(action)` returns `(state, reward, terminated, truncated, info)`. `close()` disconnects the bot; context-manager use is preferred.
+
+`observe()` returns a validated current arena observation without taking an action. `players()` returns connected names and their server-reported numeric gamemodes (`3` is spectator); invisible spectator entities are not required. The launcher uses this read-only player list to wait for a viewer in its optional watch mode.
 
 State: `(x,z,remaining_log_mask,logs,planks,sticks)`. Actions: `NORTH=0`, `SOUTH=1`, `EAST=2`, `WEST=3`, `CHOP=4`, `CRAFT_PLANKS=5`, `CRAFT_STICKS=6`, `CRAFT_PICKAXE=7`. North reduces z. Chop targets an adjacent remaining log, collects its real item, and returns to the original cell. The physical crafting table lies just outside the grid beside station `(4,4)`.
 

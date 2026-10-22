@@ -6,6 +6,15 @@ from minecraft_rl.live import LiveBridgeError, MinecraftEnv
 
 
 class LiveObservationTests(unittest.TestCase):
+    def test_player_list_accepts_spectator_without_an_entity_and_rejects_unknown_mode(self):
+        env = object.__new__(MinecraftEnv)
+        env._request = lambda *args, **kwargs: {"players": {"Viewer": {"gamemode": 3}}}
+        self.assertEqual(env.players(), {"Viewer": {"gamemode": 3}})
+        for mode in (True, None, -1, 4, "spectator"):
+            env._request = lambda *args, **kwargs: {"players": {"Viewer": {"gamemode": mode}}}
+            with self.subTest(mode=mode), self.assertRaises(LiveBridgeError):
+                env.players()
+
     def test_rejects_invalid_observed_states(self):
         for state in ([5, 0, 3, 0, 0, 0], [1, 1, 3, 0, 0, 0],
                       [0, 0, 3, -1, 0, 0], [0, 0, 3, True, 0, 0]):

@@ -26,6 +26,25 @@ This connects your client to the project's ordinary Survival world. The current 
 
 Launcher installation steps are described in [Minecraft's installation help](https://help.minecraft.net/hc/en-us/articles/23431114561037-Troubleshooting-Launching-Minecraft-from-the-Minecraft-Launcher); version details are in the [official 1.21.4 release notes](https://www.minecraft.net/en-us/article/minecraft-java-edition-1-21-4).
 
+## Watch the crafting bot
+
+The ordinary Survival server has no autonomous progression agent yet. To watch the implemented crafting policy in its separate development arena:
+
+1. Disconnect from the Survival world. In its server terminal, press **Ctrl+C** and wait for it to save and stop.
+2. In the project terminal, run the following, replacing `YourMinecraftName` with your Java player name:
+
+   ```powershell
+   .\run.cmd watch --dev-arena --viewer YourMinecraftName
+   ```
+
+3. Wait for the join instructions, then select **Multiplayer → Direct Connection → `127.0.0.1:25565`** in Minecraft 1.21.4.
+4. The watcher places your player in **Spectator mode**, adds night vision, and moves your camera above the arena. After a short countdown, the frozen policy collects logs, crafts a wooden pickaxe, and equips it in its hand. The bot keeps holding the tool while the terminal waits for your replay choice; you can fly closer to see it. Spectator mode prevents your player from moving the bot or collecting its dropped items.
+5. The terminal reports the outcome and saved result folder. Press **Enter** there to replay, or enter **q** to save and stop. **Ctrl+C** also stops the managed arena server.
+
+You can also choose **11** in the `run.cmd` menu and enter your player name. The watch command waits up to five minutes for you to join; `--join-timeout` changes that limit up to ten minutes. `--once` stops the server after one episode instead of offering replay.
+
+Viewer controls apply only to the dedicated development server. They do not grant operator privileges or change the ordinary Survival world. The arena is reset between episodes; the provided crafting table and reset commands remain development aids, not part of the final fresh-world Survival evaluation.
+
 ## Commands in PowerShell
 
 Run these from the project folder. The same commands also work in a normal Windows terminal; activation of `.venv` is unnecessary.

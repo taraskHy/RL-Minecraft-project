@@ -98,6 +98,25 @@ class MinecraftEnv:
             raise RuntimeError("Call reset() before reading the state")
         return self._state
 
+    def players(self) -> dict[str, dict[str, int]]:
+        """Read connected players' server-reported gamemodes (3 is spectator)."""
+        players = self._request("status").get("players")
+        if not isinstance(players, dict):
+            raise LiveBridgeError("Bridge status did not include the player list")
+        for name, details in players.items():
+            if (not isinstance(name, str) or not isinstance(details, dict)
+                    or isinstance(details.get("gamemode"), bool)
+                    or not isinstance(details.get("gamemode"), int)
+                    or details["gamemode"] not in range(4)):
+                raise LiveBridgeError("Bridge returned an invalid player gamemode")
+        return players
+
+    def observe(self) -> dict[str, Any]:
+        """Read a complete current arena observation without taking an action."""
+        observation = self._request("observe")
+        self._observed_state(observation)
+        return observation
+
     def _read_output(self) -> None:
         assert self._process.stdout is not None
         try:

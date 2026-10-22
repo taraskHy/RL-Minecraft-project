@@ -141,6 +141,7 @@ async function main () {
       food: bot.food,
       position: { x: bot.entity.position.x, y: bot.entity.position.y, z: bot.entity.position.z },
       inventory: inv,
+      held_item: bot.heldItem?.name || null,
       success: (inv.wooden_pickaxe || 0) > 0,
       death: dead,
       backend: 'minecraft-java-development-arena',
@@ -288,6 +289,15 @@ async function main () {
           await bot._syncWindow(bot.inventory)
           check(signal)
           if ((inventory()[itemName] || 0) <= (before.inventory[itemName] || 0)) throw new Error('Crafting returned without the expected inventory change')
+          if (action === 7) {
+            // Show the actual crafted tool to spectators using ordinary inventory
+            // controls; this adds no policy decision or reward.
+            const pickaxe = bot.inventory.items().find(item => item.name === 'wooden_pickaxe')
+            await bot.equip(pickaxe, 'hand')
+            await bot._syncWindow(bot.inventory)
+            await ticks(4, signal)
+            if (bot.heldItem?.name !== 'wooden_pickaxe') throw new Error('Crafted pickaxe could not be equipped in the main hand')
+          }
         }
       }
     }
@@ -298,7 +308,13 @@ async function main () {
     if (!request || typeof request !== 'object' || Array.isArray(request)) throw new Error('Request must be a JSON object')
     if (request.op === 'close') return { closed: true }
     await until(() => connected && bot.entity && bot.inventory, 20000, signal, 'Minecraft connection did not spawn; check local server and version')
-    if (request.op === 'status') return { connected, initialized, dev_arena: config.devArena, game_version: bot.version, backend: 'minecraft-java-development-arena' }
+    if (request.op === 'status') return {
+      connected, initialized, dev_arena: config.devArena, game_version: bot.version,
+      backend: 'minecraft-java-development-arena',
+      players: Object.fromEntries(Object.entries(bot.players)
+        .filter(([, player]) => Number.isInteger(player.gamemode) && player.gamemode >= 0 && player.gamemode <= 3)
+        .map(([name, player]) => [name, { gamemode: player.gamemode }]))
+    }
     if (request.op === 'reset') return reset(request, signal)
     if (request.op === 'step') return step(request, signal)
     if (request.op === 'observe') return observe()

@@ -12,6 +12,8 @@ Double-click **`setup.cmd`**, then **`run.cmd`**. Setup installs portable Java/N
 
 The Minecraft server requires your explicit EULA decision through `run.cmd accept-eula`. Simulator training works without it. The Survival profile provides an ordinary world for development; a full Survival policy still needs to be built.
 
+To watch the current crafting bot, use `run.cmd watch --dev-arena --viewer YourMinecraftName`, then join **127.0.0.1:25565** in Minecraft Java 1.21.4. It waits for you, puts your camera in spectator mode, and offers a replay after the episode. See [watch instructions](docs/windows_setup.md#watch-the-crafting-bot).
+
 ## Run the first experiment
 
 From this folder in PowerShell, using Python 3.12 or newer:

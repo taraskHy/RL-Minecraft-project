@@ -192,6 +192,22 @@ def survival_check(arguments: list[str]) -> int:
         return result
 
 
+def watch(arguments: list[str]) -> int:
+    p = argparse.ArgumentParser(prog="run.cmd watch", description="Wait for you to join the arena, place you in spectator mode, and run the saved crafting policy.")
+    p.add_argument("--dev-arena", action="store_true", help="Allow resetting the dedicated development world; required")
+    p.add_argument("--viewer", required=True, help="Your Minecraft Java player name")
+    p.add_argument("--policy", default=str(DEFAULT_POLICY))
+    p.add_argument("--seed", type=int, default=1_000_000)
+    p.add_argument("--join-timeout", type=float, default=300, help="Seconds to wait for your connection, up to 600")
+    p.add_argument("--once", action="store_true", help="Stop the server after one episode instead of offering replay")
+    args = p.parse_args(arguments)
+    if not args.dev_arena:
+        p.error("pass --dev-arena to enable resets in the dedicated development world")
+    from .watch import run_watch
+    return run_watch(viewer=args.viewer, policy=Path(args.policy), seed=args.seed,
+                     join_timeout=args.join_timeout, once=args.once)
+
+
 def menu() -> int:
     options = {
         "1": ["setup"], "2": ["demo"], "3": ["train"], "4": ["experiment"],
@@ -211,6 +227,7 @@ def menu() -> int:
               "  8  Start ordinary Survival server; Ctrl+C saves and stops\n"
               "  9  Check this PC\n"
               " 10  Run tests\n"
+              " 11  Watch the crafting bot in Minecraft (spectator)\n"
               "  0  Exit")
         try:
             choice = input("Choose: ").strip()
@@ -218,6 +235,14 @@ def menu() -> int:
             return 0
         if choice == "0":
             return 0
+        if choice == "11":
+            try:
+                viewer = input("Your Minecraft Java player name: ").strip()
+            except (EOFError, KeyboardInterrupt):
+                return 0
+            status = main(["watch", "--dev-arena", "--viewer", viewer])
+            print(f"\nCommand finished with exit code {status}.")
+            continue
         if choice not in options:
             print("Choose a number from the menu.")
             continue
@@ -241,6 +266,8 @@ def main(argv: list[str] | None = None) -> int:
             return arena(arguments)
         if command == "survival-check":
             return survival_check(arguments)
+        if command == "watch":
+            return watch(arguments)
         if command == "server":
             p = argparse.ArgumentParser(prog="run.cmd server")
             p.add_argument("profile", choices=("arena", "survival"))
@@ -263,6 +290,7 @@ def main(argv: list[str] | None = None) -> int:
                   "  experiment                  CPU simulator comparison; accepts --config\n"
                   "  accept-eula                 Record your Minecraft EULA decision\n"
                   "  arena --dev-arena           Run saved policy in a managed test world\n"
+                  "  watch --dev-arena --viewer NAME  Wait for you to join and watch the bot\n"
                   "  survival-check              Check bot connection to ordinary Survival\n"
                   "  server arena|survival       Keep a server running until Ctrl+C\n"
                   "Without a command, opens the menu. Read docs/windows_setup.md.")
