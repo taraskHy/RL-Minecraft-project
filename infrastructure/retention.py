@@ -25,8 +25,9 @@ import sys
 RUN_FILES = ("metadata.json", "initial_policy.json", "policy.json", "episodes.csv", "summary.json",
              "simulator_training.csv")
 EPISODE_FILES = ("start.json", "transitions.jsonl", "steps.csv", "outcome.json", "session_error.json")
-# A resource-parallel schedule folder: the plan as run and the scheduler's record.
-SCHEDULE_FILES = ("plan.json", "schedule.json")
+# A resource-parallel schedule folder: the plan as run and the scheduler's record, including the final
+# record the scheduler writes beside schedule.json when that file is held open at the end.
+SCHEDULE_FILES = ("plan.json", "schedule.json", "schedule.final.json")
 WORLD_FILES = ("server.properties", "ops.json")
 SERVER_LOG_TAIL_LINES = 200
 NOTE = ("Files were copied unchanged and hashed after copying; server_tail.log holds the last lines of "

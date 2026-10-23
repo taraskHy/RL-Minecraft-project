@@ -5,6 +5,7 @@ import io
 import json
 from pathlib import Path
 import signal
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import call, patch
@@ -446,6 +447,60 @@ class ParallelRunTests(unittest.TestCase):
         self.assertEqual(units["px-random-test-c1"], "not_started")
         self.assertEqual(self.alive, [])
         self.assertIs(signal.getsignal(signal.SIGINT), signal.default_int_handler)
+
+    def test_ctrl_c_during_the_closing_code_check_still_writes_the_final_record(self):
+        def state(_plan):
+            # Only the closing check runs once every run has been launched and has exited.
+            if len(self.commands) == 7 and not self.alive:
+                raise KeyboardInterrupt
+            return dict(CLEAN)
+
+        self.code.side_effect = state
+        self.assertEqual(self.run_plan(make_plan()), 130)
+        record = self.schedule()
+        self.assertEqual(record["status"], "interrupted")
+        self.assertTrue(record["finished_at"])
+        self.assertIn("Ctrl+C", record["code_at_end"]["error"])
+        self.assertEqual({u["status"] for u in record["units"]}, {"done"})
+
+    def test_a_ctrl_c_held_while_closing_marks_the_schedule_interrupted(self):
+        real_close = parallel_runs._Schedule._close
+
+        def close(schedule, interrupted, error, pressed):
+            pressed.append(True)  # a press that arrives while the closing record is being written
+            return real_close(schedule, interrupted, error, pressed)
+
+        with patch.object(parallel_runs._Schedule, "_close", close), self.assertRaises(KeyboardInterrupt):
+            self.run_plan(make_plan())
+        record = self.schedule()
+        self.assertEqual((record["status"], bool(record["finished_at"])), ("interrupted", True))
+        self.assertIs(signal.getsignal(signal.SIGINT), signal.default_int_handler)
+
+    def test_git_runs_in_its_own_process_group(self):
+        done = subprocess.CompletedProcess(["git"], 0, stdout="abc123\n", stderr="")
+        with patch.object(parallel_runs.subprocess, "run", return_value=done) as run:
+            self.assertEqual(parallel_runs._git("rev-parse", "HEAD"), "abc123")
+        self.assertEqual(run.call_args.kwargs["creationflags"], getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
+        stopped = subprocess.CompletedProcess(["git"], 3221225786, stdout="", stderr="")
+        with patch.object(parallel_runs.subprocess, "run", return_value=stopped), self.assertRaises(KeyboardInterrupt):
+            parallel_runs._git("rev-parse", "HEAD")
+
+    def test_the_fallback_final_record_is_the_one_read(self):
+        folder = self.root / "runs" / "px"
+        for name in ("px-a", "px-b"):
+            (folder / name).mkdir(parents=True)
+            (folder / name / "metadata.json").write_text("{}", encoding="utf-8")
+
+        def record(*names, status):
+            return json.dumps({"status": status, "units": [{"name": "px-a", "parts": [{"folder": n} for n in names]}]})
+
+        (folder / "schedule.json").write_text(record("px-a", status="running"), encoding="utf-8")
+        self.assertEqual(parallel_runs.schedule_record_path(folder), folder / "schedule.json")
+        self.assertEqual(schedule_run_folders(folder), ([folder / "px-a"], []))
+        # Written only by the final save when schedule.json was held, so it is the newest record.
+        (folder / "schedule.final.json").write_text(record("px-a", "px-b", status="completed"), encoding="utf-8")
+        self.assertEqual(parallel_runs.schedule_record_path(folder), folder / "schedule.final.json")
+        self.assertEqual(schedule_run_folders(folder), ([folder / "px-a", folder / "px-b"], []))
 
     def test_an_unexpected_error_waits_for_the_running_runs_before_it_is_raised(self):
         def fail(count):

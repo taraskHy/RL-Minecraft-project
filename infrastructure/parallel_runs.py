@@ -255,16 +255,24 @@ def load_plan(path) -> tuple[dict, list[Unit]]:
     return parse_plan(Path(path).read_text(encoding="utf-8"))
 
 
+def schedule_record_path(folder) -> Path:
+    """The schedule's newest record: the fallback the final save wrote when schedule.json was held, else schedule.json."""
+    folder = Path(folder)
+    fallback = folder / FINAL_FALLBACK
+    return fallback if fallback.is_file() else folder / "schedule.json"
+
+
 def schedule_run_folders(folder) -> tuple[list[Path], list[str]]:
     """Every run folder a schedule recorded, continuations included, and recorded parts that hold no run."""
     folder = Path(folder)
-    record = json.loads((folder / "schedule.json").read_text(encoding="utf-8"))
+    path = schedule_record_path(folder)
+    record = json.loads(path.read_text(encoding="utf-8"))
     found, missing = [], []
     for unit in (record.get("units") or []) if isinstance(record, dict) else []:
         for part in unit.get("parts") or []:
             name = part.get("folder") if isinstance(part, dict) else None
             if not isinstance(name, str) or not NAME.match(name) or Path(name).name != name:
-                raise ValueError(f"{folder / 'schedule.json'} records an invalid run folder name: {name!r}")
+                raise ValueError(f"{path} records an invalid run folder name: {name!r}")
             if (folder / name / "metadata.json").is_file():
                 found.append(folder / name)
             else:
@@ -367,11 +375,14 @@ def _deferred_interrupt():
 
 def _git(*arguments: str) -> str:
     try:
-        result = subprocess.run(["git", *arguments], cwd=ROOT, capture_output=True, text=True, check=False)
+        # git runs in its own process group, so a console Ctrl+C reaches only the scheduler, which handles it
+        # (or holds it) once git returns; otherwise git could die mid-check during the closing record.
+        result = subprocess.run(["git", *arguments], cwd=ROOT, capture_output=True, text=True, check=False,
+                                creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
     except FileNotFoundError as exc:
         raise RuntimeError("resource-parallel records the committed code revision and needs git on PATH") from exc
     if result.returncode in (3221225786, -1073741510):
-        # git shares the console, so Ctrl+C ends it with STATUS_CONTROL_C_EXIT: report the interrupt, not an error.
+        # Should git still end with STATUS_CONTROL_C_EXIT, report the interrupt, not an error.
         raise KeyboardInterrupt
     if result.returncode:
         raise RuntimeError(f"git {' '.join(arguments)} failed: {result.stderr.strip()}")
@@ -701,7 +712,7 @@ class _Schedule:
             part["last_status"] = "still running when the scheduler exited"
             child.close()
 
-    def _close(self, interrupted: bool, error: Exception | None) -> None:
+    def _close(self, interrupted: bool, error: Exception | None, pressed: list[bool]) -> None:
         for unit in self.units:
             if unit.parts and unit.parts[-1]["finished_at"] is None:
                 # Launched but never seen to exit: its state is unknown, never 'not started'.
@@ -719,6 +730,13 @@ class _Schedule:
         except RuntimeError as exc:
             self.record["code_at_end"] = {"error": str(exc)}
             self.record["code_changed_during_schedule"] = self.code_changed
+        except KeyboardInterrupt:
+            # The closing record is still written; the press makes the schedule interrupted.
+            self.record["code_at_end"] = {"error": "Ctrl+C ended the closing git check"}
+            self.record["code_changed_during_schedule"] = self.code_changed
+            interrupted = True
+        # Presses held while closing count too, not only those before it began.
+        interrupted = interrupted or bool(pressed)
         complete = all(unit.status == "done" for unit in self.units)
         self.record["status"] = ("error" if error else "interrupted" if interrupted else
                                  "code_changed" if self.record["code_changed_during_schedule"] else
@@ -756,7 +774,7 @@ class _Schedule:
         finally:
             # The closing record is written whatever else is pressed meanwhile.
             with _deferred_interrupt() as pressed:
-                self._close(interrupted or bool(pressed), error)
+                self._close(interrupted, error, pressed)
         print(f"Schedule {self.plan['name']} {self.record['status']}:")
         for unit in self.units:
             continuations = len(unit.parts) - 1

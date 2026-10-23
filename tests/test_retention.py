@@ -148,6 +148,22 @@ class RetentionTests(unittest.TestCase):
         again = retention.retain([schedule, schedule / "pq-a"], self.root / "results" / "again", "SCHEDULE EVIDENCE")
         self.assertNotIn("pq-a/metadata.json", again["sha256"])
 
+    def test_a_fallback_final_record_is_retained_and_followed(self):
+        schedule = self.root / "runs" / "pf"
+        schedule.mkdir(parents=True)
+        (schedule / "plan.json").write_text('{"name": "pf"}', encoding="utf-8")
+        stale = [{"name": "pf-a", "parts": [{"folder": "pf-a"}]}]
+        final = [{"name": "pf-a", "parts": [{"folder": "pf-a"}, {"folder": "pf-a-part1"}]}]
+        (schedule / "schedule.json").write_text(json.dumps({"units": stale}), encoding="utf-8")
+        (schedule / "schedule.final.json").write_text(json.dumps({"units": final}), encoding="utf-8")
+        make_run(schedule, "pf-a")
+        make_run(schedule, "pf-a-part1")
+        out = self.root / "results" / "fallback"
+        manifest = retention.retain([schedule], out, "SCHEDULE EVIDENCE")
+        for key in ("pf/schedule.json", "pf/schedule.final.json", "pf/pf-a-part1/metadata.json"):
+            self.assertIn(key, manifest["sha256"])
+        self.assertEqual(retention.verify(out), [])
+
 
 if __name__ == "__main__":
     unittest.main()

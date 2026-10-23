@@ -277,14 +277,18 @@ def resource_report(arguments: list[str]) -> int:
                         "folders, which stand for every run and continuation they recorded")
     p.add_argument("--out", type=Path, help="New or empty folder for summary.json, episodes.csv, and report.md")
     args = p.parse_args(arguments)
-    from .parallel_runs import schedule_run_folders
+    from .parallel_runs import schedule_record_path, schedule_run_folders
     runs: list[Path] = []
     for path in args.runs:
         if (path / "schedule.json").is_file() and not (path / "metadata.json").is_file():
+            record = schedule_record_path(path)
+            if record.name != "schedule.json":
+                print(f"Note: schedule {path} holds its final record in {record.name}; schedule.json is out of date",
+                      file=sys.stderr)
             found, missing = schedule_run_folders(path)
             for name in missing:
-                print(f"Note: {path / name} is recorded in schedule.json but holds no run", file=sys.stderr)
-            status = json.loads((path / "schedule.json").read_text(encoding="utf-8")).get("status")
+                print(f"Note: {path / name} is recorded in {record.name} but holds no run", file=sys.stderr)
+            status = json.loads(record.read_text(encoding="utf-8")).get("status")
             if status != "completed":
                 print(f"Note: schedule {path} ended {status!r}, not 'completed'", file=sys.stderr)
             runs += found

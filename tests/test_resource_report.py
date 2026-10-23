@@ -471,6 +471,26 @@ class ResourceReportTests(unittest.TestCase):
         self.assertEqual(summary["groups"][0]["episodes_completed"], 3)
         self.assertIn("px-random-c2 is recorded in schedule.json but holds no run", errors.getvalue())
 
+    def test_command_line_report_reads_the_fallback_final_record(self):
+        schedule = self.root / "pf"
+        first = self._condition_run("pf/pf-random-c1", "masked", "frozen_evaluation", "random", [True],
+                                    baseline="masked_random")
+        part = self._condition_run("pf/pf-random-c1-part1", "masked", "frozen_evaluation", "random", [False],
+                                   baseline="masked_random", first_seed=20001)
+        stale = [{"name": "pf-random-c1", "parts": [{"folder": first.name}]}]
+        final = [{"name": "pf-random-c1", "parts": [{"folder": first.name}, {"folder": part.name}]}]
+        (schedule / "schedule.json").write_text(json.dumps({"status": "running", "units": stale}), encoding="utf-8")
+        (schedule / "schedule.final.json").write_text(json.dumps({"status": "completed", "units": final}),
+                                                      encoding="utf-8")
+        out = self.root / "fallback-report"
+        errors = io.StringIO()
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(errors):
+            self.assertEqual(resource_report_command([str(schedule), "--out", str(out)]), 0)
+        summary = json.loads((out / "summary.json").read_text(encoding="utf-8"))
+        self.assertEqual(sorted(r["run"] for r in summary["runs"]), ["pf-random-c1", "pf-random-c1-part1"])
+        self.assertIn("holds its final record in schedule.final.json", errors.getvalue())
+        self.assertNotIn("not 'completed'", errors.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

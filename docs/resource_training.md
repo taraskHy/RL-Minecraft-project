@@ -301,8 +301,11 @@ What the scheduler guarantees:
   Ctrl+C reaches it. A second Ctrl+C only lists the runs still stopping and
   keeps waiting; a third leaves, and then the window must stay open until
   those runs exit. After any other scheduler error it also waits for the
-  running runs before it stops. A run with a viewer cannot be scheduled;
-  watch training alone with `resource-train --viewer`.
+  running runs before it stops. The closing record is written whatever is
+  pressed while it is written, and a press then marks the schedule
+  `interrupted`; git runs in its own process group, so Ctrl+C never ends a
+  code check half-way. A run with a viewer cannot be scheduled; watch
+  training alone with `resource-train --viewer`.
 
 ```powershell
 .\run.cmd resource-parallel configs\parallel_benchmark_4slots.json --dry-run
@@ -315,7 +318,10 @@ A schedule folder given to `resource-report` or to retention stands for every
 run and continuation its `schedule.json` recorded, so no continuation is left
 out. Retention keeps those runs nested under the schedule's folder, so a
 retained schedule can be reported the same way, and keeps its `plan.json` and
-`schedule.json` (not its logs) with digests. Every run records its port, `parallel_slots`, and schedule in
+`schedule.json` (not its logs) with digests. If `schedule.json` was held open
+by another program when the schedule ended, the final record is written beside
+it as `schedule.final.json`; the report and retention then read that newer
+record (the report says so) and retention keeps both files. Every run records its port, `parallel_slots`, and schedule in
 `metadata.json`, and every episode its UTC start and end. The report keeps
 runs with different slot counts, and parallel runs of different schedules, in
 separate groups, shows the slot count in its comparison tables, and compares
