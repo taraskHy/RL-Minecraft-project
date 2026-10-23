@@ -6,7 +6,7 @@ every result. For the full technical history read [HANDOFF_PC.md](HANDOFF_PC.md)
 for every measured number read
 [results/pc_resource_runs/README.md](results/pc_resource_runs/README.md).
 
-**Last updated:** 23 October 2026, 22:20 (branch `codex/pc-canopy-descent`,
+**Last updated:** 23 October 2026, 23:57 (branch `codex/pc-canopy-descent`,
 pull request [#1](https://github.com/taraskHy/RL-Minecraft-project/pull/1),
 not yet merged into `main`).
 
@@ -54,11 +54,17 @@ beats random play once the action mask is removed:
 
 The full plan is fixed in
 [configs/resource_masking_experiment.json](configs/resource_masking_experiment.json).
-Training progress so far (exploration included, so these are not test
-results): masked Q-learning 17 of 20 episodes reached the pickaxe, masked
-SARSA 18 of 20, unmasked Q-learning 17 of its first 27 (2 of its first 7),
-which suggests it is learning without the mask; only the held-out test can
-show whether that beats random play.
+Training finished at 23:37 with no invalid episodes. These numbers include
+exploration, so they are not test results: masked Q-learning reached the
+pickaxe in 17 of 20 episodes, masked SARSA in 18 of 20 (one death, while
+exploring seed 118), unmasked Q-learning in 36 of 50 (3, 8, 9, 7, 9 per ten
+episodes) and unmasked SARSA in 41 of 50 (6, 8, 9, 9, 9).
+
+The held-out test phase is running. The frozen masked Q-learning policy
+reached the pickaxe on 16 of the 20 test worlds. All four failures spawned on
+a tree too tall to drop from safely, and the descent helper refused the drop.
+There is no comparison with random play until the random baselines have run on
+the same worlds, expected around 4 to 5 am.
 
 **Please do not run Minecraft on the PC while this batch runs**, and do not
 join its world: it uses port 25567 and an extra player in the world can change
@@ -130,6 +136,9 @@ update log below when you start, so we do not duplicate work.
 
 ## Update log
 
+- **23 Oct 2026, 23:57:** all four training runs finished (no invalid
+  episodes); test phase started. Frozen masked Q-learning: 16 of 20 test worlds,
+  all four failures stranded on tall trees. Not yet compared with random.
 - **23 Oct 2026, 22:20:** unmasked Q-learning training at 27 of 50 episodes
   (17 reached the pickaxe). Parallel live runs and a GPU plan added under
   "Planned next".
