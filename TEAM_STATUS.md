@@ -6,7 +6,7 @@ every result. For the full technical history read [HANDOFF_PC.md](HANDOFF_PC.md)
 for every measured number read
 [results/pc_resource_runs/README.md](results/pc_resource_runs/README.md).
 
-**Last updated:** 23 October 2026, 23:57 (branch `codex/pc-canopy-descent`,
+**Last updated:** 24 October 2026, 02:05 (branch `codex/pc-canopy-descent`,
 pull request [#1](https://github.com/taraskHy/RL-Minecraft-project/pull/1),
 not yet merged into `main`).
 
@@ -26,10 +26,12 @@ yet.
 - **The wood-to-pickaxe chain works live** in fresh Survival worlds with no
   commands, supplied items, teleports, or creative mode: 43 of 45 episodes
   succeeded at commit `5bb7b25`, with no deaths and no invalid runs.
-- **Learning has not yet beaten random play.** With the action mask, 55% of
+- **With the action mask, learning does not beat random play.** 55% of
   decisions had only one allowed action, and random choices succeeded as often
   as the trained Q-learning and SARSA policies (10/10 against 9/10 on the
   validation worlds). The mask and the scripted helpers solved the task.
+  Without the mask, learning does beat random play; see "Right now" (that
+  result is retained when the batch ends).
 - **Forest spawns are handled.** The bot often spawns on top of trees; a
   bounded helper clears leaves under it, and every planned fall matched the
   real fall and damage.
@@ -54,17 +56,34 @@ beats random play once the action mask is removed:
 
 The full plan is fixed in
 [configs/resource_masking_experiment.json](configs/resource_masking_experiment.json).
-Training finished at 23:37 with no invalid episodes. These numbers include
-exploration, so they are not test results: masked Q-learning reached the
-pickaxe in 17 of 20 episodes, masked SARSA in 18 of 20 (one death, while
-exploring seed 118), unmasked Q-learning in 36 of 50 (3, 8, 9, 7, 9 per ten
-episodes) and unmasked SARSA in 41 of 50 (6, 8, 9, 9, 9).
 
-The held-out test phase is running. The frozen masked Q-learning policy
-reached the pickaxe on 16 of the 20 test worlds. All four failures spawned on
-a tree too tall to drop from safely, and the descent helper refused the drop.
-There is no comparison with random play until the random baselines have run on
-the same worlds, expected around 4 to 5 am.
+**First result: without the mask, learning beats random play.** The masked
+and unmasked conditions finished at 01:54 with no invalid episodes. These are
+the frozen policies on the 20 held-out test worlds. `run.cmd resource-report`
+computed them from the run folders; they are retained under `results/` when
+the whole batch ends.
+
+| Condition | Learned policy | Random baseline | Verdict (pre-registered rule) |
+| --- | --- | --- | --- |
+| masked, Q-learning | 16/20 (0.58–0.92) | 19/20 (0.76–0.99) | no benefit shown |
+| masked, SARSA | 18/20 (0.70–0.97) | 19/20 (0.76–0.99) | no benefit shown |
+| unmasked, Q-learning | **20/20 (0.84–1.00)** | 4/20 (0.08–0.42) | **benefit shown** (Fisher p = 1.5e-7) |
+| unmasked, SARSA | **14/20 (0.48–0.85)** | 4/20 (0.08–0.42) | **benefit shown** (Fisher p = 0.004) |
+
+Read it this way: with the mask, random play already succeeds 19 times in 20,
+so nothing is left to learn. Without it, random play wastes 81% of its choices
+on actions that cannot work there and mostly runs out of steps. After 50 live
+training episodes, the frozen Q-learning policy picked such an action only 2%
+of the time, SARSA 41%. That is one trained agent per algorithm; it shows the
+task is learnable here, not how reliably every training run learns it.
+
+Training (with exploration, so not test results): masked Q-learning 17 of 20,
+masked SARSA 18 of 20 (one death, while exploring seed 118), unmasked
+Q-learning 36 of 50 (3, 8, 9, 7, 9 per ten episodes), unmasked SARSA 41 of 50
+(6, 8, 9, 9, 9).
+
+The `unmasked_history` condition (50 + 50 training episodes, then its two
+tests) is running now and should end around 5 am.
 
 **Please do not run Minecraft on the PC while this batch runs**, and do not
 join its world: it uses port 25567 and an extra player in the world can change
@@ -136,6 +155,11 @@ update log below when you start, so we do not duplicate work.
 
 ## Update log
 
+- **24 Oct 2026, 02:05:** masked and unmasked conditions finished. Without
+  the mask both learners beat random play on the held-out worlds (Q-learning
+  20/20, SARSA 14/20, random 4/20); with it, no benefit was shown (16/20 and
+  18/20 against 19/20). History condition running; retention and write-up
+  follow when it ends.
 - **23 Oct 2026, 23:57:** all four training runs finished (no invalid
   episodes); test phase started. Frozen masked Q-learning: 16 of 20 test worlds,
   all four failures stranded on tall trees. Not yet compared with random.
