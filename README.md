@@ -16,6 +16,8 @@ To watch the current crafting bot, use `run.cmd watch --dev-arena --viewer YourM
 
 To watch **actual Q-learning/SARSA updates in fresh natural worlds**, run `run.cmd resource-train --viewer YourMinecraftName --episodes 5` and join **127.0.0.1:25567** when prompted. The bot learns resource/crafting decisions from game observations; chat shows rewards and changing Q-values. Each episode saves its world and starts a new one. Read [natural-resource training](docs/resource_training.md) for controls, saved evidence, scripted helpers, and limitations.
 
+**Team members:** start with [TEAM_STATUS.md](TEAM_STATUS.md), the always-current one-page status: what works, what is running, how to set up, and open problems to pick up.
+
 **PC continuation:** read [HANDOFF_PC.md](HANDOFF_PC.md). The natural-resource prototype has verified online updates. On 23 October 2026 the complete wood/table/pickaxe chain **completed live on the PC** in fresh Survival worlds. After two rounds of fixes found by those runs, 43 of 45 headless episodes succeeded at commit `5bb7b25` with no deaths or invalid episodes. The masked random baseline did as well as the learned Q-learning and SARSA policies, so the helpers, not learning, carry this milestone so far; see [results/pc_resource_runs](results/pc_resource_runs/README.md) for every revision, failure, and limit. This is the first milestone only: no stone tools, food, Nether, or dragon work exists yet.
 
 ## Run the first experiment
