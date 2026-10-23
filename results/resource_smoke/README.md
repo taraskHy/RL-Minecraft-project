@@ -31,6 +31,12 @@ at server readiness. Treat that run as diagnostic evidence only. Subsequent
 runs froze bridge edits during execution. Reproduce validation on a committed
 revision before reporting a benchmark.
 
+**Follow-up (PC session, 23 October 2026):** these runs motivated the bounded
+canopy-descent helper, the lowest-log-first chop order, and the multi-heading
+exploration now in `minecraft_bridge/resource-bridge.js`. The runs here predate
+those changes and remain diagnostics of the earlier revision; they are not
+evidence that the helper works. New live evidence will be retained separately.
+
 Original JSON/CSV files were copied unchanged; `retention.json` records their
 SHA-256 digests. The server log tails and final spectator report are supplementary
 diagnostics. Server properties and empty operator lists are retained. Full worlds,

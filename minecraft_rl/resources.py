@@ -1,9 +1,19 @@
 """Small tabular controller for the natural wood-to-pickaxe milestone.
 
-The policy selects eight macro actions. Navigation, digging, recipes, and the
-feasibility mask are hand-written helpers, not learned motor control. The
-bounded observation omits terrain and history: it is a partial observation,
-not a claim that natural Minecraft is a finite fully observed MDP.
+The policy selects eight macro actions. Navigation, digging, and recipes are
+hand-written helpers, not learned motor control. Three named experiment
+conditions differ only in what the policy must decide:
+
+- ``masked``: the disclosed feasibility/budget mask removes impossible and
+  redundant actions (state ``resource_v1``).
+- ``unmasked``: all eight actions are always allowed; an infeasible one fails
+  as an ordinary observed transition (state ``resource_v1``).
+- ``unmasked_history``: unmasked, with state ``resource_v2``, which adds one
+  bit saying whether the previous decision left the nine ``resource_v1``
+  fields unchanged.
+
+The bounded observation omits terrain and most history: it is a partial
+observation, not a claim that natural Minecraft is a finite fully observed MDP.
 
 ResourceSimulator is a CPU-only teaching abstraction with correct resource
 accounting and random macro failures. Its results are NOT Minecraft results.
@@ -38,6 +48,28 @@ STATE_FIELDS = ("logs", "planks", "sticks", "tables", "pickaxes",
 STATE_CAPS = (3, 9, 2, 1, 1, 1, 1, 1, 2)
 INVENTORY_FIELDS = STATE_FIELDS[:5]
 POLICY_ENVIRONMENT = "resource_v1"
+HISTORY_ENVIRONMENT = "resource_v2"
+STATE_VERSIONS = {
+    POLICY_ENVIRONMENT: (STATE_FIELDS, STATE_CAPS),
+    HISTORY_ENVIRONMENT: (STATE_FIELDS + ("last_action_failed",), STATE_CAPS + (1,)),
+}
+MASKED = "recipe_and_budget_v1"
+UNMASKED = "none"
+ACTION_MASKS = (MASKED, UNMASKED)
+# Each condition fixes the action mask and the state version together.
+CONDITIONS = {
+    "masked": (MASKED, POLICY_ENVIRONMENT),
+    "unmasked": (UNMASKED, POLICY_ENVIRONMENT),
+    "unmasked_history": (UNMASKED, HISTORY_ENVIRONMENT),
+}
+
+
+def condition_name(action_mask: str, state_version: str) -> str:
+    """The experiment condition for a mask and state version; raises if unsupported."""
+    for name, pair in CONDITIONS.items():
+        if pair == (action_mask, state_version):
+            return name
+    raise ValueError(f"Unsupported condition: action_mask={action_mask!r}, state_version={state_version!r}")
 
 
 def _number(value, name: str, low: float, high: float) -> float:
@@ -47,11 +79,44 @@ def _number(value, name: str, low: float, high: float) -> float:
     return value
 
 
-def _validate_state(state: State) -> None:
-    if (not isinstance(state, tuple) or len(state) != len(STATE_CAPS)
+def _validate_state(state: State, state_version: str = POLICY_ENVIRONMENT) -> None:
+    if state_version not in STATE_VERSIONS:
+        raise ValueError(f"Unknown state version: {state_version!r}")
+    caps = STATE_VERSIONS[state_version][1]
+    if (not isinstance(state, tuple) or len(state) != len(caps)
             or any(type(v) is not int or not 0 <= v <= cap
-                   for v, cap in zip(state, STATE_CAPS))):
+                   for v, cap in zip(state, caps))):
         raise ValueError("Invalid bounded resource state")
+
+
+def encode_state(base_state: State, state_version: str = POLICY_ENVIRONMENT,
+                 last_action_failed: bool = False) -> State:
+    """The learning state for a version from the nine resource_v1 fields.
+
+    ``resource_v2`` appends ``last_action_failed``: 1 when the previous
+    decision left all nine resource_v1 fields unchanged (an infeasible action,
+    a refused helper, or a search that found nothing new), 0 at an episode's
+    start and after any change.
+    """
+    _validate_state(base_state)
+    if type(last_action_failed) is not bool:
+        raise ValueError("last_action_failed must be a boolean")
+    if state_version == POLICY_ENVIRONMENT:
+        return base_state
+    if state_version == HISTORY_ENVIRONMENT:
+        return base_state + (int(last_action_failed),)
+    raise ValueError(f"Unknown state version: {state_version!r}")
+
+
+def actions_for(state: State, action_mask: str = MASKED,
+                state_version: str = POLICY_ENVIRONMENT) -> tuple[int, ...]:
+    """Allowed actions in a condition: the disclosed mask, or all eight."""
+    _validate_state(state, state_version)
+    if action_mask == UNMASKED:
+        return tuple(range(N_ACTIONS))
+    if action_mask != MASKED:
+        raise ValueError(f"Unknown action mask: {action_mask!r}")
+    return allowed_actions(state[:len(STATE_CAPS)])
 
 
 def state_from_observation(observation: dict) -> State:
@@ -165,10 +230,11 @@ def reward_transition(previous_observation: dict, observation: dict, *,
 
 
 class ResourceAgent:
-    """Q-learning or SARSA with epsilon-greedy, masked action selection."""
+    """Q-learning or SARSA with epsilon-greedy selection over a condition's allowed actions."""
 
     def __init__(self, algorithm: str = "q_learning", alpha: float = 0.2,
-                 gamma: float = 0.97, seed: int = 0):
+                 gamma: float = 0.97, seed: int = 0, *, action_mask: str = MASKED,
+                 state_version: str = POLICY_ENVIRONMENT):
         if algorithm not in ("q_learning", "sarsa", "random"):
             raise ValueError("algorithm must be q_learning, sarsa, or random")
         _number(alpha, "alpha", 0, 1)
@@ -177,17 +243,22 @@ class ResourceAgent:
             raise ValueError("Require 0 < alpha <= 1 and 0 <= gamma < 1")
         if type(seed) is not int:
             raise ValueError("seed must be an integer")
+        self.condition = condition_name(action_mask, state_version)
+        self.action_mask, self.state_version = action_mask, state_version
         self.algorithm, self.alpha, self.gamma = algorithm, alpha, gamma
         self.rng = random.Random(seed)
         self.q: dict[State, list[float]] = {}
 
+    def allowed(self, state: State) -> tuple[int, ...]:
+        return actions_for(state, self.action_mask, self.state_version)
+
     def values(self, state: State) -> list[float]:
-        _validate_state(state)
+        _validate_state(state, self.state_version)
         return self.q.get(state, [0.0] * N_ACTIONS)
 
     def act(self, state: State, epsilon: float = 0.0) -> int:
         _number(epsilon, "epsilon", 0, 1)
-        actions = allowed_actions(state)
+        actions = self.allowed(state)
         if self.algorithm == "random" or self.rng.random() < epsilon:
             return self.rng.choice(actions)
         values = self.values(state)
@@ -197,24 +268,24 @@ class ResourceAgent:
     def update(self, state: State, action: int, reward: float,
                next_state: State, terminated: bool,
                next_action: int | None = None) -> float:
-        _validate_state(state)
-        _validate_state(next_state)
+        _validate_state(state, self.state_version)
+        _validate_state(next_state, self.state_version)
         if self.algorithm == "random":
-            raise ValueError("The masked random baseline does not learn")
+            raise ValueError("A random baseline does not learn")
         if (isinstance(action, bool) or not isinstance(action, int)
-                or action not in allowed_actions(state)):
-            raise ValueError("Action is outside the state's feasibility mask")
+                or action not in self.allowed(state)):
+            raise ValueError("Action is outside the state's allowed actions")
         if (isinstance(reward, bool) or not isinstance(reward, (int, float))
                 or not math.isfinite(reward) or type(terminated) is not bool):
             raise ValueError("Reward must be finite and terminated must be boolean")
         if terminated:
             bootstrap = 0.0
         elif self.algorithm == "q_learning":
-            bootstrap = max(self.values(next_state)[a] for a in allowed_actions(next_state))
+            bootstrap = max(self.values(next_state)[a] for a in self.allowed(next_state))
         else:
             if (isinstance(next_action, bool) or not isinstance(next_action, int)
-                    or next_action not in allowed_actions(next_state)):
-                raise ValueError("SARSA needs the next sampled, feasible behavior action")
+                    or next_action not in self.allowed(next_state)):
+                raise ValueError("SARSA needs the next sampled, allowed behavior action")
             bootstrap = self.values(next_state)[next_action]
         row = self.q.setdefault(state, [0.0] * N_ACTIONS)
         td_error = reward + self.gamma * bootstrap - row[action]
@@ -222,12 +293,13 @@ class ResourceAgent:
         return td_error
 
     def save(self, path: str | Path, metadata: dict | None = None) -> None:
+        fields, caps = STATE_VERSIONS[self.state_version]
         payload = {
-            "format_version": 1, "environment": POLICY_ENVIRONMENT,
+            "format_version": 1, "environment": self.state_version,
             "algorithm": self.algorithm, "alpha": self.alpha, "gamma": self.gamma,
-            "actions": list(ACTION_NAMES), "state_fields": list(STATE_FIELDS),
-            "state_caps": list(STATE_CAPS), "action_mask": "recipe_and_budget_v1",
-            "metadata": metadata or {},
+            "actions": list(ACTION_NAMES), "state_fields": list(fields),
+            "state_caps": list(caps), "action_mask": self.action_mask,
+            "condition": self.condition, "metadata": metadata or {},
             "q": [{"state": list(s), "values": v} for s, v in sorted(self.q.items())],
         }
         Path(path).write_text(json.dumps(payload, indent=2, allow_nan=False), encoding="utf-8")
@@ -235,20 +307,23 @@ class ResourceAgent:
     @classmethod
     def load(cls, path: str | Path, seed: int = 0) -> ResourceAgent:
         payload = json.loads(Path(path).read_text(encoding="utf-8"))
+        version = payload.get("environment") if isinstance(payload, dict) else None
         if (not isinstance(payload, dict) or payload.get("format_version") != 1
-                or payload.get("environment") != POLICY_ENVIRONMENT
+                or version not in STATE_VERSIONS
                 or payload.get("actions") != list(ACTION_NAMES)
-                or payload.get("state_fields") != list(STATE_FIELDS)
-                or payload.get("state_caps") != list(STATE_CAPS)
-                or payload.get("action_mask") != "recipe_and_budget_v1"):
-            raise ValueError("Incompatible resource policy, state encoding, or action order")
+                or payload.get("state_fields") != list(STATE_VERSIONS[version][0])
+                or payload.get("state_caps") != list(STATE_VERSIONS[version][1])
+                or payload.get("action_mask") not in ACTION_MASKS
+                or (payload.get("action_mask"), version) not in CONDITIONS.values()):
+            raise ValueError("Incompatible resource policy, state encoding, action order, or condition")
         try:
-            agent = cls(payload["algorithm"], payload["alpha"], payload["gamma"], seed)
+            agent = cls(payload["algorithm"], payload["alpha"], payload["gamma"], seed,
+                        action_mask=payload["action_mask"], state_version=version)
             if not isinstance(payload["q"], list):
                 raise ValueError("Invalid Q table")
             for entry in payload["q"]:
                 state, values = tuple(entry["state"]), entry["values"]
-                _validate_state(state)
+                _validate_state(state, version)
                 if (not isinstance(values, list) or len(values) != N_ACTIONS
                         or any(isinstance(v, bool) or not isinstance(v, (int, float))
                                or not math.isfinite(v) for v in values)
@@ -268,11 +343,14 @@ class ResourceSimConfig:
     search_success: float = 0.75
     chop_success: float = 0.9
     macro_success: float = 0.95
+    action_mask: str = MASKED
 
     def __post_init__(self):
         _number(self.gamma, "gamma", 0, 1)
         if self.gamma == 1 or self.reward_mode not in ("sparse", "shaped"):
             raise ValueError("Invalid discount or reward mode")
+        if self.action_mask not in ACTION_MASKS:
+            raise ValueError("Unknown action mask")
         if type(self.max_steps) is not int or self.max_steps < 1:
             raise ValueError("max_steps must be a positive integer")
         for field in ("search_success", "chop_success", "macro_success"):
@@ -335,7 +413,7 @@ class ResourceSimulator:
         chance = (self.config.search_success if action == ResourceAction.SEARCH
                   else self.config.chop_success if action == ResourceAction.CHOP
                   else self.config.macro_success)
-        if action not in allowed_actions(state_from_observation(before)):
+        if self.config.action_mask == MASKED and action not in allowed_actions(state_from_observation(before)):
             event = "masked_action"
         elif self._rng.random() >= chance:
             event = "macro_failed"
@@ -360,7 +438,7 @@ class ResourceSimulator:
             counts["planks"] -= 4
             counts["tables"] += 1
             event = "crafted_table"
-        elif action == ResourceAction.PLACE_TABLE and counts["tables"] >= 1:
+        elif action == ResourceAction.PLACE_TABLE and counts["tables"] >= 1 and not observation["table_placed"]:
             counts["tables"] -= 1
             observation["table_placed"] = observation["nearby_table"] = True
             event = "placed_table"
@@ -392,8 +470,19 @@ class ResourceSimulator:
 def train_simulator(episodes: int, seed: int = 0, *, algorithm: str = "q_learning",
                     alpha: float = 0.2, gamma: float = 0.97,
                     epsilon_start: float = 1.0, epsilon_end: float = 0.05,
-                    config: ResourceSimConfig | None = None) -> tuple[ResourceAgent, list[dict]]:
-    """Optional, explicitly labeled simulation pretraining; never game evidence."""
+                    config: ResourceSimConfig | None = None, condition: str = "masked",
+                    schedule: str = "three_quarters") -> tuple[ResourceAgent, list[dict]]:
+    """Optional, explicitly labeled simulation pretraining; never game evidence.
+
+    ``schedule`` "three_quarters" decays epsilon over the first 75% of
+    episodes (the original pretraining schedule); "linear" decays it over all
+    episodes exactly as live training does.
+    """
+    if condition not in CONDITIONS:
+        raise ValueError(f"Unknown condition: {condition!r}")
+    if schedule not in ("three_quarters", "linear"):
+        raise ValueError("schedule must be three_quarters or linear")
+    action_mask, state_version = CONDITIONS[condition]
     if type(episodes) is not int or episodes < 1:
         raise ValueError("episodes must be a positive integer")
     _number(epsilon_start, "epsilon_start", 0, 1)
@@ -402,10 +491,12 @@ def train_simulator(episodes: int, seed: int = 0, *, algorithm: str = "q_learnin
         raise ValueError("epsilon_end must not exceed epsilon_start")
     if algorithm not in ("q_learning", "sarsa"):
         raise ValueError("Training requires q_learning or sarsa")
-    agent = ResourceAgent(algorithm, alpha, gamma, seed)
-    config = config or ResourceSimConfig(gamma=gamma)
+    agent = ResourceAgent(algorithm, alpha, gamma, seed, action_mask=action_mask, state_version=state_version)
+    config = config or ResourceSimConfig(gamma=gamma, action_mask=action_mask)
     if config.gamma != gamma:
         raise ValueError("Learning and shaping discounts must match")
+    if config.action_mask != action_mask:
+        raise ValueError("The simulator's action mask must match the condition")
     environment = ResourceSimulator(config)
     seed_rng = random.Random(seed + 8731)
     records = []
@@ -413,14 +504,19 @@ def train_simulator(episodes: int, seed: int = 0, *, algorithm: str = "q_learnin
     for episode in range(episodes):
         episode_seed = seed_rng.randrange(1_000_000)
         observation = environment.reset(episode_seed)
-        state = state_from_observation(observation)
-        fraction = min(1.0, episode / max(1, episodes * 0.75 - 1))
+        base = state_from_observation(observation)
+        state = encode_state(base, state_version)
+        if schedule == "linear":
+            fraction = episode / max(1, episodes - 1)
+        else:
+            fraction = min(1.0, episode / max(1, episodes * 0.75 - 1))
         epsilon = epsilon_start + fraction * (epsilon_end - epsilon_start)
         action = agent.act(state, epsilon)
         episode_return = base_return = 0.0
         while True:
             observation, reward, terminated, truncated, info = environment.step(action)
-            following = state_from_observation(observation)
+            following_base = state_from_observation(observation)
+            following = encode_state(following_base, state_version, following_base == base)
             next_action = None if terminated else agent.act(following, epsilon)
             agent.update(state, action, reward, following, terminated, next_action)
             episode_return += reward
@@ -428,13 +524,13 @@ def train_simulator(episodes: int, seed: int = 0, *, algorithm: str = "q_learnin
             total_steps += 1
             if terminated or truncated:
                 break
-            state, action = following, next_action
+            state, base, action = following, following_base, next_action
         records.append({
             "episode": episode + 1, "episode_seed": episode_seed,
             "epsilon": epsilon, "return": episode_return, "base_return": base_return,
             "steps": info["steps"], "total_steps": total_steps,
             "success": int(info["success"]), "death": 0,
             "truncated": int(truncated), "q_states": len(agent.q),
-            "backend": "resource-macro-simulator",
+            "condition": condition, "backend": "resource-macro-simulator",
         })
     return agent, records

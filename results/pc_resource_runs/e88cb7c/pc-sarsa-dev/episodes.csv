@@ -1,0 +1,4 @@
+episode,world_seed,status,mode,success,death,truncated,steps,return,epsilon,seconds,elapsed_wall_seconds
+1,1,completed,online_training,True,False,False,11,9.530000000000001,0.6,15.093000000000757,33.375
+2,2,completed,online_training,True,False,False,10,9.540000000000001,0.35,16.562000000001717,32.71800000000076
+3,3,completed,online_training,True,False,False,12,9.478,0.09999999999999998,19.468999999997322,36.29699999999866

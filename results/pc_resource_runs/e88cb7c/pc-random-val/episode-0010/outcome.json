@@ -1,0 +1,88 @@
+{
+  "episode": 10,
+  "world_seed": 10009,
+  "status": "completed",
+  "mode": "frozen_evaluation",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": -1.655000000000008,
+  "epsilon": 0.0,
+  "seconds": 270.2340000000004,
+  "elapsed_wall_seconds": 285.7649999999994,
+  "final_observation": {
+    "position": {
+      "x": 30.494156640491283,
+      "y": 64,
+      "z": -65.6874907817083
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "spruce_planks": 2,
+      "stick": 4
+    },
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 2,
+      "sticks": 4,
+      "tables": 0,
+      "pickaxes": 0
+    },
+    "nearby_log": false,
+    "nearby_table": true,
+    "table_placed": true,
+    "nearby_visible_logs": [],
+    "biome": "snowy_plains",
+    "feet_block": "snow",
+    "head_block": "air",
+    "ground_block": "grass_block",
+    "support_block": "grass_block",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "dirt",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": {
+      "x": 31,
+      "y": 64,
+      "z": -66
+    },
+    "held_item": null,
+    "success": false,
+    "death": false,
+    "recovery": null,
+    "event": "explored",
+    "action_duration_seconds": 0.754,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

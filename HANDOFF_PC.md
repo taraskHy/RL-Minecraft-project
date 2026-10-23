@@ -20,6 +20,141 @@ Latest user instructions:
 
 > push it to main - i will clone
 
+## PC session status (23 October 2026, after cloning main)
+
+What actually happened on the PC so far; nothing below is a live-game result.
+
+- **Checkout:** `main` at `168a48a` cloned to `C:\Users\ethan\PycharmProjects\RL-Minecraft-project`.
+  `setup.cmd` installed `.venv` (Python 3.12.10), Node 24.22.1, Java 21.0.12.1,
+  pnpm 11.25.0, the pinned bridge dependencies, and the 1.21.4 server jar.
+  Doctor and the full check suite passed before any change was made.
+- **Hardware inspected:** AMD Ryzen 5 5600G (6 cores / 12 threads), 63.4 GB RAM,
+  NVIDIA RTX 2000 Ada Generation with 16 GB (driver 595.97), 292 GB free on `C:`.
+  The GPU is not used by anything in this project yet. No machine-specific heap
+  override was created; the default 2048 MB server maximum applies.
+- **Development branch:** `codex/pc-canopy-descent`, started from `main`.
+- **Implemented and unit-tested; first live verification done on this PC on
+  23 October 2026 (see the live-results bullet below)** (automated tests now
+  97 core Python + 5 adapter + 24 Node = 126):
+  1. `minecraft_bridge/resource-bridge.js`: a bounded **canopy-descent helper**
+     inside `SEARCH`. When leaves carry the bot, it scans the column below and
+     clears only the leaf block under its feet when a solid landing is within a
+     verified safe fall (no damage, or at most two health points while health
+     stays above ten; hazards such as water, lava, and powder snow refuse). At
+     most six layers; it may first step onto a neighbouring leaf block with a
+     safer column. Planned and actual fall, cleared blocks, and damage are saved
+     in the transition's `recovery` field and named in the step event. The
+     pathfinder itself still cannot dig, place, sprint, or parkour, and its drop
+     limit is unchanged. The pure planner `planCanopyDescent` is unit-tested
+     against the retained canopy shapes (one-layer drop, four-block fall at full
+     health accepted, refused at eleven health, six-block fall refused).
+  2. `CHOP` now digs the **lowest reachable trunk log first** and walks to the
+     dropped item entity. Previously the second trunk block was chosen because it
+     is closest to the eyes, so its drop landed on the bottom log where the old
+     pickup waypoint was unreachable.
+  3. `SEARCH` targets the **lowest visible log of each trunk column** and tries
+     up to four exploration headings within one decision instead of spending a
+     whole decision on each instantly rejected heading. Observations now include
+     `on_canopy`, `support_block`, and `recovery`.
+  4. `run.cmd resource-demo --random-baseline`: the **masked random baseline**
+     with the same mask and helpers, frozen, labeled `masked_random` in metadata.
+  5. `run.cmd resource-report RUN [RUN...] --out DIR`: pooled summary with
+     success rate and Wilson interval, decisions, task seconds, deaths, invalid
+     episodes, failure causes, and canopy layers cleared; training, evaluation,
+     and baseline are never mixed. `steps.csv` gained a `recovery` column.
+  6. **Adversarial review applied.** A 40-agent review of the change set
+     (four lenses, two independent verifiers per finding) confirmed 17
+     findings; all are fixed and covered by tests. Bridge: landings are measured
+     to the block's collision surface (carpets, slabs, mud, paths, lily pads no
+     longer under-count the fall; big dripleaf is a hazard); every dig is
+     health-guarded, bounded by its expected duration, and aborted on death, so
+     a mid-dig death is recorded as a death instead of a 44-second transport
+     timeout; a partial descent record survives an exception; a step-down
+     neighbour must satisfy the pathfinder's clearance rule and an unreachable
+     one is skipped rather than ending every later descent; the bot recentres
+     when its hitbox overlaps a neighbouring column and a layer counts only when
+     the server shows the block gone; natural leaf drops (sticks, saplings,
+     apples) are recorded as `items_picked_up`; trunk memory is keyed by column;
+     the item pickup goal ends only inside the vanilla pickup box; a standalone
+     observe request no longer repeats the previous step's recovery. Report:
+     refuses arena/simulator/watch folders, duplicate or same-named folders, and
+     runs without episodes; frozen evaluations of different checkpoints and runs
+     with different step limits are separate groups; failure causes count
+     completed episodes only with a separate "not measured" line; sticks alone
+     are not wood evidence; the console copy cannot fail on a limited code page.
+     README now says the helper is unit-tested, not that it resolves the blocker.
+- **EULA:** recorded on this PC on 23 October 2026 after the user confirmed in
+  chat that their laptop acceptance applies here (`.local/minecraft-eula-consent.json`
+  exists locally and is not in Git). A new clone or another machine needs the
+  same explicit confirmation again; never record it unilaterally.
+- **Live results (23 October 2026):** the complete chain ran headlessly on
+  this PC. At commit `e88cb7c`, 38 of 43 episodes ended with a held wooden
+  pickaxe: seed-1 reproduction 1/1, Q-learning training seeds 1–3 3/3, SARSA
+  3/3, masked random baseline 3/3, frozen Q seeds 1–3 2/3, and on the declared
+  validation seeds 10000–10009 frozen Q 10/10, frozen SARSA 8/10, masked random
+  8/10; no deaths, no invalid episodes, no server movement warnings. Sixteen
+  canopy starts; in all 16 descents the planned fall equalled the actual fall
+  and the expected damage equalled the health lost. Five failures: a frozen
+  CHOP loop (seed 3), a landing walled in by foliage (seed 10006), and three
+  exhausted searches on treeless spawns (seeds 10004, 10009). Fixes: CHOP digs
+  in place and records `action_detail`; a bounded foliage escape (at most two
+  leaf blocks, pathfinder-defined enclosure, published record); exploration
+  rings covering all eight headings. A second adversarial review (88 agents)
+  confirmed 22 further findings, all fixed. Evidence with SHA-256 digests:
+  `results/pc_resource_runs/` (README there has the tables and the rerun on the
+  fixed revision).
+- **Second live batch, commit `b9625f5`:** 35 of 40 episodes, one invalid (a
+  pickup walk crossed the 64-block radius and stopped that run). New failure
+  modes: CHOP dug the log beneath the bot inside a two-by-two trunk; a placed
+  table one block away was never "in reach" (the library's single visibility
+  ray did not reach it); one canopy over a deep drop.
+- **Fixes, commit `5bb7b25`:** navigation targets three blocks inside the
+  radius and walkable cells 1.5 blocks inside (a displaced bot may step back
+  in); CHOP and SEARCH never target a block beneath the bot; visibility samples
+  a grid on every face, per collision shape, ignoring shapes behind the eyes;
+  placement takes a level orthogonal neighbour first and never a cell the bot
+  or a creature overlaps, a block a click would use, or an escape's fresh
+  exit; table approach walks the pathfinder-valid neighbour cells. The geometry
+  is pure and tested offline on real 1.21.4 shapes. Two adversarial review
+  rounds (54 and 48 agents) confirmed 14 and 12 findings, all fixed.
+  *Correction:* the `5bb7b25` commit message says "three review rounds" and
+  "38 findings"; the first two runs it counted were one workflow and its
+  resume, so it was two rounds with 26 confirmed findings.
+- **Final live batch, commit `5bb7b25` (headline result):** 43 of 45 episodes
+  succeeded, no deaths, no invalid episodes, no server warnings. Validation
+  seeds 10000–10009: frozen Q 9/10, frozen SARSA 9/10, masked random baseline
+  10/10. All 23 canopy descents matched their plan. The two failures were a
+  frozen-Q oscillation between `SEARCH` and `APPROACH_TABLE` in a treeless
+  biome and a high acacia canopy with an eight-block drop. Learning has not
+  been shown to beat the masked random baseline. Evidence:
+  `results/pc_resource_runs/5bb7b25/` and the README section there.
+- **Live verification plan:** done on 23 October 2026 (seed-1 reproduction,
+  three development seeds with both algorithms, the masked random baseline,
+  frozen evaluation, and the declared validation seeds 10000–10009, retained
+  with digests). Re-run the same commands for any later bridge change, always
+  on a committed revision, into new folders.
+
+Commands (each later batch used new `runs/` folders and the same arguments;
+frozen SARSA used `--policy runs/<sarsa-run>/policy.json`, validation used
+`--episodes 10 --world-seed 10000`; retain with
+`.\.venv\Scripts\python.exe -m infrastructure.retention RUN... --out results/pc_resource_runs/<commit> --label "..."`):
+
+```powershell
+# Headless canopy reproduction on the known forest seed; no viewer needed.
+.\run.cmd resource-train --episodes 1 --world-seed 1 --max-steps 50 --pause 0 --out runs/pc-canopy-seed1
+
+# Complete chain on three development seeds, both algorithms.
+.\run.cmd resource-train --episodes 3 --world-seed 1 --max-steps 60 --pause 0 --out runs/pc-q-dev
+.\run.cmd resource-train --algorithm sarsa --episodes 3 --world-seed 1 --max-steps 60 --pause 0 --out runs/pc-sarsa-dev
+
+# Matched baseline and frozen evaluation on the same seeds.
+.\run.cmd resource-demo --random-baseline --episodes 3 --world-seed 1 --max-steps 60 --pause 0 --out runs/pc-random-dev
+.\run.cmd resource-demo --policy runs/pc-q-dev/policy.json --episodes 3 --world-seed 1 --max-steps 60 --pause 0 --out runs/pc-q-frozen-dev
+
+# Summarize for the report; choose a new folder.
+.\run.cmd resource-report runs/pc-q-dev runs/pc-sarsa-dev runs/pc-random-dev runs/pc-q-frozen-dev --out results/pc_resource_dev
+```
+
 ## Repository and branch
 
 - Remote: `https://github.com/taraskHy/RL-Minecraft-project.git`
@@ -112,10 +247,16 @@ team contributions. Full Survival is not achieved merely because a demo looks go
 
 ## What is NOT yet verified or implemented
 
-**The natural-world wood → own crafting table → wooden pickaxe sequence has
-not completed successfully in a live run.** Its bridge actions are implemented,
-but current tests exposed a canopy navigation restriction before wood gathering.
-Do not claim this milestone is finished or increase training episodes to hide it.
+**The natural-world wood → own crafting table → wooden pickaxe sequence
+completed live on the PC on 23 October 2026** (43 of 45 episodes at commit
+`5bb7b25`; earlier revisions and every failure are in
+`results/pc_resource_runs/README.md`). The masked random baseline completes it
+just as often (10/10 on the validation seeds against 9/10 for each learned
+policy), so the learned policies have not shown a measured benefit; say so.
+Open limitations: canopies over drops longer than five blocks, and a frozen
+policy can still oscillate between two allowed actions in a treeless area. Everything
+after the wooden pickaxe (stone tools, food, shelter, Nether, stronghold,
+dragon) is not implemented. Do not claim more than the results README states.
 
 Food/stone/iron progression, Nether travel, End resources, stronghold navigation,
 dragon combat, and an uninterrupted full fresh-world run are not implemented.
@@ -159,14 +300,23 @@ Next concrete work:
 1. Reproduce the forest/canopy case on the PC using real observations. The
    snapshot already includes feet/head/ground blocks, adjacent drop depths,
    biome and nearby visible logs. Investigate reachable intermediate landings.
+   *Status: done; sixteen canopy starts were handled live on the PC (see the
+   live-results bullet above).*
 2. Add a bounded, documented escape/navigation recovery. Options include
    limited ordinary leaf clearing when the landing is verified, or a carefully
    defined health-aware descent whose actual damage is recorded. Choose based
    on observed terrain; do not just increase the global drop limit and assume
    safety. No teleportation, creative mode, supplied blocks or items.
+   *Status: implemented as verified-landing leaf clearing with recorded damage;
+   the global drop limit is unchanged. Live behaviour verified: planned falls
+   equalled actual falls in all sixteen descents. A bounded foliage escape was
+   added after validation seed 10006.*
 3. Keep scripted motor support explicit. If navigation starts clearing leaves,
    update the tests and documentation that currently say it cannot dig blocks.
    The policy should still select resource/crafting decisions.
+   *Status: done; `docs/resource_training.md`, run metadata
+   (`scripted_support`, `recovery_helpers`), and the Node tests describe the
+   exception. The pathfinder remains unable to dig.*
 4. Verify actual natural logs are dug and picked up, three logs supply enough
    material for the bot's own table and tool, table placement succeeds on natural
    terrain, mixed plank species work, and a real pickaxe is equipped and visible
@@ -189,7 +339,21 @@ inventory-sync errors cannot masquerade as a confirmed held pickaxe.
 
 ## Then continue the longer task
 
-Once the resource milestone is actually verified, extend toward **stone tools,
+Suggested next steps, in order, after the verified resource milestone:
+
+1. **Make learning measurable.** The mask and helpers leave little for the
+   policy to decide. Either relax the mask (for example allow redundant
+   crafting or SEARCH while a log is reachable) or move to a stage with real
+   choices, and keep the masked random baseline with identical helpers as the
+   comparison. Report decisions and task time, not only success.
+2. **Deep canopies.** Options to evaluate on recorded seeds 10000 and 10003:
+   walking along leaves or branches to a lower edge before descending, or a
+   health-aware allowance for one longer fall at full health. Record damage.
+3. **Frozen-policy loops.** A compact "last action failed" or "repeated
+   decision" feature would let a policy break oscillations; this changes the
+   `resource_v1` state, so it is a team decision.
+
+Then extend toward **stone tools,
 food, and basic survival** using small, explainable state/action definitions.
 Preserve the working wood/table chain. Develop bounded action helpers, compare
 learned decisions to identical-helper baselines, and test the integrated stage

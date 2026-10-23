@@ -1,0 +1,11 @@
+episode,world_seed,status,mode,success,death,truncated,steps,return,epsilon,seconds,elapsed_wall_seconds
+1,10000,completed,frozen_evaluation,True,False,False,58,6.378000000000002,0.0,23.985000000000582,40.75
+2,10001,completed,frozen_evaluation,True,False,False,11,9.554,0.0,26.437999999998283,43.76599999999962
+3,10002,completed,frozen_evaluation,True,False,False,11,9.536,0.0,16.156000000002678,32.03100000000268
+4,10003,completed,frozen_evaluation,True,False,False,11,9.524000000000001,0.0,21.687999999998283,38.375
+5,10004,completed,frozen_evaluation,False,False,True,60,-0.6000000000000003,0.0,404.6409999999996,420.46900000000096
+6,10005,completed,frozen_evaluation,True,False,False,17,9.455,0.0,27.82800000000134,44.70300000000134
+7,10006,completed,frozen_evaluation,True,False,False,11,9.521,0.0,16.9220000000023,33.31200000000172
+8,10007,completed,frozen_evaluation,True,False,False,11,9.515,0.0,22.139999999999418,38.35900000000038
+9,10008,completed,frozen_evaluation,True,False,False,31,9.333,0.0,104.98400000000038,122.57800000000134
+10,10009,completed,frozen_evaluation,False,False,True,60,-1.655000000000008,0.0,270.2340000000004,285.7649999999994

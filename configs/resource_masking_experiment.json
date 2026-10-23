@@ -1,0 +1,58 @@
+{
+  "name": "resource_masking_experiment",
+  "declared": "2026-10-23, committed before any live run of this experiment",
+  "question": "Without the feasibility mask, do tabular Q-learning and SARSA beat random play with identical execution helpers on the live wood-to-pickaxe task?",
+  "evidence_label": "REAL MINECRAFT NATURAL RESOURCE TASK; NOT FULL SURVIVAL COMPLETION",
+  "conditions": {
+    "masked": {"action_mask": "recipe_and_budget_v1", "state_version": "resource_v1", "baseline": "masked_random", "required": true},
+    "unmasked": {"action_mask": "none", "state_version": "resource_v1", "baseline": "uniform_random", "required": true},
+    "unmasked_history": {"action_mask": "none", "state_version": "resource_v2", "baseline": "uniform_random (the unmasked run; the random policy ignores the state)", "required": true}
+  },
+  "infeasible_action_semantics": "Without the mask every action is sent to the bridge; an infeasible one returns its refusal event, takes its real time, earns the -0.01 base step penalty plus the potential shaping term (gamma - 1) * Phi(s), and changes nothing. Actions the mask only called redundant (more wood than needed, a second table) really happen.",
+  "max_steps": 60,
+  "pause_between_decisions": 0,
+  "viewer": null,
+  "learners": {"algorithms": ["q_learning", "sarsa"], "alpha": 0.2, "gamma": 0.97, "agent_seed": 0,
+               "epsilon": "0.6 to 0.1, linear over the training episodes", "initial_q": 0.0, "simulator_pretraining_episodes": 0},
+  "training": {
+    "world_seeds_from": 100,
+    "episodes": {"masked": 20, "unmasked": 50, "unmasked_history": 50},
+    "budget_basis": "results/resource_budget_study (SIMULATOR ONLY, regenerated at the committed code with provenance): with the live schedule, frozen greedy policies reached 1.00 mean success over 20 agent seeds at 30 (Q-learning) and 50 (SARSA) training episodes unmasked, and 1.00 and 0.98 at 50 with resource_v2; the masked condition needs no learning (random already 1.00). 50 is the smallest studied budget at which both algorithms were reliable without the mask; the history condition uses the same budget so the state versions are compared at equal cost. The simulator is easier than the game, so a live budget that suffices there may not suffice live; that risk is accepted and reported.",
+    "note": "Only live episodes count as training here. No simulator pretraining is used, so every learned Q value comes from Minecraft transitions; the report labels any simulator-pretrained checkpoint and keeps it out of live-learning verdicts."
+  },
+  "test": {
+    "world_seeds": [20000, 20019],
+    "episodes_per_policy": 20,
+    "agent_seed": 0,
+    "policies_per_condition": ["frozen q_learning", "frozen sarsa", "the condition's random baseline"],
+    "held_out": "Never used before this experiment and never used to choose code, parameters, budgets, or helpers. Seeds 10000-10009 were used during earlier development and are not part of this test.",
+    "epsilon": 0.0,
+    "report": "The test report is produced from the test runs (and training runs) of this experiment only; evaluations of the same checkpoint on other seeds would otherwise be pooled into the same group."
+  },
+  "order_and_commands": [
+    "run.cmd resource-train --condition masked --algorithm q_learning --episodes 20 --world-seed 100 --seed 0 --max-steps 60 --pause 0 --epsilon 0.6 --epsilon-end 0.1",
+    "run.cmd resource-train --condition masked --algorithm sarsa --episodes 20 --world-seed 100 --seed 0 --max-steps 60 --pause 0 --epsilon 0.6 --epsilon-end 0.1",
+    "run.cmd resource-train --condition unmasked --algorithm q_learning --episodes 50 --world-seed 100 --seed 0 --max-steps 60 --pause 0 --epsilon 0.6 --epsilon-end 0.1",
+    "run.cmd resource-train --condition unmasked --algorithm sarsa --episodes 50 --world-seed 100 --seed 0 --max-steps 60 --pause 0 --epsilon 0.6 --epsilon-end 0.1",
+    "run.cmd resource-demo --policy <masked Q-learning policy.json> --episodes 20 --world-seed 20000 --seed 0 --max-steps 60 --pause 0",
+    "run.cmd resource-demo --policy <masked SARSA policy.json> --episodes 20 --world-seed 20000 --seed 0 --max-steps 60 --pause 0",
+    "run.cmd resource-demo --random-baseline --condition masked --episodes 20 --world-seed 20000 --seed 0 --max-steps 60 --pause 0",
+    "run.cmd resource-demo --policy <unmasked Q-learning policy.json> --episodes 20 --world-seed 20000 --seed 0 --max-steps 60 --pause 0",
+    "run.cmd resource-demo --policy <unmasked SARSA policy.json> --episodes 20 --world-seed 20000 --seed 0 --max-steps 60 --pause 0",
+    "run.cmd resource-demo --random-baseline --condition unmasked --episodes 20 --world-seed 20000 --seed 0 --max-steps 60 --pause 0",
+    "run.cmd resource-train --condition unmasked_history --algorithm q_learning --episodes 50 --world-seed 100 --seed 0 --max-steps 60 --pause 0 --epsilon 0.6 --epsilon-end 0.1",
+    "run.cmd resource-train --condition unmasked_history --algorithm sarsa --episodes 50 --world-seed 100 --seed 0 --max-steps 60 --pause 0 --epsilon 0.6 --epsilon-end 0.1",
+    "run.cmd resource-demo --policy <history Q-learning policy.json> --episodes 20 --world-seed 20000 --seed 0 --max-steps 60 --pause 0",
+    "run.cmd resource-demo --policy <history SARSA policy.json> --episodes 20 --world-seed 20000 --seed 0 --max-steps 60 --pause 0"
+  ],
+  "invalid_episodes": "The session stops a run at its first invalid episode. That episode counts as attempted and is reported as not measured; it is never replayed, replaced, or dropped. A test run is then continued in a new folder with the same --policy (or --random-baseline and --condition), --seed 0, --max-steps 60 and --pause 0, starting at the next world seed with --episodes set to the number remaining. A training run is continued from that run's policy.json at the next training seed with --episodes set to the remaining count and --epsilon set to the declared schedule's value 0.6 - 0.5 * (k - 1) / (N - 1) for its next episode k of N, so each algorithm still gets exactly N attempted live training episodes; the invalid episode's recorded updates count as training experience. Each comparison is counted on the seeds both arms completed, lists the seeds lost on either side, and adds a conservative check that counts every not-measured episode against the learned policy.",
+  "decision_rule": "For each condition and algorithm, a benefit over random is claimed only if the learned policy's Wilson 95% interval for success on the test seeds both arms completed lies entirely above its baseline's. Overlapping intervals are reported as no benefit shown. Fisher's exact test (two-sided) is reported as a supplement only.",
+  "power": "With 20 test episodes per arm, a benefit can be shown only if the learned policy succeeds at least 7 times against a baseline of 0, 9 against 1, 11 against 2, 14 against 5, or 19 against 10; against a baseline of 14 or more successes no benefit can be shown. The masked comparison is therefore expected to read 'no benefit shown' whatever the learned policies do, because the masked random baseline succeeded 10 of 10 times at 5bb7b25. Exact binomial power of the rule: 0.72 for learned 0.5 against baseline 0.05, 0.998 for 0.8 against 0.05, 0.08 for 0.9 against 0.7. Its false-positive rate is at most 0.32% per comparison, so the six learned-versus-random comparisons together stay below 2%. 'No benefit shown' means not detectable at this sample size, not 'no benefit'.",
+  "history_rule": "unmasked_history is trained and tested whatever the earlier results are. For each algorithm, the bit is credited with an effect only if the unmasked_history policy's Wilson interval lies entirely above the unmasked policy's on the seeds both completed; otherwise no effect of the bit was shown. With one trained agent per condition and algorithm this compares two checkpoints, not two state designs.",
+  "also_reported": ["mean decisions and task seconds (all and successful episodes)", "failure causes", "fraction of decisions with a single allowed action", "fraction of choices outside the disclosed mask", "fraction of decisions with no progress", "training episodes and live decisions spent per condition"],
+  "integrity": [
+    "All runs use one committed revision; the working tree stays frozen during live runs and reviews.",
+    "Pairings require the same action mask, step limit, attempted world seeds, pause, and helper revision; the report refuses anything else.",
+    "If any code change is needed after a test-seed run starts, the results so far are retained and reported as they are, and a new held-out seed range is declared before testing again."
+  ]
+}
