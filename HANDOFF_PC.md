@@ -103,15 +103,41 @@ What actually happened on the PC so far; nothing below is a live-game result.
   confirmed 22 further findings, all fixed. Evidence with SHA-256 digests:
   `results/pc_resource_runs/` (README there has the tables and the rerun on the
   fixed revision).
-- **Live verification plan (unchanged in substance):** reproduce the seed-1
-  forest canopy start headlessly, confirm the descent record and the actual
-  damage, then verify the complete chop → planks → sticks → table → place →
-  pickaxe chain on at least three development seeds with Q-learning and SARSA,
-  run the masked random baseline on the same seeds, and only then a declared
-  small validation sample. Retain compact evidence outside `runs/`, update this
-  file, commit, and push.
+- **Second live batch, commit `b9625f5`:** 35 of 40 episodes, one invalid (a
+  pickup walk crossed the 64-block radius and stopped that run). New failure
+  modes: CHOP dug the log beneath the bot inside a two-by-two trunk; a placed
+  table one block away was never "in reach" (the library's single visibility
+  ray did not reach it); one canopy over a deep drop.
+- **Fixes, commit `5bb7b25`:** navigation targets three blocks inside the
+  radius and walkable cells 1.5 blocks inside (a displaced bot may step back
+  in); CHOP and SEARCH never target a block beneath the bot; visibility samples
+  a grid on every face, per collision shape, ignoring shapes behind the eyes;
+  placement takes a level orthogonal neighbour first and never a cell the bot
+  or a creature overlaps, a block a click would use, or an escape's fresh
+  exit; table approach walks the pathfinder-valid neighbour cells. The geometry
+  is pure and tested offline on real 1.21.4 shapes. Two adversarial review
+  rounds (54 and 48 agents) confirmed 14 and 12 findings, all fixed.
+  *Correction:* the `5bb7b25` commit message says "three review rounds" and
+  "38 findings"; the first two runs it counted were one workflow and its
+  resume, so it was two rounds with 26 confirmed findings.
+- **Final live batch, commit `5bb7b25` (headline result):** 43 of 45 episodes
+  succeeded, no deaths, no invalid episodes, no server warnings. Validation
+  seeds 10000–10009: frozen Q 9/10, frozen SARSA 9/10, masked random baseline
+  10/10. All 23 canopy descents matched their plan. The two failures were a
+  frozen-Q oscillation between `SEARCH` and `APPROACH_TABLE` in a treeless
+  biome and a high acacia canopy with an eight-block drop. Learning has not
+  been shown to beat the masked random baseline. Evidence:
+  `results/pc_resource_runs/5bb7b25/` and the README section there.
+- **Live verification plan:** done on 23 October 2026 (seed-1 reproduction,
+  three development seeds with both algorithms, the masked random baseline,
+  frozen evaluation, and the declared validation seeds 10000–10009, retained
+  with digests). Re-run the same commands for any later bridge change, always
+  on a committed revision, into new folders.
 
-Exact commands once the EULA record exists:
+Commands (each later batch used new `runs/` folders and the same arguments;
+frozen SARSA used `--policy runs/<sarsa-run>/policy.json`, validation used
+`--episodes 10 --world-seed 10000`; retain with
+`.\.venv\Scripts\python.exe -m infrastructure.retention RUN... --out results/pc_resource_runs/<commit> --label "..."`):
 
 ```powershell
 # Headless canopy reproduction on the known forest seed; no viewer needed.
@@ -222,10 +248,13 @@ team contributions. Full Survival is not achieved merely because a demo looks go
 ## What is NOT yet verified or implemented
 
 **The natural-world wood → own crafting table → wooden pickaxe sequence
-completed live on the PC on 23 October 2026** (38 of 43 episodes at commit
-`e88cb7c`; the rerun on the fixed revision is in `results/pc_resource_runs/README.md`).
-The masked random baseline also completes it, so the learned policies have not
-yet shown a measured benefit beyond decision efficiency; say so. Everything
+completed live on the PC on 23 October 2026** (43 of 45 episodes at commit
+`5bb7b25`; earlier revisions and every failure are in
+`results/pc_resource_runs/README.md`). The masked random baseline completes it
+just as often (10/10 on the validation seeds against 9/10 for each learned
+policy), so the learned policies have not shown a measured benefit; say so.
+Open limitations: canopies over drops longer than five blocks, and a frozen
+policy can still oscillate between two allowed actions in a treeless area. Everything
 after the wooden pickaxe (stone tools, food, shelter, Nether, stronghold,
 dragon) is not implemented. Do not claim more than the results README states.
 
@@ -310,7 +339,21 @@ inventory-sync errors cannot masquerade as a confirmed held pickaxe.
 
 ## Then continue the longer task
 
-Once the resource milestone is actually verified, extend toward **stone tools,
+Suggested next steps, in order, after the verified resource milestone:
+
+1. **Make learning measurable.** The mask and helpers leave little for the
+   policy to decide. Either relax the mask (for example allow redundant
+   crafting or SEARCH while a log is reachable) or move to a stage with real
+   choices, and keep the masked random baseline with identical helpers as the
+   comparison. Report decisions and task time, not only success.
+2. **Deep canopies.** Options to evaluate on recorded seeds 10000 and 10003:
+   walking along leaves or branches to a lower edge before descending, or a
+   health-aware allowance for one longer fall at full health. Record damage.
+3. **Frozen-policy loops.** A compact "last action failed" or "repeated
+   decision" feature would let a policy break oscillations; this changes the
+   `resource_v1` state, so it is a team decision.
+
+Then extend toward **stone tools,
 food, and basic survival** using small, explainable state/action definitions.
 Preserve the working wood/table chain. Develop bounded action helpers, compare
 learned decisions to identical-helper baselines, and test the integrated stage

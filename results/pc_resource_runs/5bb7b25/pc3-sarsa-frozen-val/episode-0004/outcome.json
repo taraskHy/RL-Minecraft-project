@@ -1,0 +1,176 @@
+{
+  "episode": 4,
+  "world_seed": 10003,
+  "status": "completed",
+  "mode": "frozen_evaluation",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": 0.31699999999999773,
+  "epsilon": 0.0,
+  "seconds": 91.57799999999406,
+  "elapsed_wall_seconds": 111.7809999999954,
+  "final_observation": {
+    "position": {
+      "x": 93.46905924318614,
+      "y": 87,
+      "z": -426.5
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "acacia_planks": 2,
+      "stick": 4,
+      "crafting_table": 1,
+      "acacia_sapling": 1
+    },
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 2,
+      "sticks": 4,
+      "tables": 1,
+      "pickaxes": 0
+    },
+    "nearby_log": false,
+    "nearby_table": false,
+    "table_placed": false,
+    "nearby_visible_logs": [
+      {
+        "name": "acacia_log",
+        "x": 93,
+        "y": 86,
+        "z": -427
+      }
+    ],
+    "biome": "savanna",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "acacia_log",
+    "support_block": "acacia_log",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 6,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 6,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "acacia_log",
+        "feet_drop": 3,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "grass_block",
+        "feet_drop": 5,
+        "loaded": true
+      }
+    ],
+    "table_position": null,
+    "held_item": "acacia_sapling",
+    "success": false,
+    "death": false,
+    "recovery": {
+      "type": "leaf_escape",
+      "blocks_dug": [],
+      "direction": null,
+      "floor": null,
+      "walls": {
+        "+x": {
+          "feet": {
+            "name": "air",
+            "boundingBox": "empty"
+          },
+          "head": {
+            "name": "acacia_leaves",
+            "boundingBox": "block"
+          },
+          "below": {
+            "name": "air",
+            "boundingBox": "empty"
+          },
+          "lower": {
+            "name": "air",
+            "boundingBox": "empty"
+          }
+        },
+        "-x": {
+          "feet": {
+            "name": "air",
+            "boundingBox": "empty"
+          },
+          "head": {
+            "name": "acacia_leaves",
+            "boundingBox": "block"
+          },
+          "below": {
+            "name": "air",
+            "boundingBox": "empty"
+          },
+          "lower": {
+            "name": "air",
+            "boundingBox": "empty"
+          }
+        },
+        "+z": {
+          "feet": {
+            "name": "air",
+            "boundingBox": "empty"
+          },
+          "head": {
+            "name": "acacia_leaves",
+            "boundingBox": "block"
+          },
+          "below": {
+            "name": "air",
+            "boundingBox": "empty"
+          },
+          "lower": {
+            "name": "air",
+            "boundingBox": "empty"
+          }
+        },
+        "-z": {
+          "feet": {
+            "name": "air",
+            "boundingBox": "empty"
+          },
+          "head": {
+            "name": "acacia_leaves",
+            "boundingBox": "block"
+          },
+          "below": {
+            "name": "air",
+            "boundingBox": "empty"
+          },
+          "lower": {
+            "name": "air",
+            "boundingBox": "empty"
+          }
+        }
+      },
+      "escaped": false,
+      "items_picked_up": {},
+      "stopped": "no_leaf_exit"
+    },
+    "action_detail": null,
+    "event": "leaf_escape_refused:no_leaf_exit;exploration_blocked",
+    "action_duration_seconds": 0.526,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

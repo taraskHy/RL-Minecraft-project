@@ -114,9 +114,62 @@ beneath the bot's own hitbox, a face-point visibility check, table approach
 and placement changes) have been applied and checked offline; their live rerun
 is described in the next section.
 
-## Revision after the margin, visibility and table fixes
+## Revision `5bb7b25` (margin, hitbox, visibility, placement and approach fixes)
 
-*To be filled in from the rerun on the committed revision.*
+Folder `5bb7b25/`. The whole batch was rerun on this committed revision: new
+training runs, new frozen checkpoints, the masked random baseline, and frozen
+evaluation on the same development and declared validation seeds, all with
+`--max-steps 60`.
+
+| Group | Episodes | Successes | Wilson 95% | Mean decisions (all / success) | Mean task s (all / success) | Canopy layers cleared |
+| --- | --- | --- | --- | --- | --- | --- |
+| Q-learning online training, seeds 1–3 | 3 | 3 | 0.44–1.00 | 10.7 / 10.7 | 19.1 / 19.1 | 4 |
+| SARSA online training, seeds 1–3 | 3 | 3 | 0.44–1.00 | 10.3 / 10.3 | 17.9 / 17.9 | 4 |
+| Masked random baseline, seeds 1–3 | 3 | 3 | 0.44–1.00 | 11.7 / 11.7 | 19.3 / 19.3 | 2 |
+| Frozen Q-learning policy, seeds 1–3 | 3 | 3 | 0.44–1.00 | 10.3 / 10.3 | 16.8 / 16.8 | 2 |
+| Frozen SARSA policy, seeds 1–3 | 3 | 3 | 0.44–1.00 | 10.3 / 10.3 | 19.0 / 19.0 | 2 |
+| Frozen Q-learning policy, validation 10000–10009 | 10 | 9 | 0.60–0.98 | 17.6 / 12.9 | 61.8 / 28.2 | 13 |
+| Frozen SARSA policy, validation 10000–10009 | 10 | 9 | 0.60–0.98 | 18.8 / 14.2 | 46.7 / 41.7 | 14 |
+| Masked random baseline, validation 10000–10009 | 10 | 10 | 0.72–1.00 | 14.8 / 14.8 | 43.2 / 43.2 | 1 |
+
+Across the 45 episodes: 43 successes, no deaths, no invalid episodes, and no
+server movement warnings. Fourteen episodes started on a canopy; 23 descents
+cleared 42 leaf layers for 3 health points in total, again with every planned
+fall equal to the actual fall and every expected damage equal to the health
+lost. The descent refused a too-far drop 43 times in four episodes, 34 of
+them in the stranded acacia episode described below. One foliage escape
+cleared a single leaf block and opened a legal move; the ten refused escapes
+all came from that same acacia episode. No `table_not_visible`, no
+`action_failed`, and none of the loops seen at the earlier revisions recurred.
+
+**What the comparison shows.** On the validation seeds the masked random
+baseline succeeded 10 times out of 10 and each learned policy 9 out of 10; the
+intervals overlap almost completely. The learned policies used slightly fewer
+decisions in their successful episodes (12.9 and 14.2 against 14.8), which is
+not a measured benefit at this sample size. The honest reading is that the
+feasibility mask and the scripted helpers solve this milestone; the Q-learning
+and SARSA agents learn a valid ordering of the remaining decisions but have not
+yet been shown to beat chance within that mask.
+
+**The two failures.**
+
+1. *A learned-policy oscillation* (`pc3-q-frozen-val/episode-0010`, seed
+   10009, snowy plains). With its table placed, the policy still needed one
+   more log. Beside the table the mask allows only `SEARCH`; away from it the
+   frozen policy preferred `APPROACH_TABLE`, so each search was undone by a walk
+   back (16 times) until truncation. The masked random baseline and the frozen
+   SARSA policy both solved this seed, so this is a weakness of that Q table in
+   a treeless biome, not of the helpers.
+2. *A high acacia canopy* (`pc3-sarsa-frozen-val/episode-0004`, seed 10003).
+   The bot started on acacia leaves 8 blocks above the ground. The descent
+   correctly refused that fall (it would cost five health points), and the bot
+   ended on an acacia branch with no floored leaf exit and no placement
+   surface in view. Deep canopies over drops of more than five blocks remain an
+   open limitation (the same class as `pc2-random-val/episode-0001`).
+
+The three revisions are not a controlled comparison: spawn position inside a
+world is not deterministic, and each revision trained new policies. They show
+which failure modes each fix removed, not an effect size.
 
 ## What these runs do not show
 
@@ -129,3 +182,7 @@ is described in the next section.
   from a first attempt. Making the helpers robust (done here) narrows the
   problem; a state feature for "last action failed" would be a design change
   for the team to decide.
+- A bot on a canopy whose only drop is longer than five blocks (high acacia
+  and dark oak, or terrain far below) can still be stranded.
+- No result here shows that learning beats the masked random baseline; with
+  the mask and helpers this milestone is nearly solved by chance.

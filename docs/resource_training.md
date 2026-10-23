@@ -15,8 +15,12 @@ evaluation on seeds 1 to 3 and on the declared validation seeds 10000 to
 in 16 of those episodes, and every planned fall matched the actual fall and
 damage. The five failures exposed two frozen-policy loops (a CHOP approach
 that hid the target log, and a landing walled in by foliage) and an
-exploration coverage gap; the fixes described below were rerun on the fixed
-revision. Read [`results/pc_resource_runs/README.md`](../results/pc_resource_runs/README.md)
+exploration coverage gap. After those and further boundary, visibility and
+placement fixes, the whole batch was rerun at commit `5bb7b25`: 43 of 45
+episodes succeeded with no deaths and no invalid episodes, and the masked
+random baseline did as well as the learned policies (10/10 against 9/10 on the
+validation seeds), so learning has not yet been shown to add a benefit within
+the mask. Read [`results/pc_resource_runs/README.md`](../results/pc_resource_runs/README.md)
 for the numbers and their limits, [`HANDOFF_PC.md`](../HANDOFF_PC.md) for the
 session record, and the older laptop diagnostics in
 [`results/resource_smoke/`](../results/resource_smoke/README.md).
