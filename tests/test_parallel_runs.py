@@ -10,13 +10,13 @@ import unittest
 from unittest.mock import call, patch
 
 from infrastructure import parallel_runs, resource_server, server
-from infrastructure.parallel_runs import epsilon_at, parse_plan, run_schedule, schedule_run_folders
+from infrastructure.parallel_runs import START_PORTS, epsilon_at, parse_plan, run_schedule, schedule_run_folders
 
 CLEAN = {"head": "abc123", "code_tree": "040000 tree t1\tinfrastructure", "uncommitted_code": [], "plan_committed": True}
 
 
 def make_plan(**overrides):
-    plan = {"schema": 1, "name": "px", "slots": 2,
+    plan = {"schema": 1, "name": "px", "slots": 2, "interleave": True, "evaluate_after_all_training": True,
             "defaults": {"agent_seed": 0, "max_steps": 60, "pause": 0},
             "jobs": [
                 {"name": "px-q-train", "kind": "train", "condition": "unmasked", "algorithm": "q_learning",
@@ -120,18 +120,19 @@ class ParallelRunTests(unittest.TestCase):
         return next(c for c in self.commands if Path(option(c, "--out")).name == folder)
 
     def test_plan_expands_chunks_with_their_own_agent_seeds_and_can_interleave(self):
-        _, units = parse_plan(json.dumps(make_plan()))
+        alone = {"slots": 1, "interleave": False, "evaluate_after_all_training": False}
+        _, units = parse_plan(json.dumps(make_plan(**alone)))
         self.assertEqual([u.name for u in units], ["px-q-train", "px-q-test-c1", "px-q-test-c2", "px-q-test-c3",
                                                    "px-random-test-c1", "px-random-test-c2", "px-random-test-c3"])
         self.assertEqual([(u.first_world_seed, u.episodes) for u in units[1:4]], [(20000, 2), (20002, 2), (20004, 2)])
-        # Chunks never replay one random stream.
+        # No two chunks start from one random stream.
         self.assertEqual([u.agent_seed for u in units], [0, 0, 1, 2, 0, 1, 2])
         self.assertEqual({u.depends_on for u in units[1:4]}, {"px-q-train"})
         self.assertIsNone(units[4].depends_on)
-        _, units = parse_plan(json.dumps(make_plan(interleave=True)))
+        _, units = parse_plan(json.dumps(make_plan()))
         self.assertEqual([u.name for u in units], ["px-q-train", "px-q-test-c1", "px-random-test-c1", "px-q-test-c2",
                                                    "px-random-test-c2", "px-q-test-c3", "px-random-test-c3"])
-        uneven = make_plan()
+        uneven = make_plan(**alone)
         uneven["jobs"][2].update(episodes=10, chunks=3)
         _, units = parse_plan(json.dumps(uneven))
         self.assertEqual([(u.first_world_seed, u.episodes) for u in units[4:]], [(20000, 4), (20004, 3), (20007, 3)])
@@ -170,7 +171,14 @@ class ParallelRunTests(unittest.TestCase):
             "chunk collides": extra(name="px-q-test-c1"),
             "named like the plan": extra(name="PX"), "named logs": extra(name="logs"),
             "named like the record": extra(name="Schedule.json"), "named like the plan file": extra(name="plan.json"),
+            "named like the fallback record": extra(name="schedule.final.json"),
+            "chunk names leave no room for continuations": job(1, name="x" * 56),
+            "training name leaves no room for continuations": lambda p: (p["jobs"][0].update(name="t" * 59),
+                                                                         p["jobs"][1].update(policy_from="t" * 59)),
+            "parallel evaluations without interleaving": lambda p: p.update(interleave=False),
+            "parallel evaluations beside training": lambda p: p.update(evaluate_after_all_training=False),
             "policy_from unknown": job(1, policy_from="nothing"),
+            "chunk names past 64 characters": job(1, name="y" * 63),
             "policy_from evaluation": extra(name="late", random_baseline=None, condition=None,
                                             policy_from="px-random-test"),
             "two sources": job(2, policy_from="px-q-train"), "no source": job(2, random_baseline=False),
@@ -213,17 +221,22 @@ class ParallelRunTests(unittest.TestCase):
             self.assertEqual(run_schedule(plan_path, launcher=self.launcher, poll_seconds=0), 0)
         self.assertEqual(self.max_alive, 2)
         self.assertFalse(self.port_clash)
-        # 25567 stays free for a run started by hand. The schedule checks its ports first, then before every launch.
-        self.assertEqual(self.port_check.call_args_list[:2], [call(25568), call(25569)])
-        self.assertEqual(len(self.port_check.call_args_list), 2 + len(self.commands))
+        # The machine must be free at the start; then each slot's port is checked again before every launch.
+        self.assertEqual(self.port_check.call_args_list[:len(START_PORTS)], [call(p) for p in START_PORTS])
+        self.assertEqual(self.port_check.call_args_list[len(START_PORTS):], [call(int(option(c, "--port")))
+                                                                             for c in self.commands])
+        # Every evaluation, the random baseline included, waits until all training has ended.
         trained = self.events.index(("exit", "px-q-train"))
-        for chunk in ("px-q-test-c1", "px-q-test-c2", "px-q-test-c3"):
+        for chunk in ("px-q-test-c1", "px-q-test-c2", "px-q-test-c3", "px-random-test-c1"):
             self.assertGreater(self.events.index(("start", chunk)), trained)
+        for chunk in ("px-q-test-c1", "px-q-test-c2", "px-q-test-c3"):
             command = self.command_for(chunk)
             self.assertEqual(Path(option(command, "--policy")), self.root / "runs" / "px" / "px-q-train" / "policy.json")
             self.assertEqual(option(command, "--max-steps"), "60")
-        # A baseline needs no training, so it starts while training is still running.
-        self.assertLess(self.events.index(("start", "px-random-test-c1")), trained)
+        # Interleaved: the arms alternate.
+        starts = [name for kind, name in self.events if kind == "start"]
+        self.assertEqual(starts, ["px-q-train", "px-q-test-c1", "px-random-test-c1", "px-q-test-c2",
+                                  "px-random-test-c2", "px-q-test-c3", "px-random-test-c3"])
         record = self.schedule()
         for command in self.commands:
             self.assertEqual(option(command, "--parallel-slots"), "2")
@@ -241,19 +254,14 @@ class ParallelRunTests(unittest.TestCase):
         self.assertEqual({u["status"] for u in record["units"]}, {"done"})
         self.assertEqual(record["max_running_observed"], 2)
         parts = {p["folder"]: p for u in record["units"] for p in u["parts"]}
-        self.assertEqual((parts["px-q-train"]["max_running"], parts["px-q-train"]["running_at_launch"]), (2, 1))
-        self.assertEqual(parts["px-q-train"]["pid"], 4000)
+        self.assertEqual((parts["px-q-train"]["max_running"], parts["px-q-train"]["pid"]), (1, 4000))
+        self.assertEqual((parts["px-q-test-c1"]["running_at_launch"], parts["px-q-test-c1"]["max_running"]), (1, 2))
         self.assertEqual((self.root / "runs" / "px" / "plan.json").read_bytes(), plan_path.read_bytes())
         self.assertFalse(record["code_changed_during_schedule"])
         self.assertEqual(record["code_checks"], len(self.commands))
         self.assertTrue(self.runs and all(run.closed for run in self.runs))
         found, missing = schedule_run_folders(self.root / "runs" / "px")
         self.assertEqual((len(found), missing), (7, []))
-
-    def test_evaluations_can_wait_until_all_training_has_ended(self):
-        self.assertEqual(self.run_plan(make_plan(evaluate_after_all_training=True)), 0)
-        trained = self.events.index(("exit", "px-q-train"))
-        self.assertGreater(self.events.index(("start", "px-random-test-c1")), trained)
 
     def test_invalid_episode_is_continued_from_the_next_seed_with_the_schedule(self):
         self.outcomes = {"px-q-train": ["completed", "invalid"], "px-random-test-c2": ["invalid"]}
@@ -311,7 +319,7 @@ class ParallelRunTests(unittest.TestCase):
 
     def test_a_port_taken_during_the_schedule_retires_its_slot_and_stops_nothing(self):
         def check(port):
-            if port == 25568 and len(self.port_check.call_args_list) > 2:
+            if port == 25568 and len(self.port_check.call_args_list) > len(START_PORTS):
                 raise server.ServerError("Local port 25568 is already in use")
         self.port_check.side_effect = check
         self.assertEqual(self.run_plan(make_plan()), 0)
@@ -332,39 +340,52 @@ class ParallelRunTests(unittest.TestCase):
         self.assertTrue(record["code_changed_during_schedule"])
         self.assertEqual(record["code_change"]["state"]["code_tree"], changed["code_tree"])
         units = {name: u["status"] for name, u in self.units().items()}
-        self.assertEqual((units["px-q-train"], units["px-random-test-c1"]), ("done", "done"))
-        self.assertEqual(units["px-random-test-c2"], "not_started")
+        self.assertEqual((units["px-q-train"], units["px-q-test-c1"]), ("done", "done"))
+        self.assertEqual(units["px-random-test-c1"], "not_started")
 
-    def test_refuses_existing_folder_uncommitted_code_busy_port_and_a_second_schedule(self):
+    def test_the_code_is_also_checked_while_runs_are_going(self):
+        changed = {**CLEAN, "uncommitted_code": [" M minecraft_bridge/resource-bridge.js"]}
+        self.code.side_effect = lambda _plan: dict(CLEAN) if self.code.call_count <= 2 else dict(changed)
+        with patch.object(parallel_runs, "CODE_CHECK_SECONDS", 0):
+            self.assertEqual(self.run_plan(make_plan()), 1)
+        self.assertEqual(len(self.commands), 1)
+        record = self.schedule()
+        self.assertEqual(record["status"], "code_changed")
+        units = {name: u["status"] for name, u in self.units().items()}
+        self.assertEqual((units["px-q-train"], units["px-q-test-c1"]), ("done", "not_started"))
+
+    def test_refuses_existing_folder_uncommitted_code_busy_ports_and_a_live_run(self):
         plan_path = self.write_plan(make_plan())
         (self.root / "runs" / "px").mkdir(parents=True)
         with self.assertRaisesRegex(ValueError, "already exists"):
             run_schedule(plan_path, launcher=self.launcher, poll_seconds=0)
         (self.root / "runs" / "px").rmdir()
-        self.code.return_value = {**CLEAN, "uncommitted_code": [" M infrastructure/x.py"], "plan_committed": False}
-        with self.assertRaisesRegex(RuntimeError, "Commit the code"):
-            run_schedule(plan_path, launcher=self.launcher, poll_seconds=0)
-        self.code.return_value = dict(CLEAN)
-
-        def busy(port):
-            if port == 25569:
-                raise server.ServerError(f"Local port {port} is already in use")
-        self.port_check.side_effect = busy
-        with self.assertRaisesRegex(server.ServerError, "25569"):
-            run_schedule(plan_path, launcher=self.launcher, poll_seconds=0)
-        self.assertEqual(self.port_check.call_args_list, [call(25568), call(25569)])
-        self.port_check.side_effect = None
-        with resource_server.schedule_lock():
-            self.assertTrue(resource_server.schedule_running())
-            with self.assertRaisesRegex(RuntimeError, "already running"):
+        for state in ({**CLEAN, "uncommitted_code": [" M infrastructure/x.py"]}, {**CLEAN, "plan_committed": False}):
+            self.code.return_value = state
+            with self.subTest(state=state), self.assertRaisesRegex(RuntimeError, "Commit the run code and the plan"):
                 run_schedule(plan_path, launcher=self.launcher, poll_seconds=0)
-        self.assertFalse(resource_server.schedule_running())
+        self.code.return_value = dict(CLEAN)
+        # Any Minecraft port in use, not only the plan's own, means the PC is not free.
+        for busy_port in (25566, 25567, 25569, 25599):
+            def busy(port, busy_port=busy_port):
+                if port == busy_port:
+                    raise server.ServerError(f"Local port {port} is already in use")
+            self.port_check.reset_mock()
+            self.port_check.side_effect = busy
+            with self.subTest(port=busy_port), self.assertRaisesRegex(server.ServerError, f"to itself.*{busy_port}"):
+                run_schedule(plan_path, launcher=self.launcher, poll_seconds=0)
+            self.assertEqual(self.port_check.call_args_list[-1], call(busy_port))
+        self.port_check.side_effect = None
+        with resource_server.live_run_lock("run by hand (pid 1)"):
+            self.assertEqual(resource_server.current_owner(), "run by hand (pid 1)")
+            with self.assertRaisesRegex(RuntimeError, r"already going on this machine \(run by hand"):
+                run_schedule(plan_path, launcher=self.launcher, poll_seconds=0)
+        self.assertIsNone(resource_server.current_owner())
         self.assertEqual(self.commands, [])
         self.assertFalse((self.root / "runs" / "px").exists())
 
     def test_interrupt_starts_nothing_new_and_waits_for_running_runs(self):
-        self.outcomes = {"px-q-train": ["interrupted"], "px-random-test-c1": ["interrupted"]}
-        self.codes = {"px-q-train": 130, "px-random-test-c1": 130}
+        self.outcomes, self.codes = {"px-q-train": ["interrupted"]}, {"px-q-train": 130}
         calls = []
 
         def sleep(_seconds):
@@ -375,31 +396,60 @@ class ParallelRunTests(unittest.TestCase):
         output = io.StringIO()
         with patch.object(parallel_runs.time, "sleep", side_effect=sleep):
             self.assertEqual(self.run_plan(make_plan(), output), 130)
-        # The second Ctrl+C only warns; the scheduler keeps waiting until both runs have exited.
+        # The second Ctrl+C only warns; the scheduler keeps waiting until the run has exited.
         self.assertIn("Do not close this window", output.getvalue())
-        self.assertEqual(len(self.commands), 2)
+        self.assertIn("possibly not reached by that Ctrl+C: px-q-train", output.getvalue())
+        self.assertEqual(len(self.commands), 1)
         units = {name: u["status"] for name, u in self.units().items()}
-        self.assertEqual((units["px-q-train"], units["px-random-test-c1"]), ("interrupted", "interrupted"))
-        self.assertEqual(units["px-random-test-c2"], "not_started")
-        self.assertIn(units["px-q-test-c1"], ("blocked", "not_started"))
+        self.assertEqual(units["px-q-train"], "interrupted")
+        self.assertEqual({units[f"px-random-test-c{i}"] for i in (1, 2, 3)}, {"not_started"})
         self.assertEqual(self.schedule()["status"], "interrupted")
         self.assertEqual(self.alive, [])
         self.assertTrue(all(p["finished_at"] for u in self.schedule()["units"] for p in u["parts"]))
 
+    def test_ctrl_c_just_before_a_launch_launches_nothing(self):
+        real, calls = parallel_runs._deferred_interrupt, []
+
+        @contextlib.contextmanager
+        def held():
+            calls.append(1)
+            if len(calls) == 1:
+                yield [True]
+                return
+            with real() as received:
+                yield received
+
+        with patch.object(parallel_runs, "_deferred_interrupt", held):
+            self.assertEqual(self.run_plan(make_plan()), 130)
+        self.assertEqual(self.commands, [])
+        record = self.schedule()
+        self.assertEqual({u["status"] for u in record["units"]}, {"not_started"})
+        self.assertEqual([u["parts"] for u in record["units"]], [[]] * 7)
+
+    def test_a_continuation_that_cannot_start_is_not_called_not_started(self):
+        self.outcomes = {"px-q-train": ["completed", "invalid"]}
+        changed = {**CLEAN, "code_tree": "040000 tree t2\tinfrastructure"}
+        self.code.side_effect = lambda _plan: dict(CLEAN) if self.code.call_count <= 2 else dict(changed)
+        output = io.StringIO()
+        self.assertEqual(self.run_plan(make_plan(), output), 1)
+        self.assertEqual(self.units()["px-q-train"]["status"], "continuation_not_started")
+        self.assertEqual(self.units()["px-q-test-c1"]["status"], "not_started")
+        self.assertIn("continuation_not_started", output.getvalue())
+
     def test_ctrl_c_during_a_launch_still_tracks_and_waits_for_that_run(self):
-        self.outcomes = {"px-q-train": ["interrupted"], "px-random-test-c1": ["interrupted"]}
-        self.codes = {"px-q-train": 130, "px-random-test-c1": 130}
+        self.outcomes, self.codes = {"px-q-test-c1": ["interrupted"]}, {"px-q-test-c1": 130}
         self.on_launch = lambda count: signal.raise_signal(signal.SIGINT) if count == 2 else None
         self.assertEqual(self.run_plan(make_plan()), 130)
         self.assertEqual(len(self.commands), 2)
         units = {name: u["status"] for name, u in self.units().items()}
-        self.assertEqual((units["px-q-train"], units["px-random-test-c1"]), ("interrupted", "interrupted"))
+        self.assertEqual((units["px-q-train"], units["px-q-test-c1"]), ("done", "interrupted"))
+        self.assertEqual(units["px-random-test-c1"], "not_started")
         self.assertEqual(self.alive, [])
         self.assertIs(signal.getsignal(signal.SIGINT), signal.default_int_handler)
 
     def test_an_unexpected_error_waits_for_the_running_runs_before_it_is_raised(self):
         def fail(count):
-            if count == 2:
+            if count == 3:
                 raise RuntimeError("launcher broke")
         self.on_launch = fail
         with self.assertRaisesRegex(RuntimeError, "launcher broke"):
@@ -407,12 +457,13 @@ class ParallelRunTests(unittest.TestCase):
         record = self.schedule()
         self.assertEqual(record["status"], "error")
         self.assertIn("launcher broke", record["error"])
-        units = {name: u for name, u in self.units().items()}
-        self.assertEqual(units["px-q-train"]["status"], "done")
+        units = self.units()
+        # The run already going was waited for and recorded.
+        self.assertEqual((units["px-q-train"]["status"], units["px-q-test-c1"]["status"]), ("done", "done"))
         # Launched but never seen to exit: recorded as interrupted with an unknown state, never as not started.
         self.assertEqual(units["px-random-test-c1"]["status"], "interrupted")
         self.assertIn("state unknown", units["px-random-test-c1"]["parts"][0]["last_status"])
-        self.assertEqual(self.alive, [self.runs[1]])
+        self.assertEqual(self.alive, [self.runs[2]])
 
     def test_dry_run_prints_the_runs_and_creates_nothing(self):
         output = io.StringIO()

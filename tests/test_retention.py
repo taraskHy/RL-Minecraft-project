@@ -138,9 +138,15 @@ class RetentionTests(unittest.TestCase):
         make_run(schedule, "pq-a-part1")
         out = self.root / "results" / "expanded"
         manifest = retention.retain([schedule], out, "SCHEDULE EVIDENCE")
-        for key in ("pq/plan.json", "pq/schedule.json", "pq-a/metadata.json", "pq-a-part1/episode-0001/outcome.json"):
+        # The runs stay nested under their schedule, so the retained copy can be expanded again.
+        for key in ("pq/plan.json", "pq/schedule.json", "pq/pq-a/metadata.json", "pq/pq-a-part1/episode-0001/outcome.json"):
             self.assertIn(key, manifest["sha256"])
         self.assertEqual(retention.verify(out), [])
+        from infrastructure.parallel_runs import schedule_run_folders
+        self.assertEqual(schedule_run_folders(out / "pq"), ([out / "pq" / "pq-a", out / "pq" / "pq-a-part1"], []))
+        # Passing a run explicitly as well never copies it twice.
+        again = retention.retain([schedule, schedule / "pq-a"], self.root / "results" / "again", "SCHEDULE EVIDENCE")
+        self.assertNotIn("pq-a/metadata.json", again["sha256"])
 
 
 if __name__ == "__main__":

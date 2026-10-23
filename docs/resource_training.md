@@ -247,34 +247,44 @@ is a complete example (not an experiment):
 - An `evaluate` job is frozen and names exactly one policy source:
   `policy_from` (a training job listed earlier, whose final policy it tests),
   `policy` (a file), or `random_baseline: true` with a `condition`. `chunks`
-  splits its worlds into consecutive seed ranges that run side by side. Chunk
-  *k* runs with agent seed `agent_seed + k - 1`, so the chunks of a random
-  baseline never replay one random stream, and `resource-report` pools the
-  chunks back into one group.
+  splits its worlds into consecutive seed ranges that run side by side, and
+  `resource-report` pools the chunks back into one group. Chunk *k* starts
+  from agent seed `agent_seed + k - 1`, so no two chunks start from the same
+  random stream. Within a chunk the draws for later worlds depend on how many
+  decisions the earlier worlds took, and a continuation restarts its chunk's
+  seed, as the declared `--seed` rule says.
 - `interleave: true` starts the first chunk of every job, then every second
   chunk, and so on, so the arms share the load instead of running in blocks.
 - `evaluate_after_all_training: true` holds every evaluation until all training
-  has ended, so all test arms run under the same load. Use both options for an
-  experiment, and run every arm of one experiment in one schedule: the report
-  compares parallel runs only within one schedule.
+  has ended, so all test arms run under the same load. A plan with evaluations
+  and more than one slot must set both options. Run every arm of one
+  experiment in one schedule: the report groups and compares parallel runs
+  only within one schedule.
 - `defaults` sets `agent_seed`, `max_steps`, and `pause` for every job. They
   have no hidden defaults: each job must end up with all three.
 - Names: every run name must be distinct (ignoring case), may not end in
-  `-partN`, and may not be the plan's own name, `logs`, `plan.json`, or
-  `schedule.json`. Plans you want to report together need distinct run names.
+  `-partN`, must leave room for a `-partN` continuation suffix within 64
+  characters, and may not be the plan's own name, `logs`, `plan.json`,
+  `schedule.json`, or `schedule.final.json`. Plans you want to report together
+  need distinct run names.
 
 What the scheduler guarantees:
 
-- It refuses uncommitted code (and an uncommitted plan under `configs/`),
-  records the commit in `schedule.json`, and checks the committed code again
-  before every launch. If the code changed, nothing more starts and the
-  schedule ends as `code_changed`.
-- It refuses a busy port and never stops whatever holds it. It checks each
-  slot's port again before every launch; a port taken meanwhile retires that
-  slot for the rest of the schedule.
-- Only one schedule runs per user on the machine, from any checkout, and a run
-  started by hand is refused while one runs, because it would add load that
-  the schedule's runs do not record.
+- It refuses uncommitted run code (`minecraft_bridge`, `infrastructure`,
+  `minecraft_rl`) and a plan that is not committed in this checkout, and
+  records the commit in `schedule.json`. It checks the committed run code
+  again before every launch and every minute while runs are going, and every
+  episode checks its own sources before its world starts. If the run code
+  changed, nothing more starts and the schedule ends as `code_changed`.
+  Drafting or committing the next plan under `configs/` is not a code change.
+- One live run or schedule runs at a time per user on the machine, from any
+  checkout: a run started by hand holds the same machine-wide lock for its
+  whole duration, and a schedule refuses to start while any Minecraft port
+  (25565 to 25599) is in use, never stopping what holds it. A schedule's own
+  runs carry its id, which is accepted only while that schedule holds the
+  lock. Update every checkout on the PC, because older code takes no lock.
+- It checks each slot's port again before every launch; a port taken
+  meanwhile retires that slot for the rest of the schedule.
 - It never reuses a folder: every schedule needs a new plan name.
 - An invalid episode is continued as declared for the masking experiment: in
   `<run>-partN` from the next world seed (at most `max_continuations`,
@@ -283,13 +293,16 @@ What the scheduler guarantees:
   invalid episode was the last one planned, the run is finished: the episode
   counts as attempted, and its policy is the one that is tested. A run that
   fails without attempting an episode is not retried, and no evaluation of its
-  policy starts.
+  policy starts. A continuation that cannot start (after a code change or a
+  scheduler error) is recorded as `continuation_not_started`.
 - **Ctrl+C** starts nothing new and waits while each run stops its own server
-  and saves its world; nothing is killed. A second Ctrl+C only lists the runs
-  still stopping and keeps waiting; a third leaves, and then the window must
-  stay open until those runs exit. After any other scheduler error it also
-  waits for the running runs before it stops. A run with a viewer cannot be
-  scheduled; watch training alone with `resource-train --viewer`.
+  and saves its world; nothing is killed. A run launched at the very moment
+  of the Ctrl+C may not receive it; the scheduler names it, and one more
+  Ctrl+C reaches it. A second Ctrl+C only lists the runs still stopping and
+  keeps waiting; a third leaves, and then the window must stay open until
+  those runs exit. After any other scheduler error it also waits for the
+  running runs before it stops. A run with a viewer cannot be scheduled;
+  watch training alone with `resource-train --viewer`.
 
 ```powershell
 .\run.cmd resource-parallel configs\parallel_benchmark_4slots.json --dry-run
@@ -300,11 +313,13 @@ python -m infrastructure.retention runs\bench-1slot runs\bench-4slots --out resu
 
 A schedule folder given to `resource-report` or to retention stands for every
 run and continuation its `schedule.json` recorded, so no continuation is left
-out; retention also keeps its `plan.json` and `schedule.json` (not its logs)
-with digests. Every run records its port, `parallel_slots`, and schedule in
+out. Retention keeps those runs nested under the schedule's folder, so a
+retained schedule can be reported the same way, and keeps its `plan.json` and
+`schedule.json` (not its logs) with digests. Every run records its port, `parallel_slots`, and schedule in
 `metadata.json`, and every episode its UTC start and end. The report keeps
-runs with different slot counts in separate groups, shows the slot count in
-its comparison tables, and compares parallel runs only within one schedule;
+runs with different slot counts, and parallel runs of different schedules, in
+separate groups, shows the slot count in its comparison tables, and compares
+parallel runs only within one schedule;
 runs recorded before this option existed ran one at a time and count as one
 slot. `schedule.json` records each run's port, process id, start and end, exit
 code, and the most runs going at once while it ran (`max_running`).

@@ -35,8 +35,10 @@ class ResourceSessionTests(unittest.TestCase):
             self.root / "infrastructure" / "resource_session.py")))
         self.stack.enter_context(patch.object(resource_session, "runtime_paths", return_value={"node": sys.executable}))
         self.stack.enter_context(patch.object(resource_session.time, "sleep"))
-        self.schedule_running = self.stack.enter_context(
-            patch.object(resource_session, "schedule_running", return_value=False))
+        self.live_lock = self.stack.enter_context(
+            patch.object(resource_session, "live_run_lock", side_effect=lambda owner: nullcontext()))
+        self.owner = self.stack.enter_context(
+            patch.object(resource_session, "current_owner", return_value="schedule px:abc:t0"))
         self.stack.enter_context(patch("builtins.input", return_value=""))
         self.camera = MagicMock()
         self.camera.following.side_effect = lambda: nullcontext()
@@ -353,18 +355,45 @@ class ResourceSessionTests(unittest.TestCase):
                               run.call_args.kwargs["schedule_id"]), (25567, 1, None))
 
 
-    def test_a_run_started_by_hand_is_refused_while_a_schedule_runs(self):
+    def test_a_run_started_by_hand_holds_the_live_lock_and_a_schedule_id_must_be_its_schedules(self):
         following = deepcopy(self.start)
         following.update(nearby_log=True, event="log_reached")
         self.bridge.step.return_value = following
-        self.schedule_running.return_value = True
-        output = self.root / "runs" / "by-hand"
-        with self.assertRaisesRegex(RuntimeError, "schedule is running"):
+        alone, _ = self._train("by-hand", "masked", 1, algorithm="q_learning")
+        self.assertTrue(self.live_lock.call_args.args[0].startswith("run by-hand (pid "))
+        self.live_lock.side_effect = RuntimeError("A live resource run is already going on this machine (schedule x)")
+        output = self.root / "runs" / "refused"
+        with self.assertRaisesRegex(RuntimeError, "already going"):
             resource_session.run_resources(output=output, episodes=1, max_steps=1, condition="masked", pause=0)
         self.assertFalse(output.exists())
-        # The scheduler's own runs carry their schedule and are not refused.
+        # A schedule's own runs carry its id and run under the schedule's lock; a copied or stale id is refused.
+        self.live_lock.reset_mock()
         scheduled, _ = self._train("scheduled", "masked", 1, algorithm="q_learning", schedule_id="px:abc:t0")
         self.assertTrue((scheduled / "episode-0001" / "outcome.json").is_file())
+        self.live_lock.assert_not_called()
+        for owner in ("schedule px:abc:other", None):
+            self.owner.return_value = owner
+            output = self.root / "runs" / f"stale-{owner is None}"
+            with self.subTest(owner=owner), self.assertRaisesRegex(RuntimeError, "set only by resource-parallel"):
+                resource_session.run_resources(output=output, episodes=1, max_steps=1, condition="masked", pause=0,
+                                               schedule_id="px:abc:t0")
+            self.assertFalse(output.exists())
+
+    def test_an_episode_never_runs_on_sources_that_changed_after_the_run_started(self):
+        following = deepcopy(self.start)
+        following.update(nearby_log=True, event="log_reached")
+        source = self.root / "minecraft_rl" / "resources.py"
+
+        def step(_action):
+            source.write_text("changed during the run\n", encoding="utf-8")
+            return following
+
+        self.bridge.step.side_effect = step
+        output = self.root / "runs" / "changed"
+        with self.assertRaisesRegex(RuntimeError, "sources changed"):
+            resource_session.run_resources(output=output, episodes=2, max_steps=1, condition="masked", pause=0)
+        self.assertTrue((output / "episode-0001" / "outcome.json").is_file())
+        self.assertFalse((output / "episode-0002").exists())
 
 
 if __name__ == "__main__":

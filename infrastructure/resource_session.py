@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import threading
 import time
@@ -16,7 +17,7 @@ from minecraft_rl.resources import (
     ACTION_NAMES, CONDITIONS, MASKED, ResourceAgent, allowed_actions, encode_state, reward_transition,
     state_from_observation, train_simulator,
 )
-from .resource_server import MAX_PARALLEL_SLOTS, PORT, fresh_resource_server, schedule_running, validate_port
+from .resource_server import MAX_PARALLEL_SLOTS, PORT, current_owner, fresh_resource_server, live_run_lock, validate_port
 from .runtime import runtime_paths
 from .watch import validate_watch_options
 
@@ -153,7 +154,7 @@ CONDITION_NOTES = {
 }
 
 
-def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
+def _run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
                   seed: int = 0, algorithm: str = "q_learning", viewer: str | None = None,
                   max_steps: int = 80, epsilon: float = .6, epsilon_end: float = .1,
                   policy: Path | None = None, pretrain: int = 0, evaluate: bool = False,
@@ -175,8 +176,8 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
     the declared number of live episodes running at once on this machine
     (resource-parallel sets it; 1 means alone). It is recorded because task
     time and the helpers' wall-clock budgets depend on it. ``schedule_id``
-    names the resource-parallel schedule a run belongs to; a run started by
-    hand (no schedule_id) is refused while a schedule runs on this machine.
+    names the resource-parallel schedule a run belongs to; ``run_resources``
+    checks it and holds the machine-wide live-run lock for runs started by hand.
     """
     if condition is not None and condition not in CONDITIONS:
         raise ValueError(f"condition must be one of {', '.join(CONDITIONS)}")
@@ -190,14 +191,8 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
         raise ValueError(f"parallel_slots must be an integer from 1 to {MAX_PARALLEL_SLOTS}")
     if viewer is not None and parallel_slots > 1:
         raise ValueError("A viewer run waits for you between episodes; run it alone with parallel_slots 1")
-    if schedule_id is not None and (not isinstance(schedule_id, str) or not 1 <= len(schedule_id) <= 200
-                                    or not schedule_id.isprintable()):
-        raise ValueError("schedule_id must be 1 to 200 printable characters")
     if parallel_slots > 1 and schedule_id is None:
         raise ValueError("parallel_slots above 1 is set by resource-parallel, together with its schedule_id")
-    if schedule_id is None and schedule_running():
-        raise RuntimeError("A resource-parallel schedule is running on this machine. A run started by hand now "
-                           "would add load that its runs do not record; wait until it finishes")
     if not 1 <= episodes <= 1000 or not 1 <= max_steps <= 1000:
         raise ValueError("episodes and max_steps must be between 1 and 1000")
     if not 0 <= epsilon_end <= epsilon <= 1 or not 0 <= pause <= 10:
@@ -297,6 +292,10 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
     _save_policy(agent, output / "policy.json", metadata)
     summaries = []
     for episode in range(1, episodes + 1):
+        # Every episode runs the code its metadata describes; a changed source stops the run before a world starts.
+        if {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources} != metadata["source_sha256"]:
+            raise RuntimeError("This run's helper or session sources changed since it started; no further episode "
+                               "runs on code that its metadata.json does not describe")
         folder = output / f"episode-{episode:04d}"
         folder.mkdir()
         current_epsilon = 0.0 if evaluate else epsilon + (epsilon_end - epsilon) * (episode - 1) / max(1, episodes - 1)
@@ -402,3 +401,22 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
                "note": "Exploratory training results are not frozen-policy evaluation" if not evaluate else "Small evaluation sample; does not establish broad generalization"})
     print(f"Saved checkpoint: {output / 'policy.json'}", flush=True)
     return 0
+
+
+def run_resources(*, schedule_id: str | None = None, **settings) -> int:
+    """Train or evaluate as ``_run_resources`` describes, never sharing the machine unrecorded.
+
+    A run started by hand holds the machine-wide live-run lock for its whole
+    duration, so it never overlaps a schedule or another live run. A
+    resource-parallel run carries its schedule's id, which is accepted only
+    while that schedule holds the lock.
+    """
+    if schedule_id is None:
+        output = settings.get("output")
+        with live_run_lock(f"run {Path(output).name if output else 'unnamed'} (pid {os.getpid()})"):
+            return _run_resources(schedule_id=None, **settings)
+    if not isinstance(schedule_id, str) or not 1 <= len(schedule_id) <= 200 or not schedule_id.isprintable():
+        raise ValueError("schedule_id must be 1 to 200 printable characters")
+    if current_owner() != f"schedule {schedule_id}":
+        raise RuntimeError("schedule_id is set only by resource-parallel for its own runs, while that schedule runs")
+    return _run_resources(schedule_id=schedule_id, **settings)

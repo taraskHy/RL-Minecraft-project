@@ -44,9 +44,11 @@ NOTES = (
     "Runs recorded before experiment conditions existed are reported as the masked condition, which is how "
     "they ran.",
     "Runs with a different parallel setup (live episodes at once on one machine) are separate groups and are "
-    "never compared, because task time and the helpers' time budgets are wall-clock; parallel runs are "
-    "compared only within one schedule, where every arm shared the same load. Runs recorded before "
-    "resource-parallel existed ran one episode at a time and are reported with one slot.",
+    "never compared, because task time and the helpers' time budgets are wall-clock. Parallel runs are "
+    "grouped and compared only within one schedule, whose plan rules (interleaved arms, evaluations only "
+    "after all training) make the test arms share the load; that schedule's schedule.json records the "
+    "concurrency each run actually had. Runs recorded before resource-parallel existed ran one episode at "
+    "a time and are reported with one slot.",
 )
 
 
@@ -260,11 +262,13 @@ def _mean(values) -> float | None:
 def _group_key(episode: dict) -> tuple:
     # Conditions are never pooled. Training runs are pooled per algorithm; frozen
     # evaluations only per evaluated checkpoint. A different step limit is always
-    # a different group, and so is a different number of parallel slots.
+    # a different group, and so is a different number of parallel slots; parallel runs
+    # are also grouped by schedule, so two schedules never pool their loads.
     checkpoint = episode["checkpoint_sha256"] if episode["mode"] == "frozen_evaluation" else None
+    schedule = (episode["schedule_id"] or "") if episode["parallel_slots"] > 1 else ""
     return (episode["condition"], episode["mode"], episode["algorithm"], episode["baseline"] or "",
             checkpoint or "", episode["max_steps"], int(episode["simulator_pretraining"] > 0),
-            episode["parallel_slots"])
+            episode["parallel_slots"], schedule)
 
 
 def _fraction(part: int, whole: int) -> float | None:
@@ -272,7 +276,7 @@ def _fraction(part: int, whole: int) -> float | None:
 
 
 def _summarize_group(key: tuple, rows: list[dict]) -> dict:
-    condition, mode, algorithm, baseline, checkpoint, max_steps, pretrained, parallel_slots = key
+    condition, mode, algorithm, baseline, checkpoint, max_steps, pretrained, parallel_slots, _schedule = key
     completed = [r for r in rows if r["status"] == "completed"]
     successes = [r for r in completed if r["success"]]
     events: Counter[str] = Counter()
@@ -495,6 +499,9 @@ def _label(group: dict) -> str:
         label += " / simulator-pretrained"
     if group.get("parallel_slots", 1) > 1:
         label += f" / {group['parallel_slots']} parallel slots"
+        schedules = [s for s in group.get("schedules", []) if s]
+        # Plan name and plan digest; the full id, with its start time, is in summary.json.
+        label += f" in schedule {':'.join(schedules[0].split(':')[:2])}" if len(schedules) == 1 else " in no single schedule"
     return label
 
 

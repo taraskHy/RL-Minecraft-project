@@ -28,8 +28,8 @@ PORT = 25567
 PORTS = range(25567, 25600)
 # At most this many resource servers at once on one machine.
 MAX_PARALLEL_SLOTS = 8
-# One resource-parallel schedule at a time for this user on this machine, from any checkout.
-LOCK_PATH = Path(os.environ.get("LOCALAPPDATA") or tempfile.gettempdir()) / "rl-minecraft" / "resource-parallel.lock"
+# One live resource run or schedule at a time for this user on this machine, from any checkout.
+LOCK_PATH = Path(os.environ.get("LOCALAPPDATA") or tempfile.gettempdir()) / "rl-minecraft" / "resource-live.lock"
 
 
 def validate_port(port) -> int:
@@ -58,9 +58,25 @@ def _unlock(handle) -> None:
         fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
+def _owner_path() -> Path:
+    return LOCK_PATH.with_name(LOCK_PATH.name + ".owner")
+
+
+def _read_owner() -> str | None:
+    try:
+        return _owner_path().read_text(encoding="utf-8").strip() or None
+    except OSError:
+        return None
+
+
 @contextmanager
-def schedule_lock() -> Iterator[None]:
-    """Hold the machine-wide schedule lock; the operating system releases it if this process dies."""
+def live_run_lock(owner: str) -> Iterator[None]:
+    """Hold the machine-wide lock for live resource runs and record who holds it.
+
+    A run started by hand holds it for its whole duration and a schedule for all
+    of its runs, so live runs never share the machine without recording it. The
+    operating system releases the lock if the holder dies.
+    """
     path = LOCK_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
     handle = path.open("a+b")
@@ -68,11 +84,17 @@ def schedule_lock() -> Iterator[None]:
         _lock(handle)
     except OSError as exc:
         handle.close()
-        raise managed_server.ServerError("A resource-parallel schedule is already running on this machine; "
-                                         "wait for it to finish") from exc
+        raise managed_server.ServerError(
+            f"A live resource run is already going on this machine ({_read_owner() or 'holder unknown'}); "
+            "wait for it to finish") from exc
     try:
+        _owner_path().write_text(owner, encoding="utf-8")
         yield
     finally:
+        try:
+            _owner_path().unlink(missing_ok=True)
+        except OSError:
+            pass
         try:
             _unlock(handle)
         except OSError:
@@ -80,13 +102,20 @@ def schedule_lock() -> Iterator[None]:
         handle.close()
 
 
-def schedule_running() -> bool:
-    """Whether a resource-parallel schedule holds the machine-wide lock right now."""
-    try:
-        with schedule_lock():
-            return False
-    except managed_server.ServerError:
-        return True
+def current_owner() -> str | None:
+    """Who holds the live-run lock now, as that holder named itself, or None when nobody does."""
+    path = LOCK_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a+b") as handle:
+        try:
+            _lock(handle)
+        except OSError:
+            return _read_owner() or "holder unknown"
+        try:
+            _unlock(handle)
+        except OSError:
+            pass
+    return None
 
 
 def _is_link(path: Path) -> bool:

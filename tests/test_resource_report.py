@@ -427,22 +427,25 @@ class ResourceReportTests(unittest.TestCase):
         learned_four = run("bq", "q_learning", [True] * 10, slots=4, schedule="s1")
         learned_two = run("cq", "q_learning", [True] * 10, slots=2, schedule="s1")
         other_schedule = run("dq", "q_learning", [True] * 10, slots=4, schedule="s2")
+        other_baseline = run("random-four-s2", "random", [False] * 10, slots=4, schedule="s2")
         no_schedule = run("eq", "q_learning", [True] * 10, slots=4)
-        summary = summarize_runs([alone, four, learned_alone, learned_four, learned_two, other_schedule, no_schedule])
-        baselines = {g["parallel_slots"]: g for g in summary["groups"] if g["algorithm"] == "random"}
-        self.assertEqual(set(baselines), {1, 4})
-        self.assertEqual((baselines[1]["runs"], baselines[4]["runs"]), (["random-alone"], ["random-four"]))
-        self.assertEqual((baselines[1]["schedules"], baselines[4]["schedules"]), ([""], ["s1"]))
+        summary = summarize_runs([alone, four, learned_alone, learned_four, learned_two, other_schedule,
+                                  other_baseline, no_schedule])
+        # Two schedules never pool their baselines.
+        baselines = {(g["parallel_slots"], tuple(g["schedules"])): g for g in summary["groups"] if g["algorithm"] == "random"}
+        self.assertEqual(set(baselines), {(1, ("",)), (4, ("s1",)), (4, ("s2",))})
+        self.assertEqual(baselines[(4, ("s1",))]["runs"], ["random-four"])
         rows = {c["checkpoint_sha256"][0]: c for c in summary["comparisons"]}
         self.assertEqual(len(summary["comparisons"]), 5)
         self.assertEqual((rows["a"]["baseline"], rows["a"]["parallel_slots"]), ("uniform_random", 1))
         self.assertTrue(rows["a"]["verdict"].startswith("benefit shown"))
         # Parallel runs are compared only within one schedule, where both arms shared the load.
         self.assertTrue(rows["b"]["verdict"].startswith("benefit shown"))
-        for other in ("c", "d", "e"):
+        self.assertTrue(rows["d"]["verdict"].startswith("benefit shown"))
+        for other in ("c", "e"):
             self.assertTrue(rows[other]["verdict"].startswith("not compared"), other)
         markdown = render_markdown(summary)
-        self.assertIn("/ 4 parallel slots", markdown)
+        self.assertIn("/ 4 parallel slots in schedule s1", markdown)
         self.assertIn("| Slots |", markdown)
         self.assertIn(f"| q_learning {'b' * 12} | uniform_random (unmasked) | 4 |", markdown)
         broken = run("broken", "random", [False], slots=0)

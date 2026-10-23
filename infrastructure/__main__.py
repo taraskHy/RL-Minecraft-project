@@ -227,8 +227,8 @@ def resources(arguments: list[str], *, evaluate: bool = False) -> int:
                         "allowed), or unmasked_history (unmasked with the last_action_failed state bit). A --policy "
                         "carries its own condition; a different one is refused")
     p.add_argument("--port", type=int, default=25567,
-                   help="Loopback port for this run's fresh servers, 25567 to 25599; runs at the same time need "
-                        "different ports, and a port in use is refused")
+                   help="Loopback port for this run's fresh servers, 25567 to 25599; a port in use is refused. "
+                        "One live run or schedule runs at a time: use resource-parallel to run several at once")
     p.add_argument("--parallel-slots", type=int, default=1,
                    help="Recorded number of live episodes running at once on this PC (resource-parallel sets it; "
                         "1 = alone). The report compares only runs with equal values")
@@ -284,6 +284,9 @@ def resource_report(arguments: list[str]) -> int:
             found, missing = schedule_run_folders(path)
             for name in missing:
                 print(f"Note: {path / name} is recorded in schedule.json but holds no run", file=sys.stderr)
+            status = json.loads((path / "schedule.json").read_text(encoding="utf-8")).get("status")
+            if status != "completed":
+                print(f"Note: schedule {path} ended {status!r}, not 'completed'", file=sys.stderr)
             runs += found
         else:
             runs.append(path)

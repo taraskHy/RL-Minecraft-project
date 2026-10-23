@@ -86,15 +86,16 @@ class FreshResourceServerTests(unittest.TestCase):
                 self.assertEqual(marker["port"], 25571)
             port.assert_called_once_with(25571)
 
-    def test_the_schedule_lock_is_exclusive_and_released(self):
-        with patch.object(resource_server, "LOCK_PATH", self.root / "machine" / "parallel.lock"):
-            self.assertFalse(resource_server.schedule_running())
-            with resource_server.schedule_lock():
-                self.assertTrue(resource_server.schedule_running())
-                with self.assertRaisesRegex(server.ServerError, "already running"):
-                    with resource_server.schedule_lock():
-                        self.fail("A second schedule lock was granted")
-            self.assertFalse(resource_server.schedule_running())
+    def test_the_live_run_lock_is_exclusive_names_its_holder_and_is_released(self):
+        with patch.object(resource_server, "LOCK_PATH", self.root / "machine" / "live.lock"):
+            self.assertIsNone(resource_server.current_owner())
+            with resource_server.live_run_lock("schedule px:abc:t0"):
+                self.assertEqual(resource_server.current_owner(), "schedule px:abc:t0")
+                with self.assertRaisesRegex(server.ServerError, r"already going on this machine \(schedule px:abc:t0\)"):
+                    with resource_server.live_run_lock("run other"):
+                        self.fail("A second live-run lock was granted")
+            self.assertIsNone(resource_server.current_owner())
+            self.assertFalse((self.root / "machine" / "live.lock.owner").exists())
 
     def test_existing_episode_is_never_reused_or_overwritten(self):
         for empty in (True, False):
