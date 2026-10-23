@@ -115,15 +115,31 @@ def _save_policy(agent: ResourceAgent, path: Path, metadata: dict) -> None:
     temporary.replace(path)
 
 
+def recovery_summary(recovery) -> str:
+    """Compact per-decision note for steps.csv; the full record stays in transitions.jsonl."""
+    if not isinstance(recovery, dict):
+        return ""
+    start, end = recovery.get("start_y"), recovery.get("end_y")
+    descent = round(start - end, 2) if isinstance(start, (int, float)) and isinstance(end, (int, float)) else None
+    picked = recovery.get("items_picked_up")
+    picked_note = ("" if not isinstance(picked, dict) or not picked else
+                   ",picked_up=" + "+".join(f"{name}:{count}" for name, count in sorted(picked.items())))
+    return (f"{recovery.get('type', 'recovery')}:layers={recovery.get('layers_cleared', 0)}"
+            f",descent={descent},damage={recovery.get('damage', 0)},stopped={recovery.get('stopped') or '-'}{picked_note}")
+
+
 def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
                   seed: int = 0, algorithm: str = "q_learning", viewer: str | None = None,
                   max_steps: int = 80, epsilon: float = .6, epsilon_end: float = .1,
                   policy: Path | None = None, pretrain: int = 0, evaluate: bool = False,
-                  pause: float = .5) -> int:
+                  pause: float = .5, random_baseline: bool = False) -> int:
     """Train from observed transitions, or explicitly evaluate a frozen policy.
 
-    Generated worlds and all observations remain under the output folder.
-    Nothing overwrites the existing arena or ordinary Survival world.
+    The masked random baseline is a frozen evaluation that keeps the same
+    feasibility mask and execution helpers but picks uniformly among allowed
+    actions; it measures what the helpers alone achieve. Generated worlds and
+    all observations remain under the output folder. Nothing overwrites the
+    existing arena or ordinary Survival world.
     """
     _viewer_name(viewer)
     if not 1 <= episodes <= 1000 or not 1 <= max_steps <= 1000:
@@ -134,20 +150,26 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
         raise ValueError("pretrain must be 0..100000 and cannot be combined with a policy")
     if type(world_seed) is not int or not -(2**63) <= world_seed <= 2**63 - episodes:
         raise ValueError("All episode world seeds must fit signed 64-bit integers")
-    if evaluate and (not policy or pretrain):
-        raise ValueError("Frozen evaluation requires --policy and forbids pretraining")
+    if random_baseline and (policy or pretrain or not evaluate):
+        raise ValueError("The masked random baseline is a frozen evaluation without a policy or simulator pretraining")
+    if evaluate and (not (policy or random_baseline) or pretrain):
+        raise ValueError("Frozen evaluation requires --policy or --random-baseline and forbids pretraining")
     node = runtime_paths()["node"]
     if not node or not Path(node).is_file():
         raise RuntimeError("Run setup.cmd first")
     output = output.resolve()
     if not output.is_relative_to((ROOT / "runs").resolve()) or output == (ROOT / "runs").resolve():
         raise ValueError("Resource output must be a new folder inside this project's runs directory")
-    agent = ResourceAgent.load(policy, seed=seed) if policy else ResourceAgent(algorithm=algorithm, seed=seed)
+    if policy:
+        agent = ResourceAgent.load(policy, seed=seed)
+    else:
+        agent = ResourceAgent(algorithm="random" if random_baseline else algorithm, seed=seed)
     if not evaluate and agent.algorithm == "random":
         raise ValueError("A random policy can be evaluated, but cannot be trained")
     output = prepare_output(output)
     mode = "frozen_evaluation" if evaluate else "online_training"
     metadata = {"evidence": EVIDENCE, "mode": mode, "algorithm": agent.algorithm,
+                "baseline": "masked_random" if agent.algorithm == "random" else None,
                 "episodes_requested": episodes, "first_world_seed": world_seed,
                 "agent_seed": seed, "max_steps": max_steps, "epsilon_start": epsilon,
                 "epsilon_end": epsilon_end, "reward_mode": "shaped", "gamma": agent.gamma,
@@ -158,7 +180,16 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
                 "initial_policy_sha256": hashlib.sha256(policy.read_bytes()).hexdigest() if policy else None,
                 "viewer": viewer, "actions": list(ACTION_NAMES),
                 "state_note": "Compact partial observation; not a complete Minecraft MDP state",
-                "scripted_support": "Feasibility masks; bounded pathfinding, digging, pickup, recipes, placement, equip; spectator camera only",
+                "scripted_support": "Feasibility masks; bounded pathfinding, digging, pickup, recipes, placement, equip; "
+                                    "bounded canopy descent inside SEARCH; spectator camera only",
+                "recovery_helpers": "When the bot stands on tree leaves, SEARCH may clear at most six leaf blocks directly "
+                                    "beneath its feet, one at a time, only after scanning the column below for a landing "
+                                    "within a recorded safe fall (no damage, or at most two points while health stays above "
+                                    "ten, measured to the landing block's collision surface). No other block is dug outside "
+                                    "CHOP; each cleared block, fall, and health change is saved in the transition's recovery "
+                                    "field. Leaves broken by hand follow the vanilla loot table (about 5% sapling, 2% one or "
+                                    "two sticks, 0.5% apple on oak and dark oak); such pickups are listed in the record as "
+                                    "items_picked_up and count in the inventory like any other natural item",
                 "reset": "Each episode generates a separate new normal Survival world; bot has no operator permissions",
                 "seed_note": "World seed controls terrain; server timing and spawn selection are not deterministic"}
     sources = [ROOT / "minecraft_bridge" / "resource-bridge.js", ROOT / "minecraft_bridge" / "pnpm-lock.yaml",
@@ -167,6 +198,9 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
     metadata["source_sha256"] = {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}
     write_json(output / "metadata.json", metadata)
     print(f"{EVIDENCE}\nMode: {mode}\nResults and worlds: {output}", flush=True)
+    if agent.algorithm == "random":
+        print("MASKED RANDOM BASELINE: same feasibility mask and execution helpers, uniformly random "
+              "allowed actions, no learning. It measures what the helpers alone achieve.", flush=True)
     if pretrain:
         print(f"First: {pretrain} SIMULATOR episodes; these are not Minecraft training.", flush=True)
         agent, records = train_simulator(pretrain, seed=seed, algorithm=algorithm)
@@ -225,7 +259,8 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
                             rows.append({"step": step, "action": ACTION_NAMES[action], "reward": reward,
                                          "td_error": td_error, "q_before": before_q[action],
                                          "q_after": agent.values(state)[action], "event": next_observation["event"],
-                                         "success": success, "death": death})
+                                         "success": success, "death": death,
+                                         "recovery": recovery_summary(next_observation.get("recovery"))})
                             write_csv(folder / "steps.csv", rows)
                             if not evaluate:
                                 _save_policy(agent, output / "policy.json", {**metadata, "last_episode": episode, "last_step": step})
@@ -264,7 +299,8 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
                        "success": None, "death": None, "recorded_steps": len(rows),
                        "error": f"{type(exc).__name__}: {exc}", "note": "Not counted as a measured policy success or failure"})
             raise
-    write_json(output / "summary.json", {"evidence": EVIDENCE, "mode": mode,
+    write_json(output / "summary.json", {"evidence": EVIDENCE, "mode": mode, "algorithm": agent.algorithm,
+               "baseline": metadata["baseline"],
                "episodes": len(summaries), "successes": sum(row["success"] for row in summaries),
                "note": "Exploratory training results are not frozen-policy evaluation" if not evaluate else "Small evaluation sample; does not establish broad generalization"})
     print(f"Saved checkpoint: {output / 'policy.json'}", flush=True)

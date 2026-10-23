@@ -2,6 +2,7 @@
 
 from contextlib import contextmanager, ExitStack, nullcontext
 from copy import deepcopy
+import csv
 import json
 from pathlib import Path
 import sys
@@ -122,6 +123,55 @@ class ResourceSessionTests(unittest.TestCase):
         self.assertEqual(json.loads((output / "policy.json").read_text())["q"], original_q)
         self.assertEqual(json.loads(policy.read_text())["q"], original_q)
         self.assertEqual(self.server_exits, [1])
+
+    def test_masked_random_baseline_is_frozen_labeled_and_never_trains(self):
+        following = deepcopy(self.start)
+        following.update(nearby_log=True, event="found_log")
+        self.bridge.step.return_value = following
+        with patch.object(ResourceAgent, "update", side_effect=AssertionError("The baseline must never learn")) as update:
+            output = self._run("baseline", None, evaluate=True, random_baseline=True)
+            update.assert_not_called()
+        metadata = json.loads((output / "metadata.json").read_text())
+        self.assertEqual((metadata["mode"], metadata["algorithm"], metadata["baseline"]),
+                         ("frozen_evaluation", "random", "masked_random"))
+        self.assertIn("canopy descent", metadata["scripted_support"])
+        self.assertIn("leaf blocks", metadata["recovery_helpers"])
+        record = json.loads((output / "episode-0001" / "transitions.jsonl").read_text())
+        self.assertEqual(record["mode"], "frozen_evaluation")
+        self.assertIsNone(record["td_error"])
+        self.assertIn(record["action"], ("SEARCH",))
+        self.assertEqual(json.loads((output / "policy.json").read_text())["algorithm"], "random")
+        self.assertEqual(json.loads((output / "summary.json").read_text())["baseline"], "masked_random")
+        for settings in ({"evaluate": False, "random_baseline": True},
+                         {"evaluate": True, "random_baseline": True, "pretrain": 5},
+                         {"evaluate": True, "random_baseline": False}):
+            with self.subTest(settings=settings), self.assertRaises(ValueError):
+                self._run("baseline-invalid", None, **settings)
+        self.assertEqual(self.server_exits, [1])
+
+    def test_recovery_records_are_kept_in_full_and_summarized_per_step(self):
+        following = deepcopy(self.start)
+        descent = {"type": "canopy_descent", "layers_cleared": 2, "blocks_dug": ["oak_leaves", "oak_leaves"],
+                   "falls": [{"planned_fall": 1, "actual_fall": 1.0, "damage": 0}, {"planned_fall": 4, "actual_fall": 4.0, "damage": 1}],
+                   "moves": 0, "damage": 1, "start_y": 76.0, "end_y": 71.0, "descended": True, "stopped": None, "refused": None}
+        following.update(nearby_log=True, event="cleared_2_leaf_layers;descended_canopy;log_reached", recovery=descent)
+        self.bridge.step.return_value = following
+        policy, _ = self._policy("recovery", following)
+        output = self._run("recovery", policy)
+        record = json.loads((output / "episode-0001" / "transitions.jsonl").read_text())
+        self.assertEqual(record["after"]["recovery"], descent)
+        with (output / "episode-0001" / "steps.csv").open(encoding="utf-8", newline="") as handle:
+            steps = list(csv.DictReader(handle))
+        self.assertEqual(steps[0]["recovery"], "canopy_descent:layers=2,descent=5.0,damage=1,stopped=-")
+        self.assertEqual(steps[0]["event"], "cleared_2_leaf_layers;descended_canopy;log_reached")
+        self.assertEqual(resource_session.recovery_summary(None), "")
+        self.assertEqual(resource_session.recovery_summary({"type": "canopy_descent", "layers_cleared": 0, "stopped": "fall_too_far"}),
+                         "canopy_descent:layers=0,descent=None,damage=0,stopped=fall_too_far")
+        # Natural leaf drops collected during a descent are attributed in the note.
+        self.assertEqual(resource_session.recovery_summary({"type": "canopy_descent", "layers_cleared": 3, "damage": 0,
+                                                            "start_y": 76.0, "end_y": 72.0, "stopped": None,
+                                                            "items_picked_up": {"stick": 2, "oak_sapling": 1}}),
+                         "canopy_descent:layers=3,descent=4.0,damage=0,stopped=-,picked_up=oak_sapling:1+stick:2")
 
     def test_missing_or_failed_observation_is_invalid_without_invented_policy_result(self):
         following = deepcopy(self.start)

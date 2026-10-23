@@ -20,6 +20,99 @@ Latest user instructions:
 
 > push it to main - i will clone
 
+## PC session status (23 October 2026, after cloning main)
+
+What actually happened on the PC so far; nothing below is a live-game result.
+
+- **Checkout:** `main` at `168a48a` cloned to `C:\Users\ethan\PycharmProjects\RL-Minecraft-project`.
+  `setup.cmd` installed `.venv` (Python 3.12.10), Node 24.22.1, Java 21.0.12.1,
+  pnpm 11.25.0, the pinned bridge dependencies, and the 1.21.4 server jar.
+  Doctor and the full check suite passed before any change was made.
+- **Hardware inspected:** AMD Ryzen 5 5600G (6 cores / 12 threads), 63.4 GB RAM,
+  NVIDIA RTX 2000 Ada Generation with 16 GB (driver 595.97), 292 GB free on `C:`.
+  The GPU is not used by anything in this project yet. No machine-specific heap
+  override was created; the default 2048 MB server maximum applies.
+- **Development branch:** `codex/pc-canopy-descent`, started from `main`.
+- **Implemented, unit-tested, not yet verified live** (automated tests now
+  94 core Python + 5 adapter + 21 Node = 120):
+  1. `minecraft_bridge/resource-bridge.js`: a bounded **canopy-descent helper**
+     inside `SEARCH`. When leaves carry the bot, it scans the column below and
+     clears only the leaf block under its feet when a solid landing is within a
+     verified safe fall (no damage, or at most two health points while health
+     stays above ten; hazards such as water, lava, and powder snow refuse). At
+     most six layers; it may first step onto a neighbouring leaf block with a
+     safer column. Planned and actual fall, cleared blocks, and damage are saved
+     in the transition's `recovery` field and named in the step event. The
+     pathfinder itself still cannot dig, place, sprint, or parkour, and its drop
+     limit is unchanged. The pure planner `planCanopyDescent` is unit-tested
+     against the retained canopy shapes (one-layer drop, four-block fall at full
+     health accepted, refused at eleven health, six-block fall refused).
+  2. `CHOP` now digs the **lowest reachable trunk log first** and walks to the
+     dropped item entity. Previously the second trunk block was chosen because it
+     is closest to the eyes, so its drop landed on the bottom log where the old
+     pickup waypoint was unreachable.
+  3. `SEARCH` targets the **lowest visible log of each trunk column** and tries
+     up to four exploration headings within one decision instead of spending a
+     whole decision on each instantly rejected heading. Observations now include
+     `on_canopy`, `support_block`, and `recovery`.
+  4. `run.cmd resource-demo --random-baseline`: the **masked random baseline**
+     with the same mask and helpers, frozen, labeled `masked_random` in metadata.
+  5. `run.cmd resource-report RUN [RUN...] --out DIR`: pooled summary with
+     success rate and Wilson interval, decisions, task seconds, deaths, invalid
+     episodes, failure causes, and canopy layers cleared; training, evaluation,
+     and baseline are never mixed. `steps.csv` gained a `recovery` column.
+  6. **Adversarial review applied.** A 40-agent review of the change set
+     (four lenses, two independent verifiers per finding) confirmed 17
+     findings; all are fixed and covered by tests. Bridge: landings are measured
+     to the block's collision surface (carpets, slabs, mud, paths, lily pads no
+     longer under-count the fall; big dripleaf is a hazard); every dig is
+     health-guarded, bounded by its expected duration, and aborted on death, so
+     a mid-dig death is recorded as a death instead of a 44-second transport
+     timeout; a partial descent record survives an exception; a step-down
+     neighbour must satisfy the pathfinder's clearance rule and an unreachable
+     one is skipped rather than ending every later descent; the bot recentres
+     when its hitbox overlaps a neighbouring column and a layer counts only when
+     the server shows the block gone; natural leaf drops (sticks, saplings,
+     apples) are recorded as `items_picked_up`; trunk memory is keyed by column;
+     the item pickup goal ends only inside the vanilla pickup box; a standalone
+     observe request no longer repeats the previous step's recovery. Report:
+     refuses arena/simulator/watch folders, duplicate or same-named folders, and
+     runs without episodes; frozen evaluations of different checkpoints and runs
+     with different step limits are separate groups; failure causes count
+     completed episodes only with a separate "not measured" line; sticks alone
+     are not wood evidence; the console copy cannot fail on a limited code page.
+     README now says the helper is unit-tested, not that it resolves the blocker.
+- **Blocked on the user:** no Minecraft server has run on this PC because the
+  machine-local EULA record `.local/minecraft-eula-consent.json` does not exist in
+  a fresh clone. The assistant must not record it unilaterally. Once the user
+  confirms that their earlier acceptance applies here, run
+  `.\run.cmd accept-eula --agree`, then start the live checks below.
+- **Live verification plan (unchanged in substance):** reproduce the seed-1
+  forest canopy start headlessly, confirm the descent record and the actual
+  damage, then verify the complete chop → planks → sticks → table → place →
+  pickaxe chain on at least three development seeds with Q-learning and SARSA,
+  run the masked random baseline on the same seeds, and only then a declared
+  small validation sample. Retain compact evidence outside `runs/`, update this
+  file, commit, and push.
+
+Exact commands once the EULA record exists:
+
+```powershell
+# Headless canopy reproduction on the known forest seed; no viewer needed.
+.\run.cmd resource-train --episodes 1 --world-seed 1 --max-steps 50 --pause 0 --out runs/pc-canopy-seed1
+
+# Complete chain on three development seeds, both algorithms.
+.\run.cmd resource-train --episodes 3 --world-seed 1 --max-steps 60 --pause 0 --out runs/pc-q-dev
+.\run.cmd resource-train --algorithm sarsa --episodes 3 --world-seed 1 --max-steps 60 --pause 0 --out runs/pc-sarsa-dev
+
+# Matched baseline and frozen evaluation on the same seeds.
+.\run.cmd resource-demo --random-baseline --episodes 3 --world-seed 1 --max-steps 60 --pause 0 --out runs/pc-random-dev
+.\run.cmd resource-demo --policy runs/pc-q-dev/policy.json --episodes 3 --world-seed 1 --max-steps 60 --pause 0 --out runs/pc-q-frozen-dev
+
+# Summarize for the report; choose a new folder.
+.\run.cmd resource-report runs/pc-q-dev runs/pc-sarsa-dev runs/pc-random-dev runs/pc-q-frozen-dev --out results/pc_resource_dev
+```
+
 ## Repository and branch
 
 - Remote: `https://github.com/taraskHy/RL-Minecraft-project.git`
@@ -159,14 +252,21 @@ Next concrete work:
 1. Reproduce the forest/canopy case on the PC using real observations. The
    snapshot already includes feet/head/ground blocks, adjacent drop depths,
    biome and nearby visible logs. Investigate reachable intermediate landings.
+   *Status: analysed from the retained JSONL on the PC; the live reproduction
+   waits for the EULA record (see the status section above).*
 2. Add a bounded, documented escape/navigation recovery. Options include
    limited ordinary leaf clearing when the landing is verified, or a carefully
    defined health-aware descent whose actual damage is recorded. Choose based
    on observed terrain; do not just increase the global drop limit and assume
    safety. No teleportation, creative mode, supplied blocks or items.
+   *Status: implemented as verified-landing leaf clearing with recorded damage;
+   the global drop limit is unchanged. Live behaviour unverified.*
 3. Keep scripted motor support explicit. If navigation starts clearing leaves,
    update the tests and documentation that currently say it cannot dig blocks.
    The policy should still select resource/crafting decisions.
+   *Status: done; `docs/resource_training.md`, run metadata
+   (`scripted_support`, `recovery_helpers`), and the Node tests describe the
+   exception. The pathfinder remains unable to dig.*
 4. Verify actual natural logs are dug and picked up, three logs supply enough
    material for the bot's own table and tool, table placement succeeds on natural
    terrain, mixed plank species work, and a real pickaxe is equipped and visible

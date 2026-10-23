@@ -219,22 +219,55 @@ def resources(arguments: list[str], *, evaluate: bool = False) -> int:
     p.add_argument("--world-seed", type=int, default=42, help="First world seed; each episode increments it")
     p.add_argument("--seed", type=int, default=0, help="Learner random seed")
     p.add_argument("--max-steps", type=int, default=80)
-    p.add_argument("--policy", type=Path, required=evaluate, help="Resource checkpoint to resume or evaluate; arena policies are incompatible")
+    p.add_argument("--policy", type=Path, help="Resource checkpoint to resume or evaluate; arena policies are incompatible")
     p.add_argument("--out", type=Path, help="New output folder inside runs/")
     p.add_argument("--pause", type=float, default=.5, help="Extra seconds between decisions")
-    if not evaluate:
+    if evaluate:
+        p.add_argument("--random-baseline", action="store_true",
+                       help="Evaluate the masked random baseline instead of a checkpoint: same mask and helpers, "
+                            "uniformly random allowed actions, no learning")
+    else:
         p.add_argument("--algorithm", choices=("q_learning", "sarsa"), default="q_learning")
         p.add_argument("--epsilon", type=float, default=.6, help="Initial exploration probability")
         p.add_argument("--epsilon-end", type=float, default=.1)
         p.add_argument("--pretrain", type=int, default=0, help="Optional explicitly labeled simulator warm-up episodes; default learns from scratch")
     args = p.parse_args(arguments)
+    if evaluate and bool(args.policy) == bool(args.random_baseline):
+        p.error("pass exactly one of --policy PATH or --random-baseline")
     from .resource_session import run_resources
     return run_resources(output=args.out or Path(new_output(name)), episodes=args.episodes,
                          world_seed=args.world_seed, seed=args.seed, viewer=args.viewer,
                          max_steps=args.max_steps, policy=args.policy, evaluate=evaluate, pause=args.pause,
                          algorithm=getattr(args, "algorithm", "q_learning"),
                          epsilon=getattr(args, "epsilon", 0), epsilon_end=getattr(args, "epsilon_end", 0),
-                         pretrain=getattr(args, "pretrain", 0))
+                         pretrain=getattr(args, "pretrain", 0),
+                         random_baseline=getattr(args, "random_baseline", False))
+
+
+def resource_report(arguments: list[str]) -> int:
+    p = argparse.ArgumentParser(prog="run.cmd resource-report", description=
+        "Summarize retained natural-resource run folders: success rate with a Wilson interval, decisions, "
+        "task time, deaths, invalid episodes, and failure causes. Training and frozen evaluation stay separate.")
+    p.add_argument("runs", nargs="+", type=Path, help="Run folders written by resource-train or resource-demo")
+    p.add_argument("--out", type=Path, help="New or empty folder for summary.json, episodes.csv, and report.md")
+    args = p.parse_args(arguments)
+    for run_directory in args.runs:
+        if not (run_directory / "metadata.json").is_file():
+            p.error(f"not a resource run folder (missing metadata.json): {run_directory}")
+    from minecraft_rl.resource_report import render_markdown, summarize_runs, write_report
+    try:
+        summary = summarize_runs(args.runs)
+    except ValueError as exc:
+        p.error(str(exc))
+    output = args.out or Path(new_output("resource-report"))
+    write_report(summary, output)
+    # report.md keeps its UTF-8 symbols; the console copy must not fail on a
+    # code page that lacks them after the files were written.
+    text = render_markdown(summary)
+    encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
+    print(text.encode(encoding, "replace").decode(encoding, "replace"), flush=True)
+    print(f"Report written to {output}", flush=True)
+    return 0
 
 
 def menu() -> int:
@@ -301,6 +334,8 @@ def main(argv: list[str] | None = None) -> int:
             return watch(arguments)
         if command in ("resource-train", "resource-demo"):
             return resources(arguments, evaluate=command == "resource-demo")
+        if command == "resource-report":
+            return resource_report(arguments)
         if command == "server":
             p = argparse.ArgumentParser(prog="run.cmd server")
             p.add_argument("profile", choices=("arena", "survival"))
@@ -326,6 +361,8 @@ def main(argv: list[str] | None = None) -> int:
                   "  watch --dev-arena --viewer NAME  Wait for you to join and watch the bot\n"
                   "  resource-train --viewer NAME    Watch actual training in fresh natural worlds\n"
                   "  resource-demo --policy PATH     Evaluate a frozen resource policy in a fresh world\n"
+                  "  resource-demo --random-baseline Evaluate the masked random baseline (same helpers, no learning)\n"
+                  "  resource-report RUN [RUN...]    Summarize retained resource runs for the report\n"
                   "  survival-check              Check bot connection to ordinary Survival\n"
                   "  server arena|survival       Keep a server running until Ctrl+C\n"
                   "Without a command, opens the menu. Read docs/windows_setup.md.")

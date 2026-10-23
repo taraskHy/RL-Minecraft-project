@@ -16,7 +16,7 @@ To watch the current crafting bot, use `run.cmd watch --dev-arena --viewer YourM
 
 To watch **actual Q-learning/SARSA updates in fresh natural worlds**, run `run.cmd resource-train --viewer YourMinecraftName --episodes 5` and join **127.0.0.1:25567** when prompted. The bot learns resource/crafting decisions from game observations; chat shows rewards and changing Q-values. Each episode saves its world and starts a new one. Read [natural-resource training](docs/resource_training.md) for controls, saved evidence, scripted helpers, and limitations.
 
-**PC continuation:** read [HANDOFF_PC.md](HANDOFF_PC.md). The natural-resource prototype has verified online updates, but its complete wood/table/pickaxe chain still needs a successful live test; canopy navigation is the current blocker.
+**PC continuation:** read [HANDOFF_PC.md](HANDOFF_PC.md). The natural-resource prototype has verified online updates. A bounded, recorded canopy-descent helper for the forest-spawn blocker found on the laptop is implemented and unit-tested but not yet verified live; a masked random baseline plus `run.cmd resource-report` support the comparison, and the complete wood/table/pickaxe chain still needs a successful live test.
 
 ## Run the first experiment
 

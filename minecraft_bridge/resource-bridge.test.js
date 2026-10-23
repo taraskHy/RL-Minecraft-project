@@ -3,7 +3,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
-const { parseArgs, validateAction, inventoryCounts, validatePhysicalState, craftingRecipe, safeMovements, SearchMemory, replaceableForTable, ACTIONS } = require('./resource-bridge')
+const { parseArgs, validateAction, inventoryCounts, validatePhysicalState, craftingRecipe, safeMovements, SearchMemory, replaceableForTable, isLeaves, fallDamage, descentAcceptable, planCanopyDescent, nodeCollectsItem, ACTIONS, FALL_HAZARDS, MAX_CANOPY_LAYERS, PICKUP_REACH } = require('./resource-bridge')
 
 test('natural resource bridge only connects locally and has no reset/command interface', () => {
   assert.deepEqual(parseArgs([]), { host: '127.0.0.1', port: 25567, username: 'RLResourceBot', version: '1.21.4' })
@@ -72,6 +72,24 @@ test('blocked log paths rotate candidates and force exploration before retrying'
   assert.equal(memory.next(candidates), null)
   for (let i = 0; i < 5; i++) assert.equal(memory.next(candidates), null)
   assert.equal(memory.next(candidates), first)
+  // A trunk stays blocked whichever of its logs happens to be visible next time.
+  const trunk = new SearchMemory()
+  trunk.next([{ position: { x: 168, y: 70, z: 160 } }])
+  trunk.failed({ position: { x: 168, y: 70, z: 160 } })
+  assert.equal(trunk.next([{ position: { x: 168, y: 71, z: 160 } }]), null)
+})
+
+test('a pickup goal ends only where the vanilla item box can reach the bot', () => {
+  assert(PICKUP_REACH < 1.425 - 0.2)
+  const item = { x: 10.05, y: 64, z: 20.5 }
+  assert.equal(nodeCollectsItem({ x: 10, y: 64, z: 20 }, item), true)
+  assert.equal(nodeCollectsItem({ x: 10, y: 64, z: 21 }, item), true)
+  assert.equal(nodeCollectsItem({ x: 9, y: 64, z: 19 }, item), true)
+  // Orthogonally adjacent on the far side: 1.45 blocks away, outside the pickup box.
+  assert.equal(nodeCollectsItem({ x: 11, y: 64, z: 20 }, item), false)
+  // One block above the feet is still collected; one block below is not.
+  assert.equal(nodeCollectsItem({ x: 10, y: 63, z: 20 }, item), true)
+  assert.equal(nodeCollectsItem({ x: 10, y: 65, z: 20 }, item), false)
 })
 
 test('table placement can replace ordinary plants but not other solid blocks or liquids', () => {
@@ -98,4 +116,79 @@ test('configured descent allows three feet-height blocks but rejects a four-bloc
   }
   assert.equal(landing(71).position.y, 72)
   assert.equal(landing(70), null)
+})
+
+test('canopy descent digs only the leaf block under the feet after verifying the landing', () => {
+  const leaves = { name: 'oak_leaves', boundingBox: 'block' }
+  const air = { name: 'air', boundingBox: 'empty' }
+  const grass = { name: 'grass_block', boundingBox: 'block' }
+  // A typical oak canopy: another leaf layer one block down, then open air to the ground.
+  assert.deepEqual(planCanopyDescent({ feetY: 76, health: 20, column: [leaves, leaves, air, air, air, grass] }),
+    { ok: true, dig_block: 'oak_leaves', landing_y: 75, landing_block: 'oak_leaves', fall: 1, expected_damage: 0 })
+  const second = planCanopyDescent({ feetY: 75, health: 20, column: [leaves, air, air, air, grass] })
+  assert.deepEqual(second, { ok: true, dig_block: 'oak_leaves', landing_y: 71, landing_block: 'grass_block', fall: 4, expected_damage: 1 })
+  // The same step is refused when its damage would drop health into the low bin.
+  assert.deepEqual(planCanopyDescent({ feetY: 75, health: 11, column: [leaves, air, air, air, grass] }),
+    { ok: false, reason: 'fall_too_far', fall: 4, expected_damage: 1, landing_block: 'grass_block' })
+  // Two points of damage is the limit even at full health.
+  const six = planCanopyDescent({ feetY: 76, health: 20, column: [leaves, air, air, air, air, air, grass] })
+  assert.equal(six.ok, false)
+  assert.equal(six.reason, 'fall_too_far')
+  assert.equal(six.fall, 6)
+  assert.equal(six.expected_damage, 3)
+  // Landings are measured to the block's collision surface: a planned five-block
+  // fall onto a carpet or lily pad is really 5.9 blocks and three points, so it is refused.
+  const carpet = { name: 'pale_moss_carpet', boundingBox: 'block', top: 0.0625 }
+  const mud = { name: 'mud', boundingBox: 'block', top: 0.875 }
+  const lilyPad = { name: 'lily_pad', boundingBox: 'block', top: 0.09375 }
+  const ontoCarpet = planCanopyDescent({ feetY: 76, health: 13, column: [leaves, air, air, air, air, carpet, grass] })
+  assert.deepEqual([ontoCarpet.ok, ontoCarpet.reason, ontoCarpet.fall, ontoCarpet.expected_damage], [false, 'fall_too_far', 5.9375, 3])
+  assert.equal(planCanopyDescent({ feetY: 76, health: 20, column: [leaves, air, air, air, air, carpet, grass] }).ok, false)
+  assert.equal(planCanopyDescent({ feetY: 76, health: 13, column: [leaves, air, air, air, air, lilyPad, { name: 'water', boundingBox: 'empty' }] }).reason, 'fall_too_far')
+  const ontoMud = planCanopyDescent({ feetY: 75, health: 20, column: [leaves, air, air, air, mud] })
+  assert.deepEqual([ontoMud.ok, ontoMud.fall, ontoMud.expected_damage, ontoMud.landing_y], [true, 4.125, 2, 70.875])
+  assert.equal(planCanopyDescent({ feetY: 75, health: 12, column: [leaves, air, air, air, mud] }).reason, 'fall_too_far')
+  assert.equal(planCanopyDescent({ feetY: 76, health: 20, column: [leaves, air, air, { name: 'big_dripleaf', boundingBox: 'block', top: 0.9375 }] }).reason, 'hazard_below')
+  // Anything other than a leaf block under the feet is never dug by this helper.
+  assert.equal(planCanopyDescent({ feetY: 70, health: 20, column: [grass, { name: 'dirt', boundingBox: 'block' }] }).reason, 'not_standing_on_leaves')
+  assert.equal(planCanopyDescent({ feetY: 70, health: 20, column: [{ name: 'oak_log', boundingBox: 'block' }, grass] }).reason, 'not_standing_on_leaves')
+  assert.equal(planCanopyDescent({ feetY: 70, health: 20, column: [air, grass] }).reason, 'not_standing_on_leaves')
+  // Hazards in the gap or as the landing, unloaded chunks, and bottomless columns all refuse.
+  assert.equal(planCanopyDescent({ feetY: 76, health: 20, column: [leaves, air, { name: 'water', boundingBox: 'empty' }, grass] }).reason, 'hazard_below')
+  assert.equal(planCanopyDescent({ feetY: 76, health: 20, column: [leaves, air, { name: 'magma_block', boundingBox: 'block' }] }).reason, 'hazard_below')
+  assert.equal(planCanopyDescent({ feetY: 76, health: 20, column: [leaves, { name: 'powder_snow', boundingBox: 'empty' }, grass] }).reason, 'hazard_below')
+  assert.equal(planCanopyDescent({ feetY: 76, health: 20, column: [leaves, air, null, grass] }).reason, 'unloaded_column')
+  assert.equal(planCanopyDescent({ feetY: 76, health: 20, column: [leaves, air, air] }).reason, 'no_landing_within_scan')
+  for (const bad of [{ feetY: 76.5, health: 20, column: [leaves, grass] }, { feetY: 76, health: 21, column: [leaves, grass] }, { feetY: 76, health: NaN, column: [leaves, grass] }, { feetY: 76, health: 20, column: [leaves] }, { feetY: 76, health: 20, column: 'none' }]) {
+    assert.throws(() => planCanopyDescent(bad))
+  }
+  for (const name of ['water', 'lava', 'powder_snow', 'sweet_berry_bush', 'cactus', 'magma_block']) assert(FALL_HAZARDS.includes(name))
+  assert(Number.isInteger(MAX_CANOPY_LAYERS) && MAX_CANOPY_LAYERS >= 1 && MAX_CANOPY_LAYERS <= 8)
+})
+
+test('fall damage follows vanilla ceil(distance - 3) and the descent health rule', () => {
+  assert.deepEqual([0, 3, 3.5, 4, 5, 6].map(fallDamage), [0, 0, 1, 1, 2, 3])
+  assert.throws(() => fallDamage(-1))
+  assert.throws(() => fallDamage(NaN))
+  assert.equal(descentAcceptable(3, 1), true)
+  assert.equal(descentAcceptable(5, 20), true)
+  assert.equal(descentAcceptable(5, 12), false)
+  assert.equal(descentAcceptable(5, 13), true)
+  assert.equal(descentAcceptable(4, 11), false)
+  assert.equal(descentAcceptable(6, 20), false)
+  for (const name of ['oak_leaves', 'azalea_leaves', 'flowering_azalea_leaves', 'pale_oak_leaves']) assert.equal(isLeaves(name), true)
+  for (const name of ['oak_log', 'leaves', 'grass_block', undefined, null, 4]) assert.equal(isLeaves(name), false)
+})
+
+test('the bridge digs only through its chop and canopy helpers and still never issues commands', () => {
+  const source = fs.readFileSync(require.resolve('./resource-bridge'), 'utf8')
+  // One bounded, health-guarded dig helper, called from CHOP and the canopy descent only.
+  assert.equal((source.match(/bot\.dig\s*\(/g) || []).length, 1)
+  assert.equal((source.match(/await digBlock\s*\(/g) || []).length, 2)
+  assert.doesNotMatch(source, /bot\.chat\s*\(/)
+  assert.doesNotMatch(source, /bot\.creative/)
+  assert.doesNotMatch(source, /setControlState\s*\(\s*'jump'/)
+  // The pathfinder may still never dig, place, or scaffold on its own.
+  assert.match(source, /movements\.canDig = false/)
+  assert.match(source, /movements\.scafoldingBlocks = \[\]/)
 })

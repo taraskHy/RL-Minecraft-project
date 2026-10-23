@@ -8,11 +8,28 @@ const ACTIONS = ['SEARCH', 'CHOP', 'CRAFT_PLANKS', 'CRAFT_STICKS', 'CRAFT_TABLE'
 const BACKEND = 'minecraft-java-natural-resources'
 const MAX_RADIUS = 64
 const SEARCH_RADIUS = 32
+// One request may take 44 seconds; SEARCH keeps a margin for its two observations.
+const SEARCH_BUDGET_MS = 36000
+const CANOPY_BUDGET_MS = 20000
+const MAX_CANOPY_LAYERS = 6
+const CANOPY_SCAN_DEPTH = 12
+// A descent must never fall through or land on these. Liquids, bushes and
+// powder snow have empty bounding boxes, so solidity alone cannot exclude them;
+// a big dripleaf is solid but tilts and drops whoever lands on it.
+const FALL_HAZARDS = ['water', 'lava', 'fire', 'soul_fire', 'cactus', 'magma_block', 'powder_snow', 'sweet_berry_bush',
+  'campfire', 'soul_campfire', 'pointed_dripstone', 'cobweb', 'bubble_column', 'big_dripleaf']
+// Vanilla collects a dropped item when the item's box meets the player's box
+// inflated by one block horizontally: 0.3 + 1.0 + 0.125 = 1.425 per axis. The
+// pathfinder may stop up to 0.2 from a node centre, so a pickup goal accepts
+// only nodes whose centre lies within 1.2 of the item on both axes.
+const PICKUP_REACH = 1.2
 class ObservationError extends Error {}
 
 class SearchMemory {
   constructor () { this.attempt = 0; this.blockedUntil = new Map(); this.consecutiveBlocked = 0 }
-  key (block) { return `${block.position.x},${block.position.y},${block.position.z}` }
+  // Keyed by trunk column: which log of a trunk is visible changes with small
+  // movements, and a blocked trunk must stay blocked whichever log is seen.
+  key (block) { return `${block.position.x},${block.position.z}` }
   next (candidates) {
     this.attempt++
     // A local obstruction should lead to a new view, not repeated attempts at
@@ -26,6 +43,61 @@ class SearchMemory {
 
 function replaceableForTable (name) {
   return ['air', 'cave_air', 'short_grass', 'tall_grass', 'fern', 'large_fern', 'dead_bush', 'snow'].includes(name)
+}
+
+function isLeaves (name) {
+  return typeof name === 'string' && name.endsWith('_leaves')
+}
+
+// Vanilla fall damage without effects or enchantments: ceil(distance - 3).
+function fallDamage (blocks) {
+  if (!Number.isFinite(blocks) || blocks < 0) throw new Error('fall distance must be a nonnegative number')
+  return Math.max(0, Math.ceil(blocks - 3))
+}
+
+// A descent step is acceptable when it costs no health, or at most two points
+// while health stays above the learning state's ten-point bin.
+function descentAcceptable (fall, health) {
+  const damage = fallDamage(fall)
+  return damage === 0 || (damage <= 2 && health - damage > 10)
+}
+
+// Decide whether clearing the leaf block under the feet gives a verified
+// landing. `column` lists the blocks below the feet, nearest first, as
+// { name, boundingBox, top } or null when unloaded. `top` is the collision
+// height inside the block cell (1 for a full cube, 0.0625 for a carpet): the
+// fall ends on that surface, not on the cell top. Pure, so tests can cover it.
+function planCanopyDescent ({ feetY, health, column }) {
+  if (!Number.isInteger(feetY)) throw new Error('feetY must be an integer block coordinate')
+  if (!Number.isFinite(health) || health < 0 || health > 20) throw new Error('health must be a number from 0 to 20')
+  if (!Array.isArray(column) || column.length < 2) throw new Error('column must list the blocks below the feet')
+  const support = column[0]
+  if (!support || !isLeaves(support.name) || support.boundingBox !== 'block') {
+    return { ok: false, reason: 'not_standing_on_leaves', support: support?.name ?? null }
+  }
+  for (let index = 1; index < column.length; index++) {
+    const block = column[index]
+    const y = feetY - 1 - index
+    if (!block) return { ok: false, reason: 'unloaded_column', y }
+    if (FALL_HAZARDS.includes(block.name)) return { ok: false, reason: 'hazard_below', hazard: block.name, y }
+    if (block.boundingBox === 'block') {
+      const top = Number.isFinite(block.top) ? Math.min(1, Math.max(0, block.top)) : 1
+      const landingY = y + top
+      const fall = feetY - landingY
+      const damage = fallDamage(fall)
+      if (!descentAcceptable(fall, health)) return { ok: false, reason: 'fall_too_far', fall, expected_damage: damage, landing_block: block.name }
+      return { ok: true, dig_block: support.name, landing_y: landingY, landing_block: block.name, fall, expected_damage: damage }
+    }
+  }
+  return { ok: false, reason: 'no_landing_within_scan', scanned: column.length - 1 }
+}
+
+// Whether a bot standing on path node `node` collects an item lying at `item`:
+// horizontal centre distance under PICKUP_REACH on both axes, and the item's
+// box inside the player's box inflated by half a block vertically.
+function nodeCollectsItem (node, item) {
+  const dy = item.y - node.y
+  return Math.abs(node.x + 0.5 - item.x) < PICKUP_REACH && Math.abs(node.z + 0.5 - item.z) < PICKUP_REACH && dy > -0.75 && dy < 2.3
 }
 
 function parseArgs (args) {
@@ -101,7 +173,8 @@ function safeMovements (bot, Movements, spawn) {
   movements.allowSprinting = false
   movements.allowFreeMotion = false
   // Pathfinder compares feet Y to the supporting block's Y, so 4 means a
-  // maximum three-block feet-height descent, not a four-block fall.
+  // maximum three-block feet-height descent, not a four-block fall. Larger
+  // drops are handled only by the explicit, health-aware canopy descent.
   movements.maxDropDown = 4
   movements.infiniteLiquidDropdownDistance = false
   for (const name of ['water', 'lava', 'fire', 'soul_fire', 'cactus', 'magma_block', 'powder_snow', 'sweet_berry_bush', 'campfire', 'soul_campfire']) {
@@ -118,6 +191,11 @@ async function main () {
   const mineflayer = require('mineflayer')
   const { Vec3 } = require('vec3')
   const { pathfinder, Movements, goals } = require('mineflayer-pathfinder')
+  class GoalPickup extends goals.GoalNear {
+    // Ends only on nodes from which the vanilla pickup box reaches the item.
+    constructor (entity) { super(entity.position.x, entity.position.y, entity.position.z, 1); this.item = entity.position.clone() }
+    isEnd (node) { return nodeCollectsItem(node, this.item) }
+  }
   const bot = mineflayer.createBot({ ...config, auth: 'offline', hideErrors: true, respawn: false })
   bot.loadPlugin(pathfinder)
   let connected = false
@@ -129,6 +207,8 @@ async function main () {
   let ownTable = null
   let explorationIndex = 0
   let placementIndex = 0
+  // The most recent bounded recovery; reported in the step's final observation.
+  let recovery = null
   const searchMemory = new SearchMemory()
   const log = message => process.stderr.write(`[natural-resource bridge] ${message}\n`)
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
@@ -157,6 +237,16 @@ async function main () {
     }
     check(signal)
   }
+  async function waitFor (predicate, timeout, signal) {
+    const deadline = Date.now() + timeout
+    while (!predicate()) {
+      check(signal)
+      if (Date.now() >= deadline) return false
+      await sleep(50)
+    }
+    check(signal)
+    return true
+  }
   function inventory () {
     const result = {}
     for (const item of bot.inventory.items()) result[item.name] = (result[item.name] || 0) + item.count
@@ -171,8 +261,28 @@ async function main () {
       .filter(block => block && inBounds(block.position) && bot.canSeeBlock(block))
       .sort((a, b) => a.position.distanceTo(bot.entity.position) - b.position.distanceTo(bot.entity.position))
   }
-  function reachableLog () {
-    return visibleLogs(6).find(block => bot.canDigBlock(block) && block.position.offset(0.5, 0.5, 0.5).distanceTo(bot.entity.position.offset(0, 1.62, 0)) <= 4.5) || null
+  function reachableLogs () {
+    const eyes = bot.entity.position.offset(0, 1.62, 0)
+    return visibleLogs(6)
+      .filter(block => bot.canDigBlock(block) && block.position.offset(0.5, 0.5, 0.5).distanceTo(eyes) <= 4.5)
+      // Lowest first: a trunk's bottom log drops its item onto open ground
+      // instead of onto the remaining trunk, and keeps the next log in reach.
+      .sort((a, b) => a.position.y - b.position.y || a.position.distanceTo(bot.entity.position) - b.position.distanceTo(bot.entity.position))
+  }
+  function reachableLog () { return reachableLogs()[0] || null }
+  function trunkTargets () {
+    // One target per trunk column: its lowest visible log, so the approach goal
+    // sits beside the trunk base rather than at a block high in the canopy.
+    const lowest = new Map()
+    for (const block of visibleLogs()) {
+      const key = `${block.position.x},${block.position.z}`
+      if (!lowest.has(key) || block.position.y < lowest.get(key).position.y) lowest.set(key, block)
+    }
+    return [...lowest.values()].sort((a, b) => a.position.distanceTo(bot.entity.position) - b.position.distanceTo(bot.entity.position))
+  }
+  function droppedItemNear (position, maxDistance = 6) {
+    const center = position.offset(0.5, 0.5, 0.5)
+    return bot.nearestEntity(entity => entity.name === 'item' && entity.position.distanceTo(center) <= maxDistance)
   }
   function tableBlock () {
     const block = ownTable && bot.blockAt(ownTable)
@@ -181,6 +291,58 @@ async function main () {
   function tableInReach () {
     const block = tableBlock()
     return block && bot.canSeeBlock(block) && block.position.offset(0.5, 0.5, 0.5).distanceTo(bot.entity.position.offset(0, 1.62, 0)) <= 4.5 ? block : null
+  }
+  function supportBlock () {
+    // The block carrying the bot: its own column, or a corner column when it
+    // stands on the edge of a block and its own column is air.
+    const position = bot.entity.position
+    const feet = position.floored()
+    const own = bot.blockAt(feet.offset(0, -1, 0))
+    if (own?.boundingBox === 'block') return own
+    for (const [dx, dz] of [[0.3, 0.3], [0.3, -0.3], [-0.3, 0.3], [-0.3, -0.3]]) {
+      const corner = bot.blockAt(new Vec3(Math.floor(position.x + dx), feet.y - 1, Math.floor(position.z + dz)))
+      if (corner?.boundingBox === 'block') return corner
+    }
+    return null
+  }
+  function onCanopy () {
+    const support = supportBlock()
+    return Boolean(support && isLeaves(support.name) && bot.entity.onGround)
+  }
+  function columnBelow (x, feetY, z, depth = CANOPY_SCAN_DEPTH) {
+    return Array.from({ length: depth }, (_, index) => {
+      const block = bot.blockAt(new Vec3(x, feetY - 1 - index, z))
+      if (!block) return null
+      // Collision top inside the cell: carpets, slabs, mud and paths are solid
+      // but lower than a full cube, so the real fall onto them is longer.
+      const top = Array.isArray(block.shapes) && block.shapes.length ? Math.max(...block.shapes.map(shape => shape[4])) : 1
+      return { name: block.name, boundingBox: block.boundingBox, top }
+    })
+  }
+  function standable (position) {
+    const feetBlock = bot.blockAt(position)
+    const headBlock = bot.blockAt(position.offset(0, 1, 0))
+    return Boolean(feetBlock && headBlock && feetBlock.boundingBox === 'empty' && headBlock.boundingBox === 'empty' &&
+      !FALL_HAZARDS.includes(feetBlock.name) && !FALL_HAZARDS.includes(headBlock.name))
+  }
+  function alternativeFooting (feet, tried = new Set()) {
+    // A neighbouring leaf block, level or one step down, whose own column has a
+    // verified landing. Pathfinder handles these ordinary one-block moves; its
+    // step-down move also needs the neighbour clear at the bot's own feet and
+    // head, and a neighbour it already failed to reach is not offered again.
+    let best = null
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      for (const dy of [0, -1]) {
+        const candidate = feet.offset(dx, dy, dz)
+        if (tried.has(candidate.toString())) continue
+        const support = bot.blockAt(candidate.offset(0, -1, 0))
+        if (!support || !isLeaves(support.name) || support.boundingBox !== 'block' || !standable(candidate) || !inBounds(candidate)) continue
+        if (dy === -1 && !standable(candidate.offset(0, 1, 0))) continue
+        const plan = planCanopyDescent({ feetY: candidate.y, health: bot.health, column: columnBelow(candidate.x, candidate.y, candidate.z) })
+        if (plan.ok && (!best || plan.fall < best.plan.fall)) best = { position: candidate, plan }
+      }
+    }
+    return best
   }
   function observe (event = 'observe', duration = 0) {
     const inv = inventory()
@@ -195,6 +357,7 @@ async function main () {
       }
       return { dx, dz, ground_block: null, feet_drop: null, loaded: true }
     })
+    const support = supportBlock()
     const result = validatePhysicalState({
       position: { x: bot.entity.position.x, y: bot.entity.position.y, z: bot.entity.position.z },
       health: bot.health, food: bot.food, gamemode: bot.game.gameMode,
@@ -205,9 +368,12 @@ async function main () {
       feet_block: bot.blockAt(feet)?.name || null,
       head_block: bot.blockAt(feet.offset(0, 1, 0))?.name || null,
       ground_block: bot.blockAt(feet.offset(0, -1, 0))?.name || null,
+      support_block: support?.name || null,
+      on_canopy: onCanopy(),
       adjacent_drops: adjacentDrops,
       table_position: tableBlock() ? { x: ownTable.x, y: ownTable.y, z: ownTable.z } : null,
       held_item: bot.heldItem?.name || null, success: counts.pickaxes > 0, death: bot.health <= 0,
+      recovery,
       event, action_duration_seconds: duration, backend: BACKEND, game_version: bot.version
     })
     if (!inBounds(result.position)) throw new Error('Bot left the 64-block starting radius; episode invalid')
@@ -246,26 +412,145 @@ async function main () {
       bot.clearControlStates()
     }
   }
+  async function digBlock (block, signal) {
+    // A dead bot never finishes mineflayer's pre-dig look, and the digging
+    // plugin's own death handler only cancels a dig already in progress, so
+    // bound every dig by its expected duration and by a death event instead of
+    // leaving it to the 44-second request deadline.
+    if (bot.health <= 0) throw new Error('Bot died before digging')
+    let timer
+    let onDeath
+    const died = new Promise((_, reject) => { onDeath = () => reject(new Error('Bot died while digging')); bot.once('death', onDeath) })
+    try {
+      await Promise.race([
+        bot.dig(block),
+        died,
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Dig did not complete in time')), bot.digTime(block) + 3000) })
+      ])
+    } finally {
+      clearTimeout(timer)
+      bot.removeListener('death', onDeath)
+      if (bot.targetDigBlock) { try { bot.stopDigging() } catch (_) {} }
+    }
+    check(signal)
+  }
+  async function descendCanopy (signal) {
+    // Bounded scripted recovery for a bot standing on tree leaves: clear only
+    // the leaf block under the feet when the column below has a verified
+    // landing, and record every cleared block, fall, and health change. No
+    // other block is dug, nothing is placed, and nothing is supplied.
+    const record = { type: 'canopy_descent', layers_cleared: 0, blocks_dug: [], falls: [], moves: 0, damage: 0, items_picked_up: {}, start_y: bot.entity.position.y, end_y: null, descended: false, stopped: null, refused: null }
+    // Published at once, so a partial descent is still observed when a dig or
+    // move throws, for example after a death mid-dig.
+    recovery = record
+    const inventoryBefore = inventory()
+    const tried = new Set()
+    const deadline = Date.now() + CANOPY_BUDGET_MS
+    const offCentre = support => Math.abs(bot.entity.position.x - (support.position.x + 0.5)) > 0.2 || Math.abs(bot.entity.position.z - (support.position.z + 0.5)) > 0.2
+    try {
+      for (let iteration = 0; iteration < MAX_CANOPY_LAYERS * 2; iteration++) {
+        check(signal)
+        if (record.layers_cleared >= MAX_CANOPY_LAYERS) { record.stopped = 'layer_limit'; break }
+        if (Date.now() >= deadline) { record.stopped = 'time_budget'; break }
+        if (bot.health <= 0) { record.stopped = 'died'; break }
+        const support = supportBlock()
+        if (!support || !isLeaves(support.name)) break
+        const feet = bot.entity.position.floored()
+        if (support.position.x !== feet.x || support.position.z !== feet.z || offCentre(support)) {
+          // Stand centred on the supporting leaf block so clearing it drops the
+          // bot straight down. The hitbox is 0.6 wide: an offset above 0.2
+          // overlaps a neighbouring column that would hold the bot up. The
+          // pathfinder recentres the bot when it reaches a goal block.
+          record.moves++
+          const reached = await navigate(new goals.GoalBlock(support.position.x, feet.y, support.position.z), 5000, signal)
+          if (!reached || offCentre(support)) { record.stopped = 'could_not_centre_on_support'; break }
+          continue
+        }
+        const plan = planCanopyDescent({ feetY: feet.y, health: bot.health, column: columnBelow(feet.x, feet.y, feet.z) })
+        if (!plan.ok) {
+          const alternative = alternativeFooting(feet, tried)
+          if (!alternative) { record.stopped = tried.size ? 'alternative_footing_unreachable' : plan.reason; record.refused = plan; break }
+          record.moves++
+          const p = alternative.position
+          // A neighbour the pathfinder cannot reach is skipped on the next try
+          // instead of ending the descent for every later SEARCH.
+          if (!await navigate(new goals.GoalBlock(p.x, p.y, p.z), 6000, signal)) tried.add(p.toString())
+          continue
+        }
+        const healthBefore = bot.health
+        const yBefore = bot.entity.position.y
+        await digBlock(support, signal)
+        const landed = await waitFor(() => bot.entity.onGround && bot.entity.position.y < yBefore - 0.5, 5000, signal)
+        await sleep(300) // let the server's health and block updates arrive before measuring
+        check(signal)
+        // Count a layer only when the server shows the block gone.
+        if (bot.blockAt(support.position)?.boundingBox !== 'empty') { record.stopped = 'dig_unconfirmed'; break }
+        record.layers_cleared++
+        record.blocks_dug.push(support.name)
+        const fall = {
+          planned_fall: plan.fall, expected_damage: plan.expected_damage, landing_block: plan.landing_block,
+          actual_fall: Math.round((yBefore - bot.entity.position.y) * 100) / 100,
+          damage: Math.max(0, healthBefore - bot.health), landed
+        }
+        record.falls.push(fall)
+        record.damage += fall.damage
+        if (!landed) { record.stopped = 'landing_unconfirmed'; break }
+        if (bot.health <= 0) { record.stopped = 'died'; break }
+      }
+    } catch (error) {
+      record.stopped = record.stopped || `error:${error.message}`
+      throw error
+    } finally {
+      record.end_y = bot.entity.position.y
+      record.descended = !onCanopy()
+      // Leaves broken by hand roll the vanilla loot table (sticks, saplings,
+      // apples); anything collected during the descent is attributed here.
+      for (const [name, count] of Object.entries(inventory())) {
+        if (count > (inventoryBefore[name] || 0)) record.items_picked_up[name] = count - (inventoryBefore[name] || 0)
+      }
+    }
+    return record
+  }
   async function search (signal) {
-    if (reachableLog()) { searchMemory.reached(); return 'log_already_reachable' }
-    const candidate = searchMemory.next(visibleLogs())
+    const started = Date.now()
+    const remaining = () => SEARCH_BUDGET_MS - (Date.now() - started)
+    const notes = []
+    if (onCanopy()) {
+      const descent = await descendCanopy(signal)
+      recovery = descent
+      const cleared = `cleared_${descent.layers_cleared}_leaf_layer${descent.layers_cleared === 1 ? '' : 's'}`
+      if (descent.descended) notes.push(cleared, 'descended_canopy')
+      else if (descent.layers_cleared) return [cleared, `still_on_canopy:${descent.stopped || 'unknown'}`].join(';')
+      // Refused, or unable to reposition: keep the ordinary search so the bot
+      // can roam the canopy towards a lower edge instead of repeating the same
+      // refusal every decision; the next SEARCH re-evaluates the descent.
+      else notes.push(`canopy_descent_refused:${descent.stopped || 'unknown'}`)
+    }
+    if (reachableLog()) { searchMemory.reached(); return [...notes, 'log_already_reachable'].join(';') }
+    const candidate = searchMemory.next(trunkTargets())
     if (candidate) {
       const p = candidate.position
-      const reached = await navigate(new goals.GoalNear(p.x, p.y, p.z, 2), 18000, signal)
-      if (reached && reachableLog()) { searchMemory.reached(); return 'log_reached' }
+      const reached = await navigate(new goals.GoalNear(p.x, p.y, p.z, 2), Math.max(4000, Math.min(18000, remaining())), signal)
+      if (reached && reachableLog()) { searchMemory.reached(); return [...notes, 'log_reached'].join(';') }
       searchMemory.failed(candidate)
-      return 'log_path_blocked'
+      return [...notes, 'log_path_blocked'].join(';')
     }
+    // Local exploration tries several headings within one decision, instead of
+    // spending a whole decision on each heading the pathfinder rejects at once.
     const directions = [[1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [-1, 1], [-1, -1], [1, -1]]
-    const index = explorationIndex++
-    const [dx, dz] = directions[index % directions.length]
-    const local = index % 2 === 0
-    const radius = local ? 4 : 8 + 8 * (Math.floor(index / directions.length) % 4)
-    const origin = local ? bot.entity.position : spawn
-    const target = { x: origin.x + dx * radius, z: origin.z + dz * radius }
-    if (!inBounds(target)) return 'exploration_boundary'
-    const reached = await navigate(new goals.GoalNearXZ(target.x, target.z, local ? 1 : 2), 18000, signal)
-    return reached ? 'explored' : 'exploration_blocked'
+    for (let attempt = 0; attempt < 4; attempt++) {
+      if (remaining() < 4000) { notes.push('exploration_time_budget'); break }
+      const index = explorationIndex++
+      const [dx, dz] = directions[index % directions.length]
+      const local = index % 2 === 0
+      const radius = local ? 4 : 8 + 8 * (Math.floor(index / directions.length) % 4)
+      const origin = local ? bot.entity.position : spawn
+      const target = { x: origin.x + dx * radius, z: origin.z + dz * radius }
+      if (!inBounds(target)) { notes.push('exploration_boundary'); continue }
+      const reached = await navigate(new goals.GoalNearXZ(target.x, target.z, local ? 1 : 2), Math.min(18000, remaining()), signal)
+      if (reached) return [...notes, 'explored'].join(';')
+    }
+    return [...notes, 'exploration_blocked'].join(';')
   }
   async function chop (signal) {
     let target = reachableLog()
@@ -273,19 +558,23 @@ async function main () {
     const p = target.position.clone()
     const before = inventoryCounts(inventory()).logs
     if (p.distanceTo(bot.entity.position) > 2) await navigate(new goals.GoalNear(p.x, p.y, p.z, 1.5), 10000, signal)
+    if (bot.health <= 0) return 'died_during_approach'
     target = bot.blockAt(p)
     if (!target?.name.endsWith('_log') || !bot.canSeeBlock(target) || !bot.canDigBlock(target)) return 'log_unreachable'
-    await bot.dig(target)
-    check(signal)
-    // A high trunk block drops downward; the pickup waypoint stays at the
-    // current standing level instead of trying to climb the removed block.
-    await navigate(new goals.GoalNear(p.x, Math.floor(bot.entity.position.y), p.z, 0.7), 8000, signal)
-    const deadline = Date.now() + 3000
-    while (inventoryCounts(inventory()).logs <= before && Date.now() < deadline && bot.health > 0) {
-      check(signal)
-      await sleep(100)
+    await digBlock(target, signal)
+    const collected = () => inventoryCounts(inventory()).logs > before
+    // Walk to the dropped item itself: a high trunk block's drop lands wherever
+    // gravity takes it, not at the removed block. Fall back to the block's
+    // column at the current standing level when no item entity is visible.
+    const deadline = Date.now() + 9000
+    await waitFor(() => collected() || Boolean(droppedItemNear(p)), 1000, signal)
+    for (let attempt = 0; attempt < 2 && !collected() && Date.now() < deadline && bot.health > 0; attempt++) {
+      const drop = droppedItemNear(p)
+      const goal = drop ? new GoalPickup(drop) : new goals.GoalNear(p.x, Math.floor(bot.entity.position.y), p.z, 1)
+      await navigate(goal, Math.max(1000, Math.min(6000, deadline - Date.now())), signal)
+      await waitFor(collected, 2000, signal)
     }
-    return inventoryCounts(inventory()).logs > before ? 'log_collected' : 'log_broken_without_pickup'
+    return collected() ? 'log_collected' : 'log_broken_without_pickup'
   }
   async function craft (action, signal) {
     const before = inventory()
@@ -365,6 +654,7 @@ async function main () {
   }
   async function step (request, signal) {
     const action = validateAction(request.action)
+    recovery = null
     const before = observe()
     if (before.death) return { ...before, event: 'died_before_action', action_duration_seconds: 0 }
     if (before.success) return { ...before, event: 'already_completed', action_duration_seconds: 0 }
@@ -407,7 +697,8 @@ async function main () {
         .filter(([, player]) => Number.isInteger(player.gamemode) && player.gamemode >= 0 && player.gamemode <= 3)
         .map(([name, player]) => [name, { gamemode: player.gamemode }]))
     }
-    if (request.op === 'observe') return observe()
+    // A standalone observation never carries a previous step's recovery.
+    if (request.op === 'observe') { recovery = null; return observe() }
     if (request.op === 'step') return step(request, signal)
     throw new Error(`Unknown operation: ${request.op}; this bridge has no reset or command operation`)
   }
@@ -446,5 +737,9 @@ async function main () {
   process.on('SIGINT', () => { stop(); bot.quit(); process.exit(0) })
 }
 
-module.exports = { parseArgs, validateAction, inventoryCounts, validatePhysicalState, craftingRecipe, safeMovements, SearchMemory, replaceableForTable, ACTIONS, BACKEND }
+module.exports = {
+  parseArgs, validateAction, inventoryCounts, validatePhysicalState, craftingRecipe, safeMovements, SearchMemory,
+  replaceableForTable, isLeaves, fallDamage, descentAcceptable, planCanopyDescent, nodeCollectsItem, ACTIONS, BACKEND,
+  FALL_HAZARDS, MAX_CANOPY_LAYERS, CANOPY_SCAN_DEPTH, PICKUP_REACH
+}
 if (require.main === module) main().catch(error => { process.stderr.write(`${error.stack}\n`); process.exit(1) })
