@@ -6,7 +6,7 @@ every result. For the full technical history read [HANDOFF_PC.md](HANDOFF_PC.md)
 for every measured number read
 [results/pc_resource_runs/README.md](results/pc_resource_runs/README.md).
 
-**Last updated:** 23 October 2026, 21:55 (branch `codex/pc-canopy-descent`,
+**Last updated:** 23 October 2026, 22:20 (branch `codex/pc-canopy-descent`,
 pull request [#1](https://github.com/taraskHy/RL-Minecraft-project/pull/1),
 not yet merged into `main`).
 
@@ -56,11 +56,28 @@ The full plan is fixed in
 [configs/resource_masking_experiment.json](configs/resource_masking_experiment.json).
 Training progress so far (exploration included, so these are not test
 results): masked Q-learning 17 of 20 episodes reached the pickaxe, masked
-SARSA 18 of 20, unmasked Q-learning 2 of its first 7.
+SARSA 18 of 20, unmasked Q-learning 17 of its first 27 (2 of its first 7),
+which suggests it is learning without the mask; only the held-out test can
+show whether that beats random play.
 
 **Please do not run Minecraft on the PC while this batch runs**, and do not
 join its world: it uses port 25567 and an extra player in the world can change
 the results.
+
+## Planned next
+
+- **Parallel live runs.** Once this batch ends, the resource server gets a
+  per-run port so three or four episodes can run at once (the PC used about
+  31% of its CPU and had 30 of 63 GB of memory free with one episode running).
+  Independent runs (Q-learning and SARSA training, the test worlds) would run
+  side by side, cutting a batch like this from about six hours to about two.
+  Contention is benchmarked first, and every arm of one experiment runs under
+  the same setup, because task time is a measured outcome.
+- **GPUs.** The PC has an RTX 2000 Ada (16 GB), and an RTX 5080 machine is
+  coming. Today's work does not use a GPU: tabular Q-learning is a table
+  lookup, and the Minecraft server and the bot run on the CPU. The GPU becomes
+  useful when a later stage needs a neural network (for example DQN, which the
+  course allows only when justified) or many fast simulator rollouts.
 
 ## Set up on your own machine
 
@@ -113,6 +130,9 @@ update log below when you start, so we do not duplicate work.
 
 ## Update log
 
+- **23 Oct 2026, 22:20:** unmasked Q-learning training at 27 of 50 episodes
+  (17 reached the pickaxe). Parallel live runs and a GPU plan added under
+  "Planned next".
 - **23 Oct 2026, 21:55:** this file created. The live masking experiment is
   running on `87673b8`; the masked training runs are finished.
 - **23 Oct 2026:** wood-to-pickaxe milestone verified live (43 of 45 at
