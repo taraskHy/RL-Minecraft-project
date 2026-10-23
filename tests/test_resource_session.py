@@ -135,7 +135,10 @@ class ResourceSessionTests(unittest.TestCase):
         self.assertEqual((metadata["mode"], metadata["algorithm"], metadata["baseline"]),
                          ("frozen_evaluation", "random", "masked_random"))
         self.assertIn("canopy descent", metadata["scripted_support"])
+        self.assertIn("foliage escape", metadata["scripted_support"])
         self.assertIn("leaf blocks", metadata["recovery_helpers"])
+        self.assertIn("leaf_escape", metadata["recovery_helpers"])
+        self.assertNotIn("No other block is dug outside CHOP;", metadata["recovery_helpers"])
         record = json.loads((output / "episode-0001" / "transitions.jsonl").read_text())
         self.assertEqual(record["mode"], "frozen_evaluation")
         self.assertIsNone(record["td_error"])
@@ -172,6 +175,16 @@ class ResourceSessionTests(unittest.TestCase):
                                                             "start_y": 76.0, "end_y": 72.0, "stopped": None,
                                                             "items_picked_up": {"stick": 2, "oak_sapling": 1}}),
                          "canopy_descent:layers=3,descent=4.0,damage=0,stopped=-,picked_up=oak_sapling:1+stick:2")
+        # A foliage escape is summarized on its own or as the tail of the descent that led to it.
+        self.assertEqual(resource_session.recovery_summary({"type": "leaf_escape", "blocks_dug": ["oak_leaves"],
+                                                            "direction": "-x", "escaped": True, "stopped": None,
+                                                            "items_picked_up": {"stick": 1}}),
+                         "leaf_escape:blocks=1,direction=-x,escaped=True,stopped=-,picked_up=stick:1")
+        self.assertEqual(resource_session.recovery_summary({"type": "canopy_descent", "layers_cleared": 2, "damage": 0,
+                                                            "start_y": 78.0, "end_y": 76.0, "stopped": None,
+                                                            "escape": {"type": "leaf_escape", "blocks_dug": ["oak_leaves", "oak_leaves"],
+                                                                       "direction": "+x", "escaped": True, "stopped": None}}),
+                         "canopy_descent:layers=2,descent=2.0,damage=0,stopped=-,escape_blocks=2,escaped=True")
 
     def test_missing_or_failed_observation_is_invalid_without_invented_policy_result(self):
         following = deepcopy(self.start)

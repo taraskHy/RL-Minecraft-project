@@ -33,8 +33,9 @@ What actually happened on the PC so far; nothing below is a live-game result.
   The GPU is not used by anything in this project yet. No machine-specific heap
   override was created; the default 2048 MB server maximum applies.
 - **Development branch:** `codex/pc-canopy-descent`, started from `main`.
-- **Implemented, unit-tested, not yet verified live** (automated tests now
-  94 core Python + 5 adapter + 21 Node = 120):
+- **Implemented and unit-tested; first live verification done on this PC on
+  23 October 2026 (see the live-results bullet below)** (automated tests now
+  97 core Python + 5 adapter + 24 Node = 126):
   1. `minecraft_bridge/resource-bridge.js`: a bounded **canopy-descent helper**
      inside `SEARCH`. When leaves carry the bot, it scans the column below and
      clears only the leaf block under its feet when a solid landing is within a
@@ -82,11 +83,26 @@ What actually happened on the PC so far; nothing below is a live-game result.
      completed episodes only with a separate "not measured" line; sticks alone
      are not wood evidence; the console copy cannot fail on a limited code page.
      README now says the helper is unit-tested, not that it resolves the blocker.
-- **Blocked on the user:** no Minecraft server has run on this PC because the
-  machine-local EULA record `.local/minecraft-eula-consent.json` does not exist in
-  a fresh clone. The assistant must not record it unilaterally. Once the user
-  confirms that their earlier acceptance applies here, run
-  `.\run.cmd accept-eula --agree`, then start the live checks below.
+- **EULA:** recorded on this PC on 23 October 2026 after the user confirmed in
+  chat that their laptop acceptance applies here (`.local/minecraft-eula-consent.json`
+  exists locally and is not in Git). A new clone or another machine needs the
+  same explicit confirmation again; never record it unilaterally.
+- **Live results (23 October 2026):** the complete chain ran headlessly on
+  this PC. At commit `e88cb7c`, 38 of 43 episodes ended with a held wooden
+  pickaxe: seed-1 reproduction 1/1, Q-learning training seeds 1–3 3/3, SARSA
+  3/3, masked random baseline 3/3, frozen Q seeds 1–3 2/3, and on the declared
+  validation seeds 10000–10009 frozen Q 10/10, frozen SARSA 8/10, masked random
+  8/10; no deaths, no invalid episodes, no server movement warnings. Sixteen
+  canopy starts; in all 16 descents the planned fall equalled the actual fall
+  and the expected damage equalled the health lost. Five failures: a frozen
+  CHOP loop (seed 3), a landing walled in by foliage (seed 10006), and three
+  exhausted searches on treeless spawns (seeds 10004, 10009). Fixes: CHOP digs
+  in place and records `action_detail`; a bounded foliage escape (at most two
+  leaf blocks, pathfinder-defined enclosure, published record); exploration
+  rings covering all eight headings. A second adversarial review (88 agents)
+  confirmed 22 further findings, all fixed. Evidence with SHA-256 digests:
+  `results/pc_resource_runs/` (README there has the tables and the rerun on the
+  fixed revision).
 - **Live verification plan (unchanged in substance):** reproduce the seed-1
   forest canopy start headlessly, confirm the descent record and the actual
   damage, then verify the complete chop → planks → sticks → table → place →
@@ -205,10 +221,13 @@ team contributions. Full Survival is not achieved merely because a demo looks go
 
 ## What is NOT yet verified or implemented
 
-**The natural-world wood → own crafting table → wooden pickaxe sequence has
-not completed successfully in a live run.** Its bridge actions are implemented,
-but current tests exposed a canopy navigation restriction before wood gathering.
-Do not claim this milestone is finished or increase training episodes to hide it.
+**The natural-world wood → own crafting table → wooden pickaxe sequence
+completed live on the PC on 23 October 2026** (38 of 43 episodes at commit
+`e88cb7c`; the rerun on the fixed revision is in `results/pc_resource_runs/README.md`).
+The masked random baseline also completes it, so the learned policies have not
+yet shown a measured benefit beyond decision efficiency; say so. Everything
+after the wooden pickaxe (stone tools, food, shelter, Nether, stronghold,
+dragon) is not implemented. Do not claim more than the results README states.
 
 Food/stone/iron progression, Nether travel, End resources, stronghold navigation,
 dragon combat, and an uninterrupted full fresh-world run are not implemented.
@@ -252,15 +271,17 @@ Next concrete work:
 1. Reproduce the forest/canopy case on the PC using real observations. The
    snapshot already includes feet/head/ground blocks, adjacent drop depths,
    biome and nearby visible logs. Investigate reachable intermediate landings.
-   *Status: analysed from the retained JSONL on the PC; the live reproduction
-   waits for the EULA record (see the status section above).*
+   *Status: done; sixteen canopy starts were handled live on the PC (see the
+   live-results bullet above).*
 2. Add a bounded, documented escape/navigation recovery. Options include
    limited ordinary leaf clearing when the landing is verified, or a carefully
    defined health-aware descent whose actual damage is recorded. Choose based
    on observed terrain; do not just increase the global drop limit and assume
    safety. No teleportation, creative mode, supplied blocks or items.
    *Status: implemented as verified-landing leaf clearing with recorded damage;
-   the global drop limit is unchanged. Live behaviour unverified.*
+   the global drop limit is unchanged. Live behaviour verified: planned falls
+   equalled actual falls in all sixteen descents. A bounded foliage escape was
+   added after validation seed 10006.*
 3. Keep scripted motor support explicit. If navigation starts clearing leaves,
    update the tests and documentation that currently say it cannot dig blocks.
    The policy should still select resource/crafting decisions.

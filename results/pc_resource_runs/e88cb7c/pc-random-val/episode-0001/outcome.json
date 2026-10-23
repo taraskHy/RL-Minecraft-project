@@ -1,0 +1,96 @@
+{
+  "episode": 1,
+  "world_seed": 10000,
+  "status": "completed",
+  "mode": "frozen_evaluation",
+  "success": true,
+  "death": false,
+  "truncated": false,
+  "steps": 58,
+  "return": 6.378000000000002,
+  "epsilon": 0.0,
+  "seconds": 23.985000000000582,
+  "elapsed_wall_seconds": 40.75,
+  "final_observation": {
+    "position": {
+      "x": -5.500000000000039,
+      "y": 109,
+      "z": 2.0797199306387433
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "stick": 2,
+      "oak_planks": 3,
+      "wooden_pickaxe": 1
+    },
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 3,
+      "sticks": 2,
+      "tables": 0,
+      "pickaxes": 1
+    },
+    "nearby_log": true,
+    "nearby_table": true,
+    "table_placed": true,
+    "nearby_visible_logs": [
+      {
+        "name": "oak_log",
+        "x": -6,
+        "y": 111,
+        "z": 1
+      }
+    ],
+    "biome": "forest",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "grass_block",
+    "support_block": "grass_block",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 1,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "grass_block",
+        "feet_drop": 1,
+        "loaded": true
+      }
+    ],
+    "table_position": {
+      "x": -6,
+      "y": 111,
+      "z": 3
+    },
+    "held_item": "wooden_pickaxe",
+    "success": true,
+    "death": false,
+    "recovery": null,
+    "event": "crafted_wooden_pickaxe",
+    "action_duration_seconds": 0.275,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

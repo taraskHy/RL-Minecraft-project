@@ -119,13 +119,24 @@ def recovery_summary(recovery) -> str:
     """Compact per-decision note for steps.csv; the full record stays in transitions.jsonl."""
     if not isinstance(recovery, dict):
         return ""
+    def picked_note(record) -> str:
+        picked = record.get("items_picked_up") if isinstance(record, dict) else None
+        if not isinstance(picked, dict) or not picked:
+            return ""
+        return ",picked_up=" + "+".join(f"{name}:{count}" for name, count in sorted(picked.items()))
+
+    if recovery.get("type") == "leaf_escape":
+        return (f"leaf_escape:blocks={len(recovery.get('blocks_dug') or [])},direction={recovery.get('direction')}"
+                f",escaped={recovery.get('escaped')},stopped={recovery.get('stopped') or '-'}{picked_note(recovery)}")
+    escape = recovery.get("escape")
+    escape_note = (f",escape_blocks={len(escape.get('blocks_dug') or [])},escaped={escape.get('escaped')}"
+                   f"{picked_note(escape).replace(',picked_up=', ',escape_picked_up=')}"
+                   if isinstance(escape, dict) else "")
     start, end = recovery.get("start_y"), recovery.get("end_y")
     descent = round(start - end, 2) if isinstance(start, (int, float)) and isinstance(end, (int, float)) else None
-    picked = recovery.get("items_picked_up")
-    picked_note = ("" if not isinstance(picked, dict) or not picked else
-                   ",picked_up=" + "+".join(f"{name}:{count}" for name, count in sorted(picked.items())))
     return (f"{recovery.get('type', 'recovery')}:layers={recovery.get('layers_cleared', 0)}"
-            f",descent={descent},damage={recovery.get('damage', 0)},stopped={recovery.get('stopped') or '-'}{picked_note}")
+            f",descent={descent},damage={recovery.get('damage', 0)},stopped={recovery.get('stopped') or '-'}"
+            f"{picked_note(recovery)}{escape_note}")
 
 
 def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
@@ -181,15 +192,20 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
                 "viewer": viewer, "actions": list(ACTION_NAMES),
                 "state_note": "Compact partial observation; not a complete Minecraft MDP state",
                 "scripted_support": "Feasibility masks; bounded pathfinding, digging, pickup, recipes, placement, equip; "
-                                    "bounded canopy descent inside SEARCH; spectator camera only",
+                                    "bounded leaf clearing inside SEARCH (canopy descent beneath the feet, foliage escape "
+                                    "beside the bot); spectator camera only",
                 "recovery_helpers": "When the bot stands on tree leaves, SEARCH may clear at most six leaf blocks directly "
                                     "beneath its feet, one at a time, only after scanning the column below for a landing "
                                     "within a recorded safe fall (no damage, or at most two points while health stays above "
-                                    "ten, measured to the landing block's collision surface). No other block is dug outside "
-                                    "CHOP; each cleared block, fall, and health change is saved in the transition's recovery "
-                                    "field. Leaves broken by hand follow the vanilla loot table (about 5% sapling, 2% one or "
-                                    "two sticks, 0.5% apple on oak and dark oak); such pickups are listed in the record as "
-                                    "items_picked_up and count in the inventory like any other natural item",
+                                    "ten, measured to the landing block's collision surface). Each cleared block, fall, and "
+                                    "health change is saved in the transition's recovery field. Leaves broken by hand follow "
+                                    "the vanilla loot table (about 5% sapling, 2% one or two sticks, 0.5% apple on oak and dark "
+                                    "oak); pickups collected during a descent or an escape are listed in that record as "
+                                    "items_picked_up and count in the inventory like any other natural item. When the bridge's "
+                                    "movement rules report no legal move from the current cell, SEARCH may clear at most two "
+                                    "leaf blocks beside the bot (feet and head height) towards a floored exit; never a log, "
+                                    "dirt, or stone; recorded as leaf_escape (alone, or as the escape field of the descent "
+                                    "record that led to it). Apart from these leaf blocks, no block is dug outside CHOP",
                 "reset": "Each episode generates a separate new normal Survival world; bot has no operator permissions",
                 "seed_note": "World seed controls terrain; server timing and spawn selection are not deterministic"}
     sources = [ROOT / "minecraft_bridge" / "resource-bridge.js", ROOT / "minecraft_bridge" / "pnpm-lock.yaml",

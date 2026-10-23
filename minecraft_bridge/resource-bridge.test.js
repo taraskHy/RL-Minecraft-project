@@ -3,7 +3,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
-const { parseArgs, validateAction, inventoryCounts, validatePhysicalState, craftingRecipe, safeMovements, SearchMemory, replaceableForTable, isLeaves, fallDamage, descentAcceptable, planCanopyDescent, nodeCollectsItem, ACTIONS, FALL_HAZARDS, MAX_CANOPY_LAYERS, PICKUP_REACH } = require('./resource-bridge')
+const { parseArgs, validateAction, inventoryCounts, validatePhysicalState, craftingRecipe, safeMovements, SearchMemory, replaceableForTable, isLeaves, fallDamage, descentAcceptable, planCanopyDescent, nodeCollectsItem, planLeafEscape, explorationTarget, ACTIONS, FALL_HAZARDS, MAX_CANOPY_LAYERS, PICKUP_REACH, MAX_ESCAPE_LEAVES, EXPLORATION_RINGS, EXPLORATION_DIRECTIONS } = require('./resource-bridge')
 
 test('natural resource bridge only connects locally and has no reset/command interface', () => {
   assert.deepEqual(parseArgs([]), { host: '127.0.0.1', port: 25567, username: 'RLResourceBot', version: '1.21.4' })
@@ -180,11 +180,77 @@ test('fall damage follows vanilla ceil(distance - 3) and the descent health rule
   for (const name of ['oak_log', 'leaves', 'grass_block', undefined, null, 4]) assert.equal(isLeaves(name), false)
 })
 
+test('a foliage escape clears only leaf blocks towards a floored exit and prefers the cheapest', () => {
+  const air = { name: 'air', boundingBox: 'empty' }
+  const leaves = { name: 'oak_leaves', boundingBox: 'block' }
+  const grass = { name: 'grass_block', boundingBox: 'block' }
+  const log = { name: 'oak_log', boundingBox: 'block' }
+  const water = { name: 'water', boundingBox: 'empty' }
+  // The PC seed-10006 shaft as the saved world shows it: leaves at head height
+  // all round, leaves at feet height on two sides, grass at feet height on the
+  // other two (a grass wall is never dug, so a two-leaf side is chosen).
+  const shaft = {
+    '+x': { feet: grass, head: leaves, below: grass, lower: grass },
+    '-x': { feet: leaves, head: leaves, below: grass, lower: grass },
+    '+z': { feet: grass, head: leaves, below: grass, lower: grass },
+    '-z': { feet: leaves, head: leaves, below: grass, lower: grass }
+  }
+  assert.deepEqual(planLeafEscape(shaft), { ok: true, direction: '-x', dig: ['oak_leaves', 'oak_leaves'], floor: 'grass_block' })
+  const boxed = {
+    '+x': { feet: leaves, head: leaves, below: grass, lower: grass },
+    '-x': { feet: leaves, head: air, below: air, lower: grass }, // one step down, one leaf
+    '+z': { feet: log, head: leaves, below: grass, lower: grass }, // trunk: never dug
+    '-z': { feet: leaves, head: leaves, below: water, lower: grass } // hazard floor
+  }
+  assert.deepEqual(planLeafEscape(boxed), { ok: true, direction: '-x', dig: ['oak_leaves'], floor: 'grass_block' })
+  assert.deepEqual(planLeafEscape({ '+x': boxed['+x'] }), { ok: true, direction: '+x', dig: ['oak_leaves', 'oak_leaves'], floor: 'grass_block' })
+  assert.equal(planLeafEscape({ '+z': boxed['+z'], '-z': boxed['-z'] }).reason, 'no_leaf_exit')
+  // Whether the bot is walled in at all is decided by the pathfinder's own move rules.
+  const source = fs.readFileSync(require.resolve('./resource-bridge'), 'utf8')
+  assert.match(source, /bot\.pathfinder\.movements\.getNeighbors\(new Move\(/)
+  assert.match(source, /if \(recovery\) recovery\.escape = record; else recovery = record/)
+  // Bottomless, unloaded, out-of-bounds, or already open neighbours are no exits.
+  assert.equal(planLeafEscape({ '+x': { feet: leaves, head: leaves, below: air, lower: air } }).reason, 'no_leaf_exit')
+  assert.equal(planLeafEscape({ '+x': { feet: leaves, head: null, below: grass, lower: grass }, '-x': null }).reason, 'no_leaf_exit')
+  assert.equal(planLeafEscape({ '+x': { feet: air, head: air, below: grass, lower: grass } }).reason, 'no_leaf_exit')
+  assert.equal(planLeafEscape({}).reason, 'no_leaf_exit')
+  assert(Number.isInteger(MAX_ESCAPE_LEAVES) && MAX_ESCAPE_LEAVES >= 1 && MAX_ESCAPE_LEAVES <= 2)
+})
+
+test('exploration rings cover every heading before growing and stay inside the search area', () => {
+  const first = Array.from({ length: 8 }, (_, i) => explorationTarget(i))
+  assert.deepEqual(first.map(t => [t.dx, t.dz]), EXPLORATION_DIRECTIONS)
+  assert(first.every(t => t.radius === 8))
+  assert.equal(explorationTarget(8).radius, 16)
+  assert.equal(explorationTarget(8 * (EXPLORATION_RINGS - 1)).radius, 8 * EXPLORATION_RINGS) // cardinal of the last ring
+  assert.equal(explorationTarget(8 * EXPLORATION_RINGS).radius, 8)
+  // Every target, plus the goal's two-block tolerance, stays inside the 64-block radius,
+  // including the diagonals of the outer ring (48 * sqrt 2 would be 67.9).
+  for (let i = 0; i < 8 * EXPLORATION_RINGS; i++) {
+    const t = explorationTarget(i)
+    assert(Math.hypot(t.dx * t.radius, t.dz * t.radius) + 2 <= 64, `target ${i} leaves the search area`)
+  }
+  assert.equal(explorationTarget(8 * EXPLORATION_RINGS - 1).radius, 43)
+  for (const bad of [-1, 1.5, '3', null]) assert.throws(() => explorationTarget(bad))
+})
+
+test('CHOP digs a reachable log from where the bot stands and only walks for the drop', () => {
+  const source = fs.readFileSync(require.resolve('./resource-bridge'), 'utf8')
+  const chop = source.slice(source.indexOf('async function chop'), source.indexOf('async function craft'))
+  assert.equal((chop.match(/await digBlock\s*\(/g) || []).length, 1)
+  // Up to three already-reachable candidates, and no approach move before the
+  // dig: walking can hide a trunk's bottom log behind the log above it, which
+  // stranded a frozen policy in sixty identical CHOP failures on the PC.
+  assert.match(chop, /reachableLogs\(\)\.slice\(0, 3\)/)
+  assert(chop.indexOf('navigate(') > chop.indexOf('await digBlock('))
+  assert.match(chop, /actionDetail = detail/)
+})
+
 test('the bridge digs only through its chop and canopy helpers and still never issues commands', () => {
   const source = fs.readFileSync(require.resolve('./resource-bridge'), 'utf8')
-  // One bounded, health-guarded dig helper, called from CHOP and the canopy descent only.
+  // One bounded, health-guarded dig helper, called from CHOP, the canopy descent, and the foliage escape only.
   assert.equal((source.match(/bot\.dig\s*\(/g) || []).length, 1)
-  assert.equal((source.match(/await digBlock\s*\(/g) || []).length, 2)
+  assert.equal((source.match(/await digBlock\s*\(/g) || []).length, 3)
   assert.doesNotMatch(source, /bot\.chat\s*\(/)
   assert.doesNotMatch(source, /bot\.creative/)
   assert.doesNotMatch(source, /setControlState\s*\(\s*'jump'/)

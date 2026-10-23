@@ -135,6 +135,8 @@ def load_run(run_directory: Path) -> dict:
             if isinstance(after.get("recovery"), dict):
                 recoveries.append(after["recovery"])
         descents = [r for r in recoveries if r.get("type") == "canopy_descent"]
+        escapes = ([r for r in recoveries if r.get("type") == "leaf_escape"]
+                   + [r["escape"] for r in recoveries if isinstance(r.get("escape"), dict)])
         try:
             number = int(folder.name.split("-", 1)[1])
         except (IndexError, ValueError):
@@ -155,6 +157,7 @@ def load_run(run_directory: Path) -> dict:
             "final_event": transitions[-1].get("after", {}).get("event") if transitions else None,
             "events": dict(events),
             "canopy_layers_cleared": sum(int(r.get("layers_cleared", 0) or 0) for r in descents),
+            "leaf_wall_blocks_cleared": sum(len(e.get("blocks_dug") or []) for e in escapes),
             "recovery_damage": sum(float(r.get("damage", 0) or 0) for r in descents),
             "error": outcome.get("error"),
         })
@@ -205,6 +208,7 @@ def _summarize_group(key: tuple, rows: list[dict]) -> dict:
         "not_measured": dict(Counter(r["status"] or "unknown" for r in rows if r["status"] != "completed")),
         "event_counts": dict(events.most_common()),
         "canopy_layers_cleared": sum(r["canopy_layers_cleared"] for r in rows),
+        "leaf_wall_blocks_cleared": sum(r["leaf_wall_blocks_cleared"] for r in rows),
         "recovery_damage": sum(r["recovery_damage"] for r in rows),
     }
 
@@ -288,6 +292,8 @@ def render_markdown(summary: dict) -> str:
         if group.get("checkpoint_sha256"):
             lines.append(f"Evaluated checkpoint (policy.json SHA-256): {group['checkpoint_sha256']}.")
         lines.append(f"Mean {group['return_label']}: {_fmt(group['mean_return'], 3)}.")
+        lines.append(f"Leaf clearing: {group['canopy_layers_cleared']} canopy layers, "
+                     f"{group['leaf_wall_blocks_cleared']} wall blocks, {_fmt(group['recovery_damage'], 0)} fall damage in total.")
         causes = group["failure_causes"]
         lines.append("Failure causes (completed episodes only): "
                      + (", ".join(f"{name} ×{count}" for name, count in sorted(causes.items())) if causes else "none") + ".")

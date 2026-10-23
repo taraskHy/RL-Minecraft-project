@@ -17,7 +17,7 @@ The user also identified Netherite, a potentially useful faster training environ
 | Stage | Required behavior in actual Minecraft | Evidence needed before integration | Status |
 | --- | --- | --- | --- |
 | Learning foundation | Compare RL updates and reward designs on a controlled resource task | Reproducible simulator experiment with multiple seeds | Implemented; baseline runs recorded separately |
-| Resource skill | Find natural trees; gather wood; craft/place a table; craft tools | Repeated successes from empty inventory on documented starts | Natural-world prototype and online learning implemented; complete live chain unverified, canopy escape unresolved. See HANDOFF_PC.md |
+| Resource skill | Find natural trees; gather wood; craft/place a table; craft tools | Repeated successes from empty inventory on documented starts | Complete chain verified live on the PC on 23 October 2026 (development seeds, declared validation seeds, learned policies and a masked random baseline; canopy descent and foliage escape handled; see results/pc_resource_runs). Stone tools not started. See HANDOFF_PC.md |
 | Survival/equipment | Obtain food, stone/iron equipment and defend/recover | Metrics for survival, deaths, acquisition time, and failure causes | Not implemented |
 | Nether access | Construct/use a portal with naturally obtained resources | Complete uninterrupted Overworld-to-Nether transitions | Not implemented |
 | End resources | Obtain blaze rods and ender pearls; craft Eyes of Ender | Repeated in-game acquisitions with no command-generated inventory | Not implemented |

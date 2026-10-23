@@ -1,0 +1,4 @@
+episode,world_seed,status,mode,success,death,truncated,steps,return,epsilon,seconds,elapsed_wall_seconds
+1,1,completed,frozen_evaluation,True,False,False,12,9.442,0.0,17.53200000000288,35.73500000000058
+2,2,completed,frozen_evaluation,True,False,False,13,9.501,0.0,27.09400000000096,43.20300000000134
+3,3,completed,frozen_evaluation,True,False,False,15,9.463000000000001,0.0,29.29699999999866,45.90599999999904

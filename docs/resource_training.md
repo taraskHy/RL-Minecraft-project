@@ -6,13 +6,19 @@ place a crafting table, then craft and hold a wooden pickaxe. The bot has no
 operator permissions. The full Ender Dragon goal remains unfinished.
 
 **Current verification:** real online Q-value updates and spectator messages
-work. The natural-world wood/table/pickaxe sequence has **not yet completed a
-successful live run**. Forest tests exposed a bot spawning on a tree canopy with
-ground below its permitted drop distance. On 23 October 2026 the PC session
-added a bounded canopy-descent helper (described below), a lowest-log-first
-chop and item-pickup order, and several exploration headings per `SEARCH`,
-all with unit tests; their first live verification is still pending. See
-[`HANDOFF_PC.md`](../HANDOFF_PC.md) and the retained diagnostics in
+work. The natural-world wood/table/pickaxe sequence **completed live for the
+first time on 23 October 2026 on the PC**: at commit `e88cb7c`, 38 of 43
+headless episodes in fresh worlds ended with a held wooden pickaxe (Q-learning
+and SARSA training on seeds 1 to 3, a masked random baseline, and frozen
+evaluation on seeds 1 to 3 and on the declared validation seeds 10000 to
+10009), with no deaths and no invalid episodes. The canopy-descent helper ran
+in 16 of those episodes, and every planned fall matched the actual fall and
+damage. The five failures exposed two frozen-policy loops (a CHOP approach
+that hid the target log, and a landing walled in by foliage) and an
+exploration coverage gap; the fixes described below were rerun on the fixed
+revision. Read [`results/pc_resource_runs/README.md`](../results/pc_resource_runs/README.md)
+for the numbers and their limits, [`HANDOFF_PC.md`](../HANDOFF_PC.md) for the
+session record, and the older laptop diagnostics in
 [`results/resource_smoke/`](../results/resource_smoke/README.md).
 
 ## Start actual training
@@ -90,9 +96,11 @@ To summarize one or more retained run folders for the report:
 
 It writes `summary.json`, `episodes.csv`, and `report.md` with the success rate
 and a Wilson 95% interval, decisions, task seconds, deaths, invalid episodes,
-and failure causes. Online training, frozen evaluation, and the random baseline
-are always reported as separate groups; frozen evaluations of different
-checkpoints, and runs with different step limits, are separate groups too.
+and failure causes, plus the canopy layers and wall leaf blocks cleared with
+the recorded fall damage. Online training, frozen evaluation, and the random
+baseline are always reported as separate groups; frozen evaluations of
+different checkpoints, and runs with different step limits, are separate
+groups too.
 Failure causes count completed episodes only; invalid, interrupted, or
 unfinished episodes appear on a separate "not measured" line. The command
 refuses folders that are not natural-resource runs (arena, simulator, or watch
@@ -141,10 +149,11 @@ blocks of its starting point. It does not use the world seed to locate resources
 Pathfinding cannot mine or place blocks to build a route, and its ordinary
 descent limit is three blocks.
 
-**Canopy descent** is the one bounded exception to "no digging outside CHOP".
-Forest spawns can put the bot on top of tree leaves, several blocks above the
-ground, where no ordinary path exists; the retained laptop runs show exactly
-this. When `SEARCH` starts with leaves under the bot's feet, the helper scans
+**Leaf clearing** is the one bounded exception to "no digging outside CHOP",
+in two situations: a *canopy descent* beneath the feet and a *foliage escape*
+beside the bot. Forest spawns can put the bot on top of tree leaves, several
+blocks above the ground, where no ordinary path exists; the retained laptop
+runs and the PC runs show exactly this. When `SEARCH` starts with leaves under the bot's feet, the helper scans
 the column below. Only if a solid landing lies within a recorded safe fall (no
 damage, or at most two health points while health stays above ten, with no
 water, lava, powder snow, or other hazard in the gap) does it clear the single
@@ -161,10 +170,45 @@ descent is listed in the record as `items_picked_up` and counts in the
 inventory like any other natural item. Each dig is bounded by its expected
 duration and stops on death, so a bot killed mid-descent ends the episode as a
 recorded death rather than a transport timeout. It never digs logs, dirt, or
-stone, never places blocks, and the policy still only chose `SEARCH`. `CHOP` takes the lowest reachable trunk log first and walks to the
-dropped item. Difficult terrain, missing trees, hunger, mobs, or blocked
+stone, never places blocks, and the policy still only chose `SEARCH`. `CHOP` re-checks up to three logs that are already visible and in
+reach from where the bot stands, digs the first that still passes (one log per
+decision, lowest first), and only then walks to the dropped item; it never
+approaches first, because an approach can hide a trunk's bottom log
+behind the log above it, and a frozen policy whose compact state does not
+change would repeat the same failing decision until truncation (observed on
+the PC before this change). The transition's `action_detail` records the
+candidates, the target, and whether the dropped item was seen. Difficult terrain, missing trees, hunger, mobs, or blocked
 placement can still cause failure. This stage does not yet solve general
 exploration or survival management.
+
+**Foliage escape.** A descent through a canopy's two lowest leaf layers can
+leave the bot standing in a one-block shaft. On validation seed 10006
+(`pc-sarsa-frozen-val/episode-0007` at `e88cb7c`) the saved world shows oak
+leaves at head height on all four sides, leaves at feet height on two sides,
+and grass at feet height on the other two; the pathfinder, which never digs,
+had no move, `SEARCH` returned `exploration_blocked` in about a quarter
+second, and the frozen policy repeated it 59 times. Now, when the bridge's own
+movement rules report no legal move from the current cell (no walk, one-block
+jump up, or short drop onto a safe landing), `SEARCH` may clear at most two
+leaf blocks beside the bot, feet and head height in one direction that has a
+solid non-hazard floor at most one block down; the direction needing the
+fewest blocks wins. A trunk, dirt, or stone wall is never dug, so a bot in a
+pit stays in the pit. The record is saved as `leaf_escape` (alone, or as the
+`escape` field of the descent record that led to it) with the four wall
+columns, the cleared blocks, any natural drop collected (`items_picked_up`),
+and whether a move existed afterwards; the step event says
+`cleared_1_leaf_wall_block`, `cleared_2_leaf_wall_blocks`, or
+`leaf_escape_refused:<reason>`. Wall composition is recorded only from this
+revision on; the `e88cb7c` transitions hold only the bot's own column and the
+adjacent ground depths.
+
+**Exploration order.** Without a visible trunk, `SEARCH` walks to
+spawn-relative targets on rings of 8, 16, up to 48 blocks (diagonal targets
+are capped so that every target stays inside the 64-block radius), covering
+all eight headings of a ring before the radius grows, and tries a short local
+move only after a long target could not be reached. Before 23 October 2026 the
+long targets used only four of the eight headings; two treeless plains spawns
+(validation seeds 10004 and 10009) exhausted sixty decisions under that order.
 
 Only the spectator is moved or given night vision through server commands.
 The bot receives no items, teleportation, healing, creative mode, prepared logs,
@@ -181,8 +225,8 @@ per **decision**, not per second. These are modeling choices to explain in the r
 - `metadata.json`: parameters, action order, source hashes, initial policy provenance, and declared helper boundaries.
 - `initial_policy.json` and `policy.json`: before/after tables, with no executable serialization.
 - `episode-0001/start.json`: actual initial inventory, position, and connection details.
-- `episode-0001/transitions.jsonl`: complete before/after observations (including `on_canopy`, `support_block`, adjacent drop depths, visible logs, and any `recovery` record), action, reward components, TD error, and Q-values before/after.
-- `episode-0001/steps.csv`: compact per-decision log, with a `recovery` note whenever the canopy-descent helper ran.
+- `episode-0001/transitions.jsonl`: complete before/after observations (including `on_canopy`, `support_block`, adjacent drop depths, visible logs, any `recovery` record, and for `CHOP` an `action_detail` object naming the candidate logs, the dug target, whether the dropped item was seen and whether it was collected), action, reward components, TD error, and Q-values before/after.
+- `episode-0001/steps.csv`: compact per-decision log, with a `recovery` note whenever the canopy-descent or foliage-escape helper ran.
 - `episode-0001/outcome.json`: observed completion, death, or truncation; infrastructure errors are marked invalid rather than fabricated failures.
 - `episodes.csv` and `summary.json`: completed episode results, labeled training or frozen evaluation.
 - `worlds/episode-0001/`: original server settings, empty operator list, logs, and the saved world.

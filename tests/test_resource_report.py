@@ -46,10 +46,13 @@ class ResourceReportTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-        descent = {"type": "canopy_descent", "layers_cleared": 2, "damage": 1, "start_y": 76.0, "end_y": 71.0,
-                   "stopped": None, "descended": True}
+        # A descent that ended walled in, followed by a one-leaf escape in the same decision.
+        descent = {"type": "canopy_descent", "layers_cleared": 2, "blocks_dug": ["oak_leaves", "oak_leaves"], "damage": 1,
+                   "start_y": 76.0, "end_y": 71.0, "stopped": None, "descended": True,
+                   "escape": {"type": "leaf_escape", "blocks_dug": ["oak_leaves"], "direction": "-x", "escaped": True, "stopped": None}}
         success_steps = [
-            transition(1, "SEARCH", observation(event="cleared_2_leaf_layers;descended_canopy;log_reached", recovery=descent)),
+            transition(1, "SEARCH", observation(event="cleared_2_leaf_layers;descended_canopy;cleared_1_leaf_wall_block;log_reached",
+                                                recovery=descent)),
             transition(2, "CHOP", observation(logs=1, event="log_collected")),
             transition(3, "CRAFT_PICKAXE", observation(planks=3, sticks=2, pickaxes=1, table_placed=True, event="crafted_wooden_pickaxe")),
         ]
@@ -74,7 +77,10 @@ class ResourceReportTests(unittest.TestCase):
             {"transitions": [transition(1, "SEARCH", observation(logs=1, event="log_collected"), 10000)],
              "outcome": {"status": "completed", "world_seed": 10000, "success": False, "death": True, "truncated": False,
                          "steps": 1, "seconds": 9.0, "return": -10.01, "final_observation": observation(logs=1)}},
-            {"transitions": [transition(1, "PLACE_TABLE", observation(planks=1, table_placed=True, event="table_placed"), 10001)],
+            {"transitions": [transition(1, "SEARCH", observation(event="cleared_2_leaf_wall_blocks;explored", recovery={
+                                 "type": "leaf_escape", "blocks_dug": ["oak_leaves", "oak_leaves"], "direction": "+x",
+                                 "escaped": True, "stopped": None}), 10001),
+                             transition(2, "PLACE_TABLE", observation(planks=1, table_placed=True, event="table_placed"), 10001)],
              "outcome": {"status": "completed", "world_seed": 10001, "success": False, "death": False, "truncated": True,
                          "steps": 40, "seconds": 130.0, "return": -0.2,
                          "final_observation": observation(planks=1, table_placed=True)}},
@@ -126,6 +132,10 @@ class ResourceReportTests(unittest.TestCase):
         self.assertEqual(training["mean_task_seconds_success"], 42.5)
         self.assertEqual(training["canopy_layers_cleared"], 2)
         self.assertEqual(training["recovery_damage"], 1)
+        # Nested escapes count their own blocks only, never the descent's leaf layers.
+        self.assertEqual((training["leaf_wall_blocks_cleared"], baseline["leaf_wall_blocks_cleared"]), (1, 2))
+        self.assertEqual(training["event_counts"]["cleared_1_leaf_wall_block"], 1)
+        self.assertEqual(baseline["event_counts"]["cleared_2_leaf_wall_blocks"], 1)
         self.assertEqual(training["event_counts"]["exploration_blocked"], 40)
         self.assertEqual(training["event_counts"]["descended_canopy"], 1)
         self.assertEqual(training["world_seeds"], [1, 2, 3])
