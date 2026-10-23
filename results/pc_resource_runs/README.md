@@ -69,9 +69,54 @@ The other failures were exploration budget exhaustion on treeless spawns
 decisions. Reading the exploration code against those trails showed that long
 spawn-relative moves only ever used four of the eight headings.
 
-## Revision after the fixes
+## Revision `b9625f5` (CHOP in place, foliage escape, exploration rings)
 
-*To be filled in from the rerun on the committed fixed revision.*
+Folder `b9625f5/`. Same seeds and step limit; the training runs were repeated
+so that every number comes from one code revision. The frozen Q-learning
+validation run stopped after its fifth episode was invalidated (see below),
+so that condition has four measured validation episodes, not ten.
+
+| Group | Episodes | Successes | Wilson 95% | Mean decisions (all / success) | Mean task s (all / success) | Canopy layers cleared |
+| --- | --- | --- | --- | --- | --- | --- |
+| Q-learning online training, seeds 1–3 | 3 | 3 | 0.44–1.00 | 11.0 / 11.0 | 17.9 / 17.9 | 2 |
+| SARSA online training, seeds 1–3 | 3 | 3 | 0.44–1.00 | 11.0 / 11.0 | 17.9 / 17.9 | 2 |
+| Masked random baseline, seeds 1–3 | 3 | 3 | 0.44–1.00 | 10.7 / 10.7 | 17.4 / 17.4 | 6 |
+| Frozen Q-learning policy, seeds 1–3 | 3 | 3 | 0.44–1.00 | 10.3 / 10.3 | 22.6 / 22.6 | 0 |
+| Frozen SARSA policy, seeds 1–3 | 3 | 3 | 0.44–1.00 | 11.7 / 11.7 | 19.9 / 19.9 | 6 |
+| Frozen Q-learning policy, validation 10000–10004 (one invalid) | 4 measured | 3 | 0.30–0.95 | 28.0 / 17.3 | 45.2 / 55.2 | 3 |
+| Frozen SARSA policy, validation 10000–10009 | 10 | 9 | 0.60–0.98 | 22.0 / 17.8 | 54.6 / 58.2 | 3 |
+| Masked random baseline, validation 10000–10009 | 10 | 8 | 0.49–0.94 | 25.6 / 17.0 | 40.8 / 44.1 | 15 |
+
+Across the 40 episodes: 35 successes, no deaths, one invalid episode, 16
+canopy starts, 19 descents clearing 37 leaf layers for 9 health points with no
+plan-versus-outcome mismatch, 15 refusals of too-far drops, and the first two
+foliage escapes (four leaf blocks, both opened a legal move). The two frozen
+loops fixed by this revision did not recur. The five non-successes were new:
+
+1. *Invalid episode* (`pc2-q-frozen-val/episode-0005`): the bot stood 63.4
+   blocks from spawn beside a trunk, and the walk to the dropped log item took
+   it past 64, which the bridge treats as leaving the search area. The whole
+   run then stopped, so seeds 10005 to 10009 were not played by this policy.
+2. *Dug into its own trunk* (`pc2-q-frozen-val/episode-0003`): `CHOP` took the
+   log directly beneath the bot's feet three times, lowering it into a shaft
+   inside a two-by-two dark oak trunk; no placement surface was visible or
+   reachable, and the mask leaves `PLACE_TABLE` as the only action there.
+3. *Table "out of reach" one block away* (`pc2-sarsa-frozen-val/episode-0006`,
+   `pc2-random-val/episode-0008`): the table was placed diagonally adjacent,
+   the library's visibility ray missed it, so `APPROACH_TABLE` had nothing to
+   do and failed fifty times.
+4. *Canopy over a deep drop* (`pc2-random-val/episode-0001`): a start at
+   height 121 with no landing within the twelve-block scan; the helper refused
+   sixty times, correctly. This remains an open limitation.
+
+Fixes for 1 to 3 (a three-block target margin inside the radius, never digging
+beneath the bot's own hitbox, a face-point visibility check, table approach
+and placement changes) have been applied and checked offline; their live rerun
+is described in the next section.
+
+## Revision after the margin, visibility and table fixes
+
+*To be filled in from the rerun on the committed revision.*
 
 ## What these runs do not show
 

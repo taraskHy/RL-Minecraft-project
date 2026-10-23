@@ -176,8 +176,34 @@ decision, lowest first), and only then walks to the dropped item; it never
 approaches first, because an approach can hide a trunk's bottom log
 behind the log above it, and a frozen policy whose compact state does not
 change would repeat the same failing decision until truncation (observed on
-the PC before this change). The transition's `action_detail` records the
-candidates, the target, and whether the dropped item was seen. Difficult terrain, missing trees, hunger, mobs, or blocked
+the PC before this change). `CHOP` and `SEARCH` never target a block beneath
+the bot's own hitbox (only the canopy descent removes the leaf block under the
+feet): chopping its support dropped the bot into a two-by-two dark oak trunk on
+the PC, where nothing could be placed. The transition's `action_detail` records
+the candidates, the target, and whether the dropped item was seen. Visibility
+is checked by casting rays to a grid of points on every face of a block that
+looks towards the eyes, tested against each block's real collision shapes and
+ignoring shapes behind the eyes. In two retained PC failures the library's
+single ray to the table's centre did not reach a table one block away (its
+range limit was not the cause, and the transitions do not record which block
+stopped the ray), which left the placed table "out of reach". `PLACE_TABLE`
+takes a level orthogonal neighbour of the bot's cell first and never a cell
+that its own hitbox or another creature overlaps, nor the top of a container,
+bed, door, trapdoor, workstation or other block that a click would use instead
+(the server refuses or consumes such a placement). `APPROACH_TABLE` moves onto
+the table's standable neighbour cells (level first, then one below and one
+above, orthogonal first, with the pathfinder's rules for carpets and fences)
+until a face is visible (`table_reached`), reporting `table_not_visible` or
+`table_path_blocked` otherwise. Every navigation target's block coordinates
+stay at least three blocks inside the 64-block radius (a target cell's centre
+about 2.3 blocks), apart from re-centring on the leaf block the bot already
+stands on, and the pathfinder only walks through cells whose centre is at
+least 1.5 blocks inside it (a bot pushed past that line may still use its own
+cell and step back inward), so a goal tolerance, a walk to a dropped item, or a
+navigation cut off mid-path cannot carry the bot across the boundary (one PC
+episode was invalidated that way). These geometry rules are
+tested offline on real 1.21.4 block shapes, including cases modelled on the PC
+failures. Difficult terrain, missing trees, hunger, mobs, or blocked
 placement can still cause failure. This stage does not yet solve general
 exploration or survival management.
 
@@ -192,13 +218,18 @@ movement rules report no legal move from the current cell (no walk, one-block
 jump up, or short drop onto a safe landing), `SEARCH` may clear at most two
 leaf blocks beside the bot, feet and head height in one direction that has a
 solid non-hazard floor at most one block down; the direction needing the
-fewest blocks wins. A trunk, dirt, or stone wall is never dug, so a bot in a
-pit stays in the pit. The record is saved as `leaf_escape` (alone, or as the
+fewest blocks wins. `PLACE_TABLE` uses the same bounded clearing when the bot
+is walled in with no placement surface. A trunk, dirt, or stone wall is never
+dug, so a bot in a pit stays in the pit. The record is saved as `leaf_escape` (alone, or as the
 `escape` field of the descent record that led to it) with the four wall
 columns, the cleared blocks, any natural drop collected (`items_picked_up`),
-and whether a move existed afterwards; the step event says
-`cleared_1_leaf_wall_block`, `cleared_2_leaf_wall_blocks`, or
-`leaf_escape_refused:<reason>`. Wall composition is recorded only from this
+and whether a move existed afterwards; the step event of the action that ran
+it (`SEARCH` or `PLACE_TABLE`) includes `cleared_1_leaf_wall_block`,
+`cleared_2_leaf_wall_blocks`, or `leaf_escape_refused:<reason>`, unless a
+later part of that action fails, in which case the event is
+`action_failed: <message>` and only the `leaf_escape` record shows the
+clearing. After a `PLACE_TABLE` escape the table is never placed in the exit
+just opened. Wall composition is recorded only from this
 revision on; the `e88cb7c` transitions hold only the bot's own column and the
 adjacent ground depths.
 

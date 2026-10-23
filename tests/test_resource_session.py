@@ -136,6 +136,7 @@ class ResourceSessionTests(unittest.TestCase):
                          ("frozen_evaluation", "random", "masked_random"))
         self.assertIn("canopy descent", metadata["scripted_support"])
         self.assertIn("foliage escape", metadata["scripted_support"])
+        self.assertIn("PLACE_TABLE", metadata["scripted_support"])
         self.assertIn("leaf blocks", metadata["recovery_helpers"])
         self.assertIn("leaf_escape", metadata["recovery_helpers"])
         self.assertNotIn("No other block is dug outside CHOP;", metadata["recovery_helpers"])

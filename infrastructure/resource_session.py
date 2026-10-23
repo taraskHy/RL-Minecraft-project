@@ -193,7 +193,8 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
                 "state_note": "Compact partial observation; not a complete Minecraft MDP state",
                 "scripted_support": "Feasibility masks; bounded pathfinding, digging, pickup, recipes, placement, equip; "
                                     "bounded leaf clearing inside SEARCH (canopy descent beneath the feet, foliage escape "
-                                    "beside the bot); spectator camera only",
+                                    "beside the bot) and inside PLACE_TABLE (the same foliage escape when walled in with no "
+                                    "placement surface); spectator camera only",
                 "recovery_helpers": "When the bot stands on tree leaves, SEARCH may clear at most six leaf blocks directly "
                                     "beneath its feet, one at a time, only after scanning the column below for a landing "
                                     "within a recorded safe fall (no damage, or at most two points while health stays above "
@@ -202,7 +203,8 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
                                     "the vanilla loot table (about 5% sapling, 2% one or two sticks, 0.5% apple on oak and dark "
                                     "oak); pickups collected during a descent or an escape are listed in that record as "
                                     "items_picked_up and count in the inventory like any other natural item. When the bridge's "
-                                    "movement rules report no legal move from the current cell, SEARCH may clear at most two "
+                                    "movement rules report no legal move from the current cell, SEARCH (or PLACE_TABLE with no "
+                                    "placement surface) may clear at most two "
                                     "leaf blocks beside the bot (feet and head height) towards a floored exit; never a log, "
                                     "dirt, or stone; recorded as leaf_escape (alone, or as the escape field of the descent "
                                     "record that led to it). Apart from these leaf blocks, no block is dug outside CHOP",

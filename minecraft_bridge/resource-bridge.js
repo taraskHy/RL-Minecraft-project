@@ -3,10 +3,17 @@
 // Natural-world executor for eight learned macro-actions. This file never sends
 // chat commands, creates resources, resets a world, or chooses the next action.
 const readline = require('node:readline')
+const { Vec3 } = require('vec3')
 
 const ACTIONS = ['SEARCH', 'CHOP', 'CRAFT_PLANKS', 'CRAFT_STICKS', 'CRAFT_TABLE', 'PLACE_TABLE', 'APPROACH_TABLE', 'CRAFT_PICKAXE']
 const BACKEND = 'minecraft-java-natural-resources'
 const MAX_RADIUS = 64
+// Navigation targets' block coordinates stay this far inside MAX_RADIUS (a
+// target cell's centre about 2.3 blocks); together with STEP_MARGIN, a goal
+// tolerance or an item pickup beside a target cannot carry the bot across.
+const TARGET_MARGIN = 3
+// The pathfinder walks only through cells whose centre is this far inside.
+const STEP_MARGIN = 1.5
 const SEARCH_RADIUS = 32
 // One request may take 44 seconds; SEARCH keeps a margin for its two observations.
 const SEARCH_BUDGET_MS = 36000
@@ -139,7 +146,207 @@ function explorationTarget (index) {
   if (!Number.isInteger(index) || index < 0) throw new Error('exploration index must be a nonnegative integer')
   const [dx, dz] = EXPLORATION_DIRECTIONS[index % EXPLORATION_DIRECTIONS.length]
   const ring = Math.floor(index / EXPLORATION_DIRECTIONS.length) % EXPLORATION_RINGS
-  return { dx, dz, radius: Math.min(8 * (ring + 1), Math.floor((MAX_RADIUS - 2) / Math.hypot(dx, dz))) }
+  return { dx, dz, radius: Math.min(8 * (ring + 1), Math.floor((MAX_RADIUS - TARGET_MARGIN) / Math.hypot(dx, dz))) }
+}
+
+const EYE_HEIGHT = 1.62
+const HITBOX_HALF_WIDTH = 0.3
+const PLACEMENT_REACH = 4.3
+const PLACEMENT_FORBIDDEN_SUPPORTS = ['crafting_table', 'magma_block', 'cactus', 'campfire', 'soul_campfire']
+// Blocks a click uses instead of placing against (the bot never sneaks):
+// containers, beds, doors, trapdoors, workstations. The pathfinder's own list
+// plus the 1.21 blocks it lacks.
+const INTERACTIVE_SUPPORTS = new Set([...require('mineflayer-pathfinder/lib/interactable.json'), 'lectern', 'loom', 'grindstone',
+  'cake', 'decorated_pot', 'crafter', 'chiseled_bookshelf', 'cartography_table', 'beehive', 'bee_nest', 'respawn_anchor', 'vault', 'trial_spawner'])
+function interactiveSupport (name) {
+  return INTERACTIVE_SUPPORTS.has(name) || name.endsWith('_cake') || name.endsWith('shulker_box')
+}
+// Orthogonal neighbours first: a table beside the bot then shows a whole face.
+const APPROACH_OFFSETS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
+// Face sample fractions, centre first so a plainly visible block costs one ray.
+const SAMPLE_FRACTIONS = [0.5, 0.1, 0.9]
+
+// Whether a block lies below the bot's feet (or holds them, on a partial
+// block) in a column that carries any part of its 0.6-wide hitbox. CHOP and
+// SEARCH never target such a block; only the canopy descent removes the leaf
+// block under the feet. Chopping its own support dropped the bot into a
+// two-by-two trunk on the PC.
+function underHitbox (botPosition, blockPosition) {
+  if (!(blockPosition.y < botPosition.y - 1e-6)) return false
+  return [[0, 0], [HITBOX_HALF_WIDTH, HITBOX_HALF_WIDTH], [HITBOX_HALF_WIDTH, -HITBOX_HALF_WIDTH], [-HITBOX_HALF_WIDTH, HITBOX_HALF_WIDTH], [-HITBOX_HALF_WIDTH, -HITBOX_HALF_WIDTH]].some(([dx, dz]) =>
+    Math.floor(botPosition.x + dx) === blockPosition.x && Math.floor(botPosition.z + dz) === blockPosition.z)
+}
+
+function withinRadius (spawn, position, margin = 0) {
+  return Math.hypot(position.x - spawn.x, position.z - spawn.z) <= MAX_RADIUS - margin
+}
+
+function eyesAt (position) { return new Vec3(position.x, position.y + EYE_HEIGHT, position.z) }
+
+function escapeNote (escape) {
+  const count = escape.blocks_dug.length
+  return count ? `cleared_${count}_leaf_wall_block${count === 1 ? '' : 's'}` : `leaf_escape_refused:${escape.stopped || 'unknown'}`
+}
+
+// Points to aim at on a block's collision shapes: each shape's centre (unless
+// only some faces count) and a 3x3 grid on every face that looks towards the
+// eyes. A ray to any of them that reaches this block first means it is seen.
+function visibilitySamples (block, eyes, faces = null) {
+  const samples = []
+  const eye = [eyes.x, eyes.y, eyes.z]
+  for (const [x0, y0, z0, x1, y1, z1] of block.shapes) {
+    const lo = [block.position.x + x0, block.position.y + y0, block.position.z + z0]
+    const hi = [block.position.x + x1, block.position.y + y1, block.position.z + z1]
+    if (!faces) samples.push(new Vec3((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2))
+    for (const [name, axis, plane, sign] of [['west', 0, lo[0], -1], ['east', 0, hi[0], 1], ['bottom', 1, lo[1], -1], ['top', 1, hi[1], 1], ['north', 2, lo[2], -1], ['south', 2, hi[2], 1]]) {
+      if (faces && !faces.includes(name)) continue
+      if ((eye[axis] - plane) * sign <= 0) continue // the face looks away from the eyes
+      const [a, b] = [0, 1, 2].filter(other => other !== axis)
+      for (const fa of SAMPLE_FRACTIONS) {
+        for (const fb of SAMPLE_FRACTIONS) {
+          const point = [0, 0, 0]
+          point[axis] = plane
+          point[a] = lo[a] + (hi[a] - lo[a]) * fa
+          point[b] = lo[b] + (hi[b] - lo[b]) * fb
+          samples.push(new Vec3(point[0], point[1], point[2]))
+        }
+      }
+    }
+  }
+  return samples
+}
+
+// Line of sight from `eyes` to `block` (optionally to some of its faces only)
+// through a prismarine world. Occluders are tested per collision shape, so a
+// ray that enters a slab's empty upper half is not "seeing" the slab, and
+// shapes behind the eyes (which the library also reports) are ignored.
+function canSeeFace (world, eyes, block, { faces = null } = {}) {
+  if (!block || !Array.isArray(block.shapes) || !block.shapes.length) return false
+  for (const point of visibilitySamples(block, eyes, faces)) {
+    const delta = point.minus(eyes)
+    const range = delta.norm()
+    if (range < 1e-3) return true
+    const direction = delta.scaled(1 / range)
+    const hit = world.raycast(eyes, direction, range + 0.05, (candidate, iterator) => {
+      for (const shape of candidate.shapes || []) {
+        const intersection = iterator.intersect([shape], candidate.position)
+        if (!intersection) continue
+        const t = intersection.pos.minus(eyes).dot(direction)
+        if (t >= -1e-9 && t <= range + 0.05) return true
+      }
+      return false
+    })
+    if (hit && hit.position.equals(block.position)) return true
+  }
+  return false
+}
+
+// Vanilla refuses to place a block whose box meets the player's: a cell is
+// overlapped when the bot's centre is within 0.8 (half a cell plus half the
+// hitbox) of the cell centre on both horizontal axes.
+function hitboxOverlapsCell (botPosition, cell) {
+  const reach = 0.5 + HITBOX_HALF_WIDTH
+  return Math.abs(cell.x + 0.5 - botPosition.x) < reach && Math.abs(cell.z + 0.5 - botPosition.z) < reach
+}
+
+// Orthogonal neighbours of the bot's cell first, then the smallest height
+// change, then the nearest cell centre.
+function placementRank (botPosition, cell) {
+  const feet = botPosition.floored()
+  const offset = Math.abs(cell.x - feet.x) + Math.abs(cell.z - feet.z)
+  return [offset === 1 ? 0 : 1, Math.abs(cell.y - feet.y), Math.hypot(cell.x + 0.5 - botPosition.x, cell.z + 0.5 - botPosition.z)]
+}
+
+function compareRanks (a, b) {
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] - b[i]
+  return 0
+}
+
+// Cells where the bot could place its table: replaceable, on a solid support,
+// not overlapped by its hitbox, inside the margin, and (when withinReach) with
+// the support's top face visible and in reach. Pure over a prismarine world.
+// Whether an entity box ({ x0, y0, z0, x1, y1, z1 }) strictly meets a unit cell.
+function cellIntersectsBox (cell, box) {
+  const e = 1e-7
+  return box.x0 < cell.x + 1 - e && box.x1 > cell.x + e && box.y0 < cell.y + 1 - e && box.y1 > cell.y + e &&
+    box.z0 < cell.z + 1 - e && box.z1 > cell.z + e
+}
+
+// `obstacles` are the boxes of nearby creatures (vanilla refuses a block that
+// would meet one); `excludedColumns` are cells' x, z that must stay open.
+function placementCandidates (world, botPosition, spawn, { radius, withinReach, obstacles = [], excludedColumns = [] }) {
+  const feet = botPosition.floored()
+  const eyes = eyesAt(botPosition)
+  const candidates = []
+  for (let dx = -radius; dx <= radius; dx++) {
+    for (let dz = -radius; dz <= radius; dz++) {
+      for (let dy = -3; dy <= 3; dy++) {
+        const position = feet.offset(dx, dy, dz)
+        if (hitboxOverlapsCell(botPosition, position) || !withinRadius(spawn, position, TARGET_MARGIN)) continue
+        if (excludedColumns.some(column => column.x === position.x && column.z === position.z)) continue
+        if (obstacles.some(box => cellIntersectsBox(position, box))) continue
+        const empty = world.getBlock(position)
+        const support = world.getBlock(position.offset(0, -1, 0))
+        if (!replaceableForTable(empty?.name) || support?.boundingBox !== 'block' || PLACEMENT_FORBIDDEN_SUPPORTS.includes(support.name) || interactiveSupport(support.name)) continue
+        if (withinReach && (support.position.offset(0.5, 1, 0.5).distanceTo(eyes) > PLACEMENT_REACH || !canSeeFace(world, eyes, support, { faces: ['top'] }))) continue
+        candidates.push({ position, support, rank: placementRank(botPosition, position) })
+      }
+    }
+  }
+  return candidates.sort((a, b) => compareRanks(a.rank, b.rank))
+}
+
+function standableIn (world, position) {
+  const feetBlock = world.getBlock(position)
+  const headBlock = world.getBlock(position.offset(0, 1, 0))
+  return Boolean(feetBlock && headBlock && feetBlock.boundingBox === 'empty' && headBlock.boundingBox === 'empty' &&
+    !FALL_HAZARDS.includes(feetBlock.name) && !FALL_HAZARDS.includes(headBlock.name))
+}
+
+function collisionTop (block) {
+  return Array.isArray(block?.shapes) && block.shapes.length ? Math.max(...block.shapes.map(shape => shape[4])) : 0
+}
+
+// The pathfinder's classification: a feet or head cell is passable when it is
+// empty or lower than 0.1 (carpets); a floor is walkable when it is solid and
+// no taller than a block (fences and walls are not). The floor must also reach
+// above half a block, so the bot really stands in the cell above it.
+function passableCell (block) {
+  return Boolean(block) && !FALL_HAZARDS.includes(block.name) && (block.boundingBox === 'empty' || collisionTop(block) < 0.1)
+}
+function walkableFloor (block) {
+  const top = collisionTop(block)
+  return Boolean(block) && block.boundingBox === 'block' && top > 0.5 && top <= 1 && !FALL_HAZARDS.includes(block.name)
+}
+
+// Cells beside the table where the bot can stand inside the margin: level
+// first, then one below and one above (a table on a bump), orthogonal first.
+function approachCells (world, tablePosition, spawn) {
+  const cells = []
+  for (const dy of [0, -1, 1]) {
+    for (const [dx, dz] of APPROACH_OFFSETS) {
+      const cell = tablePosition.offset(dx, dy, dz)
+      if (passableCell(world.getBlock(cell)) && passableCell(world.getBlock(cell.offset(0, 1, 0))) &&
+        walkableFloor(world.getBlock(cell.offset(0, -1, 0))) && withinRadius(spawn, cell, TARGET_MARGIN)) cells.push(cell)
+    }
+  }
+  return cells
+}
+
+// Cost the pathfinder adds for stepping into a cell. Cells whose centre is
+// STEP_MARGIN inside the radius are free, so a navigation cut off mid-path
+// still leaves the bot inside it. A bot pushed past that line (knockback) may
+// still use its own column and cells no farther out than it already is, up to
+// a centre 0.75 inside the radius, so it can always step back inward.
+function stepExclusion (spawn, cell, botPosition) {
+  const centre = Math.hypot(cell.x + 0.5 - spawn.x, cell.z + 0.5 - spawn.z)
+  if (centre <= MAX_RADIUS - STEP_MARGIN) return 0
+  if (!botPosition) return 100
+  const ownX = Math.floor(botPosition.x)
+  const ownZ = Math.floor(botPosition.z)
+  if (cell.x === ownX && cell.z === ownZ) return 0
+  const ownCentre = Math.hypot(ownX + 0.5 - spawn.x, ownZ + 0.5 - spawn.z)
+  return centre <= ownCentre + 1e-9 && centre <= MAX_RADIUS - 0.75 ? 0 : 100
 }
 
 function parseArgs (args) {
@@ -223,7 +430,7 @@ function safeMovements (bot, Movements, spawn) {
     const type = bot.registry.blocksByName[name]?.id
     if (Number.isInteger(type)) movements.blocksToAvoid.add(type)
   }
-  movements.exclusionAreasStep.push(block => Math.hypot(block.position.x - spawn.x, block.position.z - spawn.z) > MAX_RADIUS ? 100 : 0)
+  movements.exclusionAreasStep.push(block => stepExclusion(spawn, block.position, bot.entity?.position))
   movements.exclusionAreasPlace.push(() => 100)
   return movements
 }
@@ -231,7 +438,6 @@ function safeMovements (bot, Movements, spawn) {
 async function main () {
   const config = parseArgs(process.argv.slice(2))
   const mineflayer = require('mineflayer')
-  const { Vec3 } = require('vec3')
   const { pathfinder, Movements, goals } = require('mineflayer-pathfinder')
   const Move = require('mineflayer-pathfinder/lib/move')
   class GoalPickup extends goals.GoalNear {
@@ -297,19 +503,24 @@ async function main () {
     for (const item of bot.inventory.items()) result[item.name] = (result[item.name] || 0) + item.count
     return result
   }
-  function inBounds (position) { return Math.hypot(position.x - spawn.x, position.z - spawn.z) <= MAX_RADIUS }
+  function inBounds (position, margin = 0) { return withinRadius(spawn, position, margin) }
+  // Visibility uses the face-sampling check above instead of the library's
+  // single ray to a block's centre: in two retained PC failures that ray did
+  // not reach a table one block away. Its range limit was not the cause, and
+  // the transitions do not record which block stopped it.
+  function canSee (block, options) { return canSeeFace(bot.world, eyesAt(bot.entity.position), block, options) }
   function visibleLogs (maxDistance = SEARCH_RADIUS) {
     // Structured loaded-block observations, with a line-of-sight check; no map,
     // seed knowledge, offscreen chunk loading, or privileged server lookup.
     return bot.findBlocks({ matching: block => block.name.endsWith('_log') && !block.name.startsWith('stripped_'), maxDistance, count: 64 })
       .map(position => bot.blockAt(position))
-      .filter(block => block && inBounds(block.position) && bot.canSeeBlock(block))
+      .filter(block => block && inBounds(block.position, TARGET_MARGIN) && canSee(block))
       .sort((a, b) => a.position.distanceTo(bot.entity.position) - b.position.distanceTo(bot.entity.position))
   }
   function reachableLogs () {
     const eyes = bot.entity.position.offset(0, 1.62, 0)
     return visibleLogs(6)
-      .filter(block => bot.canDigBlock(block) && block.position.offset(0.5, 0.5, 0.5).distanceTo(eyes) <= 4.5)
+      .filter(block => bot.canDigBlock(block) && block.position.offset(0.5, 0.5, 0.5).distanceTo(eyes) <= 4.5 && !underHitbox(bot.entity.position, block.position))
       // Lowest first: a trunk's bottom log drops its item onto open ground
       // instead of onto the remaining trunk, and keeps the next log in reach.
       .sort((a, b) => a.position.y - b.position.y || a.position.distanceTo(bot.entity.position) - b.position.distanceTo(bot.entity.position))
@@ -320,6 +531,9 @@ async function main () {
     // sits beside the trunk base rather than at a block high in the canopy.
     const lowest = new Map()
     for (const block of visibleLogs()) {
+      // The log the bot stands on is never a target: CHOP would refuse it, and
+      // a failed approach would block that trunk in the search memory.
+      if (underHitbox(bot.entity.position, block.position)) continue
       const key = `${block.position.x},${block.position.z}`
       if (!lowest.has(key) || block.position.y < lowest.get(key).position.y) lowest.set(key, block)
     }
@@ -335,7 +549,7 @@ async function main () {
   }
   function tableInReach () {
     const block = tableBlock()
-    return block && bot.canSeeBlock(block) && block.position.offset(0.5, 0.5, 0.5).distanceTo(bot.entity.position.offset(0, 1.62, 0)) <= 4.5 ? block : null
+    return block && block.position.offset(0.5, 0.5, 0.5).distanceTo(eyesAt(bot.entity.position)) <= 4.5 && canSee(block) ? block : null
   }
   function supportBlock () {
     // The block carrying the bot: its own column, or a corner column when it
@@ -364,11 +578,18 @@ async function main () {
       return { name: block.name, boundingBox: block.boundingBox, top }
     })
   }
-  function standable (position) {
-    const feetBlock = bot.blockAt(position)
-    const headBlock = bot.blockAt(position.offset(0, 1, 0))
-    return Boolean(feetBlock && headBlock && feetBlock.boundingBox === 'empty' && headBlock.boundingBox === 'empty' &&
-      !FALL_HAZARDS.includes(feetBlock.name) && !FALL_HAZARDS.includes(headBlock.name))
+  function standable (position) { return standableIn(bot.world, position) }
+  function obstacleBoxes () {
+    // Creatures near the bot block placement in vanilla; spectators, dropped
+    // items and experience orbs do not.
+    const spectators = new Set(Object.values(bot.players).filter(player => player.gamemode === 3 && player.entity).map(player => player.entity))
+    return Object.values(bot.entities)
+      .filter(entity => entity !== bot.entity && entity.position && !spectators.has(entity) && !['item', 'experience_orb'].includes(entity.name) &&
+        Number.isFinite(entity.width) && Number.isFinite(entity.height) && entity.position.distanceTo(bot.entity.position) <= 12)
+      .map(entity => ({
+        x0: entity.position.x - entity.width / 2, x1: entity.position.x + entity.width / 2, y0: entity.position.y,
+        y1: entity.position.y + entity.height, z0: entity.position.z - entity.width / 2, z1: entity.position.z + entity.width / 2
+      }))
   }
   function alternativeFooting (feet, tried = new Set()) {
     // A neighbouring leaf block, level or one step down, whose own column has a
@@ -381,7 +602,7 @@ async function main () {
         const candidate = feet.offset(dx, dy, dz)
         if (tried.has(candidate.toString())) continue
         const support = bot.blockAt(candidate.offset(0, -1, 0))
-        if (!support || !isLeaves(support.name) || support.boundingBox !== 'block' || !standable(candidate) || !inBounds(candidate)) continue
+        if (!support || !isLeaves(support.name) || support.boundingBox !== 'block' || !standable(candidate) || !inBounds(candidate, TARGET_MARGIN)) continue
         if (dy === -1 && !standable(candidate.offset(0, 1, 0))) continue
         const plan = planCanopyDescent({ feetY: candidate.y, health: bot.health, column: columnBelow(candidate.x, candidate.y, candidate.z) })
         if (plan.ok && (!best || plan.fall < best.plan.fall)) best = { position: candidate, plan }
@@ -425,13 +646,14 @@ async function main () {
     const descriptors = {}
     for (const [key, [dx, dz]] of Object.entries(headings)) {
       cells[key] = { feet: bot.blockAt(feet.offset(dx, 0, dz)), head: bot.blockAt(feet.offset(dx, 1, dz)), below: bot.blockAt(feet.offset(dx, -1, dz)), lower: bot.blockAt(feet.offset(dx, -2, dz)) }
-      descriptors[key] = inBounds(feet.offset(dx, 0, dz)) ? Object.fromEntries(Object.entries(cells[key]).map(([name, block]) => [name, describe(block)])) : null
+      descriptors[key] = inBounds(feet.offset(dx, 0, dz), TARGET_MARGIN) ? Object.fromEntries(Object.entries(cells[key]).map(([name, block]) => [name, describe(block)])) : null
     }
     record.walls = descriptors
     const plan = planLeafEscape(descriptors)
     if (!plan.ok) { record.stopped = plan.reason; return record }
     record.direction = plan.direction
     record.floor = plan.floor
+    record.exit = { x: feet.x + headings[plan.direction][0], y: feet.y, z: feet.z + headings[plan.direction][1] }
     try {
       for (const block of [cells[plan.direction].feet, cells[plan.direction].head].filter(block => block && isLeaves(block.name))) {
         if (record.blocks_dug.length >= MAX_ESCAPE_LEAVES) { record.stopped = 'block_limit'; break }
@@ -637,8 +859,7 @@ async function main () {
     if (reachableLog()) { searchMemory.reached(); return [...notes, 'log_already_reachable'].join(';') }
     if (enclosed()) {
       const escape = await escapeFoliage(signal) // publishes its own record
-      const count = escape.blocks_dug.length
-      notes.push(count ? `cleared_${count}_leaf_wall_block${count === 1 ? '' : 's'}` : `leaf_escape_refused:${escape.stopped || 'unknown'}`)
+      notes.push(escapeNote(escape))
     }
     const candidate = searchMemory.next(trunkTargets())
     if (candidate) {
@@ -657,10 +878,10 @@ async function main () {
       if (remaining() < 4000) { notes.push('exploration_time_budget'); break }
       const { dx, dz, radius } = explorationTarget(explorationIndex++)
       const target = { x: spawn.x + dx * radius, z: spawn.z + dz * radius }
-      if (!inBounds(target)) { notes.push('exploration_boundary'); continue }
+      if (!inBounds(target, TARGET_MARGIN)) { notes.push('exploration_boundary'); continue }
       if (await navigate(new goals.GoalNearXZ(target.x, target.z, 2), Math.min(18000, remaining()), signal)) return [...notes, 'explored'].join(';')
       const local = { x: bot.entity.position.x + dx * 4, z: bot.entity.position.z + dz * 4 }
-      if (remaining() >= 4000 && inBounds(local) && await navigate(new goals.GoalNearXZ(local.x, local.z, 1), Math.min(6000, remaining()), signal)) return [...notes, 'explored_locally'].join(';')
+      if (remaining() >= 4000 && inBounds(local, TARGET_MARGIN) && await navigate(new goals.GoalNearXZ(local.x, local.z, 1), Math.min(6000, remaining()), signal)) return [...notes, 'explored_locally'].join(';')
     }
     return [...notes, 'exploration_blocked'].join(';')
   }
@@ -678,7 +899,7 @@ async function main () {
     let target = null
     for (const candidate of candidates) {
       const block = bot.blockAt(candidate.position)
-      if (block?.name.endsWith('_log') && bot.canSeeBlock(block) && bot.canDigBlock(block)) { target = block; break }
+      if (block?.name.endsWith('_log') && canSee(block) && bot.canDigBlock(block) && !underHitbox(bot.entity.position, block.position)) { target = block; break }
     }
     if (!target) return 'log_unreachable'
     const p = target.position.clone()
@@ -693,6 +914,10 @@ async function main () {
     for (let attempt = 0; attempt < 2 && !collected() && Date.now() < deadline && bot.health > 0; attempt++) {
       const drop = droppedItemNear(p)
       if (drop) { detail.item_seen = true; detail.item_position = [drop.position.x, drop.position.y, drop.position.z].map(v => Math.round(v * 100) / 100) }
+      // An item that rolled towards the edge of the search area is left where it is.
+      // The walk is bounded by the pathfinder's STEP_MARGIN, which also bounds
+      // every drop of a log CHOP accepted, so only a drop that rolled farther is left.
+      if (drop && !inBounds(drop.position, STEP_MARGIN)) { detail.item_out_of_bounds = true; break }
       detail.pickup_moves++
       const goal = drop ? new GoalPickup(drop) : new goals.GoalNear(p.x, Math.floor(bot.entity.position.y), p.z, 1)
       await navigate(goal, Math.max(1000, Math.min(6000, deadline - Date.now())), signal)
@@ -740,42 +965,37 @@ async function main () {
     if (tableBlock()) return 'table_already_placed'
     const item = bot.inventory.items().find(item => item.name === 'crafting_table')
     if (!item) return 'missing_table'
-    function placementTargets (radius, withinReach) {
-      const base = bot.entity.position.floored()
-      const candidates = []
-      for (let dx = -radius; dx <= radius; dx++) {
-        for (let dz = -radius; dz <= radius; dz++) {
-          for (let dy = -3; dy <= 3; dy++) {
-            const position = base.offset(dx, dy, dz)
-            if (Math.hypot(position.x + 0.5 - bot.entity.position.x, position.z + 0.5 - bot.entity.position.z) < 1.3 || !inBounds(position)) continue
-            const empty = bot.blockAt(position)
-            const support = bot.blockAt(position.offset(0, -1, 0))
-            if (!replaceableForTable(empty?.name) || support?.boundingBox !== 'block') continue
-            if (['crafting_table', 'magma_block', 'cactus', 'campfire', 'soul_campfire'].includes(support.name)) continue
-            if (withinReach && (!bot.canSeeBlock(support) || support.position.offset(0.5, 1, 0.5).distanceTo(bot.entity.position.offset(0, 1.62, 0)) > 4.3)) continue
-            candidates.push({ position, support })
-          }
-        }
-      }
-      return candidates.sort((a, b) => a.position.distanceTo(bot.entity.position) - b.position.distanceTo(bot.entity.position))
-    }
+    let excludedColumns = []
+    const placementTargets = (radius, withinReach) => placementCandidates(bot.world, bot.entity.position, spawn, { radius, withinReach, obstacles: obstacleBoxes(), excludedColumns })
+    let note = null
+    const label = event => note ? `${note};${event}` : event
     let target = placementTargets(3, true)[0]
+    if (!target && enclosed()) {
+      // Walled in with nothing to place on: the same bounded, recorded leaf
+      // clearing SEARCH uses, named in this step's event (unless a later part
+      // of the action fails), then look again. The exit it opened is never
+      // filled with the table.
+      const escape = await escapeFoliage(signal)
+      note = escapeNote(escape)
+      if (escape.exit && escape.blocks_dug.length) excludedColumns = [escape.exit]
+      target = placementTargets(3, true)[0]
+    }
     if (!target) {
       const candidates = placementTargets(8, false).slice(0, 12)
       const destination = candidates.length ? candidates[placementIndex++ % candidates.length] : null
-      if (!destination) return 'no_placement_surface'
+      if (!destination) return label('no_placement_surface')
       const p = destination.position
       await navigate(new goals.GoalNear(p.x, p.y, p.z, 1.5), 12000, signal)
       target = placementTargets(3, true)[0]
     }
-    if (!target) return 'no_placement_surface'
+    if (!target) return label('no_placement_surface')
     await bot.equip(item, 'hand')
     await bot.placeBlock(target.support, new Vec3(0, 1, 0))
     await until(() => bot.blockAt(target.position)?.name === 'crafting_table', 3000, signal, 'Table placement was not observed')
     await syncInventory(signal)
     check(signal)
     ownTable = target.position.clone()
-    return 'table_placed'
+    return label('table_placed')
   }
   async function step (request, signal) {
     const action = validateAction(request.action)
@@ -795,9 +1015,16 @@ async function main () {
         const target = tableBlock()
         if (!target) event = 'no_own_table'
         else {
+          // Stand where a face of the table is visible: near it first, then on
+          // each standable neighbour cell (orthogonal first) until it is in reach.
           const p = target.position
-          const reached = await navigate(new goals.GoalNear(p.x, p.y, p.z, 2), 18000, signal)
-          event = reached && tableInReach() ? 'table_reached' : 'table_path_blocked'
+          const deadline = Date.now() + 18000
+          let reached = tableInReach() ? true : await navigate(new goals.GoalNear(p.x, p.y, p.z, 2), 12000, signal)
+          for (const cell of approachCells(bot.world, p, spawn)) {
+            if (tableInReach() || Date.now() >= deadline) break
+            reached = await navigate(new goals.GoalBlock(cell.x, cell.y, cell.z), Math.max(1500, Math.min(6000, deadline - Date.now())), signal) || reached
+          }
+          event = tableInReach() ? 'table_reached' : (reached ? 'table_not_visible' : 'table_path_blocked')
         }
       }
     } catch (error) {
@@ -866,7 +1093,10 @@ async function main () {
 module.exports = {
   parseArgs, validateAction, inventoryCounts, validatePhysicalState, craftingRecipe, safeMovements, SearchMemory,
   replaceableForTable, isLeaves, fallDamage, descentAcceptable, planCanopyDescent, nodeCollectsItem, planLeafEscape,
-  explorationTarget, ACTIONS, BACKEND, FALL_HAZARDS, MAX_CANOPY_LAYERS, CANOPY_SCAN_DEPTH, PICKUP_REACH, MAX_ESCAPE_LEAVES,
-  EXPLORATION_RINGS, EXPLORATION_DIRECTIONS
+  explorationTarget, underHitbox, withinRadius, eyesAt, escapeNote, visibilitySamples, canSeeFace, hitboxOverlapsCell,
+  placementRank, placementCandidates, standableIn, approachCells, interactiveSupport, cellIntersectsBox, stepExclusion,
+  passableCell, walkableFloor, ACTIONS, BACKEND, FALL_HAZARDS, MAX_CANOPY_LAYERS, CANOPY_SCAN_DEPTH, PICKUP_REACH,
+  MAX_ESCAPE_LEAVES, EXPLORATION_RINGS, EXPLORATION_DIRECTIONS, MAX_RADIUS, TARGET_MARGIN, STEP_MARGIN, EYE_HEIGHT,
+  APPROACH_OFFSETS
 }
 if (require.main === module) main().catch(error => { process.stderr.write(`${error.stack}\n`); process.exit(1) })
