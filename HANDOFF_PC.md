@@ -18,29 +18,34 @@ Latest user instructions:
 
 > back online - finish up and push im going to start working on my pc - do a heandoff that i willl only tell him to read it and he will start doing a long task on my pc
 
+> push it to main - i will clone
+
 ## Repository and branch
 
 - Remote: `https://github.com/taraskHy/RL-Minecraft-project.git`
-- Active development branch: `codex/local-minecraft-infrastructure`.
+- Clone entry point: **`main`**, including the latest code and this handoff, as explicitly requested by the user.
+- Existing development branch: `codex/local-minecraft-infrastructure`.
 - The original infrastructure was pushed to `main` at `387f02f` as requested.
 - The spectator/replay/held-pickaxe milestone was pushed to the development branch at `f3f4e15`.
-- The commit containing this handoff adds natural-resource training infrastructure and its unresolved diagnostics. Do not mistake it for successful natural-world crafting.
+- Commit `0e021d0` adds natural-resource training infrastructure and its unresolved diagnostics; the subsequent handoff update publishes the continuation instructions for a normal clone. Do not mistake this for successful natural-world crafting.
 
 For a new checkout on the PC:
 
 ```powershell
-git clone --branch codex/local-minecraft-infrastructure https://github.com/taraskHy/RL-Minecraft-project.git
+git clone https://github.com/taraskHy/RL-Minecraft-project.git
 cd RL-Minecraft-project
 .\setup.cmd
 .\run.cmd doctor
 .\run.cmd test
 ```
 
-For an existing checkout, inspect `git status`, fetch, switch to the development
-branch and fast-forward only when compatible. Preserve local work. Keep using
-this branch unless the user requests another. Push at each completed, tested
-milestone with an accurate commit message; do not silently merge into `main` or
-force-push. Record incomplete behavior explicitly when publishing infrastructure.
+For an existing checkout, inspect `git status`, fetch, and update `main` by
+fast-forward only when compatible. Preserve local work. Start subsequent work
+from this published state, using a `codex/` development branch when appropriate.
+Push each completed, tested milestone with an accurate commit message. The user
+explicitly authorized publishing this handoff and current implementation to
+`main`. Never force-push. Record incomplete behavior explicitly when publishing
+infrastructure.
 
 ## User goal and constraints
 
