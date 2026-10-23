@@ -1,7 +1,6 @@
-param(
-    [Parameter(ValueFromRemainingArguments = $true)]
-    [string[]]$ProjectArgs
-)
+# Keep Python options verbatim. An advanced PowerShell parameter block would
+# interpret --out as its own ambiguous OutVariable/OutBuffer parameter.
+$ProjectArgs = @($args)
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot

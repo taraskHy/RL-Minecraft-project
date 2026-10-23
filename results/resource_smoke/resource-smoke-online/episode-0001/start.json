@@ -1,0 +1,48 @@
+{
+  "connection": {
+    "connected": true,
+    "initialized": true,
+    "spawn": {
+      "x": -34.5,
+      "y": 83,
+      "z": -6.5
+    },
+    "gamemode": "survival",
+    "game_version": "1.21.4",
+    "backend": "minecraft-java-natural-resources",
+    "players": {
+      "RLResourceBot": {
+        "gamemode": 0
+      }
+    }
+  },
+  "observation": {
+    "position": {
+      "x": -34.5,
+      "y": 83,
+      "z": -6.5
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {},
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 0,
+      "sticks": 0,
+      "tables": 0,
+      "pickaxes": 0
+    },
+    "nearby_log": false,
+    "nearby_table": false,
+    "table_placed": false,
+    "table_position": null,
+    "held_item": null,
+    "success": false,
+    "death": false,
+    "event": "observe",
+    "action_duration_seconds": 0,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

@@ -47,6 +47,10 @@ Viewer controls apply only to the dedicated development server. They do not gran
 
 ## Commands in PowerShell
 
+For the next stage, including visible online learning in freshly generated worlds,
+see [watch natural-resource training](resource_training.md). Menu **12** runs it
+on **127.0.0.1:25567**; menu 11 remains the frozen arena demonstration.
+
 Run these from the project folder. The same commands also work in a normal Windows terminal; activation of `.venv` is unnecessary.
 
 ```powershell

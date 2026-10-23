@@ -93,7 +93,8 @@ def checks() -> int:
                 [sys.executable, "-m", "unittest", "discover", "-s", "minecraft_bridge", "-p", "test_live.py", "-v"]]
     node = runtime_paths().get("node")
     if node and Path(node).is_file():
-        commands += [[node, "--test", "minecraft_bridge/bridge.test.js", "minecraft_bridge/survival-probe.test.js"],
+        commands += [[node, "--test", "minecraft_bridge/bridge.test.js", "minecraft_bridge/survival-probe.test.js", "minecraft_bridge/resource-bridge.test.js"],
+                     [node, "--check", "minecraft_bridge/resource-bridge.js"],
                      [node, "--check", "minecraft_bridge/survival-probe.js"],
                      [node, "minecraft_bridge/runtime-smoke.js"]]
     else:
@@ -208,6 +209,34 @@ def watch(arguments: list[str]) -> int:
                      join_timeout=args.join_timeout, once=args.once)
 
 
+def resources(arguments: list[str], *, evaluate: bool = False) -> int:
+    name = "resource-demo" if evaluate else "resource-train"
+    p = argparse.ArgumentParser(prog=f"run.cmd {name}", description=
+        "Watch a frozen policy in a fresh natural world." if evaluate else
+        "Learn Q-learning/SARSA from actual Minecraft transitions in fresh natural worlds.")
+    p.add_argument("--viewer", help="Your Java player name; waits for you before each episode")
+    p.add_argument("--episodes", type=int, default=1 if evaluate else 5)
+    p.add_argument("--world-seed", type=int, default=42, help="First world seed; each episode increments it")
+    p.add_argument("--seed", type=int, default=0, help="Learner random seed")
+    p.add_argument("--max-steps", type=int, default=80)
+    p.add_argument("--policy", type=Path, required=evaluate, help="Resource checkpoint to resume or evaluate; arena policies are incompatible")
+    p.add_argument("--out", type=Path, help="New output folder inside runs/")
+    p.add_argument("--pause", type=float, default=.5, help="Extra seconds between decisions")
+    if not evaluate:
+        p.add_argument("--algorithm", choices=("q_learning", "sarsa"), default="q_learning")
+        p.add_argument("--epsilon", type=float, default=.6, help="Initial exploration probability")
+        p.add_argument("--epsilon-end", type=float, default=.1)
+        p.add_argument("--pretrain", type=int, default=0, help="Optional explicitly labeled simulator warm-up episodes; default learns from scratch")
+    args = p.parse_args(arguments)
+    from .resource_session import run_resources
+    return run_resources(output=args.out or Path(new_output(name)), episodes=args.episodes,
+                         world_seed=args.world_seed, seed=args.seed, viewer=args.viewer,
+                         max_steps=args.max_steps, policy=args.policy, evaluate=evaluate, pause=args.pause,
+                         algorithm=getattr(args, "algorithm", "q_learning"),
+                         epsilon=getattr(args, "epsilon", 0), epsilon_end=getattr(args, "epsilon_end", 0),
+                         pretrain=getattr(args, "pretrain", 0))
+
+
 def menu() -> int:
     options = {
         "1": ["setup"], "2": ["demo"], "3": ["train"], "4": ["experiment"],
@@ -228,6 +257,7 @@ def menu() -> int:
               "  9  Check this PC\n"
               " 10  Run tests\n"
               " 11  Watch the crafting bot in Minecraft (spectator)\n"
+              " 12  Watch actual resource training in fresh Survival worlds\n"
               "  0  Exit")
         try:
             choice = input("Choose: ").strip()
@@ -235,12 +265,13 @@ def menu() -> int:
             return 0
         if choice == "0":
             return 0
-        if choice == "11":
+        if choice in ("11", "12"):
             try:
                 viewer = input("Your Minecraft Java player name: ").strip()
             except (EOFError, KeyboardInterrupt):
                 return 0
-            status = main(["watch", "--dev-arena", "--viewer", viewer])
+            status = main(["watch", "--dev-arena", "--viewer", viewer] if choice == "11" else
+                          ["resource-train", "--viewer", viewer])
             print(f"\nCommand finished with exit code {status}.")
             continue
         if choice not in options:
@@ -268,6 +299,8 @@ def main(argv: list[str] | None = None) -> int:
             return survival_check(arguments)
         if command == "watch":
             return watch(arguments)
+        if command in ("resource-train", "resource-demo"):
+            return resources(arguments, evaluate=command == "resource-demo")
         if command == "server":
             p = argparse.ArgumentParser(prog="run.cmd server")
             p.add_argument("profile", choices=("arena", "survival"))
@@ -291,6 +324,8 @@ def main(argv: list[str] | None = None) -> int:
                   "  accept-eula                 Record your Minecraft EULA decision\n"
                   "  arena --dev-arena           Run saved policy in a managed test world\n"
                   "  watch --dev-arena --viewer NAME  Wait for you to join and watch the bot\n"
+                  "  resource-train --viewer NAME    Watch actual training in fresh natural worlds\n"
+                  "  resource-demo --policy PATH     Evaluate a frozen resource policy in a fresh world\n"
                   "  survival-check              Check bot connection to ordinary Survival\n"
                   "  server arena|survival       Keep a server running until Ctrl+C\n"
                   "Without a command, opens the menu. Read docs/windows_setup.md.")

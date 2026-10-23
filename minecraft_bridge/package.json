@@ -3,8 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "description": "Optional local Minecraft development arena; not a full-survival agent",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "packageManager": "pnpm@11.25.0",
-  "scripts": { "start": "node bridge.js", "test": "node --test bridge.test.js survival-probe.test.js", "check": "node --check bridge.js", "smoke": "node runtime-smoke.js" },
-  "dependencies": { "mineflayer": "4.39.0", "vec3": "0.1.10" }
+  "scripts": {
+    "start": "node bridge.js",
+    "test": "node --test bridge.test.js survival-probe.test.js resource-bridge.test.js",
+    "check": "node --check bridge.js && node --check resource-bridge.js",
+    "smoke": "node runtime-smoke.js"
+  },
+  "dependencies": {
+    "mineflayer": "4.39.0",
+    "mineflayer-pathfinder": "2.4.5",
+    "vec3": "0.1.10"
+  }
 }

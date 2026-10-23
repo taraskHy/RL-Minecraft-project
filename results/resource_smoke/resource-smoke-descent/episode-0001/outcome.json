@@ -1,0 +1,8 @@
+{
+  "status": "invalid",
+  "success": null,
+  "death": null,
+  "recorded_steps": 4,
+  "error": "RuntimeError: Natural-resource game error: client timed out after 30000 milliseconds",
+  "note": "Not counted as a measured policy success or failure"
+}

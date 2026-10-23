@@ -1,0 +1,35 @@
+[02:22:03] [Server thread/INFO]: Preparing level "world"
+[02:22:12] [Server thread/INFO]: Preparing start region for dimension minecraft:overworld
+[02:22:12] [Worker-Main-13/INFO]: Preparing spawn area: 2%
+[02:22:12] [Worker-Main-8/INFO]: Preparing spawn area: 2%
+[02:22:13] [Worker-Main-9/INFO]: Preparing spawn area: 2%
+[02:22:13] [Worker-Main-9/INFO]: Preparing spawn area: 2%
+[02:22:14] [Worker-Main-9/INFO]: Preparing spawn area: 2%
+[02:22:14] [Worker-Main-3/INFO]: Preparing spawn area: 2%
+[02:22:15] [Worker-Main-13/INFO]: Preparing spawn area: 2%
+[02:22:15] [Worker-Main-9/INFO]: Preparing spawn area: 18%
+[02:22:16] [Worker-Main-13/INFO]: Preparing spawn area: 18%
+[02:22:16] [Worker-Main-12/INFO]: Preparing spawn area: 18%
+[02:22:17] [Worker-Main-6/INFO]: Preparing spawn area: 18%
+[02:22:17] [Worker-Main-7/INFO]: Preparing spawn area: 51%
+[02:22:18] [Worker-Main-5/INFO]: Preparing spawn area: 51%
+[02:22:18] [Worker-Main-6/INFO]: Preparing spawn area: 51%
+[02:22:19] [Worker-Main-9/INFO]: Preparing spawn area: 51%
+[02:22:19] [Worker-Main-12/INFO]: Preparing spawn area: 51%
+[02:22:20] [Server thread/INFO]: Time elapsed: 8038 ms
+[02:22:20] [Server thread/INFO]: Done (16.980s)! For help, type "help"
+[02:22:23] [Server thread/INFO]: RLResourceBot[/127.0.0.1:57902] logged in with entity id 44 at (-34.5, 83.0, -6.5)
+[02:22:23] [Server thread/INFO]: RLResourceBot joined the game
+[02:22:50] [Server thread/INFO]: RLResourceBot lost connection: Disconnected
+[02:22:50] [Server thread/INFO]: RLResourceBot left the game
+[02:22:51] [Server thread/INFO]: Stopping the server
+[02:22:51] [Server thread/INFO]: Stopping server
+[02:22:51] [Server thread/INFO]: Saving players
+[02:22:51] [Server thread/INFO]: Saving worlds
+[02:22:51] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:overworld
+[02:22:57] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_end
+[02:22:57] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_nether
+[02:22:57] [Server thread/INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[02:22:57] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[02:22:57] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[02:22:57] [Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved

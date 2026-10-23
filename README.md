@@ -14,6 +14,10 @@ The Minecraft server requires your explicit EULA decision through `run.cmd accep
 
 To watch the current crafting bot, use `run.cmd watch --dev-arena --viewer YourMinecraftName`, then join **127.0.0.1:25565** in Minecraft Java 1.21.4. It waits for you, puts your camera in spectator mode, and offers a replay after the episode. See [watch instructions](docs/windows_setup.md#watch-the-crafting-bot).
 
+To watch **actual Q-learning/SARSA updates in fresh natural worlds**, run `run.cmd resource-train --viewer YourMinecraftName --episodes 5` and join **127.0.0.1:25567** when prompted. The bot learns resource/crafting decisions from game observations; chat shows rewards and changing Q-values. Each episode saves its world and starts a new one. Read [natural-resource training](docs/resource_training.md) for controls, saved evidence, scripted helpers, and limitations.
+
+**PC continuation:** read [HANDOFF_PC.md](HANDOFF_PC.md). The natural-resource prototype has verified online updates, but its complete wood/table/pickaxe chain still needs a successful live test; canopy navigation is the current blocker.
+
 ## Run the first experiment
 
 From this folder in PowerShell, using Python 3.12 or newer:
