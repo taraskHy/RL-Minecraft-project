@@ -311,5 +311,37 @@ class ResourceSessionTests(unittest.TestCase):
             self.assertIsNone(run.call_args.kwargs["condition"])
 
 
+    def test_port_and_parallel_slots_are_recorded_and_checked(self):
+        following = deepcopy(self.start)
+        following.update(nearby_log=True, event="log_reached")
+        self.bridge.step.return_value = following
+        output, _ = self._train("parallel", "masked", 1, algorithm="q_learning", port=25570, parallel_slots=4)
+        self.assertEqual(resource_session.fresh_resource_server.call_args.kwargs["port"], 25570)
+        execution = json.loads((output / "metadata.json").read_text())["execution"]
+        self.assertEqual((execution["server_port"], execution["parallel_slots"]), (25570, 4))
+        outcome = json.loads((output / "episode-0001" / "outcome.json").read_text())
+        self.assertLessEqual(outcome["started_at"], outcome["finished_at"])
+        alone, _ = self._train("alone", "masked", 1, algorithm="q_learning")
+        execution = json.loads((alone / "metadata.json").read_text())["execution"]
+        self.assertEqual((execution["server_port"], execution["parallel_slots"]), (25567, 1))
+        refused = ({"port": 25566}, {"port": 25600}, {"port": True}, {"parallel_slots": 0}, {"parallel_slots": 9},
+                   {"parallel_slots": True}, {"parallel_slots": 2, "viewer": "Watcher"})
+        for index, bad in enumerate(refused):
+            output = self.root / "runs" / f"refused-{index}"
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                resource_session.run_resources(output=output, episodes=1, max_steps=1, condition="masked",
+                                               pause=0, **bad)
+            self.assertFalse(output.exists())
+
+    def test_command_line_passes_port_and_parallel_slots(self):
+        from infrastructure.__main__ import resources
+        with patch.object(resource_session, "run_resources", return_value=0) as run:
+            resources(["--port", "25569", "--parallel-slots", "3", "--out", str(self.root / "runs" / "cli")])
+            self.assertEqual((run.call_args.kwargs["port"], run.call_args.kwargs["parallel_slots"]), (25569, 3))
+            resources(["--random-baseline", "--condition", "masked", "--out", str(self.root / "runs" / "cli2")],
+                      evaluate=True)
+            self.assertEqual((run.call_args.kwargs["port"], run.call_args.kwargs["parallel_slots"]), (25567, 1))
+
+
 if __name__ == "__main__":
     unittest.main()

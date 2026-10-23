@@ -24,6 +24,8 @@ import sys
 RUN_FILES = ("metadata.json", "initial_policy.json", "policy.json", "episodes.csv", "summary.json",
              "simulator_training.csv")
 EPISODE_FILES = ("start.json", "transitions.jsonl", "steps.csv", "outcome.json", "session_error.json")
+# A resource-parallel schedule folder: the plan as run and the scheduler's record.
+SCHEDULE_FILES = ("plan.json", "schedule.json")
 WORLD_FILES = ("server.properties", "ops.json")
 SERVER_LOG_TAIL_LINES = 200
 NOTE = ("Files were copied unchanged and hashed after copying; server_tail.log holds the last lines of "
@@ -46,8 +48,8 @@ def retain(run_directories, destination, label: str, log_tail_lines: int = SERVE
     if repeated:
         raise ValueError("Run folders must have distinct names: " + ", ".join(repeated))
     for run in runs:
-        if not (run / "metadata.json").is_file():
-            raise ValueError(f"Not a run folder (missing metadata.json): {run}")
+        if not (run / "metadata.json").is_file() and not (run / "schedule.json").is_file():
+            raise ValueError(f"Not a run or schedule folder (missing metadata.json or schedule.json): {run}")
     out = Path(destination)
     if out.exists() and any(out.iterdir()):
         raise ValueError(f"Destination is not empty: {out}. Choose a new folder; retained evidence is never overwritten.")
@@ -66,6 +68,9 @@ def retain(run_directories, destination, label: str, log_tail_lines: int = SERVE
         digests[relative.as_posix()] = digest
 
     for run in runs:
+        for name in SCHEDULE_FILES if not (run / "metadata.json").is_file() else ():
+            if (run / name).is_file():
+                copy(run / name, Path(run.name) / name)
         for name in RUN_FILES:
             if (run / name).is_file():
                 copy(run / name, Path(run.name) / name)
@@ -113,7 +118,8 @@ def verify(destination) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m infrastructure.retention", description=__doc__.split("\n\n")[0])
-    parser.add_argument("runs", nargs="*", type=Path, help="Run folders written by resource-train or resource-demo")
+    parser.add_argument("runs", nargs="*", type=Path,
+                        help="Run folders written by resource-train or resource-demo, or resource-parallel schedule folders")
     parser.add_argument("--out", required=True, type=Path, help="New or empty folder, normally under results/")
     parser.add_argument("--label", help="Honest evidence label stored in retention.json (required unless --verify)")
     parser.add_argument("--verify", action="store_true", help="Instead of copying, check --out against its retention.json")

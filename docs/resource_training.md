@@ -35,8 +35,8 @@ From the project terminal, run:
 
 Replace `TaraskHy` with your Java username if needed. Alternatively, double-click
 `run.cmd` and choose **12**. Use **Minecraft Java 1.21.4**. When the terminal asks
-you to join, connect to **127.0.0.1:25567**. This is a separate server from the
-crafting arena (25565) and your ordinary Survival world (25566).
+you to join, connect to **127.0.0.1:25567** (or the `--port` you chose). This is a
+separate server from the crafting arena (25565) and your ordinary Survival world (25566).
 
 You become a spectator and the camera follows `RLResourceBot`. The action bar
 shows the current action and exploration probability. Minecraft chat and the
@@ -203,6 +203,96 @@ The laptop runs these tabular methods on the CPU; no GPU is used. Each fresh
 world takes time to generate and is retained on disk, so many episodes cost
 substantially more time and space than simulator training. Logs and worlds stay
 under `runs/`; they are excluded from Git. Do not remove an active run's folder.
+
+## Run several live episodes at once
+
+A live episode mostly waits on one Minecraft server and one bot, so one PC can
+run several. `run.cmd resource-parallel PLAN` runs the jobs of a plan file, at
+most `slots` at a time. Each running job gets its own loopback port from 25567
+to 25599 and its own folder under `runs/<plan name>/`. A job runs exactly the
+`resource-train` or `resource-demo` command you would type by hand, with
+`--port` and `--parallel-slots` added.
+
+**Not yet verified live.** This was written while the masking batch held the
+PC, and it has not yet run Minecraft. Before any experiment uses it, run the
+contention benchmark declared in
+[`configs/parallel_contention_benchmark.json`](../configs/parallel_contention_benchmark.json).
+The helpers stop on wall-clock limits (SEARCH 36 s, canopy descent 20 s, table
+approach 18 s, navigation 12 s), so a busy CPU can change successes and
+decision counts, not only task time. The benchmark compares 4 slots (or 2)
+against 1 slot on the same 20 worlds and decides, by a rule fixed in advance,
+whether parallel runs are allowed.
+
+A plan is a JSON file; [`configs/parallel_example_plan.json`](../configs/parallel_example_plan.json)
+is a complete example (not an experiment):
+
+```json
+{
+  "schema": 1, "name": "example-parallel", "slots": 4,
+  "interleave": true, "evaluate_after_all_training": true,
+  "defaults": {"agent_seed": 0, "max_steps": 60, "pause": 0},
+  "jobs": [
+    {"name": "ex-unmasked-q-train", "kind": "train", "condition": "unmasked", "algorithm": "q_learning",
+     "episodes": 10, "first_world_seed": 50000, "epsilon": 0.6, "epsilon_end": 0.1},
+    {"name": "ex-unmasked-q-test", "kind": "evaluate", "policy_from": "ex-unmasked-q-train",
+     "episodes": 8, "first_world_seed": 50100, "chunks": 4},
+    {"name": "ex-unmasked-random-test", "kind": "evaluate", "random_baseline": true, "condition": "unmasked",
+     "episodes": 8, "first_world_seed": 50100, "chunks": 4}
+  ]
+}
+```
+
+- A `train` job is one run that learns, in order; it cannot be split.
+- An `evaluate` job is frozen and names exactly one policy source:
+  `policy_from` (a training job listed earlier, whose final policy it tests),
+  `policy` (a file), or `random_baseline: true` with a `condition`. `chunks`
+  splits its worlds into consecutive seed ranges that run side by side;
+  `resource-report` pools the chunks back into one group.
+- `interleave: true` starts the first chunk of every job, then every second
+  chunk, and so on, so the arms share the load instead of running in blocks.
+- `evaluate_after_all_training: true` holds every evaluation until all training
+  has ended, so all test arms run under the same load. Use both options for an
+  experiment, and run every arm of one experiment in one schedule.
+- `defaults` sets `agent_seed`, `max_steps`, and `pause` for every job. They
+  have no hidden defaults: each job must end up with all three.
+
+What the scheduler guarantees:
+
+- It refuses uncommitted code (and an uncommitted plan under `configs/`),
+  records the commit in `schedule.json`, and warns if the code changed while it
+  ran.
+- It refuses a busy port and never stops whatever holds it. Only one schedule
+  runs per machine. Do not start runs by hand on its ports meanwhile.
+- It never reuses a folder: every schedule needs a new plan name.
+- An invalid episode is continued as declared for the masking experiment: in
+  `<run>-partN` from the next world seed (at most `max_continuations`,
+  default 5), never replayed. A training continuation resumes from the last
+  saved policy at the declared exploration rate for its next episode. A run
+  that fails without attempting an episode is not retried, and no evaluation of
+  its policy starts.
+- **Ctrl+C** starts nothing new and waits while each run stops its own server
+  and saves its world; nothing is killed. A run with a viewer cannot be
+  scheduled; watch training alone with `resource-train --viewer`.
+
+```powershell
+.\run.cmd resource-parallel configs\parallel_benchmark_4slots.json --dry-run
+.\run.cmd resource-parallel configs\parallel_benchmark_4slots.json
+.\run.cmd resource-report runs\bench-4slots\bench4-masked-random-c1 runs\bench-4slots\bench4-masked-random-c2 runs\bench-4slots\bench4-masked-random-c3 runs\bench-4slots\bench4-masked-random-c4
+```
+
+Every run records its port and `parallel_slots` in `metadata.json`, and every
+episode its UTC start and end. The report keeps runs with different slot
+counts in separate groups and never compares them; runs recorded before this
+option existed ran one at a time and count as one slot. `schedule.json` records
+each run's port, start and end, exit code, and how many runs were going when it
+started. Retain a schedule folder together with its run folders:
+`python -m infrastructure.retention runs\<plan> runs\<plan>\<run> ...` copies
+the folder's `plan.json` and `schedule.json` (not its logs) with digests.
+
+Each server may use up to 2 GB of Java heap (`server_memory_mb` in
+`.local/machine.json`), so 4 slots need about 8 GB plus the bots. None of this
+uses a GPU: the Minecraft server, the bot, and tabular Q-learning and SARSA run
+on the CPU. A GPU matters only for a later stage that needs a neural network.
 
 ## What is learned and what is programmed
 

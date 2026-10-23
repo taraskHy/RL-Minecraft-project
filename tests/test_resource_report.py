@@ -411,5 +411,36 @@ class ResourceReportTests(unittest.TestCase):
         self.assertTrue((out / "history_comparisons.csv").is_file())
 
 
+    def test_parallel_slots_are_separate_groups_and_never_paired_with_runs_alone(self):
+        def run(name, algorithm, outcomes, slots=None):
+            folder = self._condition_run(name, "unmasked", "frozen_evaluation", algorithm, outcomes,
+                                         baseline="uniform_random" if algorithm == "random" else None,
+                                         checkpoint=None if algorithm == "random" else name[0] * 64)
+            if slots is not None:
+                metadata = json.loads((folder / "metadata.json").read_text(encoding="utf-8"))
+                metadata["execution"] = {"server_port": 25568, "parallel_slots": slots}
+                (folder / "metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
+            return folder
+        alone = run("random-alone", "random", [False] * 10)  # recorded before resource-parallel: one slot
+        four = run("random-four", "random", [False] * 10, slots=4)
+        learned_alone = run("aq", "q_learning", [True] * 10, slots=1)
+        learned_four = run("bq", "q_learning", [True] * 10, slots=4)
+        learned_two = run("cq", "q_learning", [True] * 10, slots=2)
+        summary = summarize_runs([alone, four, learned_alone, learned_four, learned_two])
+        baselines = {g["parallel_slots"]: g for g in summary["groups"] if g["algorithm"] == "random"}
+        self.assertEqual(set(baselines), {1, 4})
+        self.assertEqual((baselines[1]["runs"], baselines[4]["runs"]), (["random-alone"], ["random-four"]))
+        rows = {c["checkpoint_sha256"][0]: c for c in summary["comparisons"]}
+        self.assertEqual(len(summary["comparisons"]), 3)
+        self.assertEqual((rows["a"]["baseline"], rows["a"]["parallel_slots"]), ("uniform_random", 1))
+        self.assertTrue(rows["a"]["verdict"].startswith("benefit shown"))
+        self.assertTrue(rows["b"]["verdict"].startswith("benefit shown"))
+        self.assertTrue(rows["c"]["verdict"].startswith("not compared"))
+        self.assertIn("/ 4 parallel slots", render_markdown(summary))
+        broken = run("broken", "random", [False], slots=0)
+        with self.assertRaisesRegex(ValueError, "parallel_slots"):
+            summarize_runs([broken])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "name": "bench-2slots",
+  "description": "Contention benchmark fallback, run only if four slots fail the rule: masked random baseline on worlds 30000-30019, two episodes at a time. Declared in configs/parallel_contention_benchmark.json.",
+  "slots": 2,
+  "defaults": {"agent_seed": 0, "max_steps": 60, "pause": 0},
+  "jobs": [
+    {"name": "bench2-masked-random", "kind": "evaluate", "random_baseline": true, "condition": "masked",
+     "episodes": 20, "first_world_seed": 30000, "chunks": 4}
+  ]
+}

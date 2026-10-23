@@ -43,6 +43,9 @@ NOTES = (
     "is reported as a supplement, not as the decision rule.",
     "Runs recorded before experiment conditions existed are reported as the masked condition, which is how "
     "they ran.",
+    "Runs with a different parallel setup (live episodes at once on one machine) are separate groups and are "
+    "never compared, because task time and the helpers' time budgets are wall-clock. Runs recorded before "
+    "resource-parallel existed ran one episode at a time and are reported with one slot.",
 )
 
 
@@ -183,6 +186,10 @@ def load_run(run_directory: Path) -> dict:
     condition = metadata.get("condition") or "masked"
     if condition not in CONDITIONS:
         raise ValueError(f"{run_directory} records an unknown condition: {condition!r}")
+    execution = metadata.get("execution") if isinstance(metadata.get("execution"), dict) else {}
+    parallel_slots = execution.get("parallel_slots", 1)
+    if isinstance(parallel_slots, bool) or not isinstance(parallel_slots, int) or parallel_slots < 1:
+        raise ValueError(f"{run_directory} records an invalid parallel_slots: {parallel_slots!r}")
     episodes = []
     for folder in sorted(run_directory.glob("episode-*")):
         outcome_path = folder / "outcome.json"
@@ -219,7 +226,7 @@ def load_run(run_directory: Path) -> dict:
             "condition": condition, "mode": metadata.get("mode"), "algorithm": metadata.get("algorithm"),
             "baseline": metadata.get("baseline"),
             "checkpoint_sha256": metadata.get("initial_policy_sha256"), "max_steps": metadata.get("max_steps"),
-            "pause": metadata.get("pause_between_decisions"),
+            "pause": metadata.get("pause_between_decisions"), "parallel_slots": parallel_slots,
             # One short label for the exact helper and session sources the run started from.
             "source_revision": (hashlib.sha256(json.dumps(metadata["source_sha256"], sort_keys=True).encode()).hexdigest()[:12]
                                 if isinstance(metadata.get("source_sha256"), dict) else None),
@@ -248,10 +255,11 @@ def _mean(values) -> float | None:
 def _group_key(episode: dict) -> tuple:
     # Conditions are never pooled. Training runs are pooled per algorithm; frozen
     # evaluations only per evaluated checkpoint. A different step limit is always
-    # a different group.
+    # a different group, and so is a different number of parallel slots.
     checkpoint = episode["checkpoint_sha256"] if episode["mode"] == "frozen_evaluation" else None
     return (episode["condition"], episode["mode"], episode["algorithm"], episode["baseline"] or "",
-            checkpoint or "", episode["max_steps"], int(episode["simulator_pretraining"] > 0))
+            checkpoint or "", episode["max_steps"], int(episode["simulator_pretraining"] > 0),
+            episode["parallel_slots"])
 
 
 def _fraction(part: int, whole: int) -> float | None:
@@ -259,7 +267,7 @@ def _fraction(part: int, whole: int) -> float | None:
 
 
 def _summarize_group(key: tuple, rows: list[dict]) -> dict:
-    condition, mode, algorithm, baseline, checkpoint, max_steps, pretrained = key
+    condition, mode, algorithm, baseline, checkpoint, max_steps, pretrained, parallel_slots = key
     completed = [r for r in rows if r["status"] == "completed"]
     successes = [r for r in completed if r["success"]]
     events: Counter[str] = Counter()
@@ -270,6 +278,7 @@ def _summarize_group(key: tuple, rows: list[dict]) -> dict:
         "condition": condition, "action_mask": CONDITIONS[condition][0], "state_version": CONDITIONS[condition][1],
         "mode": mode, "algorithm": algorithm, "baseline": baseline or None,
         "checkpoint_sha256": checkpoint or None, "max_steps": max_steps, "simulator_pretrained": bool(pretrained),
+        "parallel_slots": parallel_slots,
         "pauses": sorted({r["pause"] for r in rows if r["pause"] is not None}),
         "source_revisions": sorted({r["source_revision"] for r in rows if r["source_revision"]}),
         "runs": sorted({r["run"] for r in rows}),
@@ -314,8 +323,10 @@ def _verdict(learned: list[float], baseline: list[float]) -> str:
 
 
 def _same_setup(a: dict, b: dict) -> bool:
-    # Same step limit, the same attempted world seeds, one equal pause, and one equal helper revision.
+    # Same step limit, the same attempted world seeds, one equal pause, one equal helper revision,
+    # and the same number of parallel slots.
     return (a["max_steps"] == b["max_steps"] and a["world_seeds"] == b["world_seeds"]
+            and a["parallel_slots"] == b["parallel_slots"]
             and len(a["pauses"]) <= 1 and a["pauses"] == b["pauses"]
             and len(a["source_revisions"]) <= 1 and a["source_revisions"] == b["source_revisions"])
 
@@ -357,12 +368,13 @@ def compare_to_baselines(groups: list[dict]) -> list[dict]:
         entry = {"condition": group["condition"], "algorithm": group["algorithm"],
                  "checkpoint_sha256": group["checkpoint_sha256"], "max_steps": group["max_steps"],
                  "world_seeds": group["world_seeds"], "simulator_pretrained": group["simulator_pretrained"],
+                 "parallel_slots": group["parallel_slots"],
                  # Every row carries the same keys, so the CSV columns never depend on row order.
                  "baseline": None, "baseline_condition": None, **_EMPTY_PAIR}
         matches = [b for b in baselines if b["action_mask"] == group["action_mask"] and _same_setup(group, b)]
         if not matches:
             comparisons.append({**entry, "verdict": "not compared: no random baseline with the same action mask, "
-                                "step limit, world seeds, pause, and helper revision"})
+                                "step limit, world seeds, pause, helper revision, and parallel slots"})
             continue
         for baseline in matches:
             row = {**entry, "baseline": baseline["baseline"], "baseline_condition": baseline["condition"],
@@ -471,6 +483,8 @@ def _label(group: dict) -> str:
         label += f" / max_steps {group['max_steps']}"
     if group.get("simulator_pretrained"):
         label += " / simulator-pretrained"
+    if group.get("parallel_slots", 1) > 1:
+        label += f" / {group['parallel_slots']} parallel slots"
     return label
 
 
@@ -503,7 +517,8 @@ def render_markdown(summary: dict) -> str:
     if comparisons:
         lines += ["## Comparison with the random baseline", "",
                   "Each frozen learned policy against the random baseline with the same action mask, step limit, world "
-                  "seeds, pause, and helper revision, counted on the seeds both completed. A benefit is claimed only "
+                  "seeds, pause, helper revision, and parallel slots, counted on the seeds both completed. A benefit "
+                  "is claimed only "
                   "when the learned interval lies entirely above the baseline's. Fisher's exact p is two-sided and "
                   "supplementary.", "",
                   "| Condition | Policy | Baseline | Seeds compared | Learned successes (Wilson 95%) | Baseline successes (Wilson 95%) | Fisher exact p | Verdict |",

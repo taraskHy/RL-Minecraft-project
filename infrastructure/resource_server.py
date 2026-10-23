@@ -22,6 +22,17 @@ from . import server as managed_server
 
 ROOT = Path(__file__).resolve().parents[1]
 PORT = 25567
+# Loopback ports for resource episodes. Runs that execute at the same time each
+# take a different one; the arena (25565) and ordinary Survival (25566) stay apart.
+PORTS = range(25567, 25600)
+# At most this many resource servers at once on one machine.
+MAX_PARALLEL_SLOTS = 8
+
+
+def validate_port(port) -> int:
+    if isinstance(port, bool) or not isinstance(port, int) or port not in PORTS:
+        raise ValueError(f"Resource server port must be an integer from {PORTS.start} to {PORTS.stop - 1}")
+    return port
 
 
 def _is_link(path: Path) -> bool:
@@ -56,7 +67,7 @@ def _episode_directory(run_directory: Path, episode: int, world_seed: int) -> Pa
     return directory
 
 
-def _prepare(directory: Path, episode: int, world_seed: int) -> dict[str, Any]:
+def _prepare(directory: Path, episode: int, world_seed: int, port: int = PORT) -> dict[str, Any]:
     # mkdir(exist_ok=False) also refuses a concurrent attempt to reuse this episode.
     try:
         directory.mkdir(parents=True, exist_ok=False)
@@ -64,13 +75,13 @@ def _prepare(directory: Path, episode: int, world_seed: int) -> dict[str, Any]:
         raise managed_server.ServerError(
             f"Fresh-world episode directory already exists: {directory}") from exc
     info = {
-        "profile": "resource-training", "port": PORT, "level_name": "world",
+        "profile": "resource-training", "port": port, "level_name": "world",
         "world_seed": world_seed, "episode": episode, "directory": directory,
         "host": "127.0.0.1", "version": managed_server.MINECRAFT_VERSION,
         "eula_accepted": True,
     }
     marker = {
-        "schema": 1, "profile": info["profile"], "port": PORT,
+        "schema": 1, "profile": info["profile"], "port": port,
         "minecraft_version": info["version"], "world_seed": world_seed,
         "episode": episode, "fresh_world": True,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -78,7 +89,7 @@ def _prepare(directory: Path, episode: int, world_seed: int) -> dict[str, Any]:
     (directory / managed_server.MARKER_NAME).write_text(
         json.dumps(marker, indent=2) + "\n", encoding="utf-8")
     properties = {
-        "server-ip": "127.0.0.1", "server-port": str(PORT),
+        "server-ip": "127.0.0.1", "server-port": str(port),
         "online-mode": "false", "enforce-secure-profile": "false",
         "level-name": "world", "level-seed": str(world_seed),
         "level-type": "minecraft:normal", "generator-settings": "{}",
@@ -104,27 +115,31 @@ def _prepare(directory: Path, episode: int, world_seed: int) -> dict[str, Any]:
 
 @contextmanager
 def fresh_resource_server(*, world_seed: int, run_directory: Path, episode: int,
-                          mirror_output: bool = False, timeout: float = 120
+                          mirror_output: bool = False, timeout: float = 120,
+                          port: int = PORT
                           ) -> Iterator[dict[str, Any]]:
     """Start and own one fresh Survival server, saving its world on every exit.
 
     The user must have already accepted the Minecraft EULA. No directory is
     created until validation, runtime checks, and the port availability check
     succeed. A failed launch still reserves its episode directory for diagnosis.
+    ``port`` is this server's loopback port; runs at the same time need
+    different ones, and a port already in use is refused, never freed.
     """
     if (isinstance(timeout, bool) or not isinstance(timeout, (int, float))
             or not math.isfinite(timeout) or timeout <= 0):
         raise ValueError("Server startup timeout must be positive and finite")
+    validate_port(port)
     directory = _episode_directory(run_directory, episode, world_seed)
     if not managed_server.eula_accepted():
         raise managed_server.ServerError(
             "Minecraft EULA has not been accepted. Read " + managed_server.EULA_URL
             + ", then run run.cmd accept-eula if you agree.")
     command = managed_server.server_command("survival")
-    managed_server._check_port(PORT)
-    info = _prepare(directory, episode, world_seed)
+    managed_server._check_port(port)
+    info = _prepare(directory, episode, world_seed, port)
     log_file = directory / "launcher.log"
-    print(f"Starting fresh Survival episode {episode} (world seed {world_seed}); "
+    print(f"Starting fresh Survival episode {episode} (world seed {world_seed}, port {port}); "
           f"startup log: {log_file}", flush=True)
     flags = 0
     if os.name == "nt":

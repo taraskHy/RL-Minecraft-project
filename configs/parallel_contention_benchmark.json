@@ -1,0 +1,26 @@
+{
+  "name": "parallel_contention_benchmark",
+  "declared": "24 October 2026, before any parallel live run",
+  "question": "Do several live resource episodes at once on one PC change what the execution helpers achieve, through CPU contention on their wall-clock limits?",
+  "why": "The bridge's helpers stop on wall-clock limits (SEARCH 36 s, canopy descent 20 s, table approach 18 s, navigation 12 s, log pickup 9 s), so contention can change successes and decision counts, not only task time. This is a methods check that decides how many episodes may run at once; it says nothing about learning.",
+  "arm": "masked random baseline, frozen, no learning: resource-demo --random-baseline --condition masked --seed 0 --max-steps 60 --pause 0",
+  "world_seeds": "30000 to 30019 (20 worlds, never used before; never used as training, validation, or test seeds)",
+  "plans": {
+    "1 slot (reference)": "configs/parallel_benchmark_1slot.json",
+    "4 slots": "configs/parallel_benchmark_4slots.json",
+    "2 slots (only if 4 slots fails the rule)": "configs/parallel_benchmark_2slots.json"
+  },
+  "order": "Dry-run each plan first. Run 1 slot, then 4 slots, with nothing else running on the PC. Run 2 slots only if 4 slots fails the adoption rule.",
+  "measured": [
+    "invalid episodes and their recorded errors",
+    "successes out of completed episodes with the Wilson 95% interval",
+    "mean task seconds per decision: mean task seconds over completed episodes divided by mean decisions",
+    "mean world startup seconds: elapsed_wall_seconds minus seconds, per completed episode",
+    "exploration_time_budget event count (resource-report event_counts)",
+    "max_running_observed and each run's running_at_start from schedule.json"
+  ],
+  "report": "run.cmd resource-report over the four chunk runs of each plan together; slot counts are separate groups by construction",
+  "adoption_rule": "N slots (4, or 2 if 4 fails) are adopted only if, compared with 1 slot on the same 20 worlds: (a) no episode is invalid because of the parallel setup (busy port, server startup timeout, bridge timeout); (b) successes are at least the 1-slot successes minus 2; (c) exploration_time_budget events are at most the 1-slot count plus 2; and (d) mean task seconds per decision are at most 1.25 times the 1-slot value. If 4 and 2 slots both fail, live episodes keep running one at a time.",
+  "afterwards": "An adopted N is used for whole experiments only: every arm of one experiment runs with the same N, in one schedule, with interleave and evaluate_after_all_training, and the report never compares runs with different slot counts.",
+  "limits": "An engineering check on 20 worlds, not a statistical test. Random choices and server timing make outcomes noisy, so the thresholds are declared tolerances. It does not show that contention is harmless for other helpers, tasks, or machines; rerun it on a new PC (for example the RTX 5080 machine) before trusting parallel runs there."
+}

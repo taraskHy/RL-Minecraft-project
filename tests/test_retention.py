@@ -113,5 +113,20 @@ class RetentionTests(unittest.TestCase):
                 retention.main(bad)
 
 
+    def test_a_schedule_folder_keeps_only_its_plan_and_record(self):
+        schedule = self.root / "runs" / "px"
+        (schedule / "logs").mkdir(parents=True)
+        (schedule / "plan.json").write_text('{"name": "px"}', encoding="utf-8")
+        (schedule / "schedule.json").write_text('{"plan_name": "px"}', encoding="utf-8")
+        (schedule / "logs" / "px-a.log").write_text("long log\n", encoding="utf-8")
+        nested = make_run(schedule, "px-a")
+        out = self.root / "results" / "schedule"
+        manifest = retention.retain([schedule, nested], out, "SCHEDULE EVIDENCE")
+        for key in ("px/plan.json", "px/schedule.json", "px-a/metadata.json"):
+            self.assertIn(key, manifest["sha256"])
+        self.assertFalse(any(key.startswith("px/logs") or key.startswith("px/px-a") for key in manifest["sha256"]))
+        self.assertEqual(retention.verify(out), [])
+
+
 if __name__ == "__main__":
     unittest.main()

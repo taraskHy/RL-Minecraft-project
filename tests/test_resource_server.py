@@ -74,6 +74,18 @@ class FreshResourceServerTests(unittest.TestCase):
         self.assertEqual((info["directory"] / "saved-by-fake-server").read_text(), "saved")
         self.assertIn("Saving worlds", info["log_file"].read_text())
 
+    def test_a_parallel_run_uses_its_own_port_everywhere(self):
+        with patch.object(server, "server_command", return_value=self._fake_command()), \
+                patch.object(server, "_check_port") as port:
+            with resource_server.fresh_resource_server(
+                    world_seed=5, run_directory=self.run, episode=1, port=25571) as info:
+                self.assertEqual(info["port"], 25571)
+                props = server._properties(info["directory"] / "server.properties")
+                self.assertEqual((props["server-port"], props["server-ip"]), ("25571", "127.0.0.1"))
+                marker = json.loads((info["directory"] / server.MARKER_NAME).read_text())
+                self.assertEqual(marker["port"], 25571)
+            port.assert_called_once_with(25571)
+
     def test_existing_episode_is_never_reused_or_overwritten(self):
         for empty in (True, False):
             with self.subTest(empty=empty):
@@ -103,6 +115,7 @@ class FreshResourceServerTests(unittest.TestCase):
             {"world_seed": True}, {"world_seed": 2**63},
             {"world_seed": -(2**63) - 1}, {"world_seed": "5"},
             {"timeout": 0}, {"timeout": float("inf")}, {"timeout": True},
+            {"port": 25566}, {"port": 25600}, {"port": True}, {"port": "25568"},
         ]
         for override in inputs:
             arguments = {"run_directory": self.run, "episode": 1, "world_seed": 123}
