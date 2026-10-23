@@ -208,6 +208,8 @@ class ResourceSessionTests(unittest.TestCase):
                 output = self.root / "runs" / failure
                 outcome = json.loads((output / "episode-0001" / "outcome.json").read_text())
                 self.assertEqual(outcome["status"], "invalid")
+                # The seed stays on record even when nothing was observed.
+                self.assertEqual((outcome["episode"], outcome["world_seed"]), (1, 0))
                 self.assertIsNone(outcome["success"])
                 self.assertIsNone(outcome["death"])
                 self.assertEqual(outcome["recorded_steps"], 0)
@@ -216,6 +218,97 @@ class ResourceSessionTests(unittest.TestCase):
                 self.assertFalse((output / "episodes.csv").exists())
                 self.assertEqual(json.loads((output / "policy.json").read_text())["q"], original_q)
         self.assertEqual(self.server_exits, [1, 1])
+
+    def _train(self, name, condition, steps, **settings):
+        output = self.root / "runs" / name
+        resource_session.run_resources(output=output, episodes=1, max_steps=steps, epsilon=0, epsilon_end=0,
+                                       pause=0, condition=condition, **settings)
+        return output, [json.loads(line) for line in (output / "episode-0001" / "transitions.jsonl").read_text().splitlines()]
+
+    def test_unmasked_training_keeps_infeasible_actions_as_observed_transitions(self):
+        # The bridge reports an unchanged world: the chosen action was infeasible.
+        unchanged = deepcopy(self.start)
+        unchanged.update(event="missing_materials")
+        self.bridge.step.return_value = unchanged
+        output, records = self._train("unmasked", "unmasked", 3, algorithm="q_learning")
+        metadata = json.loads((output / "metadata.json").read_text())
+        self.assertEqual((metadata["condition"], metadata["action_mask"], metadata["state_version"], metadata["baseline"]),
+                         ("unmasked", "none", "resource_v1", None))
+        self.assertIn("No action mask", metadata["scripted_support"])
+        self.assertIn("infeasible action fails as an observed transition", metadata["condition_note"])
+        for record in records:
+            self.assertEqual(record["condition"], "unmasked")
+            self.assertEqual(record["allowed_actions"], list(range(8)))
+            self.assertEqual(record["masked_actions"], [0])  # what the mask would have allowed at the start
+            self.assertEqual(record["base_reward"], -0.01)
+            self.assertEqual(record["state"], record["next_state"])
+            self.assertIsNotNone(record["td_error"])
+        self.assertEqual(json.loads((output / "policy.json").read_text())["condition"], "unmasked")
+        self.assertEqual(json.loads((output / "summary.json").read_text())["condition"], "unmasked")
+
+    def test_history_bit_follows_whether_the_previous_decision_changed_anything(self):
+        found = deepcopy(self.start)
+        found.update(nearby_log=True, event="log_reached")
+        unchanged = deepcopy(found)
+        unchanged.update(event="no_reachable_log")
+        self.bridge.step.side_effect = [found, unchanged, unchanged]
+        output, records = self._train("history", "unmasked_history", 3, algorithm="sarsa")
+        self.assertEqual([r["state"][-1] for r in records], [0, 0, 1])
+        self.assertEqual([r["next_state"][-1] for r in records], [0, 1, 1])
+        self.assertTrue(all(len(r["state"]) == 10 for r in records))
+        metadata = json.loads((output / "metadata.json").read_text())
+        self.assertEqual((metadata["condition"], metadata["state_version"]), ("unmasked_history", "resource_v2"))
+        self.bridge.step.side_effect = None
+
+    def test_random_baselines_follow_the_condition_and_policies_keep_theirs(self):
+        following = deepcopy(self.start)
+        following.update(nearby_log=True, event="log_reached")
+        self.bridge.step.return_value = following
+        output, records = self._train("uniform", "unmasked", 1, evaluate=True, random_baseline=True)
+        metadata = json.loads((output / "metadata.json").read_text())
+        self.assertEqual((metadata["baseline"], metadata["condition"]), ("uniform_random", "unmasked"))
+        self.assertEqual(records[0]["allowed_actions"], list(range(8)))
+        masked_output, masked_records = self._train("masked-random", None, 1, evaluate=True, random_baseline=True)
+        self.assertEqual(json.loads((masked_output / "metadata.json").read_text())["condition"], "masked")
+        self.assertEqual(masked_records[0]["allowed_actions"], [0])
+        with self.assertRaises(ValueError):
+            self._train("history-random", "unmasked_history", 1, evaluate=True, random_baseline=True)
+        with self.assertRaises(ValueError):
+            self._train("bad-condition", "unknown", 1, algorithm="q_learning")
+        # A masked checkpoint cannot be evaluated as unmasked, and an unmasked one keeps its condition.
+        masked_policy, _ = self._policy("masked-ckpt", following)
+        with self.assertRaises(ValueError):
+            self._train("mismatch", "unmasked", 1, evaluate=True, policy=masked_policy)
+        unmasked_policy = output.parent / "unmasked-ckpt.json"
+        ResourceAgent(action_mask="none").save(unmasked_policy)
+        kept, kept_records = self._train("kept", None, 1, evaluate=True, policy=unmasked_policy)
+        self.assertEqual(json.loads((kept / "metadata.json").read_text())["condition"], "unmasked")
+        self.assertEqual(kept_records[0]["allowed_actions"], list(range(8)))
+
+    def test_simulator_pretraining_behind_a_checkpoint_stays_in_the_metadata(self):
+        following = deepcopy(self.start)
+        following.update(nearby_log=True, event="log_reached")
+        self.bridge.step.return_value = following
+        pretrained = self.root / "pretrained.json"
+        ResourceAgent().save(pretrained, {"pretrain_simulator_episodes": 300})
+        evaluated, _ = self._train("pretrained-eval", None, 1, evaluate=True, policy=pretrained)
+        metadata = json.loads((evaluated / "metadata.json").read_text())
+        self.assertEqual((metadata["pretrain_simulator_episodes"], metadata["checkpoint_pretrain_simulator_episodes"]), (0, 300))
+        # A resumed run carries it forward again.
+        resumed, _ = self._train("pretrained-resume", None, 1, policy=evaluated / "policy.json")
+        self.assertEqual(json.loads((resumed / "metadata.json").read_text())["checkpoint_pretrain_simulator_episodes"], 300)
+        fresh, _ = self._train("fresh", "masked", 1, algorithm="q_learning")
+        self.assertEqual(json.loads((fresh / "metadata.json").read_text())["checkpoint_pretrain_simulator_episodes"], 0)
+
+    def test_command_line_passes_the_condition(self):
+        from infrastructure.__main__ import resources
+        with patch.object(resource_session, "run_resources", return_value=0) as run:
+            resources(["--condition", "unmasked_history", "--episodes", "2", "--out", str(self.root / "runs" / "cli")])
+            self.assertEqual(run.call_args.kwargs["condition"], "unmasked_history")
+            resources(["--random-baseline", "--condition", "unmasked", "--out", str(self.root / "runs" / "cli2")], evaluate=True)
+            self.assertEqual((run.call_args.kwargs["condition"], run.call_args.kwargs["random_baseline"]), ("unmasked", True))
+            resources(["--out", str(self.root / "runs" / "cli3")])
+            self.assertIsNone(run.call_args.kwargs["condition"])
 
 
 if __name__ == "__main__":

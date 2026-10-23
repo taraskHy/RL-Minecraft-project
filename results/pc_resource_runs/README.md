@@ -156,10 +156,12 @@ yet been shown to beat chance within that mask.
 1. *A learned-policy oscillation* (`pc3-q-frozen-val/episode-0010`, seed
    10009, snowy plains). With its table placed, the policy still needed one
    more log. Beside the table the mask allows only `SEARCH`; away from it the
-   frozen policy preferred `APPROACH_TABLE`, so each search was undone by a walk
-   back (16 times) until truncation. The masked random baseline and the frozen
-   SARSA policy both solved this seed, so this is a weakness of that Q table in
-   a treeless biome, not of the helpers.
+   mask allowed `SEARCH` or `APPROACH_TABLE`. Both states had all-zero Q values,
+   because three training episodes never visited them, so the frozen policy
+   broke ties at random (13 searches, 13 walks back) and each search was undone
+   by a walk back until truncation. The masked random baseline and the frozen
+   SARSA policy both solved this seed, so this is a coverage gap in that Q
+   table, trained on three episodes, in a treeless biome, not a helper failure.
 2. *A high acacia canopy* (`pc3-sarsa-frozen-val/episode-0004`, seed 10003).
    The bot started on acacia leaves 8 blocks above the ground. The descent
    correctly refused that fall (it would cost five health points), and the bot

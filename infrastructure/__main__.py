@@ -222,10 +222,14 @@ def resources(arguments: list[str], *, evaluate: bool = False) -> int:
     p.add_argument("--policy", type=Path, help="Resource checkpoint to resume or evaluate; arena policies are incompatible")
     p.add_argument("--out", type=Path, help="New output folder inside runs/")
     p.add_argument("--pause", type=float, default=.5, help="Extra seconds between decisions")
+    p.add_argument("--condition", choices=("masked", "unmasked", "unmasked_history"),
+                   help="Experiment condition: masked (default for new agents and baselines), unmasked (all eight actions "
+                        "allowed), or unmasked_history (unmasked with the last_action_failed state bit). A --policy "
+                        "carries its own condition; a different one is refused")
     if evaluate:
         p.add_argument("--random-baseline", action="store_true",
-                       help="Evaluate the masked random baseline instead of a checkpoint: same mask and helpers, "
-                            "uniformly random allowed actions, no learning")
+                       help="Evaluate the random baseline instead of a checkpoint: same helpers, uniformly random "
+                            "choice among the condition's allowed actions, no learning")
     else:
         p.add_argument("--algorithm", choices=("q_learning", "sarsa"), default="q_learning")
         p.add_argument("--epsilon", type=float, default=.6, help="Initial exploration probability")
@@ -241,7 +245,7 @@ def resources(arguments: list[str], *, evaluate: bool = False) -> int:
                          algorithm=getattr(args, "algorithm", "q_learning"),
                          epsilon=getattr(args, "epsilon", 0), epsilon_end=getattr(args, "epsilon_end", 0),
                          pretrain=getattr(args, "pretrain", 0),
-                         random_baseline=getattr(args, "random_baseline", False))
+                         random_baseline=getattr(args, "random_baseline", False), condition=args.condition)
 
 
 def resource_report(arguments: list[str]) -> int:

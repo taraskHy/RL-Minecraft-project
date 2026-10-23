@@ -2,15 +2,18 @@
 
 Reads the evidence folders written by ``infrastructure.resource_session`` and
 produces honestly labeled counts: success rate with a Wilson interval,
-decisions, task time, deaths, invalid episodes, and failure causes. Exploratory
-training, frozen evaluation, and the masked random baseline are summarized as
-separate groups and never pooled. Nothing here infers a result that the saved
-outcome files do not contain.
+decisions, task time, deaths, invalid episodes, failure causes, and how much
+of each decision the action mask made. Experiment conditions, exploratory
+training, frozen evaluation, and random baselines are summarized as separate
+groups and never pooled; each frozen learned policy is compared with the random
+baseline that has the same action mask, step limit, and world seeds. Nothing
+here infers a result that the saved outcome files do not contain.
 """
 
 from __future__ import annotations
 
 from collections import Counter
+import hashlib
 import json
 import math
 import os
@@ -18,6 +21,7 @@ from pathlib import Path
 from statistics import mean
 
 from .artifacts import prepare_output, write_csv, write_json
+from .resources import ACTION_NAMES, CONDITIONS
 
 EVIDENCE = "REAL MINECRAFT NATURAL RESOURCE TASK; NOT FULL SURVIVAL COMPLETION"
 MODES = ("online_training", "frozen_evaluation")
@@ -32,7 +36,13 @@ NOTES = (
     "Returns from online training include exploratory actions and shaped rewards; compare them "
     "only with other training runs, not with frozen evaluation.",
     "The feasibility mask and scripted helpers supply substantial task knowledge; compare learned "
-    "policies against the masked random baseline with the same helpers before claiming a benefit.",
+    "policies against the random baseline of the same condition (masked random with the mask, uniform "
+    "random over all eight actions without it) before claiming a benefit.",
+    "Conditions are never pooled. A benefit is claimed only when a learned policy's Wilson interval lies "
+    "entirely above its baseline's; overlapping intervals mean no benefit was shown. Fisher's exact test "
+    "is reported as a supplement, not as the decision rule.",
+    "Runs recorded before experiment conditions existed are reported as the masked condition, which is how "
+    "they ran.",
 )
 
 
@@ -98,6 +108,62 @@ def classify_failure(outcome: dict, transitions: list[dict]) -> str:
     return "pickaxe_not_crafted"
 
 
+def fisher_exact(a_successes: int, a_trials: int, b_successes: int, b_trials: int) -> float:
+    """Two-sided Fisher exact test for two success counts (sum of tables no more likely than observed)."""
+    for value in (a_successes, a_trials, b_successes, b_trials):
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise ValueError("counts must be nonnegative integers")
+    if a_successes > a_trials or b_successes > b_trials or not a_trials or not b_trials:
+        raise ValueError("each group needs trials and at most as many successes as trials")
+    total = a_trials + b_trials
+    successes = a_successes + b_successes
+
+    def probability(x: int) -> float:
+        return math.comb(successes, x) * math.comb(total - successes, a_trials - x) / math.comb(total, a_trials)
+
+    observed = probability(a_successes)
+    low, high = max(0, successes - b_trials), min(successes, a_trials)
+    return min(1.0, sum(p for p in (probability(x) for x in range(low, high + 1)) if p <= observed * (1 + 1e-9)))
+
+
+def _decision_counts(transitions: list[dict]) -> dict:
+    """How much of each decision the mask made, from the saved transitions."""
+    counts = {"decisions": 0, "single_allowed_decisions": 0, "masked_out_decisions": 0, "no_progress_decisions": 0}
+    for transition in transitions:
+        allowed = transition.get("allowed_actions")
+        if not isinstance(allowed, list):
+            continue
+        counts["decisions"] += 1
+        counts["single_allowed_decisions"] += int(len(allowed) == 1)
+        # Before conditions existed every run was masked, so the allowed set was the mask.
+        masked = transition.get("masked_actions", allowed)
+        action = transition.get("action")
+        if action in ACTION_NAMES and isinstance(masked, list) and ACTION_NAMES.index(action) not in masked:
+            counts["masked_out_decisions"] += 1
+        state, following = transition.get("state"), transition.get("next_state")
+        if isinstance(state, list) and isinstance(following, list) and state[:9] == following[:9]:
+            counts["no_progress_decisions"] += 1
+    return counts
+
+
+def _world_seed(outcome: dict, transitions: list[dict], metadata: dict, number: int | None):
+    """The episode's world seed: recorded, else from its first transition, else from the run's first seed.
+
+    The session gives episode n the world seed first_world_seed + n - 1, so an
+    episode that failed before any transition still keeps its seed, and the
+    comparison can match seed sets that include not-measured episodes.
+    """
+    seed = outcome.get("world_seed")
+    if isinstance(seed, int) and not isinstance(seed, bool):
+        return seed
+    if transitions and isinstance(transitions[0].get("world_seed"), int):
+        return transitions[0]["world_seed"]
+    first = metadata.get("first_world_seed")
+    if isinstance(first, int) and not isinstance(first, bool) and isinstance(number, int):
+        return first + number - 1
+    return None
+
+
 def _event_parts(event) -> list[str]:
     # Bridge events may join several notes with ';', for example
     # 'cleared_2_leaf_layers;descended_canopy;log_reached'.
@@ -114,6 +180,9 @@ def load_run(run_directory: Path) -> dict:
         raise ValueError(
             f"{run_directory} is not a natural-resource run folder (evidence={metadata.get('evidence')!r}, "
             f"mode={metadata.get('mode')!r}); resource-report summarizes only resource-train and resource-demo output")
+    condition = metadata.get("condition") or "masked"
+    if condition not in CONDITIONS:
+        raise ValueError(f"{run_directory} records an unknown condition: {condition!r}")
     episodes = []
     for folder in sorted(run_directory.glob("episode-*")):
         outcome_path = folder / "outcome.json"
@@ -146,10 +215,16 @@ def load_run(run_directory: Path) -> dict:
             steps = outcome.get("recorded_steps") if isinstance(outcome.get("recorded_steps"), int) else len(transitions)
         episodes.append({
             "run": run_directory.name, "episode": number,
-            "world_seed": outcome.get("world_seed", transitions[0].get("world_seed") if transitions else None),
-            "mode": metadata.get("mode"), "algorithm": metadata.get("algorithm"),
+            "world_seed": _world_seed(outcome, transitions, metadata, number),
+            "condition": condition, "mode": metadata.get("mode"), "algorithm": metadata.get("algorithm"),
             "baseline": metadata.get("baseline"),
             "checkpoint_sha256": metadata.get("initial_policy_sha256"), "max_steps": metadata.get("max_steps"),
+            "pause": metadata.get("pause_between_decisions"),
+            # One short label for the exact helper and session sources the run started from.
+            "source_revision": (hashlib.sha256(json.dumps(metadata["source_sha256"], sort_keys=True).encode()).hexdigest()[:12]
+                                if isinstance(metadata.get("source_sha256"), dict) else None),
+            "simulator_pretraining": sum(int(metadata.get(key) or 0) for key in
+                                         ("pretrain_simulator_episodes", "checkpoint_pretrain_simulator_episodes")),
             "status": outcome.get("status"), "success": outcome.get("success"),
             "death": outcome.get("death"), "truncated": outcome.get("truncated"),
             "steps": steps, "seconds": outcome.get("seconds"), "return": outcome.get("return"),
@@ -159,6 +234,7 @@ def load_run(run_directory: Path) -> dict:
             "canopy_layers_cleared": sum(int(r.get("layers_cleared", 0) or 0) for r in descents),
             "leaf_wall_blocks_cleared": sum(len(e.get("blocks_dug") or []) for e in escapes),
             "recovery_damage": sum(float(r.get("damage", 0) or 0) for r in descents),
+            **_decision_counts(transitions),
             "error": outcome.get("error"),
         })
     return {"run": run_directory.name, "path": str(run_directory), "metadata": metadata, "episodes": episodes}
@@ -170,24 +246,36 @@ def _mean(values) -> float | None:
 
 
 def _group_key(episode: dict) -> tuple:
-    # Training runs are pooled per algorithm; frozen evaluations are pooled only
-    # per evaluated checkpoint. A different step limit is always a different group.
+    # Conditions are never pooled. Training runs are pooled per algorithm; frozen
+    # evaluations only per evaluated checkpoint. A different step limit is always
+    # a different group.
     checkpoint = episode["checkpoint_sha256"] if episode["mode"] == "frozen_evaluation" else None
-    return (episode["mode"], episode["algorithm"], episode["baseline"] or "", checkpoint or "", episode["max_steps"])
+    return (episode["condition"], episode["mode"], episode["algorithm"], episode["baseline"] or "",
+            checkpoint or "", episode["max_steps"], int(episode["simulator_pretraining"] > 0))
+
+
+def _fraction(part: int, whole: int) -> float | None:
+    return part / whole if whole else None
 
 
 def _summarize_group(key: tuple, rows: list[dict]) -> dict:
-    mode, algorithm, baseline, checkpoint, max_steps = key
+    condition, mode, algorithm, baseline, checkpoint, max_steps, pretrained = key
     completed = [r for r in rows if r["status"] == "completed"]
     successes = [r for r in completed if r["success"]]
     events: Counter[str] = Counter()
     for row in rows:
         events.update(row["events"])
+    decisions = sum(r["decisions"] for r in rows)
     return {
+        "condition": condition, "action_mask": CONDITIONS[condition][0], "state_version": CONDITIONS[condition][1],
         "mode": mode, "algorithm": algorithm, "baseline": baseline or None,
-        "checkpoint_sha256": checkpoint or None, "max_steps": max_steps,
+        "checkpoint_sha256": checkpoint or None, "max_steps": max_steps, "simulator_pretrained": bool(pretrained),
+        "pauses": sorted({r["pause"] for r in rows if r["pause"] is not None}),
+        "source_revisions": sorted({r["source_revision"] for r in rows if r["source_revision"]}),
         "runs": sorted({r["run"] for r in rows}),
         "world_seeds": sorted({r["world_seed"] for r in rows if isinstance(r["world_seed"], int)}),
+        "completed_seed_outcomes": sorted([r["world_seed"], bool(r["success"])] for r in completed
+                                          if isinstance(r["world_seed"], int)),
         "episodes_attempted": len(rows), "episodes_completed": len(completed),
         "episodes_invalid": len(rows) - len(completed),
         "successes": len(successes),
@@ -210,7 +298,109 @@ def _summarize_group(key: tuple, rows: list[dict]) -> dict:
         "canopy_layers_cleared": sum(r["canopy_layers_cleared"] for r in rows),
         "leaf_wall_blocks_cleared": sum(r["leaf_wall_blocks_cleared"] for r in rows),
         "recovery_damage": sum(r["recovery_damage"] for r in rows),
+        "decisions": decisions,
+        "single_allowed_fraction": _fraction(sum(r["single_allowed_decisions"] for r in rows), decisions),
+        "masked_out_fraction": _fraction(sum(r["masked_out_decisions"] for r in rows), decisions),
+        "no_progress_fraction": _fraction(sum(r["no_progress_decisions"] for r in rows), decisions),
     }
+
+
+def _verdict(learned: list[float], baseline: list[float]) -> str:
+    if learned[0] > baseline[1]:
+        return "benefit shown: the learned interval lies entirely above the baseline's"
+    if learned[1] < baseline[0]:
+        return "worse than random: the learned interval lies entirely below the baseline's"
+    return "no benefit shown: the intervals overlap"
+
+
+def _same_setup(a: dict, b: dict) -> bool:
+    # Same step limit, the same attempted world seeds, one equal pause, and one equal helper revision.
+    return (a["max_steps"] == b["max_steps"] and a["world_seeds"] == b["world_seeds"]
+            and len(a["pauses"]) <= 1 and a["pauses"] == b["pauses"]
+            and len(a["source_revisions"]) <= 1 and a["source_revisions"] == b["source_revisions"])
+
+
+def _paired(first: dict, second: dict) -> dict:
+    """Success counts on the seeds both groups completed, the seeds each lost, and the verdict inputs."""
+    a, b = dict(map(tuple, first["completed_seed_outcomes"])), dict(map(tuple, second["completed_seed_outcomes"]))
+    common = sorted(set(a) & set(b))
+    a_successes, b_successes = sum(a[s] for s in common), sum(b[s] for s in common)
+    lost_a, lost_b = sorted(set(first["world_seeds"]) - set(a)), sorted(set(second["world_seeds"]) - set(b))
+    row = {"seeds_compared": len(common), "learned_successes": a_successes, "learned_completed": len(common),
+           "learned_wilson_95": wilson_interval(a_successes, len(common)),
+           "baseline_successes": b_successes, "baseline_completed": len(common),
+           "baseline_wilson_95": wilson_interval(b_successes, len(common)),
+           "learned_lost_seeds": lost_a, "baseline_lost_seeds": lost_b,
+           "fisher_p": fisher_exact(a_successes, len(common), b_successes, len(common)) if common else None,
+           "conservative_verdict": None}
+    if lost_a or lost_b:
+        # Sensitivity check: every not-measured episode counts against the first group.
+        attempted = len(first["world_seeds"])
+        pessimistic = sum(a.values())
+        optimistic = sum(b.values()) + sum(1 for s in second["world_seeds"] if s not in b)
+        row["conservative_verdict"] = _verdict(wilson_interval(pessimistic, attempted), wilson_interval(optimistic, attempted))
+    return row
+
+
+_EMPTY_PAIR = {"seeds_compared": 0, "learned_successes": None, "learned_completed": None, "learned_wilson_95": None,
+               "baseline_successes": None, "baseline_completed": None, "baseline_wilson_95": None,
+               "learned_lost_seeds": [], "baseline_lost_seeds": [], "fisher_p": None, "conservative_verdict": None}
+
+
+def compare_to_baselines(groups: list[dict]) -> list[dict]:
+    """Pair each frozen learned policy with random baselines of the same mask and setup, seed by seed."""
+    baselines = [g for g in groups if g["mode"] == "frozen_evaluation" and g["algorithm"] == "random"]
+    comparisons = []
+    for group in groups:
+        if group["mode"] != "frozen_evaluation" or group["algorithm"] not in ("q_learning", "sarsa"):
+            continue
+        entry = {"condition": group["condition"], "algorithm": group["algorithm"],
+                 "checkpoint_sha256": group["checkpoint_sha256"], "max_steps": group["max_steps"],
+                 "world_seeds": group["world_seeds"], "simulator_pretrained": group["simulator_pretrained"],
+                 # Every row carries the same keys, so the CSV columns never depend on row order.
+                 "baseline": None, "baseline_condition": None, **_EMPTY_PAIR}
+        matches = [b for b in baselines if b["action_mask"] == group["action_mask"] and _same_setup(group, b)]
+        if not matches:
+            comparisons.append({**entry, "verdict": "not compared: no random baseline with the same action mask, "
+                                "step limit, world seeds, pause, and helper revision"})
+            continue
+        for baseline in matches:
+            row = {**entry, "baseline": baseline["baseline"], "baseline_condition": baseline["condition"],
+                   **_paired(group, baseline)}
+            if not row["seeds_compared"]:
+                row["verdict"] = "not compared: no seed was completed by both"
+            else:
+                row["verdict"] = _verdict(row["learned_wilson_95"], row["baseline_wilson_95"])
+                if group["simulator_pretrained"]:
+                    row["verdict"] = "simulator-pretrained checkpoint, not a live-learning result; " + row["verdict"]
+            comparisons.append(row)
+    return comparisons
+
+
+def compare_history(groups: list[dict]) -> list[dict]:
+    """The declared test of the history bit: unmasked_history against unmasked, per algorithm."""
+    comparisons = []
+    for history in groups:
+        if (history["condition"], history["mode"]) != ("unmasked_history", "frozen_evaluation") or history["algorithm"] == "random":
+            continue
+        for plain in groups:
+            if ((plain["condition"], plain["mode"], plain["algorithm"]) != ("unmasked", "frozen_evaluation", history["algorithm"])
+                    or not _same_setup(history, plain)):
+                continue
+            row = {"algorithm": history["algorithm"], "history_checkpoint": history["checkpoint_sha256"],
+                   "unmasked_checkpoint": plain["checkpoint_sha256"], **_paired(history, plain)}
+            if not row["seeds_compared"]:
+                row["verdict"] = "not compared: no seed was completed by both"
+            else:
+                with_bit, without = row["learned_wilson_95"], row["baseline_wilson_95"]
+                if with_bit[0] > without[1]:
+                    row["verdict"] = "effect of the bit shown: the interval with the bit lies entirely above the one without"
+                elif with_bit[1] < without[0]:
+                    row["verdict"] = "worse with the bit: the interval with the bit lies entirely below the one without"
+                else:
+                    row["verdict"] = "no effect of the bit shown: the intervals overlap"
+            comparisons.append(row)
+    return comparisons
 
 
 def summarize_runs(run_directories) -> dict:
@@ -234,9 +424,11 @@ def summarize_runs(run_directories) -> dict:
     groups: dict[tuple, list[dict]] = {}
     for episode in episodes:
         groups.setdefault(_group_key(episode), []).append(episode)
+    summarized = [_summarize_group(key, rows) for key, rows in sorted(groups.items(), key=lambda item: str(item[0]))]
     return {
         "evidence": EVIDENCE,
         "runs": [{"run": run["run"], "path": run["path"],
+                  "condition": run["metadata"].get("condition") or "masked",
                   "mode": run["metadata"].get("mode"), "algorithm": run["metadata"].get("algorithm"),
                   "baseline": run["metadata"].get("baseline"),
                   "initial_policy_sha256": run["metadata"].get("initial_policy_sha256"),
@@ -245,7 +437,9 @@ def summarize_runs(run_directories) -> dict:
                   "max_steps": run["metadata"].get("max_steps"),
                   "source_sha256": run["metadata"].get("source_sha256"),
                   "episodes_found": len(run["episodes"])} for run in runs],
-        "groups": [_summarize_group(key, rows) for key, rows in sorted(groups.items(), key=lambda item: str(item[0]))],
+        "groups": summarized,
+        "comparisons": compare_to_baselines(summarized),
+        "history_comparisons": compare_history(summarized),
         "episodes": episodes,
         "notes": list(NOTES),
     }
@@ -259,14 +453,24 @@ def _fmt(value, digits: int = 2) -> str:
     return str(value)
 
 
+def _percent(value) -> str:
+    return "n/a" if value is None else f"{100 * value:.0f}%"
+
+
+def _interval(interval) -> str:
+    return f"{_fmt(interval[0])}–{_fmt(interval[1])}" if interval else "n/a"
+
+
 def _label(group: dict) -> str:
-    label = f"{group['mode']} / {group['algorithm']}"
+    label = f"{group.get('condition', 'masked')} / {group['mode']} / {group['algorithm']}"
     if group["baseline"]:
         label += f" / {group['baseline']}"
     if group.get("checkpoint_sha256"):
         label += f" / checkpoint {group['checkpoint_sha256'][:12]}"
     if group.get("max_steps") is not None:
         label += f" / max_steps {group['max_steps']}"
+    if group.get("simulator_pretrained"):
+        label += " / simulator-pretrained"
     return label
 
 
@@ -285,6 +489,56 @@ def render_markdown(summary: dict) -> str:
             f"{_fmt(group['mean_task_seconds_all'], 1)} / {_fmt(group['mean_task_seconds_success'], 1)}",
             str(group["canopy_layers_cleared"])]) + " |")
     lines.append("")
+    lines += ["## Decisions", "",
+              "How much each decision was left to the policy: the share with a single allowed action, the share of "
+              "choices the disclosed mask would have forbidden, and the share that changed none of the nine "
+              "resource_v1 fields.", "",
+              "| Group | Decisions | Single allowed action | Choices outside the mask | No progress |",
+              "| --- | --- | --- | --- | --- |"]
+    for group in summary["groups"]:
+        lines.append(f"| {_label(group)} | {group['decisions']} | {_percent(group['single_allowed_fraction'])} | "
+                     f"{_percent(group['masked_out_fraction'])} | {_percent(group['no_progress_fraction'])} |")
+    lines.append("")
+    comparisons = summary.get("comparisons") or []
+    if comparisons:
+        lines += ["## Comparison with the random baseline", "",
+                  "Each frozen learned policy against the random baseline with the same action mask, step limit, world "
+                  "seeds, pause, and helper revision, counted on the seeds both completed. A benefit is claimed only "
+                  "when the learned interval lies entirely above the baseline's. Fisher's exact p is two-sided and "
+                  "supplementary.", "",
+                  "| Condition | Policy | Baseline | Seeds compared | Learned successes (Wilson 95%) | Baseline successes (Wilson 95%) | Fisher exact p | Verdict |",
+                  "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+        for c in comparisons:
+            if c["baseline"] is None:
+                lines.append(f"| {c['condition']} | {c['algorithm']} | none | 0 | n/a | n/a | n/a | {c['verdict']} |")
+                continue
+            learned = f"{c['learned_successes']}/{c['learned_completed']} ({_interval(c['learned_wilson_95'])})"
+            base = f"{c['baseline_successes']}/{c['baseline_completed']} ({_interval(c['baseline_wilson_95'])})"
+            p = "n/a" if c["fisher_p"] is None else f"{c['fisher_p']:.3g}"
+            lines.append(f"| {c['condition']} | {c['algorithm']} | {c['baseline']} ({c['baseline_condition']}) | "
+                         f"{c['seeds_compared']} | {learned} | {base} | {p} | {c['verdict']} |")
+        lines.append("")
+        for c in comparisons:
+            if c["learned_lost_seeds"] or c["baseline_lost_seeds"]:
+                lines.append(f"- {c['condition']} / {c['algorithm']}: seeds not measured for the learned policy "
+                             f"{c['learned_lost_seeds'] or 'none'}, for the baseline {c['baseline_lost_seeds'] or 'none'}; "
+                             f"counting every not-measured episode against the learned policy: {c['conservative_verdict']}.")
+        lines.append("")
+    history = summary.get("history_comparisons") or []
+    if history:
+        lines += ["## Effect of the history bit", "",
+                  "Each unmasked_history policy against the unmasked policy of the same algorithm on the seeds both "
+                  "completed. The bit is credited with an effect only when the history interval lies entirely above "
+                  "the unmasked one; with one trained agent per condition this compares two checkpoints, not two "
+                  "state designs.", "",
+                  "| Policy | Seeds compared | With the bit (Wilson 95%) | Without (Wilson 95%) | Fisher exact p | Verdict |",
+                  "| --- | --- | --- | --- | --- | --- |"]
+        for h in history:
+            p = "n/a" if h["fisher_p"] is None else f"{h['fisher_p']:.3g}"
+            lines.append(f"| {h['algorithm']} | {h['seeds_compared']} | {h['learned_successes']}/{h['learned_completed']} "
+                         f"({_interval(h['learned_wilson_95'])}) | {h['baseline_successes']}/{h['baseline_completed']} "
+                         f"({_interval(h['baseline_wilson_95'])}) | {p} | {h['verdict']} |")
+        lines.append("")
     for group in summary["groups"]:
         lines.append(f"## {_label(group)}")
         lines.append("")
@@ -324,5 +578,9 @@ def write_report(summary: dict, output: str | Path) -> Path:
     write_json(out / "summary.json", summary)
     write_csv(out / "episodes.csv", [{**e, "events": json.dumps(e["events"], sort_keys=True)}
                                      for e in summary["episodes"]])
+    for name in ("comparisons", "history_comparisons"):
+        if summary.get(name):
+            write_csv(out / f"{name}.csv", [{key: json.dumps(value) if isinstance(value, list) else value
+                                             for key, value in row.items()} for row in summary[name]])
     (out / "report.md").write_text(render_markdown(summary), encoding="utf-8")
     return out

@@ -122,6 +122,82 @@ Other options:
   Those episodes are explicitly labeled **SIMULATOR**, saved separately, and
   never counted as Minecraft experience. Default is **zero** pretraining.
 - `--out runs/my-new-run`: choose an empty output folder. Existing results are refused.
+- `--condition masked|unmasked|unmasked_history`: the experiment condition
+  (see the next section). New agents and baselines default to `masked`; a
+  `--policy` carries its own condition and a different one is refused.
+
+## Experiment conditions: is anything learned?
+
+In the masked runs most decisions were made by the mask, not the policy: in
+the final batch at `5bb7b25`, 370 of 672 decisions (55%) had a single allowed
+action and 244 (36%) had two, and the masked random baseline did as well as
+the learned policies. Three named conditions separate what the policy has to
+decide. They change nothing else: the same helpers, rewards, discount, and
+60-decision limit apply.
+
+| Condition | Allowed actions | Learning state | Random baseline |
+| --- | --- | --- | --- |
+| `masked` | the disclosed mask `recipe_and_budget_v1` | `resource_v1` | masked random: uniform among the allowed actions |
+| `unmasked` | all eight, always | `resource_v1` | uniform random over all eight |
+| `unmasked_history` | all eight, always | `resource_v2` | the `unmasked` uniform random run (a random policy does not read the state) |
+
+Without the mask, every action is sent to the bridge. An infeasible one (for
+example `CRAFT_PICKAXE` with no table in reach) returns its refusal event such
+as `missing_materials` or `not_at_own_table`, takes its real time, earns the
+`-0.01` step penalty plus the potential shaping term `(gamma - 1) * Phi(s)`, and
+changes nothing; it is an ordinary observed transition the learner updates on.
+Actions the mask only called redundant (more wood than needed, a second table)
+really happen and cost materials and time. Every transition records both the
+condition's allowed actions and `masked_actions`, what the mask would have
+allowed, so the report can say how often a policy chose outside it.
+
+`resource_v2` appends one bit to the nine `resource_v1` fields:
+`last_action_failed` is 1 when the previous decision left all nine fields
+unchanged (an infeasible action, a refused helper, or a search that found
+nothing new) and 0 at the start of an episode and after any change.
+`resource_v1` itself is unchanged, and its checkpoints still load. The trade-off:
+the bit gives the policy one step of memory. It separates a state reached by a
+change from the same state after a decision that changed nothing, so a policy
+can learn not to repeat a failed action in place, which matters most without
+the mask, where infeasible actions are common. It cannot tell apart distinct
+states in a cycle: in the frozen Q-learning `SEARCH`/`APPROACH_TABLE` loop at
+`5bb7b25` every step changed `nearby_table`, and both states had all-zero Q
+values because three training episodes never visited them, so that loop was
+random tie-breaking and the bit would not have helped. Without the mask it
+roughly doubles the number of distinct states visited, so each is visited less
+often in the same number of episodes and learning is slower (in the simulator
+budget study about 50 episodes instead of 30 to 50). `unmasked` and
+`unmasked_history` differ only in the state, and whether the bit helped is
+judged only by the declared rule in the experiment file.
+
+The declared experiment, fixed before any live run, is in
+[`configs/resource_masking_experiment.json`](../configs/resource_masking_experiment.json):
+20 live training episodes per algorithm masked and 50 for each unmasked
+condition (world seeds from 100), no simulator pretraining, and evaluation of
+frozen Q-learning, frozen SARSA, and the matching random baseline on the
+held-out test seeds 20000 to 20019 with `--max-steps 60`. The budgets come
+from [`results/resource_budget_study`](../results/resource_budget_study/report.md),
+which is simulator evidence only. A learned policy beats its baseline only if
+its Wilson interval lies entirely above the baseline's; `resource-report`
+prints that comparison for every frozen learned policy, together with the
+share of single-choice decisions, choices outside the mask, and no-progress
+decisions per group. With 20 test episodes per arm the rule has little power
+when the baseline is strong: against a baseline of 14 or more successes no
+benefit can be shown, so the masked comparison is expected to read "no benefit
+shown" whatever the learned policies do, while against a 5% baseline a learned
+policy at 50% is detected about 72% of the time. "No benefit shown" means not
+detectable at this sample size. If an invalid episode stops a run, the rest of
+its seeds are played by a continuation run that never replays the lost seed;
+comparisons count the seeds both arms completed, list the lost ones, and add a
+conservative check that counts every lost episode against the learned policy.
+Produce the test report from this experiment's test and training runs only,
+because evaluations of the same checkpoint on other seeds would be pooled.
+
+```powershell
+.\run.cmd resource-train --condition unmasked --algorithm sarsa --episodes 50 --world-seed 100 --max-steps 60 --pause 0 --out runs/unmasked-sarsa-train
+.\run.cmd resource-demo --policy runs/unmasked-sarsa-train/policy.json --episodes 20 --world-seed 20000 --max-steps 60 --pause 0 --out runs/unmasked-sarsa-test
+.\run.cmd resource-demo --random-baseline --condition unmasked --episodes 20 --world-seed 20000 --max-steps 60 --pause 0 --out runs/unmasked-random-test
+```
 
 The laptop runs these tabular methods on the CPU; no GPU is used. Each fresh
 world takes time to generate and is retained on disk, so many episodes cost

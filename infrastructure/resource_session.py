@@ -12,7 +12,7 @@ import time
 from minecraft_rl.artifacts import prepare_output, write_csv, write_json
 from minecraft_rl.resource_live import ResourceBridge
 from minecraft_rl.resources import (
-    ACTION_NAMES, ResourceAgent, allowed_actions, reward_transition,
+    ACTION_NAMES, CONDITIONS, MASKED, ResourceAgent, allowed_actions, encode_state, reward_transition,
     state_from_observation, train_simulator,
 )
 from .resource_server import fresh_resource_server
@@ -139,19 +139,37 @@ def recovery_summary(recovery) -> str:
             f"{picked_note(recovery)}{escape_note}")
 
 
+CONDITION_NOTES = {
+    "masked": "Disclosed feasibility/budget mask recipe_and_budget_v1 removes impossible and redundant actions; state resource_v1",
+    "unmasked": "No action mask: all eight actions are allowed in every state; an infeasible action fails as an observed "
+                "transition, costs its real time and the -0.01 step penalty, and changes nothing; state resource_v1",
+    "unmasked_history": "No action mask, as in unmasked; state resource_v2 adds last_action_failed, 1 when the previous "
+                        "decision left the nine resource_v1 fields unchanged",
+}
+
+
 def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
                   seed: int = 0, algorithm: str = "q_learning", viewer: str | None = None,
                   max_steps: int = 80, epsilon: float = .6, epsilon_end: float = .1,
                   policy: Path | None = None, pretrain: int = 0, evaluate: bool = False,
-                  pause: float = .5, random_baseline: bool = False) -> int:
+                  pause: float = .5, random_baseline: bool = False, condition: str | None = None) -> int:
     """Train from observed transitions, or explicitly evaluate a frozen policy.
 
-    The masked random baseline is a frozen evaluation that keeps the same
-    feasibility mask and execution helpers but picks uniformly among allowed
-    actions; it measures what the helpers alone achieve. Generated worlds and
-    all observations remain under the output folder. Nothing overwrites the
-    existing arena or ordinary Survival world.
+    ``condition`` names the experiment condition (masked, unmasked, or
+    unmasked_history); a loaded policy carries its own, and a different
+    explicit condition is refused. The random baseline is a frozen evaluation
+    with the same execution helpers that picks uniformly among the condition's
+    allowed actions: the masked random baseline under the mask, the uniform
+    random baseline over all eight actions without it. It measures what the
+    helpers achieve without learning. Generated worlds and all observations
+    remain under the output folder. Nothing overwrites the existing arena or
+    ordinary Survival world.
     """
+    if condition is not None and condition not in CONDITIONS:
+        raise ValueError(f"condition must be one of {', '.join(CONDITIONS)}")
+    if random_baseline and condition == "unmasked_history":
+        raise ValueError("The uniform random baseline does not read the state; evaluate it with condition unmasked "
+                         "and compare unmasked_history policies against that run")
     _viewer_name(viewer)
     if not 1 <= episodes <= 1000 or not 1 <= max_steps <= 1000:
         raise ValueError("episodes and max_steps must be between 1 and 1000")
@@ -173,25 +191,41 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
         raise ValueError("Resource output must be a new folder inside this project's runs directory")
     if policy:
         agent = ResourceAgent.load(policy, seed=seed)
+        if condition is not None and condition != agent.condition:
+            raise ValueError(f"The policy was trained under condition {agent.condition}, not {condition}")
+        # Simulator pretraining behind a checkpoint stays visible in every later run.
+        prior = json.loads(policy.read_text(encoding="utf-8")).get("metadata") or {}
+        checkpoint_pretrain = sum(int(prior.get(key) or 0) for key in
+                                  ("pretrain_simulator_episodes", "checkpoint_pretrain_simulator_episodes"))
     else:
-        agent = ResourceAgent(algorithm="random" if random_baseline else algorithm, seed=seed)
+        checkpoint_pretrain = 0
+        action_mask, state_version = CONDITIONS[condition or "masked"]
+        agent = ResourceAgent(algorithm="random" if random_baseline else algorithm, seed=seed,
+                              action_mask=action_mask, state_version=state_version)
     if not evaluate and agent.algorithm == "random":
         raise ValueError("A random policy can be evaluated, but cannot be trained")
     output = prepare_output(output)
     mode = "frozen_evaluation" if evaluate else "online_training"
+    baseline = None
+    if agent.algorithm == "random":
+        baseline = "masked_random" if agent.action_mask == MASKED else "uniform_random"
     metadata = {"evidence": EVIDENCE, "mode": mode, "algorithm": agent.algorithm,
-                "baseline": "masked_random" if agent.algorithm == "random" else None,
+                "baseline": baseline, "condition": agent.condition, "action_mask": agent.action_mask,
+                "state_version": agent.state_version, "condition_note": CONDITION_NOTES[agent.condition],
                 "episodes_requested": episodes, "first_world_seed": world_seed,
                 "agent_seed": seed, "max_steps": max_steps, "epsilon_start": epsilon,
                 "epsilon_end": epsilon_end, "reward_mode": "shaped", "gamma": agent.gamma,
                 "alpha": agent.alpha, "pretrain_simulator_episodes": pretrain,
+                "checkpoint_pretrain_simulator_episodes": checkpoint_pretrain,
                 "pause_between_decisions": pause,
                 "time_semantics": "seconds measures task time after viewer readiness; elapsed_wall_seconds also includes world startup and viewer join",
                 "initial_policy": str(policy.resolve()) if policy else None,
                 "initial_policy_sha256": hashlib.sha256(policy.read_bytes()).hexdigest() if policy else None,
                 "viewer": viewer, "actions": list(ACTION_NAMES),
                 "state_note": "Compact partial observation; not a complete Minecraft MDP state",
-                "scripted_support": "Feasibility masks; bounded pathfinding, digging, pickup, recipes, placement, equip; "
+                "scripted_support": ("Feasibility mask recipe_and_budget_v1; " if agent.action_mask == MASKED else
+                                     "No action mask (all eight actions allowed; infeasible ones fail as observed transitions); ") +
+                                    "bounded pathfinding, digging, pickup, recipes, placement, equip; "
                                     "bounded leaf clearing inside SEARCH (canopy descent beneath the feet, foliage escape "
                                     "beside the bot) and inside PLACE_TABLE (the same foliage escape when walled in with no "
                                     "placement surface); spectator camera only",
@@ -216,12 +250,16 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
     metadata["source_sha256"] = {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}
     write_json(output / "metadata.json", metadata)
     print(f"{EVIDENCE}\nMode: {mode}\nResults and worlds: {output}", flush=True)
-    if agent.algorithm == "random":
+    print(f"Condition: {agent.condition} ({CONDITION_NOTES[agent.condition]})", flush=True)
+    if baseline == "masked_random":
         print("MASKED RANDOM BASELINE: same feasibility mask and execution helpers, uniformly random "
               "allowed actions, no learning. It measures what the helpers alone achieve.", flush=True)
+    elif baseline == "uniform_random":
+        print("UNIFORM RANDOM BASELINE: no action mask, same execution helpers, uniformly random choice among "
+              "all eight actions, no learning.", flush=True)
     if pretrain:
         print(f"First: {pretrain} SIMULATOR episodes; these are not Minecraft training.", flush=True)
-        agent, records = train_simulator(pretrain, seed=seed, algorithm=algorithm)
+        agent, records = train_simulator(pretrain, seed=seed, algorithm=algorithm, condition=agent.condition)
         write_csv(output / "simulator_training.csv", records)
     _save_policy(agent, output / "initial_policy.json", metadata)
     _save_policy(agent, output / "policy.json", metadata)
@@ -244,7 +282,8 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
                     observation = bridge.observe()
                     if any(observation["inventory_counts"].values()):
                         raise RuntimeError("Fresh-start inventory was not empty")
-                    state = state_from_observation(observation)
+                    base = state_from_observation(observation)
+                    state = encode_state(base, agent.state_version)
                     write_json(folder / "start.json", {"connection": bridge.connection, "observation": observation})
                     task_started = time.monotonic()
                     action = agent.act(state, epsilon=current_epsilon)
@@ -255,7 +294,9 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
                             camera.show(f"{'EVAL' if evaluate else 'TRAIN'} episode {episode}/{episodes} | step {step} | {ACTION_NAMES[action]} | epsilon {current_epsilon:.2f}")
                             with camera.following():
                                 next_observation = bridge.step(action)
-                            next_state = state_from_observation(next_observation)
+                            next_base = state_from_observation(next_observation)
+                            # resource_v2's history bit: this decision changed none of the nine fields.
+                            next_state = encode_state(next_base, agent.state_version, next_base == base)
                             success, death = next_observation["success"], next_observation["death"]
                             terminated = success or death
                             truncated = step == max_steps and not terminated
@@ -267,8 +308,10 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
                                                                          terminated, next_action=next_action)
                             total_reward += reward
                             record = {"episode": episode, "step": step, "world_seed": world_seed + episode - 1,
-                                      "mode": mode, "epsilon": current_epsilon, "state": state,
-                                      "allowed_actions": list(allowed_actions(state)), "action": ACTION_NAMES[action],
+                                      "mode": mode, "condition": agent.condition, "epsilon": current_epsilon, "state": state,
+                                      "allowed_actions": list(agent.allowed(state)),
+                                      # What the disclosed mask would allow here, in every condition.
+                                      "masked_actions": list(allowed_actions(base)), "action": ACTION_NAMES[action],
                                       "reward": reward, **rewards, "next_state": next_state,
                                       "terminated": terminated, "truncated": truncated, "td_error": td_error,
                                       "q_before": before_q, "q_after": list(agent.values(state)),
@@ -289,7 +332,7 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
                             camera.require(bridge)
                             if terminated or truncated:
                                 break
-                            observation, state, action = next_observation, next_state, next_action
+                            observation, base, state, action = next_observation, next_base, next_state, next_action
                             if pause:
                                 time.sleep(pause)
                     summary = {"episode": episode, "world_seed": world_seed + episode - 1,
@@ -314,11 +357,12 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
                 print("Next fresh world is starting. Reconnect to 127.0.0.1:25567 when prompted.", flush=True)
         except BaseException as exc:
             write_json(folder / ("session_error.json" if completed else "outcome.json"), {"status": "interrupted" if isinstance(exc, KeyboardInterrupt) else "invalid",
+                       "episode": episode, "world_seed": world_seed + episode - 1,
                        "success": None, "death": None, "recorded_steps": len(rows),
                        "error": f"{type(exc).__name__}: {exc}", "note": "Not counted as a measured policy success or failure"})
             raise
     write_json(output / "summary.json", {"evidence": EVIDENCE, "mode": mode, "algorithm": agent.algorithm,
-               "baseline": metadata["baseline"],
+               "baseline": metadata["baseline"], "condition": agent.condition,
                "episodes": len(summaries), "successes": sum(row["success"] for row in summaries),
                "note": "Exploratory training results are not frozen-policy evaluation" if not evaluate else "Small evaluation sample; does not establish broad generalization"})
     print(f"Saved checkpoint: {output / 'policy.json'}", flush=True)

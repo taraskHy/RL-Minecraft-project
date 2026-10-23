@@ -11,7 +11,8 @@ import unittest
 
 from infrastructure.__main__ import resource_report as resource_report_command
 from minecraft_rl.resource_report import (
-    EVIDENCE, classify_failure, load_run, render_markdown, summarize_runs, wilson_interval, write_report,
+    EVIDENCE, classify_failure, compare_to_baselines, fisher_exact, load_run, render_markdown, summarize_runs,
+    wilson_interval, write_report,
 )
 
 
@@ -253,6 +254,161 @@ class ResourceReportTests(unittest.TestCase):
         self.assertIn("no_wood_collected ?1", printed)
         self.assertIn("no_wood_collected ×1", (out / "report.md").read_text(encoding="utf-8"))
         self.assertTrue((out / "episodes.csv").is_file())
+
+
+    def _condition_run(self, name, condition, mode, algorithm, outcomes, *, baseline=None, checkpoint=None,
+                       first_seed=20000, decisions=None):
+        metadata = {"evidence": EVIDENCE, "mode": mode, "algorithm": algorithm, "baseline": baseline,
+                    "initial_policy_sha256": checkpoint, "max_steps": 60}
+        if condition is not None:
+            metadata["condition"] = condition
+        episodes = []
+        for index, success in enumerate(outcomes):
+            rows = decisions(index) if decisions else [transition(1, "SEARCH", observation(event="explored"), first_seed + index)]
+            episodes.append({"transitions": rows,
+                             "outcome": {"status": "completed", "world_seed": first_seed + index, "success": success,
+                                         "death": False, "truncated": not success, "steps": len(rows), "seconds": 10.0,
+                                         "return": 1.0, "final_observation": observation(pickaxes=int(success))}})
+        return write_run(self.root, name, metadata, episodes)
+
+    def test_conditions_are_never_pooled_and_legacy_runs_read_as_masked(self):
+        legacy = self._condition_run("legacy", None, "frozen_evaluation", "random", [True, True], baseline="masked_random")
+        unmasked = self._condition_run("unmasked", "unmasked", "frozen_evaluation", "random", [False, False],
+                                       baseline="uniform_random")
+        summary = summarize_runs([legacy, unmasked])
+        self.assertEqual(sorted((g["condition"], g["action_mask"]) for g in summary["groups"]),
+                         [("masked", "recipe_and_budget_v1"), ("unmasked", "none")])
+        self.assertEqual({r["run"]: r["condition"] for r in summary["runs"]}, {"legacy": "masked", "unmasked": "unmasked"})
+        self.assertIn("unmasked / frozen_evaluation / random / uniform_random", render_markdown(summary))
+        bad = self._condition_run("bad", "sideways", "frozen_evaluation", "random", [True])
+        with self.assertRaises(ValueError):
+            load_run(bad)
+
+    def test_decision_fractions_count_single_choices_masked_out_choices_and_no_progress(self):
+        def rows(_):
+            start, found = observation(), observation(logs=1)
+            return [
+                # One allowed action, progress made.
+                {**transition(1, "CHOP", found), "state": [0] * 9, "next_state": [1] + [0] * 8,
+                 "allowed_actions": [1], "masked_actions": [1]},
+                # Unmasked: the chosen action is outside the mask and changes nothing.
+                {**transition(2, "CRAFT_PICKAXE", found), "state": [1] + [0] * 8, "next_state": [1] + [0] * 8,
+                 "allowed_actions": list(range(8)), "masked_actions": [2]},
+                # Legacy record without masked_actions: the allowed set was the mask.
+                {**transition(3, "CRAFT_PLANKS", start), "state": [1] + [0] * 8 + [1],
+                 "next_state": [0, 4] + [0] * 7 + [0], "allowed_actions": [1, 2]},
+            ]
+        run = self._condition_run("fractions", "unmasked", "frozen_evaluation", "random", [False],
+                                  baseline="uniform_random", decisions=rows)
+        group = summarize_runs([run])["groups"][0]
+        self.assertEqual(group["decisions"], 3)
+        self.assertAlmostEqual(group["single_allowed_fraction"], 1 / 3)
+        self.assertAlmostEqual(group["masked_out_fraction"], 1 / 3)
+        self.assertAlmostEqual(group["no_progress_fraction"], 1 / 3)
+        self.assertIn("| 3 | 33% | 33% | 33% |", render_markdown(summarize_runs([run])))
+
+    def test_learned_policies_are_compared_only_with_a_matching_random_baseline(self):
+        self.assertAlmostEqual(fisher_exact(10, 10, 0, 10), 2 / math.comb(20, 10))
+        self.assertEqual(fisher_exact(9, 10, 10, 10), 1.0)
+        self.assertAlmostEqual(fisher_exact(3, 5, 1, 5), 0.5238095238095238)
+        for bad in ((1, 0, 0, 1), (2, 1, 0, 1), (-1, 2, 0, 2), (True, 2, 0, 2)):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                fisher_exact(*bad)
+        uniform = self._condition_run("uniform", "unmasked", "frozen_evaluation", "random", [False] * 9 + [True],
+                                      baseline="uniform_random")
+        strong = self._condition_run("q-unmasked", "unmasked", "frozen_evaluation", "q_learning", [True] * 10,
+                                     checkpoint="a" * 64)
+        history = self._condition_run("q-history", "unmasked_history", "frozen_evaluation", "q_learning",
+                                      [True] * 4 + [False] * 6, checkpoint="b" * 64)
+        masked_random = self._condition_run("masked-random", "masked", "frozen_evaluation", "random", [True] * 10,
+                                            baseline="masked_random")
+        masked_q = self._condition_run("q-masked", "masked", "frozen_evaluation", "q_learning", [True] * 9 + [False],
+                                       checkpoint="c" * 64)
+        weak = self._condition_run("sarsa-masked", "masked", "frozen_evaluation", "sarsa", [False] * 8 + [True] * 2,
+                                   checkpoint="d" * 64)
+        other_seeds = self._condition_run("q-other-seeds", "unmasked", "frozen_evaluation", "sarsa", [True] * 10,
+                                          checkpoint="e" * 64, first_seed=30000)
+        training = self._condition_run("train-unmasked", "unmasked", "online_training", "q_learning", [True] * 10)
+        summary = summarize_runs([uniform, strong, history, masked_random, masked_q, weak, other_seeds, training])
+        verdicts = {(c["condition"], c["algorithm"], c["checkpoint_sha256"][:1]): c for c in summary["comparisons"]}
+        self.assertEqual(len(summary["comparisons"]), 5)  # training runs are never compared
+        self.assertTrue(verdicts[("unmasked", "q_learning", "a")]["verdict"].startswith("benefit shown"))
+        self.assertEqual(verdicts[("unmasked", "q_learning", "a")]["baseline"], "uniform_random")
+        # unmasked_history is compared with the state-independent uniform random baseline.
+        self.assertEqual(verdicts[("unmasked_history", "q_learning", "b")]["baseline_condition"], "unmasked")
+        self.assertTrue(verdicts[("unmasked_history", "q_learning", "b")]["verdict"].startswith("no benefit shown"))
+        self.assertTrue(verdicts[("masked", "q_learning", "c")]["verdict"].startswith("no benefit shown"))
+        self.assertEqual(verdicts[("masked", "q_learning", "c")]["baseline"], "masked_random")
+        self.assertTrue(verdicts[("masked", "sarsa", "d")]["verdict"].startswith("worse than random"))
+        self.assertTrue(verdicts[("unmasked", "sarsa", "e")]["verdict"].startswith("not compared"))
+        self.assertIsNone(verdicts[("unmasked", "sarsa", "e")]["fisher_p"])
+        self.assertAlmostEqual(verdicts[("unmasked", "q_learning", "a")]["fisher_p"], fisher_exact(10, 10, 1, 10))
+        out = write_report(summary, self.root / "comparison-report")
+        with (out / "comparisons.csv").open(encoding="utf-8", newline="") as handle:
+            self.assertEqual(len(list(csv.DictReader(handle))), 5)
+        markdown = (out / "report.md").read_text(encoding="utf-8")
+        self.assertIn("## Comparison with the random baseline", markdown)
+        self.assertIn("no benefit shown: the intervals overlap", markdown)
+        self.assertEqual(compare_to_baselines([]), [])
+        # An episode that failed before any transition still counts its seed, so seed sets still match.
+        cut = self._condition_run("q-cut", "unmasked", "frozen_evaluation", "q_learning", [True] * 10, checkpoint="f" * 64)
+        (cut / "episode-0004" / "transitions.jsonl").write_text("", encoding="utf-8")
+        (cut / "episode-0004" / "outcome.json").write_text(json.dumps({"status": "invalid", "success": None, "death": None,
+                                                                       "recorded_steps": 0}), encoding="utf-8")
+        meta = json.loads((cut / "metadata.json").read_text(encoding="utf-8"))
+        meta["first_world_seed"] = 20000
+        (cut / "metadata.json").write_text(json.dumps(meta), encoding="utf-8")
+        paired = summarize_runs([uniform, cut])["comparisons"][0]
+        self.assertEqual((paired["learned_completed"], paired["baseline"]), (9, "uniform_random"))
+        self.assertTrue(paired["verdict"].startswith("benefit shown"))
+        # Counted on the seeds both completed; the lost seed is listed with a conservative check.
+        self.assertEqual((paired["seeds_compared"], paired["learned_lost_seeds"], paired["baseline_lost_seeds"]),
+                         (9, [20003], []))
+        self.assertEqual(paired["baseline_successes"], 1)
+        self.assertTrue(paired["conservative_verdict"].startswith("benefit shown"))
+        self.assertIn("seeds not measured for the learned policy [20003]", render_markdown(summarize_runs([uniform, cut])))
+
+    def test_pairing_requires_the_same_pause_and_helper_revision_and_flags_pretraining(self):
+        def run(name, algorithm, outcomes, **meta):
+            folder = self._condition_run(name, "unmasked", "frozen_evaluation", algorithm, outcomes,
+                                         baseline="uniform_random" if algorithm == "random" else None,
+                                         checkpoint=None if algorithm == "random" else name[0] * 64)
+            metadata = json.loads((folder / "metadata.json").read_text(encoding="utf-8"))
+            metadata.update({"pause_between_decisions": 0, "source_sha256": {"bridge": "x"}, **meta})
+            (folder / "metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
+            return folder
+        baseline = run("random", "random", [False] * 10)
+        learned = run("aq", "q_learning", [True] * 10)
+        paused = run("bq", "q_learning", [True] * 10, pause_between_decisions=0.5)
+        other_helpers = run("cq", "q_learning", [True] * 10, source_sha256={"bridge": "y"})
+        pretrained = run("dq", "q_learning", [True] * 10, checkpoint_pretrain_simulator_episodes=2000)
+        summary = summarize_runs([baseline, learned, paused, other_helpers, pretrained])
+        verdicts = {c["checkpoint_sha256"][0]: c for c in summary["comparisons"]}
+        self.assertTrue(verdicts["a"]["verdict"].startswith("benefit shown"))
+        self.assertTrue(verdicts["b"]["verdict"].startswith("not compared"))
+        self.assertTrue(verdicts["c"]["verdict"].startswith("not compared"))
+        self.assertTrue(verdicts["d"]["verdict"].startswith("simulator-pretrained checkpoint, not a live-learning result"))
+        self.assertTrue(verdicts["d"]["simulator_pretrained"])
+        self.assertIn("/ simulator-pretrained", render_markdown(summary))
+
+    def test_history_bit_is_judged_only_against_the_unmasked_policy_of_the_same_algorithm(self):
+        plain_q = self._condition_run("pq", "unmasked", "frozen_evaluation", "q_learning", [False] * 10, checkpoint="p" * 64)
+        plain_s = self._condition_run("ps", "unmasked", "frozen_evaluation", "sarsa", [True] * 9 + [False], checkpoint="s" * 64)
+        history_q = self._condition_run("hq", "unmasked_history", "frozen_evaluation", "q_learning", [True] * 10,
+                                        checkpoint="h" * 64)
+        history_s = self._condition_run("hs", "unmasked_history", "frozen_evaluation", "sarsa", [True] * 10,
+                                        checkpoint="g" * 64)
+        summary = summarize_runs([plain_q, plain_s, history_q, history_s])
+        rows = {row["algorithm"]: row for row in summary["history_comparisons"]}
+        self.assertEqual(set(rows), {"q_learning", "sarsa"})
+        self.assertTrue(rows["q_learning"]["verdict"].startswith("effect of the bit shown"))
+        self.assertTrue(rows["sarsa"]["verdict"].startswith("no effect of the bit shown"))
+        self.assertEqual(rows["q_learning"]["unmasked_checkpoint"], "p" * 64)
+        markdown = render_markdown(summary)
+        self.assertIn("## Effect of the history bit", markdown)
+        self.assertIn("no effect of the bit shown: the intervals overlap", markdown)
+        out = write_report(summary, self.root / "history-report")
+        self.assertTrue((out / "history_comparisons.csv").is_file())
 
 
 if __name__ == "__main__":
