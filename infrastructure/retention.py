@@ -17,6 +17,7 @@ from collections import Counter
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import sys
@@ -40,7 +41,19 @@ def retain(run_directories, destination, label: str, log_tail_lines: int = SERVE
     """Copy the compact evidence of each run folder into ``destination`` and return the manifest."""
     if not isinstance(label, str) or not label.strip():
         raise ValueError("A non-empty evidence label is required")
-    runs = [Path(d) for d in run_directories]
+    given, runs, seen = [Path(d) for d in run_directories], [], set()
+    for run in given:
+        # A schedule folder brings every run and continuation it recorded.
+        if (run / "schedule.json").is_file() and not (run / "metadata.json").is_file():
+            from .parallel_runs import schedule_run_folders
+            expanded = [run, *schedule_run_folders(run)[0]]
+        else:
+            expanded = [run]
+        for path in expanded:
+            key = os.path.normcase(str(path.resolve()))
+            if key not in seen:
+                seen.add(key)
+                runs.append(path)
     if not runs:
         raise ValueError("At least one run folder is required")
     # Case-folded: the destination file system may not distinguish abc from ABC.

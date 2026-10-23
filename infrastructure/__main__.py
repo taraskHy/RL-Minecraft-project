@@ -232,6 +232,7 @@ def resources(arguments: list[str], *, evaluate: bool = False) -> int:
     p.add_argument("--parallel-slots", type=int, default=1,
                    help="Recorded number of live episodes running at once on this PC (resource-parallel sets it; "
                         "1 = alone). The report compares only runs with equal values")
+    p.add_argument("--schedule-id", help="Set by resource-parallel: the schedule this run belongs to (recorded)")
     if evaluate:
         p.add_argument("--random-baseline", action="store_true",
                        help="Evaluate the random baseline instead of a checkpoint: same helpers, uniformly random "
@@ -252,7 +253,7 @@ def resources(arguments: list[str], *, evaluate: bool = False) -> int:
                          epsilon=getattr(args, "epsilon", 0), epsilon_end=getattr(args, "epsilon_end", 0),
                          pretrain=getattr(args, "pretrain", 0),
                          random_baseline=getattr(args, "random_baseline", False), condition=args.condition,
-                         port=args.port, parallel_slots=args.parallel_slots)
+                         port=args.port, parallel_slots=args.parallel_slots, schedule_id=args.schedule_id)
 
 
 def resource_parallel(arguments: list[str]) -> int:
@@ -271,15 +272,27 @@ def resource_report(arguments: list[str]) -> int:
     p = argparse.ArgumentParser(prog="run.cmd resource-report", description=
         "Summarize retained natural-resource run folders: success rate with a Wilson interval, decisions, "
         "task time, deaths, invalid episodes, and failure causes. Training and frozen evaluation stay separate.")
-    p.add_argument("runs", nargs="+", type=Path, help="Run folders written by resource-train or resource-demo")
+    p.add_argument("runs", nargs="+", type=Path,
+                   help="Run folders written by resource-train or resource-demo, or resource-parallel schedule "
+                        "folders, which stand for every run and continuation they recorded")
     p.add_argument("--out", type=Path, help="New or empty folder for summary.json, episodes.csv, and report.md")
     args = p.parse_args(arguments)
-    for run_directory in args.runs:
+    from .parallel_runs import schedule_run_folders
+    runs: list[Path] = []
+    for path in args.runs:
+        if (path / "schedule.json").is_file() and not (path / "metadata.json").is_file():
+            found, missing = schedule_run_folders(path)
+            for name in missing:
+                print(f"Note: {path / name} is recorded in schedule.json but holds no run", file=sys.stderr)
+            runs += found
+        else:
+            runs.append(path)
+    for run_directory in runs:
         if not (run_directory / "metadata.json").is_file():
             p.error(f"not a resource run folder (missing metadata.json): {run_directory}")
     from minecraft_rl.resource_report import render_markdown, summarize_runs, write_report
     try:
-        summary = summarize_runs(args.runs)
+        summary = summarize_runs(runs)
     except ValueError as exc:
         p.error(str(exc))
     output = args.out or Path(new_output("resource-report"))

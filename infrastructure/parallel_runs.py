@@ -3,17 +3,18 @@
 A plan file (JSON, normally committed under ``configs/``) lists training and
 evaluation jobs. Every job runs through the same ``resource-train`` or
 ``resource-demo`` command as a run started by hand, in a new folder under
-``runs/<plan name>/``, with ``--port`` and ``--parallel-slots`` added. At most
-``slots`` runs execute at once, each on a different port.
+``runs/<plan name>/``, with ``--port``, ``--parallel-slots`` and
+``--schedule-id`` added. At most ``slots`` runs execute at once, each on a
+different port.
 
-The scheduler refuses uncommitted code and a busy port (it never stops a
-process it did not start), never reuses, replaces, or deletes a folder, and
-never kills a run: on Ctrl+C it starts nothing new and waits while every
-running run stops its own server and saves its world. A run cut short by an
-invalid episode is continued as the masking experiment declared: in a new
-``-partN`` folder from the next world seed, with the invalid episode still
-counted as attempted. ``schedule.json`` records when each run started and
-stopped, on which port, and how many runs were going at the time.
+The scheduler refuses uncommitted code and busy ports (it never stops a process
+it did not start), checks the code again before every launch, never reuses,
+replaces, or deletes a folder, and never kills a run: on Ctrl+C it starts
+nothing new and waits while every running run stops its own server and saves
+its world. A run cut short by an invalid episode is continued as the masking
+experiment declared: in a new ``-partN`` folder from the next world seed, with
+the invalid episode still counted as attempted. ``schedule.json`` records when
+each run started and stopped, on which port, and how many runs were going.
 """
 
 from __future__ import annotations
@@ -27,20 +28,27 @@ import math
 import os
 from pathlib import Path
 import re
+import signal
 import subprocess
 import sys
+import threading
 import time
 from typing import Any, Callable
 
 from minecraft_rl.resources import CONDITIONS
 from . import server as managed_server
-from .resource_server import MAX_PARALLEL_SLOTS, PORTS
+from .resource_server import MAX_PARALLEL_SLOTS, PORTS, schedule_lock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = 1
+# 25567 stays free for a run started by hand; plans start one port above it.
+DEFAULT_FIRST_PORT = PORTS.start + 1
 # No trailing dot: Windows silently drops it from folder names.
 NAME = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,62}[A-Za-z0-9_-])?$")
-# The code a live run reads; it must be committed before a schedule starts.
+PART = re.compile(r"-part\d+$", re.IGNORECASE)
+# Names a run folder may not take inside a schedule folder.
+RESERVED = {"logs", "plan.json", "schedule.json"}
+# The code a live run reads; it must be committed and unchanged while a schedule runs.
 CODE_PATHS = ("minecraft_bridge", "infrastructure", "minecraft_rl", "configs", "scripts")
 PLAN_KEYS = {"schema", "name", "description", "slots", "first_port", "max_continuations", "interleave",
              "evaluate_after_all_training", "defaults", "jobs"}
@@ -62,6 +70,7 @@ class Unit:
     job: dict
     episodes: int
     first_world_seed: int
+    agent_seed: int
     depends_on: str | None = None
     status: str = "waiting"
     parts: list[dict] = field(default_factory=list)
@@ -131,10 +140,11 @@ def parse_plan(text: str) -> tuple[dict, list[Unit]]:
         raise ValueError(f"Unknown plan keys: {', '.join(unknown)}")
     if plan.get("schema") != SCHEMA:
         raise ValueError(f"Plan schema must be {SCHEMA}")
-    if not isinstance(plan.get("name"), str) or not NAME.match(plan["name"]):
-        raise ValueError("Plan name must be 1-64 letters, digits, '.', '_' or '-', starting with a letter or digit")
+    if not isinstance(plan.get("name"), str) or not NAME.match(plan["name"]) or PART.search(plan["name"]):
+        raise ValueError("Plan name must be 1-64 letters, digits, '.', '_' or '-', start with a letter or digit, "
+                         "and not end in -partN")
     slots = _integer(plan.get("slots"), "slots", 1, MAX_PARALLEL_SLOTS)
-    _integer(plan.get("first_port", PORTS.start), "first_port", PORTS.start, PORTS.stop - slots)
+    _integer(plan.get("first_port", DEFAULT_FIRST_PORT), "first_port", PORTS.start, PORTS.stop - slots)
     _integer(plan.get("max_continuations", 5), "max_continuations", 0, 20)
     interleave = _flag(plan.get("interleave", False), "interleave")
     _flag(plan.get("evaluate_after_all_training", False), "evaluate_after_all_training")
@@ -151,7 +161,7 @@ def parse_plan(text: str) -> tuple[dict, list[Unit]]:
             raise ValueError(f"Job {index} must be a JSON object")
         job = {**defaults, **raw}
         name = job.get("name")
-        if not isinstance(name, str) or not NAME.match(name) or re.search(r"-part\d+$", name, re.IGNORECASE):
+        if not isinstance(name, str) or not NAME.match(name) or PART.search(name):
             raise ValueError(f"Job {index} needs a name of 1-64 letters, digits, '.', '_' or '-' that does not end "
                              "in -partN (continuation folders use that suffix)")
         kind = job.get("kind")
@@ -162,9 +172,11 @@ def parse_plan(text: str) -> tuple[dict, list[Unit]]:
             raise ValueError(f"{name}: unknown keys for a {kind} job: {', '.join(unknown)}")
         episodes = _integer(job.get("episodes"), f"{name}: episodes", 1, 1000)
         _integer(job.get("first_world_seed"), f"{name}: first_world_seed", -(2**63), 2**63 - episodes)
-        _integer(job.get("agent_seed"), f"{name}: agent_seed", -(2**63), 2**63 - 1)
         _integer(job.get("max_steps"), f"{name}: max_steps", 1, 1000)
         _number(job.get("pause"), f"{name}: pause", 0, 10)
+        chunks = _integer(job.get("chunks", 1), f"{name}: chunks", 1, episodes)
+        # Chunk k runs with agent seed agent_seed + k - 1, so chunks never replay one random stream.
+        _integer(job.get("agent_seed"), f"{name}: agent_seed", -(2**63), 2**63 - chunks)
         condition = job.get("condition")
         if condition is not None and condition not in CONDITIONS:
             raise ValueError(f"{name}: condition must be one of {', '.join(CONDITIONS)}")
@@ -187,7 +199,7 @@ def parse_plan(text: str) -> tuple[dict, list[Unit]]:
             _number(job.get("epsilon_end"), f"{name}: epsilon_end", 0, start)
             if _integer(job.get("pretrain", 0), f"{name}: pretrain", 0, 100_000) and job.get("policy"):
                 raise ValueError(f"{name}: pretrain cannot be combined with a policy")
-            per_job.append([Unit(name, job, episodes, job["first_world_seed"])])
+            per_job.append([Unit(name, job, episodes, job["first_world_seed"], job["agent_seed"])])
             trained.add(name)
             continue
         if "random_baseline" in job:
@@ -200,11 +212,10 @@ def parse_plan(text: str) -> tuple[dict, list[Unit]]:
                              "policies are compared with the unmasked baseline")
         if job.get("policy_from") is not None and job["policy_from"] not in trained:
             raise ValueError(f"{name}: policy_from must name a training job listed earlier in the plan")
-        chunks = _integer(job.get("chunks", 1), f"{name}: chunks", 1, episodes)
         units, seed = [], job["first_world_seed"]
         for chunk, size in enumerate(_split(episodes, chunks), 1):
             units.append(Unit(name if chunks == 1 else f"{name}-c{chunk}", job, size, seed,
-                              depends_on=job.get("policy_from")))
+                              job["agent_seed"] + chunk - 1, depends_on=job.get("policy_from")))
             seed += size
         per_job.append(units)
     if interleave:
@@ -217,6 +228,9 @@ def parse_plan(text: str) -> tuple[dict, list[Unit]]:
     repeated = sorted({name for name in names if names.count(name) > 1})
     if repeated:
         raise ValueError("Run names must be distinct (ignoring case): " + ", ".join(repeated))
+    taken = sorted(set(names) & (RESERVED | {plan["name"].casefold()}))
+    if taken:
+        raise ValueError("Run names may not be the plan's name or logs, plan.json, schedule.json: " + ", ".join(taken))
     return plan, ordered
 
 
@@ -224,8 +238,25 @@ def load_plan(path) -> tuple[dict, list[Unit]]:
     return parse_plan(Path(path).read_text(encoding="utf-8"))
 
 
+def schedule_run_folders(folder) -> tuple[list[Path], list[str]]:
+    """Every run folder a schedule recorded, continuations included, and recorded parts that hold no run."""
+    folder = Path(folder)
+    record = json.loads((folder / "schedule.json").read_text(encoding="utf-8"))
+    found, missing = [], []
+    for unit in (record.get("units") or []) if isinstance(record, dict) else []:
+        for part in unit.get("parts") or []:
+            name = part.get("folder") if isinstance(part, dict) else None
+            if not isinstance(name, str) or not NAME.match(name) or Path(name).name != name:
+                raise ValueError(f"{folder / 'schedule.json'} records an invalid run folder name: {name!r}")
+            if (folder / name / "metadata.json").is_file():
+                found.append(folder / name)
+            else:
+                missing.append(name)
+    return found, missing
+
+
 def _command(unit: Unit, *, folder: Path, port: int, slots: int, done: int, policy: Path | None,
-             first: bool) -> list[str]:
+             first: bool, schedule_id: str) -> list[str]:
     job = unit.job
     if job["kind"] == "train":
         arguments = ["resource-train", "--algorithm", job["algorithm"]]
@@ -245,9 +276,9 @@ def _command(unit: Unit, *, folder: Path, port: int, slots: int, done: int, poli
         if job.get("condition"):
             arguments += ["--condition", job["condition"]]
     arguments += ["--episodes", str(unit.episodes - done), "--world-seed", str(unit.first_world_seed + done),
-                  "--seed", str(job["agent_seed"]), "--max-steps", str(job["max_steps"]),
+                  "--seed", str(unit.agent_seed), "--max-steps", str(job["max_steps"]),
                   "--pause", repr(float(job["pause"])), "--out", str(folder),
-                  "--port", str(port), "--parallel-slots", str(slots)]
+                  "--port", str(port), "--parallel-slots", str(slots), "--schedule-id", schedule_id]
     return [sys.executable, "-m", "infrastructure", *arguments]
 
 
@@ -292,12 +323,29 @@ class _Child:
         except BaseException:
             self._log.close()
             raise
+        self.pid = self._process.pid
 
     def poll(self) -> int | None:
         return self._process.poll()
 
     def close(self) -> None:
         self._log.close()
+
+
+@contextmanager
+def _deferred_interrupt():
+    """Hold Ctrl+C while a run is launched and registered, so no launched run goes untracked."""
+    if threading.current_thread() is not threading.main_thread():
+        yield
+        return
+    received = []
+    previous = signal.signal(signal.SIGINT, lambda *_: received.append(True))
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGINT, previous)
+    if received:
+        raise KeyboardInterrupt
 
 
 def _git(*arguments: str) -> str:
@@ -311,8 +359,9 @@ def _git(*arguments: str) -> str:
 
 
 def code_state(plan_path: Path) -> dict:
-    """The commit the runs read, any uncommitted code, and whether the plan file itself is committed."""
+    """The commit, the committed code tree the runs read, any uncommitted code, and whether the plan is committed."""
     state = {"head": _git("rev-parse", "HEAD"),
+             "code_tree": _git("ls-tree", "HEAD", "--", *CODE_PATHS),
              "uncommitted_code": _git("status", "--porcelain", "--", *CODE_PATHS).splitlines()}
     plan, root = Path(plan_path).resolve(), ROOT.resolve()
     state["plan_committed"] = False
@@ -322,41 +371,23 @@ def code_state(plan_path: Path) -> dict:
     return state
 
 
-@contextmanager
-def _machine_lock():
-    """Allow one schedule per machine; the operating system releases the lock if this process dies."""
-    path = ROOT / ".local" / "resource-parallel.lock"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    handle = path.open("a+b")
-    try:
-        if os.name == "nt":
-            import msvcrt
-            handle.seek(0)
-            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
-        else:
-            import fcntl
-            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError as exc:
-        handle.close()
-        raise RuntimeError("Another resource-parallel schedule is running on this machine; wait for it to finish") from exc
-    try:
-        yield
-    finally:
-        try:
-            if os.name == "nt":
-                handle.seek(0)
-                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
-            else:
-                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
-        except OSError:
-            pass
-        handle.close()
+def _same_code(start: dict, now: dict) -> bool:
+    # Commits that leave the code paths alone (documentation, results) do not count as a change.
+    return now["code_tree"] == start["code_tree"] and not now["uncommitted_code"]
 
 
 def _write(path: Path, value: dict) -> None:
-    # The record is replaced only after a complete write.
-    temporary = path.with_suffix(".tmp")
+    # The record is replaced only after a complete write. NAME forbids a leading
+    # dot, so no run folder can take the staging name.
+    temporary = path.with_name(f".{path.name}.tmp")
     temporary.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+    for _ in range(30):
+        try:
+            temporary.replace(path)
+            return
+        except PermissionError:
+            # Windows refuses the replace while a reader holds the file open.
+            time.sleep(0.1)
     temporary.replace(path)
 
 
@@ -376,7 +407,7 @@ def _print_plan(plan: dict, units: list[Unit], ports: list[int], out: Path) -> N
         last = unit.first_world_seed + unit.episodes - 1
         after = f", after {unit.depends_on}" if unit.depends_on else ""
         print(f"  {unit.name:<36} {unit.job['kind']:<8} {unit.episodes:>4} episodes, seeds "
-              f"{unit.first_world_seed}-{last}: {_describe(unit)}{after}")
+              f"{unit.first_world_seed}-{last}, agent seed {unit.agent_seed}: {_describe(unit)}{after}")
     if plan.get("evaluate_after_all_training"):
         print("No evaluation starts before every training run has ended.")
     print("First command of each run (the port, a trained policy, and any continuation are filled in at launch):")
@@ -386,7 +417,7 @@ def _print_plan(plan: dict, units: list[Unit], ports: list[int], out: Path) -> N
         else:
             policy = Path(f"<final policy.json of {unit.depends_on}>") if unit.depends_on else None
         command = _command(unit, folder=out / unit.name, port=ports[0], slots=plan["slots"], done=0,
-                           policy=policy, first=True)
+                           policy=policy, first=True, schedule_id="<set at start>")
         line = subprocess.list2cmdline(["python", *command[1:]])
         print("  " + line.replace(f"--port {ports[0]}", "--port <slot port>"))
 
@@ -402,27 +433,65 @@ class _Schedule:
         self.queue = list(units)
         self.free = list(range(len(ports)))
         self.running: dict[int, tuple[Unit, dict, Any]] = {}
+        self.code_changed = False
+        started_at = _now()
+        digest = hashlib.sha256(plan_bytes).hexdigest()
+        # Every run of this schedule records this identity; the report compares parallel runs only within one.
+        self.schedule_id = f"{plan['name']}:{digest[:12]}:{started_at}"
         self.record = {
             "schema": SCHEMA,
             "evidence": "Scheduler record for live natural-resource runs; every run folder holds its own evidence",
-            "plan_name": plan["name"], "plan_file": str(Path(plan_path).resolve()),
-            "plan_sha256": hashlib.sha256(plan_bytes).hexdigest(),
-            "slots": len(ports), "ports": ports, "max_continuations": self.max_continuations,
-            "interleave": plan.get("interleave", False), "evaluate_after_all_training": self.wait_for_training,
-            "code_at_start": state, "code_at_end": None, "code_changed_during_schedule": None,
-            "started_at": _now(), "finished_at": None, "status": "running", "max_running_observed": 0,
+            "plan_name": plan["name"], "plan_file": str(Path(plan_path).resolve()), "plan_sha256": digest,
+            "schedule_id": self.schedule_id, "slots": len(ports), "ports": ports,
+            "max_continuations": self.max_continuations, "interleave": plan.get("interleave", False),
+            "evaluate_after_all_training": self.wait_for_training,
+            "code_at_start": state, "code_checks": 0, "code_change": None, "code_at_end": None,
+            "code_changed_during_schedule": None, "retired_ports": [], "error": None,
+            "started_at": started_at, "finished_at": None, "status": "running", "max_running_observed": 0,
             "units": [],
         }
 
     def save(self) -> None:
         self.record["units"] = [
             {"name": u.name, "job": u.job["name"], "kind": u.job["kind"], "episodes": u.episodes,
-             "first_world_seed": u.first_world_seed, "depends_on": u.depends_on, "status": u.status,
-             "attempted": _attempted(u, self.out), "parts": u.parts} for u in self.units]
-        _write(self.out / "schedule.json", self.record)
+             "first_world_seed": u.first_world_seed, "agent_seed": u.agent_seed, "depends_on": u.depends_on,
+             "status": u.status, "attempted": _attempted(u, self.out), "parts": u.parts} for u in self.units]
+        try:
+            _write(self.out / "schedule.json", self.record)
+        except OSError as exc:
+            # A failed write must never leave runs unsupervised; the next save writes the whole record again.
+            self.say(f"Could not update schedule.json ({exc}); the next update retries")
 
     def say(self, message: str) -> None:
         print(f"[{datetime.now().strftime('%H:%M:%S')}] {message}", flush=True)
+
+    def _code_unchanged(self) -> bool:
+        if self.code_changed:
+            return False
+        state = code_state(self.plan_path)
+        self.record["code_checks"] += 1
+        if _same_code(self.record["code_at_start"], state):
+            return True
+        self.code_changed = True
+        self.record["code_change"] = {"detected_at": _now(), "state": state}
+        self.say("The code changed since the schedule started; no further run starts. Restore the committed "
+                 "code; the runs already going were launched before the change.")
+        self.save()
+        return False
+
+    def _take_slot(self) -> int | None:
+        while self.free:
+            slot = self.free.pop(0)
+            try:
+                managed_server._check_port(self.ports[slot])
+                return slot
+            except managed_server.ServerError as exc:
+                # Something else holds this port: never stop it; stop using it.
+                self.record["retired_ports"].append({"port": self.ports[slot], "at": _now(), "reason": str(exc)})
+                self.say(f"Port {self.ports[slot]} is in use by another process; its slot is retired for this "
+                         "schedule and nothing was stopped")
+                self.save()
+        return None
 
     def _policy_for(self, unit: Unit) -> tuple[Path | None, str | None]:
         job = unit.job
@@ -438,44 +507,65 @@ class _Schedule:
             return policy, None if policy else f"{unit.depends_on} saved no policy.json"
         return Path(job["policy"]), None
 
-    def start(self, unit: Unit) -> None:
+    def _note_concurrency(self) -> None:
+        count = len(self.running)
+        self.record["max_running_observed"] = max(self.record["max_running_observed"], count)
+        for _, part, _ in self.running.values():
+            part["max_running"] = max(part["max_running"], count)
+
+    def start(self, unit: Unit, slot: int) -> None:
         number = len(unit.parts)
         folder_name = unit.name if number == 0 else f"{unit.name}-part{number}"
+        done = _attempted(unit, self.out)
+        if done >= unit.episodes:
+            # Never launch an empty part; every planned episode has been attempted.
+            self.free.insert(0, slot)
+            unit.status = "done"
+            self.save()
+            return
         policy, problem = self._policy_for(unit)
+        try:
+            digest = hashlib.sha256(policy.read_bytes()).hexdigest() if policy else None
+        except OSError as exc:
+            problem = f"cannot read {policy}: {exc}"
         if problem:
+            self.free.insert(0, slot)
             unit.status = "failed"
             self.say(f"{folder_name} not started: {problem}")
             self.save()
             return
-        slot = self.free.pop(0)
-        done = _attempted(unit, self.out)
         command = _command(unit, folder=self.out / folder_name, port=self.ports[slot], slots=len(self.ports),
-                           done=done, policy=policy, first=number == 0)
+                           done=done, policy=policy, first=number == 0, schedule_id=self.schedule_id)
         log_path = self.out / "logs" / f"{folder_name}.log"
-        part = {"folder": folder_name, "slot": slot + 1, "port": self.ports[slot], "episodes": unit.episodes - done,
-                "first_world_seed": unit.first_world_seed + done, "policy": str(policy) if policy else None,
-                "policy_sha256": hashlib.sha256(policy.read_bytes()).hexdigest() if policy else None,
+        part = {"folder": folder_name, "slot": slot + 1, "port": self.ports[slot], "pid": None,
+                "episodes": unit.episodes - done, "first_world_seed": unit.first_world_seed + done,
+                "agent_seed": unit.agent_seed, "policy": str(policy) if policy else None, "policy_sha256": digest,
                 "command": command, "log": log_path.relative_to(self.out).as_posix(), "attempted_before": done,
-                "running_at_start": len(self.running) + 1, "started_at": _now(), "finished_at": None,
+                "running_at_launch": None, "max_running": 0, "started_at": _now(), "finished_at": None,
                 "exit_code": None, "attempted_after": None, "last_status": None}
-        unit.parts.append(part)
-        try:
-            child = self.launcher(command, log_path)
-        except OSError as exc:
-            self.free.insert(0, slot)
-            part.update(finished_at=_now(), last_status=f"launch failed: {exc}")
-            unit.status = "failed"
-            self.say(f"{folder_name} could not be launched: {exc}")
-            self.save()
-            return
-        unit.status = "running"
-        self.running[slot] = (unit, part, child)
-        self.record["max_running_observed"] = max(self.record["max_running_observed"], len(self.running))
+        with _deferred_interrupt():
+            unit.parts.append(part)
+            try:
+                child = self.launcher(command, log_path)
+            except OSError as exc:
+                self.free.insert(0, slot)
+                part.update(finished_at=_now(), last_status=f"launch failed: {exc}")
+                unit.status = "failed"
+                self.say(f"{folder_name} could not be launched: {exc}")
+                self.save()
+                return
+            part["pid"] = getattr(child, "pid", None)
+            unit.status = "running"
+            self.running[slot] = (unit, part, child)
+            part["running_at_launch"] = len(self.running)
+            self._note_concurrency()
         self.say(f"start {folder_name}: {part['episodes']} episodes from world seed {part['first_world_seed']} "
                  f"on port {part['port']} ({len(self.running)} of {len(self.ports)} slots busy)")
         self.save()
 
     def launch_ready(self) -> bool:
+        if self.code_changed:
+            return False
         launched = False
         training_open = any(u.job["kind"] == "train" and u.status in ("waiting", "running") for u in self.units)
         for unit in list(self.queue):
@@ -492,10 +582,13 @@ class _Schedule:
                     continue
             if unit.job["kind"] == "evaluate" and self.wait_for_training and training_open:
                 continue
-            if not self.free:
+            if not self.free or not self._code_unchanged():
+                break
+            slot = self._take_slot()
+            if slot is None:
                 break
             self.queue.remove(unit)
-            self.start(unit)
+            self.start(unit, slot)
             launched = True
         return launched
 
@@ -516,6 +609,9 @@ class _Schedule:
                 unit.status = "done"
             elif stopping or last == "interrupted":
                 unit.status = "interrupted"
+            elif new > 0 and attempted >= unit.episodes and last in ("invalid", "completed"):
+                # Every episode was attempted; an invalid last one stays counted and is never replayed.
+                unit.status = "done"
             elif code != 0 and new > 0 and last == "invalid":
                 # The declared continuation: a new folder from the next world seed.
                 if len(unit.parts) <= self.max_continuations:
@@ -529,18 +625,26 @@ class _Schedule:
                      f"{'continuing after an invalid episode' if unit.status == 'waiting' else unit.status}")
             self.save()
 
-    def drain(self, timeout: float = 600) -> None:
-        deadline = time.monotonic() + timeout
-        while self.running and time.monotonic() < deadline:
+    def drain(self, *, stopping: bool) -> None:
+        """Wait for every running run. A second Ctrl+C keeps waiting; a third leaves."""
+        interrupts = 0
+        while self.running:
             try:
                 time.sleep(self.poll_seconds)
-                self.reap(stopping=True)
+                self.reap(stopping=stopping)
             except KeyboardInterrupt:
-                self.say("Second interrupt: the scheduler stops waiting; each run still stops its own server.")
-                break
-        for unit, part, child in self.running.values():
+                interrupts += 1
+                stopping = True
+                going = ", ".join(f"{part['folder']} (pid {part['pid']}, port {part['port']})"
+                                  for _, part, _ in self.running.values())
+                if interrupts >= 2:
+                    self.say(f"The scheduler stops waiting. Still stopping their own servers: {going}. Keep this "
+                             "window open until they exit, or a Minecraft server may keep running hidden.")
+                    break
+                self.say(f"Still waiting for {going}: each is stopping its own Minecraft server and saving its "
+                         "world. Do not close this window. Press Ctrl+C again to stop waiting anyway.")
+        for _, part, child in self.running.values():
             part["last_status"] = "still running when the scheduler exited"
-            unit.status = "interrupted"
             child.close()
 
     def run(self) -> int:
@@ -550,7 +654,7 @@ class _Schedule:
         self.save()
         self.say(f"Schedule {self.plan['name']}: {len(self.units)} runs, at most {len(self.ports)} at once on ports "
                  f"{self.ports[0]}-{self.ports[-1]}. Record: {self.out / 'schedule.json'}")
-        interrupted = False
+        interrupted, error = False, None
         try:
             while self.queue or self.running:
                 launched = self.launch_ready()
@@ -563,20 +667,31 @@ class _Schedule:
         except KeyboardInterrupt:
             interrupted = True
             self.say("Interrupted: no new run starts. Waiting while the running runs save their worlds and stop.")
-            self.drain()
+            self.drain(stopping=True)
+        except Exception as exc:
+            error = exc
+            self.record["error"] = f"{type(exc).__name__}: {exc}"
+            self.say(f"Scheduler error ({self.record['error']}): no new run starts. Waiting for the running runs.")
+            self.drain(stopping=False)
         finally:
             for unit in self.units:
-                if unit.status == "waiting":
+                if unit.parts and unit.parts[-1]["finished_at"] is None:
+                    # Launched but never seen to exit: its state is unknown, never 'not started'.
+                    unit.status = "interrupted"
+                    unit.parts[-1]["last_status"] = unit.parts[-1]["last_status"] or "state unknown when the scheduler exited"
+                elif unit.status == "waiting":
                     unit.status = "not_started"
             try:
                 end = code_state(self.plan_path)
-                start = self.record["code_at_start"]
                 self.record["code_at_end"] = end
-                self.record["code_changed_during_schedule"] = end["head"] != start["head"] or bool(end["uncommitted_code"])
+                self.record["code_changed_during_schedule"] = (self.code_changed
+                                                               or not _same_code(self.record["code_at_start"], end))
             except RuntimeError as exc:
                 self.record["code_at_end"] = {"error": str(exc)}
             complete = all(unit.status == "done" for unit in self.units)
-            self.record["status"] = "interrupted" if interrupted else "completed" if complete else "finished_with_failures"
+            self.record["status"] = ("error" if error else "interrupted" if interrupted else
+                                     "code_changed" if self.code_changed else
+                                     "completed" if complete else "finished_with_failures")
             self.record["finished_at"] = _now()
             self.save()
         print(f"Schedule {self.plan['name']} {self.record['status']}:")
@@ -585,7 +700,9 @@ class _Schedule:
             note = f", {continuations} continuation(s)" if continuations > 0 else ""
             print(f"  {unit.name:<36} {unit.status:<12} {_attempted(unit, self.out)}/{unit.episodes} attempted{note}")
         if self.record["code_changed_during_schedule"]:
-            print("WARNING: the code changed while the schedule ran; these runs do not share one revision.")
+            print("WARNING: the code changed while the schedule ran; these runs may not share one revision.")
+        if error:
+            raise error
         return 130 if interrupted else 0 if self.record["status"] == "completed" else 1
 
 
@@ -595,7 +712,7 @@ def run_schedule(plan_path, *, dry_run: bool = False, launcher: Callable[[list[s
     plan_path = Path(plan_path)
     plan_bytes = plan_path.read_bytes()
     plan, units = parse_plan(plan_bytes.decode("utf-8"))
-    first_port = plan.get("first_port", PORTS.start)
+    first_port = plan.get("first_port", DEFAULT_FIRST_PORT)
     ports = list(range(first_port, first_port + plan["slots"]))
     out = ROOT / "runs" / plan["name"]
     if out.exists():
@@ -603,7 +720,7 @@ def run_schedule(plan_path, *, dry_run: bool = False, launcher: Callable[[list[s
     if dry_run:
         _print_plan(plan, units, ports, out)
         return 0
-    with _machine_lock():
+    with schedule_lock():
         state = code_state(plan_path)
         if state["uncommitted_code"]:
             raise RuntimeError("Commit the code and the plan before a live schedule; uncommitted: "

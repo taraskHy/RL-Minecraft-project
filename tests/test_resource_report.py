@@ -412,34 +412,61 @@ class ResourceReportTests(unittest.TestCase):
 
 
     def test_parallel_slots_are_separate_groups_and_never_paired_with_runs_alone(self):
-        def run(name, algorithm, outcomes, slots=None):
+        def run(name, algorithm, outcomes, slots=None, schedule=None):
             folder = self._condition_run(name, "unmasked", "frozen_evaluation", algorithm, outcomes,
                                          baseline="uniform_random" if algorithm == "random" else None,
                                          checkpoint=None if algorithm == "random" else name[0] * 64)
             if slots is not None:
                 metadata = json.loads((folder / "metadata.json").read_text(encoding="utf-8"))
-                metadata["execution"] = {"server_port": 25568, "parallel_slots": slots}
+                metadata["execution"] = {"server_port": 25568, "parallel_slots": slots, "schedule_id": schedule}
                 (folder / "metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
             return folder
         alone = run("random-alone", "random", [False] * 10)  # recorded before resource-parallel: one slot
-        four = run("random-four", "random", [False] * 10, slots=4)
+        four = run("random-four", "random", [False] * 10, slots=4, schedule="s1")
         learned_alone = run("aq", "q_learning", [True] * 10, slots=1)
-        learned_four = run("bq", "q_learning", [True] * 10, slots=4)
-        learned_two = run("cq", "q_learning", [True] * 10, slots=2)
-        summary = summarize_runs([alone, four, learned_alone, learned_four, learned_two])
+        learned_four = run("bq", "q_learning", [True] * 10, slots=4, schedule="s1")
+        learned_two = run("cq", "q_learning", [True] * 10, slots=2, schedule="s1")
+        other_schedule = run("dq", "q_learning", [True] * 10, slots=4, schedule="s2")
+        no_schedule = run("eq", "q_learning", [True] * 10, slots=4)
+        summary = summarize_runs([alone, four, learned_alone, learned_four, learned_two, other_schedule, no_schedule])
         baselines = {g["parallel_slots"]: g for g in summary["groups"] if g["algorithm"] == "random"}
         self.assertEqual(set(baselines), {1, 4})
         self.assertEqual((baselines[1]["runs"], baselines[4]["runs"]), (["random-alone"], ["random-four"]))
+        self.assertEqual((baselines[1]["schedules"], baselines[4]["schedules"]), ([""], ["s1"]))
         rows = {c["checkpoint_sha256"][0]: c for c in summary["comparisons"]}
-        self.assertEqual(len(summary["comparisons"]), 3)
+        self.assertEqual(len(summary["comparisons"]), 5)
         self.assertEqual((rows["a"]["baseline"], rows["a"]["parallel_slots"]), ("uniform_random", 1))
         self.assertTrue(rows["a"]["verdict"].startswith("benefit shown"))
+        # Parallel runs are compared only within one schedule, where both arms shared the load.
         self.assertTrue(rows["b"]["verdict"].startswith("benefit shown"))
-        self.assertTrue(rows["c"]["verdict"].startswith("not compared"))
-        self.assertIn("/ 4 parallel slots", render_markdown(summary))
+        for other in ("c", "d", "e"):
+            self.assertTrue(rows[other]["verdict"].startswith("not compared"), other)
+        markdown = render_markdown(summary)
+        self.assertIn("/ 4 parallel slots", markdown)
+        self.assertIn("| Slots |", markdown)
+        self.assertIn(f"| q_learning {'b' * 12} | uniform_random (unmasked) | 4 |", markdown)
         broken = run("broken", "random", [False], slots=0)
         with self.assertRaisesRegex(ValueError, "parallel_slots"):
             summarize_runs([broken])
+
+
+    def test_command_line_report_expands_a_schedule_folder_into_all_its_runs(self):
+        schedule = self.root / "px"
+        first = self._condition_run("px/px-random-c1", "masked", "frozen_evaluation", "random", [True, False],
+                                    baseline="masked_random")
+        part = self._condition_run("px/px-random-c1-part1", "masked", "frozen_evaluation", "random", [True],
+                                   baseline="masked_random", first_seed=20002)
+        units = [{"name": "px-random-c1", "parts": [{"folder": first.name}, {"folder": part.name}]},
+                 {"name": "px-random-c2", "parts": [{"folder": "px-random-c2"}]}]
+        (schedule / "schedule.json").write_text(json.dumps({"units": units}), encoding="utf-8")
+        out = self.root / "schedule-report"
+        errors = io.StringIO()
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(errors):
+            self.assertEqual(resource_report_command([str(schedule), "--out", str(out)]), 0)
+        summary = json.loads((out / "summary.json").read_text(encoding="utf-8"))
+        self.assertEqual(sorted(r["run"] for r in summary["runs"]), ["px-random-c1", "px-random-c1-part1"])
+        self.assertEqual(summary["groups"][0]["episodes_completed"], 3)
+        self.assertIn("px-random-c2 is recorded in schedule.json but holds no run", errors.getvalue())
 
 
 if __name__ == "__main__":

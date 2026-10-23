@@ -13,6 +13,7 @@ import math
 import os
 from pathlib import Path
 import subprocess
+import tempfile
 import threading
 import time
 from typing import Any, Iterator
@@ -27,12 +28,65 @@ PORT = 25567
 PORTS = range(25567, 25600)
 # At most this many resource servers at once on one machine.
 MAX_PARALLEL_SLOTS = 8
+# One resource-parallel schedule at a time for this user on this machine, from any checkout.
+LOCK_PATH = Path(os.environ.get("LOCALAPPDATA") or tempfile.gettempdir()) / "rl-minecraft" / "resource-parallel.lock"
 
 
 def validate_port(port) -> int:
     if isinstance(port, bool) or not isinstance(port, int) or port not in PORTS:
         raise ValueError(f"Resource server port must be an integer from {PORTS.start} to {PORTS.stop - 1}")
     return port
+
+
+def _lock(handle) -> None:
+    handle.seek(0)
+    if os.name == "nt":
+        import msvcrt
+        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+    else:
+        import fcntl
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+def _unlock(handle) -> None:
+    handle.seek(0)
+    if os.name == "nt":
+        import msvcrt
+        msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        import fcntl
+        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+@contextmanager
+def schedule_lock() -> Iterator[None]:
+    """Hold the machine-wide schedule lock; the operating system releases it if this process dies."""
+    path = LOCK_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle = path.open("a+b")
+    try:
+        _lock(handle)
+    except OSError as exc:
+        handle.close()
+        raise managed_server.ServerError("A resource-parallel schedule is already running on this machine; "
+                                         "wait for it to finish") from exc
+    try:
+        yield
+    finally:
+        try:
+            _unlock(handle)
+        except OSError:
+            pass
+        handle.close()
+
+
+def schedule_running() -> bool:
+    """Whether a resource-parallel schedule holds the machine-wide lock right now."""
+    try:
+        with schedule_lock():
+            return False
+    except managed_server.ServerError:
+        return True
 
 
 def _is_link(path: Path) -> bool:

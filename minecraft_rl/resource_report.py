@@ -44,7 +44,8 @@ NOTES = (
     "Runs recorded before experiment conditions existed are reported as the masked condition, which is how "
     "they ran.",
     "Runs with a different parallel setup (live episodes at once on one machine) are separate groups and are "
-    "never compared, because task time and the helpers' time budgets are wall-clock. Runs recorded before "
+    "never compared, because task time and the helpers' time budgets are wall-clock; parallel runs are "
+    "compared only within one schedule, where every arm shared the same load. Runs recorded before "
     "resource-parallel existed ran one episode at a time and are reported with one slot.",
 )
 
@@ -190,6 +191,9 @@ def load_run(run_directory: Path) -> dict:
     parallel_slots = execution.get("parallel_slots", 1)
     if isinstance(parallel_slots, bool) or not isinstance(parallel_slots, int) or parallel_slots < 1:
         raise ValueError(f"{run_directory} records an invalid parallel_slots: {parallel_slots!r}")
+    schedule_id = execution.get("schedule_id")
+    if schedule_id is not None and not isinstance(schedule_id, str):
+        raise ValueError(f"{run_directory} records an invalid schedule_id: {schedule_id!r}")
     episodes = []
     for folder in sorted(run_directory.glob("episode-*")):
         outcome_path = folder / "outcome.json"
@@ -227,6 +231,7 @@ def load_run(run_directory: Path) -> dict:
             "baseline": metadata.get("baseline"),
             "checkpoint_sha256": metadata.get("initial_policy_sha256"), "max_steps": metadata.get("max_steps"),
             "pause": metadata.get("pause_between_decisions"), "parallel_slots": parallel_slots,
+            "schedule_id": schedule_id,
             # One short label for the exact helper and session sources the run started from.
             "source_revision": (hashlib.sha256(json.dumps(metadata["source_sha256"], sort_keys=True).encode()).hexdigest()[:12]
                                 if isinstance(metadata.get("source_sha256"), dict) else None),
@@ -279,6 +284,7 @@ def _summarize_group(key: tuple, rows: list[dict]) -> dict:
         "mode": mode, "algorithm": algorithm, "baseline": baseline or None,
         "checkpoint_sha256": checkpoint or None, "max_steps": max_steps, "simulator_pretrained": bool(pretrained),
         "parallel_slots": parallel_slots,
+        "schedules": sorted({r["schedule_id"] or "" for r in rows}),
         "pauses": sorted({r["pause"] for r in rows if r["pause"] is not None}),
         "source_revisions": sorted({r["source_revision"] for r in rows if r["source_revision"]}),
         "runs": sorted({r["run"] for r in rows}),
@@ -324,9 +330,12 @@ def _verdict(learned: list[float], baseline: list[float]) -> str:
 
 def _same_setup(a: dict, b: dict) -> bool:
     # Same step limit, the same attempted world seeds, one equal pause, one equal helper revision,
-    # and the same number of parallel slots.
+    # and the same number of parallel slots; parallel runs only within one schedule, where every
+    # arm shared the same load.
     return (a["max_steps"] == b["max_steps"] and a["world_seeds"] == b["world_seeds"]
             and a["parallel_slots"] == b["parallel_slots"]
+            and (a["parallel_slots"] == 1 or (len(a["schedules"]) == 1 and a["schedules"] == b["schedules"]
+                                               and a["schedules"][0] != ""))
             and len(a["pauses"]) <= 1 and a["pauses"] == b["pauses"]
             and len(a["source_revisions"]) <= 1 and a["source_revisions"] == b["source_revisions"])
 
@@ -374,7 +383,7 @@ def compare_to_baselines(groups: list[dict]) -> list[dict]:
         matches = [b for b in baselines if b["action_mask"] == group["action_mask"] and _same_setup(group, b)]
         if not matches:
             comparisons.append({**entry, "verdict": "not compared: no random baseline with the same action mask, "
-                                "step limit, world seeds, pause, helper revision, and parallel slots"})
+                                "step limit, world seeds, pause, helper revision, and parallel setup"})
             continue
         for baseline in matches:
             row = {**entry, "baseline": baseline["baseline"], "baseline_condition": baseline["condition"],
@@ -399,7 +408,8 @@ def compare_history(groups: list[dict]) -> list[dict]:
             if ((plain["condition"], plain["mode"], plain["algorithm"]) != ("unmasked", "frozen_evaluation", history["algorithm"])
                     or not _same_setup(history, plain)):
                 continue
-            row = {"algorithm": history["algorithm"], "history_checkpoint": history["checkpoint_sha256"],
+            row = {"algorithm": history["algorithm"], "parallel_slots": history["parallel_slots"],
+                   "history_checkpoint": history["checkpoint_sha256"],
                    "unmasked_checkpoint": plain["checkpoint_sha256"], **_paired(history, plain)}
             if not row["seeds_compared"]:
                 row["verdict"] = "not compared: no seed was completed by both"
@@ -488,6 +498,11 @@ def _label(group: dict) -> str:
     return label
 
 
+def _policy_cell(comparison: dict) -> str:
+    checkpoint = comparison.get("checkpoint_sha256")
+    return f"{comparison['algorithm']} {checkpoint[:12]}" if checkpoint else comparison["algorithm"]
+
+
 def render_markdown(summary: dict) -> str:
     lines = ["# Natural-resource run summary", "", f"**{summary['evidence']}**", ""]
     lines += ["| Group | Attempted | Completed | Invalid | Successes | Success rate | Wilson 95% | Deaths | Truncated | Mean decisions (all / success) | Mean task s (all / success) | Canopy layers cleared |",
@@ -517,25 +532,27 @@ def render_markdown(summary: dict) -> str:
     if comparisons:
         lines += ["## Comparison with the random baseline", "",
                   "Each frozen learned policy against the random baseline with the same action mask, step limit, world "
-                  "seeds, pause, helper revision, and parallel slots, counted on the seeds both completed. A benefit "
-                  "is claimed only "
+                  "seeds, pause, helper revision, and parallel setup (slots, and for parallel runs one schedule), "
+                  "counted on the seeds both completed. A benefit is claimed only "
                   "when the learned interval lies entirely above the baseline's. Fisher's exact p is two-sided and "
                   "supplementary.", "",
-                  "| Condition | Policy | Baseline | Seeds compared | Learned successes (Wilson 95%) | Baseline successes (Wilson 95%) | Fisher exact p | Verdict |",
-                  "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+                  "| Condition | Policy | Baseline | Slots | Seeds compared | Learned successes (Wilson 95%) | Baseline successes (Wilson 95%) | Fisher exact p | Verdict |",
+                  "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
         for c in comparisons:
             if c["baseline"] is None:
-                lines.append(f"| {c['condition']} | {c['algorithm']} | none | 0 | n/a | n/a | n/a | {c['verdict']} |")
+                lines.append(f"| {c['condition']} | {_policy_cell(c)} | none | {c['parallel_slots']} | 0 | n/a | n/a | "
+                             f"n/a | {c['verdict']} |")
                 continue
             learned = f"{c['learned_successes']}/{c['learned_completed']} ({_interval(c['learned_wilson_95'])})"
             base = f"{c['baseline_successes']}/{c['baseline_completed']} ({_interval(c['baseline_wilson_95'])})"
             p = "n/a" if c["fisher_p"] is None else f"{c['fisher_p']:.3g}"
-            lines.append(f"| {c['condition']} | {c['algorithm']} | {c['baseline']} ({c['baseline_condition']}) | "
-                         f"{c['seeds_compared']} | {learned} | {base} | {p} | {c['verdict']} |")
+            lines.append(f"| {c['condition']} | {_policy_cell(c)} | {c['baseline']} ({c['baseline_condition']}) | "
+                         f"{c['parallel_slots']} | {c['seeds_compared']} | {learned} | {base} | {p} | {c['verdict']} |")
         lines.append("")
         for c in comparisons:
             if c["learned_lost_seeds"] or c["baseline_lost_seeds"]:
-                lines.append(f"- {c['condition']} / {c['algorithm']}: seeds not measured for the learned policy "
+                lines.append(f"- {c['condition']} / {_policy_cell(c)} / {c['parallel_slots']} slot(s): seeds not "
+                             "measured for the learned policy "
                              f"{c['learned_lost_seeds'] or 'none'}, for the baseline {c['baseline_lost_seeds'] or 'none'}; "
                              f"counting every not-measured episode against the learned policy: {c['conservative_verdict']}.")
         lines.append("")
@@ -546,11 +563,12 @@ def render_markdown(summary: dict) -> str:
                   "completed. The bit is credited with an effect only when the history interval lies entirely above "
                   "the unmasked one; with one trained agent per condition this compares two checkpoints, not two "
                   "state designs.", "",
-                  "| Policy | Seeds compared | With the bit (Wilson 95%) | Without (Wilson 95%) | Fisher exact p | Verdict |",
-                  "| --- | --- | --- | --- | --- | --- |"]
+                  "| Policy | Slots | Seeds compared | With the bit (Wilson 95%) | Without (Wilson 95%) | Fisher exact p | Verdict |",
+                  "| --- | --- | --- | --- | --- | --- | --- |"]
         for h in history:
             p = "n/a" if h["fisher_p"] is None else f"{h['fisher_p']:.3g}"
-            lines.append(f"| {h['algorithm']} | {h['seeds_compared']} | {h['learned_successes']}/{h['learned_completed']} "
+            lines.append(f"| {h['algorithm']} | {h['parallel_slots']} | {h['seeds_compared']} | "
+                         f"{h['learned_successes']}/{h['learned_completed']} "
                          f"({_interval(h['learned_wilson_95'])}) | {h['baseline_successes']}/{h['baseline_completed']} "
                          f"({_interval(h['baseline_wilson_95'])}) | {p} | {h['verdict']} |")
         lines.append("")

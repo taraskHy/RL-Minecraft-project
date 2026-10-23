@@ -128,5 +128,20 @@ class RetentionTests(unittest.TestCase):
         self.assertEqual(retention.verify(out), [])
 
 
+    def test_a_schedule_folder_brings_every_run_it_recorded(self):
+        schedule = self.root / "runs" / "pq"
+        schedule.mkdir(parents=True)
+        (schedule / "plan.json").write_text('{"name": "pq"}', encoding="utf-8")
+        units = [{"name": "pq-a", "parts": [{"folder": "pq-a"}, {"folder": "pq-a-part1"}]}]
+        (schedule / "schedule.json").write_text(json.dumps({"units": units}), encoding="utf-8")
+        make_run(schedule, "pq-a")
+        make_run(schedule, "pq-a-part1")
+        out = self.root / "results" / "expanded"
+        manifest = retention.retain([schedule], out, "SCHEDULE EVIDENCE")
+        for key in ("pq/plan.json", "pq/schedule.json", "pq-a/metadata.json", "pq-a-part1/episode-0001/outcome.json"):
+            self.assertIn(key, manifest["sha256"])
+        self.assertEqual(retention.verify(out), [])
+
+
 if __name__ == "__main__":
     unittest.main()

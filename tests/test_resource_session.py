@@ -35,6 +35,8 @@ class ResourceSessionTests(unittest.TestCase):
             self.root / "infrastructure" / "resource_session.py")))
         self.stack.enter_context(patch.object(resource_session, "runtime_paths", return_value={"node": sys.executable}))
         self.stack.enter_context(patch.object(resource_session.time, "sleep"))
+        self.schedule_running = self.stack.enter_context(
+            patch.object(resource_session, "schedule_running", return_value=False))
         self.stack.enter_context(patch("builtins.input", return_value=""))
         self.camera = MagicMock()
         self.camera.following.side_effect = lambda: nullcontext()
@@ -315,17 +317,22 @@ class ResourceSessionTests(unittest.TestCase):
         following = deepcopy(self.start)
         following.update(nearby_log=True, event="log_reached")
         self.bridge.step.return_value = following
-        output, _ = self._train("parallel", "masked", 1, algorithm="q_learning", port=25570, parallel_slots=4)
+        output, _ = self._train("parallel", "masked", 1, algorithm="q_learning", port=25570, parallel_slots=4,
+                                schedule_id="px:abc:t0")
         self.assertEqual(resource_session.fresh_resource_server.call_args.kwargs["port"], 25570)
         execution = json.loads((output / "metadata.json").read_text())["execution"]
-        self.assertEqual((execution["server_port"], execution["parallel_slots"]), (25570, 4))
+        self.assertEqual((execution["server_port"], execution["parallel_slots"], execution["schedule_id"]),
+                         (25570, 4, "px:abc:t0"))
         outcome = json.loads((output / "episode-0001" / "outcome.json").read_text())
         self.assertLessEqual(outcome["started_at"], outcome["finished_at"])
         alone, _ = self._train("alone", "masked", 1, algorithm="q_learning")
         execution = json.loads((alone / "metadata.json").read_text())["execution"]
-        self.assertEqual((execution["server_port"], execution["parallel_slots"]), (25567, 1))
+        self.assertEqual((execution["server_port"], execution["parallel_slots"], execution["schedule_id"]),
+                         (25567, 1, None))
         refused = ({"port": 25566}, {"port": 25600}, {"port": True}, {"parallel_slots": 0}, {"parallel_slots": 9},
-                   {"parallel_slots": True}, {"parallel_slots": 2, "viewer": "Watcher"})
+                   {"parallel_slots": True}, {"parallel_slots": 2},
+                   {"parallel_slots": 2, "schedule_id": "px:abc:t0", "viewer": "Watcher"},
+                   {"schedule_id": ""}, {"schedule_id": "a\nb"}, {"schedule_id": 5})
         for index, bad in enumerate(refused):
             output = self.root / "runs" / f"refused-{index}"
             with self.subTest(bad=bad), self.assertRaises(ValueError):
@@ -336,11 +343,28 @@ class ResourceSessionTests(unittest.TestCase):
     def test_command_line_passes_port_and_parallel_slots(self):
         from infrastructure.__main__ import resources
         with patch.object(resource_session, "run_resources", return_value=0) as run:
-            resources(["--port", "25569", "--parallel-slots", "3", "--out", str(self.root / "runs" / "cli")])
-            self.assertEqual((run.call_args.kwargs["port"], run.call_args.kwargs["parallel_slots"]), (25569, 3))
+            resources(["--port", "25569", "--parallel-slots", "3", "--schedule-id", "px:abc:t0",
+                       "--out", str(self.root / "runs" / "cli")])
+            self.assertEqual((run.call_args.kwargs["port"], run.call_args.kwargs["parallel_slots"],
+                              run.call_args.kwargs["schedule_id"]), (25569, 3, "px:abc:t0"))
             resources(["--random-baseline", "--condition", "masked", "--out", str(self.root / "runs" / "cli2")],
                       evaluate=True)
-            self.assertEqual((run.call_args.kwargs["port"], run.call_args.kwargs["parallel_slots"]), (25567, 1))
+            self.assertEqual((run.call_args.kwargs["port"], run.call_args.kwargs["parallel_slots"],
+                              run.call_args.kwargs["schedule_id"]), (25567, 1, None))
+
+
+    def test_a_run_started_by_hand_is_refused_while_a_schedule_runs(self):
+        following = deepcopy(self.start)
+        following.update(nearby_log=True, event="log_reached")
+        self.bridge.step.return_value = following
+        self.schedule_running.return_value = True
+        output = self.root / "runs" / "by-hand"
+        with self.assertRaisesRegex(RuntimeError, "schedule is running"):
+            resource_session.run_resources(output=output, episodes=1, max_steps=1, condition="masked", pause=0)
+        self.assertFalse(output.exists())
+        # The scheduler's own runs carry their schedule and are not refused.
+        scheduled, _ = self._train("scheduled", "masked", 1, algorithm="q_learning", schedule_id="px:abc:t0")
+        self.assertTrue((scheduled / "episode-0001" / "outcome.json").is_file())
 
 
 if __name__ == "__main__":

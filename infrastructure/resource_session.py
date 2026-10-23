@@ -16,7 +16,7 @@ from minecraft_rl.resources import (
     ACTION_NAMES, CONDITIONS, MASKED, ResourceAgent, allowed_actions, encode_state, reward_transition,
     state_from_observation, train_simulator,
 )
-from .resource_server import MAX_PARALLEL_SLOTS, PORT, fresh_resource_server, validate_port
+from .resource_server import MAX_PARALLEL_SLOTS, PORT, fresh_resource_server, schedule_running, validate_port
 from .runtime import runtime_paths
 from .watch import validate_watch_options
 
@@ -158,7 +158,7 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
                   max_steps: int = 80, epsilon: float = .6, epsilon_end: float = .1,
                   policy: Path | None = None, pretrain: int = 0, evaluate: bool = False,
                   pause: float = .5, random_baseline: bool = False, condition: str | None = None,
-                  port: int = PORT, parallel_slots: int = 1) -> int:
+                  port: int = PORT, parallel_slots: int = 1, schedule_id: str | None = None) -> int:
     """Train from observed transitions, or explicitly evaluate a frozen policy.
 
     ``condition`` names the experiment condition (masked, unmasked, or
@@ -174,7 +174,9 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
     ``port`` is the loopback port of this run's servers. ``parallel_slots`` is
     the declared number of live episodes running at once on this machine
     (resource-parallel sets it; 1 means alone). It is recorded because task
-    time and the helpers' wall-clock budgets depend on it.
+    time and the helpers' wall-clock budgets depend on it. ``schedule_id``
+    names the resource-parallel schedule a run belongs to; a run started by
+    hand (no schedule_id) is refused while a schedule runs on this machine.
     """
     if condition is not None and condition not in CONDITIONS:
         raise ValueError(f"condition must be one of {', '.join(CONDITIONS)}")
@@ -188,6 +190,14 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
         raise ValueError(f"parallel_slots must be an integer from 1 to {MAX_PARALLEL_SLOTS}")
     if viewer is not None and parallel_slots > 1:
         raise ValueError("A viewer run waits for you between episodes; run it alone with parallel_slots 1")
+    if schedule_id is not None and (not isinstance(schedule_id, str) or not 1 <= len(schedule_id) <= 200
+                                    or not schedule_id.isprintable()):
+        raise ValueError("schedule_id must be 1 to 200 printable characters")
+    if parallel_slots > 1 and schedule_id is None:
+        raise ValueError("parallel_slots above 1 is set by resource-parallel, together with its schedule_id")
+    if schedule_id is None and schedule_running():
+        raise RuntimeError("A resource-parallel schedule is running on this machine. A run started by hand now "
+                           "would add load that its runs do not record; wait until it finishes")
     if not 1 <= episodes <= 1000 or not 1 <= max_steps <= 1000:
         raise ValueError("episodes and max_steps must be between 1 and 1000")
     if not 0 <= epsilon_end <= epsilon <= 1 or not 0 <= pause <= 10:
@@ -261,10 +271,11 @@ def run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
                                     "record that led to it). Apart from these leaf blocks, no block is dug outside CHOP",
                 "reset": "Each episode generates a separate new normal Survival world; bot has no operator permissions",
                 "seed_note": "World seed controls terrain; server timing and spawn selection are not deterministic",
-                "execution": {"server_port": port, "parallel_slots": parallel_slots,
+                "execution": {"server_port": port, "parallel_slots": parallel_slots, "schedule_id": schedule_id,
                               "note": "parallel_slots is the declared number of live episodes run at once on this "
                                       "machine (1 = alone). Task time and the helpers' time budgets are wall-clock, "
-                                      "so the report compares only runs with equal values"}}
+                                      "so the report compares only runs with equal values, and parallel runs only "
+                                      "within one schedule"}}
     sources = [ROOT / "minecraft_bridge" / "resource-bridge.js", ROOT / "minecraft_bridge" / "pnpm-lock.yaml",
                ROOT / "minecraft_rl" / "resources.py", Path(__file__),
                ROOT / "minecraft_rl" / "resource_live.py", ROOT / "infrastructure" / "resource_server.py"]
