@@ -1,0 +1,106 @@
+{
+  "connection": {
+    "connected": true,
+    "initialized": true,
+    "spawn": {
+      "x": -3.5,
+      "y": 116,
+      "z": 7.5
+    },
+    "gamemode": "survival",
+    "game_version": "1.21.4",
+    "backend": "minecraft-java-natural-resources",
+    "players": {
+      "RLResourceBot": {
+        "gamemode": 0
+      }
+    }
+  },
+  "observation": {
+    "position": {
+      "x": -3.5,
+      "y": 116,
+      "z": 7.5
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {},
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 0,
+      "sticks": 0,
+      "tables": 0,
+      "pickaxes": 0
+    },
+    "nearby_log": false,
+    "nearby_table": false,
+    "table_placed": false,
+    "nearby_visible_logs": [
+      {
+        "name": "birch_log",
+        "x": -13,
+        "y": 116,
+        "z": 12
+      },
+      {
+        "name": "birch_log",
+        "x": -13,
+        "y": 115,
+        "z": 12
+      },
+      {
+        "name": "birch_log",
+        "x": -13,
+        "y": 117,
+        "z": 12
+      }
+    ],
+    "biome": "old_growth_birch_forest",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "birch_leaves",
+    "support_block": "birch_leaves",
+    "on_canopy": true,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "birch_leaves",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "birch_leaves",
+        "feet_drop": 2,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "birch_leaves",
+        "feet_drop": 2,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "birch_leaves",
+        "feet_drop": 1,
+        "loaded": true
+      }
+    ],
+    "table_position": null,
+    "held_item": null,
+    "success": false,
+    "death": false,
+    "recovery": null,
+    "action_detail": null,
+    "event": "observe",
+    "action_duration_seconds": 0,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

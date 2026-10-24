@@ -1,0 +1,97 @@
+{
+  "episode": 35,
+  "world_seed": 134,
+  "status": "completed",
+  "mode": "online_training",
+  "success": true,
+  "death": false,
+  "truncated": false,
+  "steps": 32,
+  "return": 9.100999999999999,
+  "epsilon": 0.2530612244897959,
+  "seconds": 85.68700000000536,
+  "elapsed_wall_seconds": 104.18700000000536,
+  "final_observation": {
+    "position": {
+      "x": 66.5,
+      "y": 76,
+      "z": 188.49999999999997
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "stick": 2,
+      "oak_planks": 3,
+      "wooden_pickaxe": 1
+    },
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 3,
+      "sticks": 2,
+      "tables": 0,
+      "pickaxes": 1
+    },
+    "nearby_log": true,
+    "nearby_table": true,
+    "table_placed": true,
+    "nearby_visible_logs": [
+      {
+        "name": "oak_log",
+        "x": 65,
+        "y": 78,
+        "z": 188
+      }
+    ],
+    "biome": "plains",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "crafting_table",
+    "support_block": "crafting_table",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 1,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "dirt",
+        "feet_drop": 1,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "grass_block",
+        "feet_drop": 1,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "grass_block",
+        "feet_drop": 1,
+        "loaded": true
+      }
+    ],
+    "table_position": {
+      "x": 66,
+      "y": 75,
+      "z": 188
+    },
+    "held_item": "wooden_pickaxe",
+    "success": true,
+    "death": false,
+    "recovery": null,
+    "action_detail": null,
+    "event": "crafted_wooden_pickaxe",
+    "action_duration_seconds": 0.735,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

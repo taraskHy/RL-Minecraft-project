@@ -1,0 +1,95 @@
+{
+  "episode": 48,
+  "world_seed": 147,
+  "status": "completed",
+  "mode": "online_training",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": -1.4859999999999982,
+  "epsilon": 0.12040816326530612,
+  "seconds": 121.34399999999732,
+  "elapsed_wall_seconds": 136.65699999999197,
+  "final_observation": {
+    "position": {
+      "x": 113.61879343926698,
+      "y": 131,
+      "z": -111.00257569865786
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "stick": 8
+    },
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 0,
+      "sticks": 8,
+      "tables": 0,
+      "pickaxes": 0
+    },
+    "nearby_log": false,
+    "nearby_table": false,
+    "table_placed": true,
+    "nearby_visible_logs": [
+      {
+        "name": "spruce_log",
+        "x": 137,
+        "y": 131,
+        "z": -101
+      }
+    ],
+    "biome": "snowy_plains",
+    "feet_block": "snow",
+    "head_block": "air",
+    "ground_block": "grass_block",
+    "support_block": "grass_block",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "dirt",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "grass_block",
+        "feet_drop": 1,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "dirt",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": {
+      "x": 137,
+      "y": 126,
+      "z": -99
+    },
+    "held_item": null,
+    "success": false,
+    "death": false,
+    "recovery": null,
+    "action_detail": null,
+    "event": "table_already_placed",
+    "action_duration_seconds": 0,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

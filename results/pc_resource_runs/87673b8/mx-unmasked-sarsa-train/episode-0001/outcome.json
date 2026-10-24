@@ -1,0 +1,89 @@
+{
+  "episode": 1,
+  "world_seed": 100,
+  "status": "completed",
+  "mode": "online_training",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": -0.6190000000000007,
+  "epsilon": 0.6,
+  "seconds": 45.57799999999406,
+  "elapsed_wall_seconds": 63.57799999999406,
+  "final_observation": {
+    "position": {
+      "x": -8.45502783051036,
+      "y": 76.25220334025373,
+      "z": -11.5
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "oak_planks": 2,
+      "stick": 20
+    },
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 2,
+      "sticks": 20,
+      "tables": 0,
+      "pickaxes": 0
+    },
+    "nearby_log": false,
+    "nearby_table": false,
+    "table_placed": true,
+    "nearby_visible_logs": [],
+    "biome": "savanna",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "stone",
+    "support_block": "stone",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "stone",
+        "feet_drop": 1,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "stone",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "stone",
+        "feet_drop": 1,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "stone",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": {
+      "x": -4,
+      "y": 71,
+      "z": -10
+    },
+    "held_item": null,
+    "success": false,
+    "death": false,
+    "recovery": null,
+    "action_detail": null,
+    "event": "explored_locally",
+    "action_duration_seconds": 3.267,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

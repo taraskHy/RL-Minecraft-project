@@ -1,0 +1,109 @@
+{
+  "episode": 5,
+  "world_seed": 20004,
+  "status": "completed",
+  "mode": "frozen_evaluation",
+  "success": true,
+  "death": false,
+  "truncated": false,
+  "steps": 11,
+  "return": 9.524000000000001,
+  "epsilon": 0.0,
+  "seconds": 22.125,
+  "elapsed_wall_seconds": 60.13999999999942,
+  "final_observation": {
+    "position": {
+      "x": 13.53441341443338,
+      "y": 64,
+      "z": 3.693185248980467
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "stick": 2,
+      "acacia_planks": 3,
+      "wooden_pickaxe": 1
+    },
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 3,
+      "sticks": 2,
+      "tables": 0,
+      "pickaxes": 1
+    },
+    "nearby_log": true,
+    "nearby_table": true,
+    "table_placed": true,
+    "nearby_visible_logs": [
+      {
+        "name": "acacia_log",
+        "x": 14,
+        "y": 66,
+        "z": 3
+      },
+      {
+        "name": "acacia_log",
+        "x": 12,
+        "y": 66,
+        "z": 3
+      },
+      {
+        "name": "acacia_log",
+        "x": 12,
+        "y": 67,
+        "z": 2
+      }
+    ],
+    "biome": "savanna",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "grass_block",
+    "support_block": "grass_block",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "dirt",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": {
+      "x": 13,
+      "y": 64,
+      "z": 4
+    },
+    "held_item": "wooden_pickaxe",
+    "success": true,
+    "death": false,
+    "recovery": null,
+    "action_detail": null,
+    "event": "crafted_wooden_pickaxe",
+    "action_duration_seconds": 0.294,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "evidence": "REAL MINECRAFT NATURAL RESOURCE TASK; NOT FULL SURVIVAL COMPLETION",
+  "mode": "online_training",
+  "algorithm": "sarsa",
+  "baseline": null,
+  "condition": "masked",
+  "episodes": 20,
+  "successes": 18,
+  "note": "Exploratory training results are not frozen-policy evaluation"
+}

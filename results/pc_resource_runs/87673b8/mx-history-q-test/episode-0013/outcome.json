@@ -1,0 +1,186 @@
+{
+  "episode": 13,
+  "world_seed": 20012,
+  "status": "completed",
+  "mode": "frozen_evaluation",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": -0.6000000000000003,
+  "epsilon": 0.0,
+  "seconds": 68.9539999999979,
+  "elapsed_wall_seconds": 86.29700000000594,
+  "final_observation": {
+    "position": {
+      "x": 230.5,
+      "y": 73,
+      "z": 436.5
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "oak_sapling": 4
+    },
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 0,
+      "sticks": 0,
+      "tables": 0,
+      "pickaxes": 0
+    },
+    "nearby_log": false,
+    "nearby_table": false,
+    "table_placed": false,
+    "nearby_visible_logs": [],
+    "biome": "dark_forest",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "oak_leaves",
+    "support_block": "oak_leaves",
+    "on_canopy": true,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 6,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 6,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "grass_block",
+        "feet_drop": 6,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "oak_leaves",
+        "feet_drop": 4,
+        "loaded": true
+      }
+    ],
+    "table_position": null,
+    "held_item": "oak_sapling",
+    "success": false,
+    "death": false,
+    "recovery": {
+      "type": "canopy_descent",
+      "layers_cleared": 0,
+      "blocks_dug": [],
+      "falls": [],
+      "moves": 0,
+      "damage": 0,
+      "items_picked_up": {},
+      "start_y": 73,
+      "end_y": 73,
+      "descended": false,
+      "stopped": "fall_too_far",
+      "refused": {
+        "ok": false,
+        "reason": "fall_too_far",
+        "fall": 6,
+        "expected_damage": 3,
+        "landing_block": "grass_block"
+      },
+      "escape": {
+        "type": "leaf_escape",
+        "blocks_dug": [],
+        "direction": null,
+        "floor": null,
+        "walls": {
+          "+x": {
+            "feet": {
+              "name": "oak_leaves",
+              "boundingBox": "block"
+            },
+            "head": {
+              "name": "oak_leaves",
+              "boundingBox": "block"
+            },
+            "below": {
+              "name": "air",
+              "boundingBox": "empty"
+            },
+            "lower": {
+              "name": "air",
+              "boundingBox": "empty"
+            }
+          },
+          "-x": {
+            "feet": {
+              "name": "oak_leaves",
+              "boundingBox": "block"
+            },
+            "head": {
+              "name": "oak_leaves",
+              "boundingBox": "block"
+            },
+            "below": {
+              "name": "air",
+              "boundingBox": "empty"
+            },
+            "lower": {
+              "name": "air",
+              "boundingBox": "empty"
+            }
+          },
+          "+z": {
+            "feet": {
+              "name": "air",
+              "boundingBox": "empty"
+            },
+            "head": {
+              "name": "air",
+              "boundingBox": "empty"
+            },
+            "below": {
+              "name": "air",
+              "boundingBox": "empty"
+            },
+            "lower": {
+              "name": "air",
+              "boundingBox": "empty"
+            }
+          },
+          "-z": {
+            "feet": {
+              "name": "oak_leaves",
+              "boundingBox": "block"
+            },
+            "head": {
+              "name": "oak_leaves",
+              "boundingBox": "block"
+            },
+            "below": {
+              "name": "air",
+              "boundingBox": "empty"
+            },
+            "lower": {
+              "name": "air",
+              "boundingBox": "empty"
+            }
+          }
+        },
+        "escaped": false,
+        "items_picked_up": {},
+        "stopped": "no_leaf_exit"
+      }
+    },
+    "action_detail": null,
+    "event": "canopy_descent_refused:fall_too_far;leaf_escape_refused:no_leaf_exit;exploration_blocked",
+    "action_duration_seconds": 0.452,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

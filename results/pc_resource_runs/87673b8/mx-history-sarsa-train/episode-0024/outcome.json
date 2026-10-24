@@ -1,0 +1,10 @@
+{
+  "status": "invalid",
+  "episode": 24,
+  "world_seed": 123,
+  "success": null,
+  "death": null,
+  "recorded_steps": 22,
+  "error": "PermissionError: [WinError 5] Access is denied: 'C:\\\\Users\\\\ethan\\\\PycharmProjects\\\\RL-Minecraft-project\\\\runs\\\\mx-history-sarsa-train\\\\policy.tmp' -> 'C:\\\\Users\\\\ethan\\\\PycharmProjects\\\\RL-Minecraft-project\\\\runs\\\\mx-history-sarsa-train\\\\policy.json'",
+  "note": "Not counted as a measured policy success or failure"
+}

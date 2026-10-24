@@ -1,0 +1,115 @@
+{
+  "episode": 10,
+  "world_seed": 20009,
+  "status": "completed",
+  "mode": "frozen_evaluation",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": -1.574000000000008,
+  "epsilon": 0.0,
+  "seconds": 70.71899999999732,
+  "elapsed_wall_seconds": 102.84399999999732,
+  "final_observation": {
+    "position": {
+      "x": 18.85818112313097,
+      "y": 120,
+      "z": 15.500318718732723
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "spruce_planks": 2,
+      "stick": 4
+    },
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 2,
+      "sticks": 4,
+      "tables": 0,
+      "pickaxes": 0
+    },
+    "nearby_log": false,
+    "nearby_table": true,
+    "table_placed": true,
+    "nearby_visible_logs": [
+      {
+        "name": "spruce_log",
+        "x": 35,
+        "y": 101,
+        "z": 27
+      }
+    ],
+    "biome": "grove",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "spruce_leaves",
+    "support_block": "spruce_leaves",
+    "on_canopy": true,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "spruce_leaves",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "spruce_leaves",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "spruce_leaves",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "spruce_leaves",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": {
+      "x": 18,
+      "y": 120,
+      "z": 16
+    },
+    "held_item": null,
+    "success": false,
+    "death": false,
+    "recovery": {
+      "type": "canopy_descent",
+      "layers_cleared": 0,
+      "blocks_dug": [],
+      "falls": [],
+      "moves": 0,
+      "damage": 0,
+      "items_picked_up": {},
+      "start_y": 120,
+      "end_y": 120,
+      "descended": false,
+      "stopped": "fall_too_far",
+      "refused": {
+        "ok": false,
+        "reason": "fall_too_far",
+        "fall": 6,
+        "expected_damage": 3,
+        "landing_block": "snow_block"
+      }
+    },
+    "action_detail": null,
+    "event": "canopy_descent_refused:fall_too_far;exploration_blocked",
+    "action_duration_seconds": 0.558,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

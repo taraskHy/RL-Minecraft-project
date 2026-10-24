@@ -1,0 +1,164 @@
+{
+  "episode": 39,
+  "world_seed": 138,
+  "status": "completed",
+  "mode": "online_training",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": -0.6000000000000003,
+  "epsilon": 0.21224489795918366,
+  "seconds": 190.81200000000536,
+  "elapsed_wall_seconds": 206.25,
+  "final_observation": {
+    "position": {
+      "x": -26.5,
+      "y": 63,
+      "z": -7.475597512652659
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {},
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 0,
+      "sticks": 0,
+      "tables": 0,
+      "pickaxes": 0
+    },
+    "nearby_log": false,
+    "nearby_table": false,
+    "table_placed": false,
+    "nearby_visible_logs": [],
+    "biome": "badlands",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "light_gray_terracotta",
+    "support_block": "light_gray_terracotta",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "light_gray_terracotta",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "white_terracotta",
+        "feet_drop": 1,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "terracotta",
+        "feet_drop": 2,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "light_gray_terracotta",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": null,
+    "held_item": null,
+    "success": false,
+    "death": false,
+    "recovery": {
+      "type": "leaf_escape",
+      "blocks_dug": [],
+      "direction": null,
+      "floor": null,
+      "walls": {
+        "+x": {
+          "feet": {
+            "name": "orange_terracotta",
+            "boundingBox": "block"
+          },
+          "head": {
+            "name": "orange_terracotta",
+            "boundingBox": "block"
+          },
+          "below": {
+            "name": "light_gray_terracotta",
+            "boundingBox": "block"
+          },
+          "lower": {
+            "name": "white_terracotta",
+            "boundingBox": "block"
+          }
+        },
+        "-x": {
+          "feet": {
+            "name": "air",
+            "boundingBox": "empty"
+          },
+          "head": {
+            "name": "air",
+            "boundingBox": "empty"
+          },
+          "below": {
+            "name": "water",
+            "boundingBox": "empty"
+          },
+          "lower": {
+            "name": "white_terracotta",
+            "boundingBox": "block"
+          }
+        },
+        "+z": {
+          "feet": {
+            "name": "air",
+            "boundingBox": "empty"
+          },
+          "head": {
+            "name": "air",
+            "boundingBox": "empty"
+          },
+          "below": {
+            "name": "water",
+            "boundingBox": "empty"
+          },
+          "lower": {
+            "name": "water",
+            "boundingBox": "empty"
+          }
+        },
+        "-z": {
+          "feet": {
+            "name": "orange_terracotta",
+            "boundingBox": "block"
+          },
+          "head": {
+            "name": "orange_terracotta",
+            "boundingBox": "block"
+          },
+          "below": {
+            "name": "light_gray_terracotta",
+            "boundingBox": "block"
+          },
+          "lower": {
+            "name": "white_terracotta",
+            "boundingBox": "block"
+          }
+        }
+      },
+      "escaped": false,
+      "items_picked_up": {},
+      "stopped": "no_leaf_exit"
+    },
+    "action_detail": null,
+    "event": "leaf_escape_refused:no_leaf_exit;exploration_blocked",
+    "action_duration_seconds": 0.459,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

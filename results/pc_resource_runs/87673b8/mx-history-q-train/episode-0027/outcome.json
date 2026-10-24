@@ -1,0 +1,91 @@
+{
+  "episode": 27,
+  "world_seed": 126,
+  "status": "completed",
+  "mode": "online_training",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": -1.6990000000000047,
+  "epsilon": 0.33469387755102037,
+  "seconds": 69.95300000000861,
+  "elapsed_wall_seconds": 85.26600000000326,
+  "final_observation": {
+    "position": {
+      "x": 14.507639136726974,
+      "y": 71,
+      "z": 37.68890532240245
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "oak_planks": 2,
+      "stick": 12,
+      "crafting_table": 3,
+      "dandelion": 1
+    },
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 2,
+      "sticks": 12,
+      "tables": 3,
+      "pickaxes": 0
+    },
+    "nearby_log": false,
+    "nearby_table": true,
+    "table_placed": true,
+    "nearby_visible_logs": [],
+    "biome": "plains",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "dirt",
+    "support_block": "dirt",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "dirt",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": {
+      "x": 13,
+      "y": 71,
+      "z": 37
+    },
+    "held_item": "crafting_table",
+    "success": false,
+    "death": false,
+    "recovery": null,
+    "action_detail": null,
+    "event": "table_reached",
+    "action_duration_seconds": 0,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

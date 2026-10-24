@@ -1,0 +1,109 @@
+{
+  "episode": 7,
+  "world_seed": 106,
+  "status": "completed",
+  "mode": "online_training",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": -1.6170000000000018,
+  "epsilon": 0.5387755102040817,
+  "seconds": 44.21799999999348,
+  "elapsed_wall_seconds": 58.09299999999348,
+  "final_observation": {
+    "position": {
+      "x": -8.5,
+      "y": 61,
+      "z": -6.5
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "oak_log": 3,
+      "stick": 16,
+      "crafting_table": 1
+    },
+    "inventory_counts": {
+      "logs": 3,
+      "planks": 0,
+      "sticks": 16,
+      "tables": 1,
+      "pickaxes": 0
+    },
+    "nearby_log": false,
+    "nearby_table": true,
+    "table_placed": true,
+    "nearby_visible_logs": [
+      {
+        "name": "oak_log",
+        "x": -11,
+        "y": 61,
+        "z": -2
+      },
+      {
+        "name": "oak_log",
+        "x": -11,
+        "y": 62,
+        "z": -2
+      },
+      {
+        "name": "oak_log",
+        "x": -11,
+        "y": 63,
+        "z": -2
+      }
+    ],
+    "biome": "forest",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "grass_block",
+    "support_block": "grass_block",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": {
+      "x": -9,
+      "y": 61,
+      "z": -9
+    },
+    "held_item": "crafting_table",
+    "success": false,
+    "death": false,
+    "recovery": null,
+    "action_detail": null,
+    "event": "table_already_placed",
+    "action_duration_seconds": 0,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

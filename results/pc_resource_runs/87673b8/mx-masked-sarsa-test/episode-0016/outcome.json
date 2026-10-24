@@ -1,0 +1,103 @@
+{
+  "episode": 16,
+  "world_seed": 20015,
+  "status": "completed",
+  "mode": "frozen_evaluation",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": -0.6000000000000003,
+  "epsilon": 0.0,
+  "seconds": 69.71799999999348,
+  "elapsed_wall_seconds": 114.45299999999406,
+  "final_observation": {
+    "position": {
+      "x": 3.2898599653193723,
+      "y": 79,
+      "z": 7.499708360955298
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "oak_sapling": 1
+    },
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 0,
+      "sticks": 0,
+      "tables": 0,
+      "pickaxes": 0
+    },
+    "nearby_log": false,
+    "nearby_table": false,
+    "table_placed": false,
+    "nearby_visible_logs": [],
+    "biome": "forest",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "oak_leaves",
+    "support_block": "oak_leaves",
+    "on_canopy": true,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": null,
+        "feet_drop": null,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "oak_leaves",
+        "feet_drop": 1,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "oak_leaves",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "oak_leaves",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": null,
+    "held_item": "oak_sapling",
+    "success": false,
+    "death": false,
+    "recovery": {
+      "type": "canopy_descent",
+      "layers_cleared": 0,
+      "blocks_dug": [],
+      "falls": [],
+      "moves": 1,
+      "damage": 0,
+      "items_picked_up": {},
+      "start_y": 79,
+      "end_y": 79,
+      "descended": false,
+      "stopped": "fall_too_far",
+      "refused": {
+        "ok": false,
+        "reason": "fall_too_far",
+        "fall": 10,
+        "expected_damage": 7,
+        "landing_block": "grass_block"
+      }
+    },
+    "action_detail": null,
+    "event": "canopy_descent_refused:fall_too_far;exploration_blocked",
+    "action_duration_seconds": 0.486,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

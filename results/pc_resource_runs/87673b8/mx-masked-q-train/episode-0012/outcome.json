@@ -1,0 +1,108 @@
+{
+  "episode": 12,
+  "world_seed": 111,
+  "status": "completed",
+  "mode": "online_training",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": -1.5120000000000071,
+  "epsilon": 0.31052631578947365,
+  "seconds": 129.70300000000134,
+  "elapsed_wall_seconds": 144.59300000000076,
+  "final_observation": {
+    "position": {
+      "x": -1.5,
+      "y": 111.0625,
+      "z": 11.5
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "pale_oak_planks": 6,
+      "stick": 4
+    },
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 6,
+      "sticks": 4,
+      "tables": 0,
+      "pickaxes": 0
+    },
+    "nearby_log": true,
+    "nearby_table": false,
+    "table_placed": true,
+    "nearby_visible_logs": [
+      {
+        "name": "pale_oak_log",
+        "x": -5,
+        "y": 111,
+        "z": 12
+      },
+      {
+        "name": "pale_oak_log",
+        "x": -5,
+        "y": 112,
+        "z": 12
+      },
+      {
+        "name": "pale_oak_log",
+        "x": -5,
+        "y": 111,
+        "z": 13
+      }
+    ],
+    "biome": "pale_garden",
+    "feet_block": "pale_moss_carpet",
+    "head_block": "air",
+    "ground_block": "pale_moss_block",
+    "support_block": "pale_moss_block",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "pale_moss_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "pale_moss_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "pale_moss_block",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": {
+      "x": -3,
+      "y": 118,
+      "z": 12
+    },
+    "held_item": null,
+    "success": false,
+    "death": false,
+    "recovery": null,
+    "action_detail": null,
+    "event": "table_path_blocked",
+    "action_duration_seconds": 1.052,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

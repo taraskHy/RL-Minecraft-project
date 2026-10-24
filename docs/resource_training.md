@@ -193,6 +193,26 @@ conservative check that counts every lost episode against the learned policy.
 Produce the test report from this experiment's test and training runs only,
 because evaluations of the same checkpoint on other seeds would be pooled.
 
+**Result at `87673b8` (24 October 2026).**
+- **Within the mask, no benefit.** The masked comparison read "no benefit
+  shown", as predicted: frozen Q-learning 16/20 and SARSA 18/20, against
+  masked random 19/20.
+- **Without the mask, every learned policy beat uniform random play** (4/20):
+  - unmasked Q-learning 20/20;
+  - unmasked SARSA 14/20;
+  - history Q-learning 16/20;
+  - history SARSA 17/20.
+- **No effect of the `last_action_failed` bit was shown** for either
+  algorithm; the intervals overlap. Frozen policies with the bit still looped
+  through useless actions after running short of wood. In a state they reach
+  again unchanged, actions never tried there keep `initial_q` 0, which is
+  above the slightly negative `SEARCH` and `CHOP`.
+
+Every table, failure and limit is in
+[`results/pc_resource_runs/README.md`](../results/pc_resource_runs/README.md).
+Note there that a world seed fixes the terrain but not the spawn point, so
+seeds pair terrain, not identical starts.
+
 ```powershell
 .\run.cmd resource-train --condition unmasked --algorithm sarsa --episodes 50 --world-seed 100 --max-steps 60 --pause 0 --out runs/unmasked-sarsa-train
 .\run.cmd resource-demo --policy runs/unmasked-sarsa-train/policy.json --episodes 20 --world-seed 20000 --max-steps 60 --pause 0 --out runs/unmasked-sarsa-test

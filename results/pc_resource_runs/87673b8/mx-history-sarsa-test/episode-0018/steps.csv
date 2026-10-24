@@ -1,0 +1,17 @@
+step,action,reward,td_error,q_before,q_after,event,success,death,recovery
+1,SEARCH,-0.01,,0.32638627167673695,0.32638627167673695,cleared_2_leaf_layers;descended_canopy;log_already_reachable,False,False,"canopy_descent:layers=2,descent=3,damage=0,stopped=-"
+2,CHOP,-0.01,,0.7178201063533645,0.7178201063533645,log_broken_without_pickup,False,False,
+3,SEARCH,-0.01,,0.32638627167673695,0.32638627167673695,cleared_1_leaf_wall_block;log_reached,False,False,"leaf_escape:blocks=1,direction=+x,escaped=True,stopped=-"
+4,CHOP,0.766,,0.7178201063533645,0.7178201063533645,log_collected,False,False,
+5,CRAFT_PICKAXE,-0.03400000000000002,,0.011148879999999988,0.011148879999999988,not_at_own_table,False,False,
+6,CRAFT_PLANKS,0.2569999999999999,,0.12918735999999995,0.12918735999999995,crafted_oak_planks,False,False,
+7,CRAFT_TABLE,0.054000000000000055,,0.026352000000000028,0.026352000000000028,crafted_crafting_table,False,False,
+8,PLACE_TABLE,0.1479999999999999,,0.029599999999999984,0.029599999999999984,table_placed,False,False,
+9,CHOP,0.044999999999999936,,0.008999999999999987,0.008999999999999987,log_collected,False,False,
+10,CRAFT_STICKS,-0.05499999999999993,,0.0,0.0,missing_materials,False,False,
+11,CRAFT_PLANKS,0.236,,0.0472,0.0472,crafted_oak_planks,False,False,
+12,SEARCH,-0.06400000000000004,,0.0,0.0,log_already_reachable,False,False,
+13,CRAFT_PLANKS,-0.06400000000000004,,0.0,0.0,crafted_oak_planks,False,False,
+14,CRAFT_STICKS,0.22699999999999987,,0.0,0.0,crafted_stick,False,False,
+15,PLACE_TABLE,-0.07300000000000016,,6.365939440634039,6.365939440634039,table_already_placed,False,False,
+16,CRAFT_PICKAXE,7.890000000000001,,7.776293116608151,7.776293116608151,crafted_wooden_pickaxe,True,False,

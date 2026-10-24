@@ -1,0 +1,109 @@
+{
+  "episode": 7,
+  "world_seed": 20006,
+  "status": "completed",
+  "mode": "frozen_evaluation",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": -0.5130000000000018,
+  "epsilon": 0.0,
+  "seconds": 43.40700000000652,
+  "elapsed_wall_seconds": 59.312999999994645,
+  "final_observation": {
+    "position": {
+      "x": -460.5,
+      "y": 78,
+      "z": 336.4999999999997
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "stick": 8,
+      "crafting_table": 1,
+      "spruce_planks": 8
+    },
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 8,
+      "sticks": 8,
+      "tables": 1,
+      "pickaxes": 0
+    },
+    "nearby_log": true,
+    "nearby_table": true,
+    "table_placed": true,
+    "nearby_visible_logs": [
+      {
+        "name": "spruce_log",
+        "x": -461,
+        "y": 82,
+        "z": 336
+      },
+      {
+        "name": "spruce_log",
+        "x": -460,
+        "y": 77,
+        "z": 342
+      },
+      {
+        "name": "spruce_log",
+        "x": -463,
+        "y": 78,
+        "z": 342
+      }
+    ],
+    "biome": "taiga",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "dirt",
+    "support_block": "dirt",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "grass_block",
+        "feet_drop": 2,
+        "loaded": true
+      }
+    ],
+    "table_position": {
+      "x": -463,
+      "y": 78,
+      "z": 336
+    },
+    "held_item": null,
+    "success": false,
+    "death": false,
+    "recovery": null,
+    "action_detail": null,
+    "event": "crafted_spruce_planks",
+    "action_duration_seconds": 0.003,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

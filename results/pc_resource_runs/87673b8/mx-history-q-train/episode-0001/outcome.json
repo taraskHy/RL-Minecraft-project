@@ -1,0 +1,136 @@
+{
+  "episode": 1,
+  "world_seed": 100,
+  "status": "completed",
+  "mode": "online_training",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": -0.21300000000000097,
+  "epsilon": 0.6,
+  "seconds": 40.8130000000092,
+  "elapsed_wall_seconds": 57.86000000000058,
+  "final_observation": {
+    "position": {
+      "x": -27.679652418537646,
+      "y": 95,
+      "z": 1.5
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "crafting_table": 1,
+      "stick": 8,
+      "acacia_log": 3
+    },
+    "inventory_counts": {
+      "logs": 3,
+      "planks": 0,
+      "sticks": 8,
+      "tables": 1,
+      "pickaxes": 0
+    },
+    "nearby_log": true,
+    "nearby_table": true,
+    "table_placed": true,
+    "nearby_visible_logs": [
+      {
+        "name": "acacia_log",
+        "x": -28,
+        "y": 97,
+        "z": -1
+      },
+      {
+        "name": "acacia_log",
+        "x": -29,
+        "y": 99,
+        "z": 1
+      },
+      {
+        "name": "acacia_log",
+        "x": -44,
+        "y": 94,
+        "z": 8
+      }
+    ],
+    "biome": "savanna",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "crafting_table",
+    "support_block": "crafting_table",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 1,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 1,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "grass_block",
+        "feet_drop": 1,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "grass_block",
+        "feet_drop": 1,
+        "loaded": true
+      }
+    ],
+    "table_position": {
+      "x": -28,
+      "y": 94,
+      "z": 1
+    },
+    "held_item": "acacia_log",
+    "success": false,
+    "death": false,
+    "recovery": null,
+    "action_detail": {
+      "type": "chop",
+      "candidates": [
+        [
+          -29,
+          98,
+          1
+        ],
+        [
+          -29,
+          99,
+          1
+        ]
+      ],
+      "target": [
+        -29,
+        98,
+        1
+      ],
+      "item_seen": true,
+      "item_position": [
+        -28.57,
+        98.35,
+        1.53
+      ],
+      "pickup_moves": 1,
+      "collected": true
+    },
+    "event": "log_collected",
+    "action_duration_seconds": 4.664,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

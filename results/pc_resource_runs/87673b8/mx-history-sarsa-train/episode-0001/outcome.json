@@ -1,0 +1,136 @@
+{
+  "episode": 1,
+  "world_seed": 100,
+  "status": "completed",
+  "mode": "online_training",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": 0.26999999999999913,
+  "epsilon": 0.6,
+  "seconds": 40.0,
+  "elapsed_wall_seconds": 56.09399999999732,
+  "final_observation": {
+    "position": {
+      "x": -8.68419547709407,
+      "y": 90,
+      "z": 10.5
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "stick": 8,
+      "acacia_log": 3
+    },
+    "inventory_counts": {
+      "logs": 3,
+      "planks": 0,
+      "sticks": 8,
+      "tables": 0,
+      "pickaxes": 0
+    },
+    "nearby_log": true,
+    "nearby_table": false,
+    "table_placed": false,
+    "nearby_visible_logs": [
+      {
+        "name": "acacia_log",
+        "x": -9,
+        "y": 94,
+        "z": 10
+      },
+      {
+        "name": "acacia_log",
+        "x": -9,
+        "y": 94,
+        "z": 9
+      },
+      {
+        "name": "acacia_log",
+        "x": -9,
+        "y": 95,
+        "z": 8
+      }
+    ],
+    "biome": "savanna",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "dirt",
+    "support_block": "dirt",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 1,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "grass_block",
+        "feet_drop": 1,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": null,
+    "held_item": "acacia_log",
+    "success": false,
+    "death": false,
+    "recovery": null,
+    "action_detail": {
+      "type": "chop",
+      "candidates": [
+        [
+          -9,
+          93,
+          10
+        ],
+        [
+          -9,
+          94,
+          9
+        ],
+        [
+          -9,
+          95,
+          8
+        ]
+      ],
+      "target": [
+        -9,
+        93,
+        10
+      ],
+      "item_seen": true,
+      "item_position": [
+        -8.45,
+        93.32,
+        10.59
+      ],
+      "pickup_moves": 1,
+      "collected": true
+    },
+    "event": "log_collected",
+    "action_duration_seconds": 3.819,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

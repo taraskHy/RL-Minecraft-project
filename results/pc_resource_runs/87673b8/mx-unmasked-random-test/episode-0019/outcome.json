@@ -1,0 +1,104 @@
+{
+  "episode": 19,
+  "world_seed": 20018,
+  "status": "completed",
+  "mode": "frozen_evaluation",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": 0.31199999999999906,
+  "epsilon": 0.0,
+  "seconds": 21.702999999994063,
+  "elapsed_wall_seconds": 37.07799999999406,
+  "final_observation": {
+    "position": {
+      "x": -156.31193983668334,
+      "y": 64,
+      "z": -51.347262641500734
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "spruce_planks": 4,
+      "crafting_table": 2
+    },
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 4,
+      "sticks": 0,
+      "tables": 2,
+      "pickaxes": 0
+    },
+    "nearby_log": true,
+    "nearby_table": false,
+    "table_placed": false,
+    "nearby_visible_logs": [
+      {
+        "name": "spruce_log",
+        "x": -158,
+        "y": 66,
+        "z": -53
+      },
+      {
+        "name": "spruce_log",
+        "x": -159,
+        "y": 64,
+        "z": -46
+      },
+      {
+        "name": "spruce_log",
+        "x": -159,
+        "y": 65,
+        "z": -46
+      }
+    ],
+    "biome": "snowy_taiga",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "grass_block",
+    "support_block": "grass_block",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": null,
+    "held_item": null,
+    "success": false,
+    "death": false,
+    "recovery": null,
+    "action_detail": null,
+    "event": "crafted_crafting_table",
+    "action_duration_seconds": 0.006,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

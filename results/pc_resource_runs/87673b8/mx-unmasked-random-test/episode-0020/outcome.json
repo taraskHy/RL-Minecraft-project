@@ -1,0 +1,93 @@
+{
+  "episode": 20,
+  "world_seed": 20019,
+  "status": "completed",
+  "mode": "frozen_evaluation",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": 0.6039999999999994,
+  "epsilon": 0.0,
+  "seconds": 46.25,
+  "elapsed_wall_seconds": 61.5,
+  "final_observation": {
+    "position": {
+      "x": 28.45648337601321,
+      "y": 69,
+      "z": -14.456715997975508
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "oak_planks": 6,
+      "stick": 4,
+      "crafting_table": 1
+    },
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 6,
+      "sticks": 4,
+      "tables": 1,
+      "pickaxes": 0
+    },
+    "nearby_log": true,
+    "nearby_table": false,
+    "table_placed": false,
+    "nearby_visible_logs": [
+      {
+        "name": "oak_log",
+        "x": 29,
+        "y": 72,
+        "z": -15
+      }
+    ],
+    "biome": "savanna",
+    "feet_block": "short_grass",
+    "head_block": "air",
+    "ground_block": "grass_block",
+    "support_block": "grass_block",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "dirt",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": null,
+    "held_item": null,
+    "success": false,
+    "death": false,
+    "recovery": null,
+    "action_detail": null,
+    "event": "crafted_crafting_table",
+    "action_duration_seconds": 0.003,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

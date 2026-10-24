@@ -1,0 +1,108 @@
+{
+  "episode": 37,
+  "world_seed": 136,
+  "status": "completed",
+  "mode": "online_training",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": -0.5520000000000018,
+  "epsilon": 0.23265306122448975,
+  "seconds": 40.796999999991385,
+  "elapsed_wall_seconds": 55.375,
+  "final_observation": {
+    "position": {
+      "x": 6.357035999999999,
+      "y": 71,
+      "z": 1.49986398194367
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "stick": 8,
+      "spruce_log": 1
+    },
+    "inventory_counts": {
+      "logs": 1,
+      "planks": 0,
+      "sticks": 8,
+      "tables": 0,
+      "pickaxes": 0
+    },
+    "nearby_log": false,
+    "nearby_table": true,
+    "table_placed": true,
+    "nearby_visible_logs": [
+      {
+        "name": "spruce_log",
+        "x": 6,
+        "y": 70,
+        "z": 1
+      },
+      {
+        "name": "spruce_log",
+        "x": 12,
+        "y": 66,
+        "z": 6
+      },
+      {
+        "name": "spruce_log",
+        "x": 12,
+        "y": 65,
+        "z": 6
+      }
+    ],
+    "biome": "taiga",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "spruce_log",
+    "support_block": "spruce_log",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 7,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 7,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": null,
+        "feet_drop": null,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "grass_block",
+        "feet_drop": 7,
+        "loaded": true
+      }
+    ],
+    "table_position": {
+      "x": 7,
+      "y": 74,
+      "z": 0
+    },
+    "held_item": "spruce_log",
+    "success": false,
+    "death": false,
+    "recovery": null,
+    "action_detail": null,
+    "event": "missing_materials",
+    "action_duration_seconds": 0,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

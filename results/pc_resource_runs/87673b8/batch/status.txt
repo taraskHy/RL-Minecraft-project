@@ -1,0 +1,19 @@
+revision 87673b8 phase all start 20:48:19
+mx-masked-q-train EXIT=0 attempted=20/20 21:20:44
+mx-masked-sarsa-train EXIT=0 attempted=20/20 21:42:33
+mx-unmasked-q-train EXIT=0 attempted=50/50 22:44:30
+mx-unmasked-sarsa-train EXIT=0 attempted=50/50 23:36:55
+mx-masked-q-test EXIT=0 attempted=20/20 23:55:32
+mx-masked-sarsa-test EXIT=0 attempted=20/20 00:21:29
+mx-masked-random-test EXIT=0 attempted=20/20 00:45:20
+mx-unmasked-q-test EXIT=0 attempted=20/20 01:11:24
+mx-unmasked-sarsa-test EXIT=0 attempted=20/20 01:34:55
+mx-unmasked-random-test EXIT=0 attempted=20/20 01:54:44
+PHASE A DONE 01:54:44
+mx-history-q-train EXIT=0 attempted=50/50 02:52:15
+mx-history-sarsa-train EXIT=0 attempted=24/50 03:15:18
+mx-history-sarsa-train-part1 EXIT=0 attempted=50/50 03:45:55
+mx-history-q-test EXIT=0 attempted=20/20 04:01:39
+mx-history-sarsa-test EXIT=0 attempted=20/20 04:17:03
+PHASE B DONE 04:17:03
+BATCH DONE 04:17:03

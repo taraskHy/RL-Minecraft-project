@@ -1,0 +1,111 @@
+{
+  "episode": 9,
+  "world_seed": 108,
+  "status": "completed",
+  "mode": "online_training",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": -1.2810000000000032,
+  "epsilon": 0.5183673469387755,
+  "seconds": 52.578000000008615,
+  "elapsed_wall_seconds": 68.625,
+  "final_observation": {
+    "position": {
+      "x": -524.5493302776908,
+      "y": 89,
+      "z": -53.5
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "birch_log": 2,
+      "crafting_table": 1,
+      "stick": 24,
+      "birch_planks": 8,
+      "birch_sapling": 2
+    },
+    "inventory_counts": {
+      "logs": 2,
+      "planks": 8,
+      "sticks": 24,
+      "tables": 1,
+      "pickaxes": 0
+    },
+    "nearby_log": true,
+    "nearby_table": false,
+    "table_placed": true,
+    "nearby_visible_logs": [
+      {
+        "name": "birch_log",
+        "x": -525,
+        "y": 93,
+        "z": -54
+      },
+      {
+        "name": "oak_log",
+        "x": -521,
+        "y": 89,
+        "z": -56
+      },
+      {
+        "name": "oak_log",
+        "x": -521,
+        "y": 90,
+        "z": -56
+      }
+    ],
+    "biome": "forest",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "dirt",
+    "support_block": "dirt",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 1,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": {
+      "x": -528,
+      "y": 88,
+      "z": -59
+    },
+    "held_item": "birch_sapling",
+    "success": false,
+    "death": false,
+    "recovery": null,
+    "action_detail": null,
+    "event": "log_already_reachable",
+    "action_duration_seconds": 0.024,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

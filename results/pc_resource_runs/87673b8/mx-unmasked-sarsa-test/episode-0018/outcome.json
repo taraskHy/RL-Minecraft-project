@@ -1,0 +1,108 @@
+{
+  "episode": 18,
+  "world_seed": 20017,
+  "status": "completed",
+  "mode": "frozen_evaluation",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": -1.865000000000009,
+  "epsilon": 0.0,
+  "seconds": 21.25,
+  "elapsed_wall_seconds": 40.5,
+  "final_observation": {
+    "position": {
+      "x": 30.632932491852173,
+      "y": 63,
+      "z": 82.64340876097982
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "oak_planks": 2,
+      "stick": 4
+    },
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 2,
+      "sticks": 4,
+      "tables": 0,
+      "pickaxes": 0
+    },
+    "nearby_log": false,
+    "nearby_table": true,
+    "table_placed": true,
+    "nearby_visible_logs": [
+      {
+        "name": "oak_log",
+        "x": 34,
+        "y": 66,
+        "z": 82
+      },
+      {
+        "name": "oak_log",
+        "x": 28,
+        "y": 69,
+        "z": 82
+      },
+      {
+        "name": "birch_log",
+        "x": 30,
+        "y": 69,
+        "z": 87
+      }
+    ],
+    "biome": "forest",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "grass_block",
+    "support_block": "grass_block",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "stone",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "andesite",
+        "feet_drop": 2,
+        "loaded": true
+      }
+    ],
+    "table_position": {
+      "x": 30,
+      "y": 63,
+      "z": 83
+    },
+    "held_item": null,
+    "success": false,
+    "death": false,
+    "recovery": null,
+    "action_detail": null,
+    "event": "missing_materials",
+    "action_duration_seconds": 0,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

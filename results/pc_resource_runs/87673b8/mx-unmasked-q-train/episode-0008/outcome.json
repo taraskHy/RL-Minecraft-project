@@ -1,0 +1,110 @@
+{
+  "episode": 8,
+  "world_seed": 107,
+  "status": "completed",
+  "mode": "online_training",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": -0.6360000000000031,
+  "epsilon": 0.5285714285714286,
+  "seconds": 106.59399999999732,
+  "elapsed_wall_seconds": 121.67199999999866,
+  "final_observation": {
+    "position": {
+      "x": -96.5,
+      "y": 70,
+      "z": 377.51488653608465
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "jungle_log": 3,
+      "jungle_planks": 8,
+      "stick": 8,
+      "crafting_table": 2
+    },
+    "inventory_counts": {
+      "logs": 3,
+      "planks": 8,
+      "sticks": 8,
+      "tables": 2,
+      "pickaxes": 0
+    },
+    "nearby_log": true,
+    "nearby_table": false,
+    "table_placed": true,
+    "nearby_visible_logs": [
+      {
+        "name": "jungle_log",
+        "x": -97,
+        "y": 71,
+        "z": 376
+      },
+      {
+        "name": "jungle_log",
+        "x": -98,
+        "y": 71,
+        "z": 376
+      },
+      {
+        "name": "jungle_log",
+        "x": -97,
+        "y": 72,
+        "z": 376
+      }
+    ],
+    "biome": "birch_forest",
+    "feet_block": "vine",
+    "head_block": "vine",
+    "ground_block": "grass_block",
+    "support_block": "grass_block",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "dirt",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": {
+      "x": -99,
+      "y": 70,
+      "z": 373
+    },
+    "held_item": "crafting_table",
+    "success": false,
+    "death": false,
+    "recovery": null,
+    "action_detail": null,
+    "event": "table_already_placed",
+    "action_duration_seconds": 0,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

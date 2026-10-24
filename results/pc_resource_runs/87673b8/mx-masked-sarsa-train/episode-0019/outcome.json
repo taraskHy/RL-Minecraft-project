@@ -1,0 +1,82 @@
+{
+  "episode": 19,
+  "world_seed": 118,
+  "status": "completed",
+  "mode": "online_training",
+  "success": false,
+  "death": true,
+  "truncated": false,
+  "steps": 4,
+  "return": -10.04,
+  "epsilon": 0.12631578947368421,
+  "seconds": 46.125,
+  "elapsed_wall_seconds": 63.765999999995984,
+  "final_observation": {
+    "position": {
+      "x": -9.107314597982551,
+      "y": 70,
+      "z": 2.2375
+    },
+    "health": 0,
+    "food": 17,
+    "gamemode": "survival",
+    "inventory": {},
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 0,
+      "sticks": 0,
+      "tables": 0,
+      "pickaxes": 0
+    },
+    "nearby_log": false,
+    "nearby_table": false,
+    "table_placed": false,
+    "nearby_visible_logs": [],
+    "biome": "desert",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "sand",
+    "support_block": "sand",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "sand",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "sand",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "sand",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "sand",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": null,
+    "held_item": null,
+    "success": false,
+    "death": true,
+    "recovery": null,
+    "action_detail": null,
+    "event": "exploration_time_budget;exploration_blocked",
+    "action_duration_seconds": 36.012,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "episode": 6,
+  "world_seed": 105,
+  "status": "completed",
+  "mode": "online_training",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": -0.888000000000001,
+  "epsilon": 0.5489795918367346,
+  "seconds": 42.546000000002095,
+  "elapsed_wall_seconds": 61.21800000000076,
+  "final_observation": {
+    "position": {
+      "x": -54.67881305727447,
+      "y": 73,
+      "z": 43.48796348412939
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "oak_planks": 4,
+      "stick": 8,
+      "crafting_table": 3,
+      "oak_log": 1
+    },
+    "inventory_counts": {
+      "logs": 1,
+      "planks": 4,
+      "sticks": 8,
+      "tables": 3,
+      "pickaxes": 0
+    },
+    "nearby_log": true,
+    "nearby_table": false,
+    "table_placed": true,
+    "nearby_visible_logs": [
+      {
+        "name": "oak_log",
+        "x": -55,
+        "y": 74,
+        "z": 44
+      },
+      {
+        "name": "oak_log",
+        "x": -55,
+        "y": 75,
+        "z": 44
+      },
+      {
+        "name": "birch_log",
+        "x": -53,
+        "y": 73,
+        "z": 36
+      }
+    ],
+    "biome": "forest",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "grass_block",
+    "support_block": "grass_block",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "dirt",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": {
+      "x": -61,
+      "y": 74,
+      "z": 46
+    },
+    "held_item": "crafting_table",
+    "success": false,
+    "death": false,
+    "recovery": null,
+    "action_detail": {
+      "type": "chop",
+      "candidates": [
+        [
+          -55,
+          73,
+          44
+        ],
+        [
+          -55,
+          74,
+          44
+        ],
+        [
+          -55,
+          75,
+          44
+        ]
+      ],
+      "target": [
+        -55,
+        73,
+        44
+      ],
+      "item_seen": true,
+      "item_position": [
+        -54.06,
+        73,
+        44.16
+      ],
+      "pickup_moves": 2,
+      "collected": true
+    },
+    "event": "log_collected",
+    "action_duration_seconds": 6.06,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

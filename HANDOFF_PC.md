@@ -1,6 +1,6 @@
 # PC handoff: continue the Minecraft RL project
 
-Updated 23 October 2026. This file is the continuation brief requested by the
+Updated 24 October 2026. This file is the continuation brief requested by the
 user when moving from their laptop to their PC.
 
 ## Start working when this file is invoked
@@ -128,6 +128,41 @@ What actually happened on the PC so far; nothing below is a live-game result.
   biome and a high acacia canopy with an eight-block drop. Learning has not
   been shown to beat the masked random baseline. Evidence:
   `results/pc_resource_runs/5bb7b25/` and the README section there.
+- **Pre-registered masking experiment, commit `87673b8` (current headline
+  result).** The experiment was declared in
+  `configs/resource_masking_experiment.json` before any run, and ran unattended
+  from 23 October 20:48 to 24 October 04:17.
+  - **Episodes.** 400 live episodes: 240 training and 160 test. One was invalid,
+    and there was one death, during training. Held-out test seeds were
+    20000–20019.
+  - **Within the mask, no benefit.** Frozen Q-learning 16/20 and SARSA 18/20,
+    against masked random 19/20.
+  - **Without the mask, learning beats random play.** Q-learning 20/20, SARSA
+    14/20, history Q-learning 16/20 and history SARSA 17/20, against uniform
+    random 4/20. Every learned Wilson interval lies above random's.
+  - **No effect of the history bit (`resource_v2`) was shown** for either
+    algorithm; the intervals overlap.
+  - **Failures.** Of the 19 learned-policy test failures:
+    - 10 were canopy starts over a drop the descent helper refused.
+    - 7 were frozen loops after the policy ran short of wood. It had mostly
+      collected only one or two logs and lacked a plank. In the unchanged
+      state, untried actions mostly kept Q = 0, which is above the slightly
+      negative `SEARCH` and `CHOP`, so the policy broke ties at random among
+      useless actions.
+    - 1 ran out of decisions in states training never reached.
+    - 1 found no wood.
+  - **Spawns.** The same seed never gave all eight arms the same spawn point,
+    so seeds pair worlds, not starts.
+  - **The invalid episode** was history SARSA training episode 24: Windows
+    refused to replace `policy.json`, and the declared continuation was used.
+  - **The one death** was in masked SARSA training: a cactus, during a
+    `SEARCH` in a desert.
+  - **Docs commits during the batch.** Four docs-only commits were made while
+    it ran; no code changed.
+
+  Evidence: `results/pc_resource_runs/87673b8/` (15 runs, 2,874 files with
+  digests, `report-test/`, `report-training/`, and `batch/` with the script
+  and log). The README section there has every table, failure and limit.
 - **Live verification plan:** done on 23 October 2026 (seed-1 reproduction,
   three development seeds with both algorithms, the masked random baseline,
   frozen evaluation, and the declared validation seeds 10000–10009, retained

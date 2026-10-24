@@ -1,0 +1,107 @@
+{
+  "episode": 6,
+  "world_seed": 20005,
+  "status": "completed",
+  "mode": "frozen_evaluation",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": -0.6450000000000011,
+  "epsilon": 0.0,
+  "seconds": 60.38999999999942,
+  "elapsed_wall_seconds": 78.96799999999348,
+  "final_observation": {
+    "position": {
+      "x": -0.49503000550501625,
+      "y": 68,
+      "z": -9.349560308912434
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "birch_log": 2,
+      "birch_planks": 10,
+      "stick": 12,
+      "oak_sapling": 1,
+      "oak_log": 4
+    },
+    "inventory_counts": {
+      "logs": 6,
+      "planks": 10,
+      "sticks": 12,
+      "tables": 0,
+      "pickaxes": 0
+    },
+    "nearby_log": true,
+    "nearby_table": false,
+    "table_placed": false,
+    "nearby_visible_logs": [
+      {
+        "name": "oak_log",
+        "x": 0,
+        "y": 70,
+        "z": -10
+      },
+      {
+        "name": "oak_log",
+        "x": -1,
+        "y": 68,
+        "z": -13
+      },
+      {
+        "name": "oak_log",
+        "x": -1,
+        "y": 69,
+        "z": -13
+      }
+    ],
+    "biome": "forest",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "grass_block",
+    "support_block": "grass_block",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "dirt",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": null,
+    "held_item": "oak_sapling",
+    "success": false,
+    "death": false,
+    "recovery": null,
+    "action_detail": null,
+    "event": "crafted_birch_planks",
+    "action_duration_seconds": 0.002,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

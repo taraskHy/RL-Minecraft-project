@@ -1,0 +1,110 @@
+{
+  "episode": 13,
+  "world_seed": 136,
+  "status": "completed",
+  "mode": "online_training",
+  "success": true,
+  "death": false,
+  "truncated": false,
+  "steps": 18,
+  "return": 9.265,
+  "epsilon": 0.23265304,
+  "seconds": 24.437999999994645,
+  "elapsed_wall_seconds": 39.23500000000058,
+  "final_observation": {
+    "position": {
+      "x": -1.316022693318062,
+      "y": 63,
+      "z": 0.5340745378395944
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "spruce_log": 1,
+      "spruce_planks": 1,
+      "stick": 6,
+      "wooden_pickaxe": 1
+    },
+    "inventory_counts": {
+      "logs": 1,
+      "planks": 1,
+      "sticks": 6,
+      "tables": 0,
+      "pickaxes": 1
+    },
+    "nearby_log": true,
+    "nearby_table": true,
+    "table_placed": true,
+    "nearby_visible_logs": [
+      {
+        "name": "spruce_log",
+        "x": -2,
+        "y": 67,
+        "z": 0
+      },
+      {
+        "name": "spruce_log",
+        "x": 1,
+        "y": 63,
+        "z": 7
+      },
+      {
+        "name": "spruce_log",
+        "x": 6,
+        "y": 64,
+        "z": 1
+      }
+    ],
+    "biome": "taiga",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "sand",
+    "support_block": "sand",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "sand",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "sand",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "sand",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "sand",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": {
+      "x": -1,
+      "y": 63,
+      "z": 0
+    },
+    "held_item": "wooden_pickaxe",
+    "success": true,
+    "death": false,
+    "recovery": null,
+    "action_detail": null,
+    "event": "crafted_wooden_pickaxe",
+    "action_duration_seconds": 1.179,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

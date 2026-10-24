@@ -1,0 +1,10 @@
+{
+  "evidence": "REAL MINECRAFT NATURAL RESOURCE TASK; NOT FULL SURVIVAL COMPLETION",
+  "mode": "frozen_evaluation",
+  "algorithm": "q_learning",
+  "baseline": null,
+  "condition": "unmasked_history",
+  "episodes": 20,
+  "successes": 16,
+  "note": "Small evaluation sample; does not establish broad generalization"
+}

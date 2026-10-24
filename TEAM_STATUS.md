@@ -6,7 +6,7 @@ every result. For the full technical history read [HANDOFF_PC.md](HANDOFF_PC.md)
 for every measured number read
 [results/pc_resource_runs/README.md](results/pc_resource_runs/README.md).
 
-**Last updated:** 24 October 2026, 02:05 (branch `codex/pc-canopy-descent`,
+**Last updated:** 24 October 2026, 05:00 (branch `codex/pc-canopy-descent`,
 pull request [#1](https://github.com/taraskHy/RL-Minecraft-project/pull/1),
 not yet merged into `main`).
 
@@ -26,74 +26,86 @@ yet.
 - **The wood-to-pickaxe chain works live** in fresh Survival worlds with no
   commands, supplied items, teleports, or creative mode: 43 of 45 episodes
   succeeded at commit `5bb7b25`, with no deaths and no invalid runs.
-- **With the action mask, learning does not beat random play.** 55% of
-  decisions had only one allowed action, and random choices succeeded as often
-  as the trained Q-learning and SARSA policies (10/10 against 9/10 on the
-  validation worlds). The mask and the scripted helpers solved the task.
-  Without the mask, learning does beat random play; see "Right now" (that
-  result is retained when the batch ends).
-- **Forest spawns are handled.** The bot often spawns on top of trees; a
-  bounded helper clears leaves under it, and every planned fall matched the
-  real fall and damage.
+- **Within the action mask, learning does not beat random play.** The mask
+  and the scripted helpers solve the task, so random choices within the mask
+  succeed about as often as the trained policies: 19/20 against 16/20 and
+  18/20 at `87673b8`, and 10/10 against 9/10 at `5bb7b25`.
+- **Without the mask, learning beats random play** (see the next section).
+- **Forest spawns are mostly handled.** The bot often spawns on top of trees,
+  and a bounded helper clears the leaves under it. It refuses drops it judges
+  unsafe, and a bot over such a drop can still be stranded (see the open
+  problems).
 - Every number is computed by `run.cmd resource-report` from files retained
   under `results/pc_resource_runs/<commit>/`, each with SHA-256 digests.
 
-## Right now
+## Latest result: learning beats random play without the mask
 
-A pre-registered live experiment is running on commit `87673b8` (started
-20:48, expected to finish in the early morning). It asks whether learning
-beats random play once the action mask is removed:
+A pre-registered live experiment ran on commit `87673b8` from 23 October 20:48
+to 24 October 04:17. Its plan was fixed in
+[configs/resource_masking_experiment.json](configs/resource_masking_experiment.json)
+before any run.
 
-- three conditions: `masked` (as before), `unmasked` (all eight actions always
-  allowed; impossible ones just fail), and `unmasked_history` (unmasked, plus a
-  "last action changed nothing" bit in the state);
-- training: 20 live episodes per algorithm masked, 50 unmasked, no simulator
-  pretraining;
-- test: frozen policies and the matching random baseline on 20 held-out worlds
-  (seeds 20000 to 20019) that nothing has been tuned on;
-- rule: a benefit counts only if the learned policy's 95% interval lies
+- **Conditions.** `masked` is as before. `unmasked` always allows all eight
+  actions, and impossible ones just fail. `unmasked_history` is unmasked plus
+  a "last action changed nothing" bit in the state.
+- **Training.** 20 live episodes per algorithm in the masked condition and 50
+  in each unmasked one, with no simulator pretraining.
+- **Test.** Frozen policies and the matching random baseline on 20 held-out
+  worlds (seeds 20000 to 20019).
+- **Rule.** A benefit counts only if the learned policy's 95% interval lies
   entirely above random's.
 
-The full plan is fixed in
-[configs/resource_masking_experiment.json](configs/resource_masking_experiment.json).
+| Condition | Q-learning | SARSA | Random baseline | Verdict |
+| --- | --- | --- | --- | --- |
+| masked | 16/20 (0.58–0.92) | 18/20 (0.70–0.97) | 19/20 (0.76–0.99) | no benefit shown |
+| unmasked | **20/20 (0.84–1.00)** | **14/20 (0.48–0.85)** | 4/20 (0.08–0.42) | **benefit shown for both** |
+| unmasked + history bit | **16/20 (0.58–0.92)** | **17/20 (0.64–0.95)** | 4/20 (same run) | **benefit shown for both** |
 
-**First result: without the mask, learning beats random play.** The masked
-and unmasked conditions finished at 01:54 with no invalid episodes. These are
-the frozen policies on the 20 held-out test worlds. `run.cmd resource-report`
-computed them from the run folders; they are retained under `results/` when
-the whole batch ends.
+**How to read it.**
+- **With the mask, random play already succeeds 19 times in 20**, so this
+  test cannot show any benefit of learning.
+- **Without the mask, random play wastes its choices.** 81% of them went on
+  actions that cannot work there, and it ran out of decisions on 16 of the 20
+  worlds. After 50 live training episodes, the frozen Q-learning policy made
+  such a choice 2% of the time and succeeded everywhere.
+- **No effect of the history bit was shown.** Q-learning got 16/20 with it
+  and 20/20 without; SARSA 17/20 against 14/20. The intervals overlap, which
+  at this sample size is not evidence that the bit does nothing.
+- **Each condition was trained only once.** That shows the task is learnable
+  here, not how reliably every training run learns it.
 
-| Condition | Learned policy | Random baseline | Verdict (pre-registered rule) |
-| --- | --- | --- | --- |
-| masked, Q-learning | 16/20 (0.58–0.92) | 19/20 (0.76–0.99) | no benefit shown |
-| masked, SARSA | 18/20 (0.70–0.97) | 19/20 (0.76–0.99) | no benefit shown |
-| unmasked, Q-learning | **20/20 (0.84–1.00)** | 4/20 (0.08–0.42) | **benefit shown** (Fisher p = 1.5e-7) |
-| unmasked, SARSA | **14/20 (0.48–0.85)** | 4/20 (0.08–0.42) | **benefit shown** (Fisher p = 0.004) |
+**Why the trained policies still failed** (19 failures in 120 test episodes):
+- **10 were canopy starts.** The bot spawned on a tree above a drop the
+  helper refused.
+- **7 were loops after running short of wood.** The policy had usually
+  collected only one or two logs and lacked a plank for the pickaxe. In most
+  of these loops, actions it had never tried in that state still had Q = 0.
+  Useful actions it had tried there, like `SEARCH` and `CHOP`, sat slightly
+  below that because of the step cost. So the frozen policy kept picking at
+  random among useless actions.
+- **1 ran out of decisions** in states training never reached.
+- **1 found no wood.** It spawned below the surface.
 
-Read it this way: with the mask, random play already succeeds 19 times in 20,
-so nothing is left to learn. Without it, random play wastes 81% of its choices
-on actions that cannot work there and mostly runs out of steps. After 50 live
-training episodes, the frozen Q-learning policy picked such an action only 2%
-of the time, SARSA 41%. That is one trained agent per algorithm; it shows the
-task is learnable here, not how reliably every training run learns it.
+**One surprise: a world seed does not fix the spawn point.** No test world gave
+all eight arms the same start, and on 13 of the 20 worlds some arms spawned on
+a canopy while others spawned on the ground. Seeds pair the terrain, not the
+starting spot.
 
-Training (with exploration, so not test results): masked Q-learning 17 of 20,
-masked SARSA 18 of 20 (one death, while exploring seed 118), unmasked
-Q-learning 36 of 50 (3, 8, 9, 7, 9 per ten episodes), unmasked SARSA 41 of 50
-(6, 8, 9, 9, 9).
-
-The `unmasked_history` condition (50 + 50 training episodes, then its two
-tests) is running now and should end around 5 am.
-
-**Please do not run Minecraft on the PC while this batch runs**, and do not
-join its world: it uses port 25567 and an extra player in the world can change
-the results.
+There were 400 live episodes in all. One was invalid: Windows refused to
+replace a policy file, probably because another program had it open for a
+moment, and the pre-registered continuation took over. One death occurred,
+during training. Everything is retained in
+[results/pc_resource_runs/87673b8](results/pc_resource_runs/87673b8), and the
+[results README](results/pc_resource_runs/README.md) has every table and
+failure.
 
 ## Planned next
 
-- **Parallel live runs.** Once this batch ends, the resource server gets a
-  per-run port so three or four episodes can run at once (the PC used about
-  31% of its CPU and had 30 of 63 GB of memory free with one episode running).
+- **Parallel live runs.** The code is written and has had three review rounds
+  on branch `codex/parallel-runs`; its tests and the contention benchmark run
+  next. Each run gets its own port, so three or four episodes can run at once
+  (the PC used about 31% of its CPU and had 30 of 63 GB of memory free with
+  one episode running).
   Independent runs (Q-learning and SARSA training, the test worlds) would run
   side by side, cutting a batch like this from about six hours to about two.
   Contention is benchmarked first, and every arm of one experiment runs under
@@ -134,12 +146,28 @@ update log below when you start, so we do not duplicate work.
 2. **Sparse rewards.** The experiment uses potential-based shaping. A
    separate condition with only the step cost and the final +10/-10 would be
    the purest learning test; it needs more training episodes.
-3. **Deep canopies.** A bot on a tree more than five blocks above the ground
-   can still be stranded (recorded on validation seeds 10000 and 10003).
-4. **Report and presentation.** The report needs 8 to 20 pages and the talk
+3. **Deep canopies, now the biggest failure.** A bot on a tree more than five
+   blocks above the ground can still be stranded. This caused 10 of the 19
+   learned-policy test failures at `87673b8`, and it was also recorded on
+   validation seeds 10000 and 10003. It needs a safe way down, for example
+   breaking a path down along the trunk.
+4. **Frozen loops without the mask.** With wood running short, frozen
+   policies looped through useless actions. Untried actions keep their initial
+   Q of 0, which is above useful actions that cost a step, and the history bit
+   did not fix this. Candidate fixes, each to be tested against the current
+   result:
+   - an initial Q value below the step cost (pessimistic initialisation);
+   - more training episodes;
+   - a state field saying whether the next craft can be afforded;
+   - several training seeds, to see how often the loop happens.
+5. **Training more than one agent.** Each condition was trained once (agent
+   seed 0). Training three to five agents per condition would show how much
+   learning varies between runs. Parallel live runs make this affordable.
+6. **Report and presentation.** The report needs 8 to 20 pages and the talk
    15 minutes; [docs/report_plan.md](docs/report_plan.md) has the outline. The
-   honest negative result and the failure analysis are good material.
-5. **Presentation footage.** Record a `--viewer` run once the PC is free.
+   masked negative result, the unmasked positive one, and the failure analysis
+   are good material.
+7. **Presentation footage.** Record a `--viewer` run once the PC is free.
 
 ## Rules that keep our results honest
 
@@ -155,6 +183,12 @@ update log below when you start, so we do not duplicate work.
 
 ## Update log
 
+- **24 Oct 2026, 05:00:** the masking experiment ended at 04:17, and all 15
+  runs are retained under `results/pc_resource_runs/87673b8`. Without the
+  mask, all four learned policies beat random play on the held-out worlds
+  (20/20, 14/20, and 16/20 and 17/20 with the history bit, against 4/20).
+  No effect of the history bit was shown. One invalid training episode (a Windows
+  file lock) was handled by the declared continuation.
 - **24 Oct 2026, 02:05:** masked and unmasked conditions finished. Without
   the mask both learners beat random play on the held-out worlds (Q-learning
   20/20, SARSA 14/20, random 4/20); with it, no benefit was shown (16/20 and
