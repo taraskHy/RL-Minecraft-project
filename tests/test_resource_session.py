@@ -14,18 +14,32 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from infrastructure import resource_session
+from infrastructure.parallel_runs import epsilon_at
 from minecraft_rl import resource_live
 from minecraft_rl.resource_live import GOALS, ResourceBridge
 from minecraft_rl.resources import ACTION_NAMES, ResourceAgent, potential, reward_transition, state_from_observation
+from minecraft_rl.stone import linear_epsilon
 
-# The fields the bridge adds under the stone goal or the survey (design section 3.6), and the survey record.
-STONE_FIELDS = ("nearby_stone", "stone_visible", "stone_targets", "pickaxe_uses_left", "pickaxe_digs", "hostile_nearby",
-                "time_of_day", "depth_below_stage_start", "diagnostic_only")
-SURVEY_RECORD = {"lit_only": True,
+# The fields the bridge adds under the stone goal or the survey (design section 3.6, with MINE_STONE's reach
+# list as stone_reach_candidates), and the survey record.
+STONE_FIELDS = ("nearby_stone", "stone_visible", "stone_targets", "stone_targets_withheld", "stone_reach_candidates",
+                "pickaxe_uses_left", "pickaxe_digs", "hostile_nearby", "time_of_day", "hand_off_y", "stage_start_y",
+                "depth_below_stage_start", "diagnostic_only")
+SURVEY_RECORD = {"lit_only": False,
                  "depth_to_stone": {"depth": 5, "block": "stone", "layers": [["grass_block", 1], ["dirt", 3]], "stopped": None},
                  "staircases": {"+x": {"stopped": "stone_exposed", "dig_counts": [1, 2, 3, 3, 2], "end_y": 60, "steps": []}},
                  "fan": {"ms": 12.5, "rays": 416, "reads": 12000, "hits": 100, "targets": 0, "targets_any_light": 0, "nearest": []},
-                 "reach": {"ms": 0.9, "candidates": 0, "candidates_any_light": 0}, "survey_ms": 45.0}
+                 "reach": {"ms": 0.9, "candidates": 0, "candidates_any_light": 0}, "survey_ms": 45.0,
+                 "table_offset": [1, 0, 0], "on_own_table": False, "table_dropped_headings": ["-x"]}
+# Before the first wooden pickaxe only time_of_day is filled; once it is held, every field is.
+BEFORE_PICKAXE = {**dict.fromkeys(STONE_FIELDS), "time_of_day": 1000}
+WITH_PICKAXE = {"nearby_stone": True, "stone_visible": True,
+                "stone_targets": [{"name": "stone", "x": 4, "y": 63, "z": 1, "distance": 4.2, "face": "top"}],
+                "stone_targets_withheld": False,
+                "stone_reach_candidates": [{"name": "stone", "x": 2, "y": 63, "z": 0, "distance": 2.3,
+                                            "drop": "cobblestone", "rest_y": 63}],
+                "pickaxe_uses_left": 59, "pickaxe_digs": 0, "hostile_nearby": [], "time_of_day": 2400,
+                "hand_off_y": 64, "stage_start_y": 64, "depth_below_stage_start": 0, "diagnostic_only": SURVEY_RECORD}
 
 
 class ResourceSessionTests(unittest.TestCase):
@@ -264,6 +278,48 @@ class ResourceSessionTests(unittest.TestCase):
         resource_session.run_resources(output=output, episodes=1, max_steps=steps, epsilon=0, epsilon_end=0,
                                        pause=0, condition=condition, **settings)
         return output, [json.loads(line) for line in (output / "episode-0001" / "transitions.jsonl").read_text().splitlines()]
+
+    def _recorded_epsilons(self, output):
+        """Each episode's recorded epsilon; every transition of an episode records the same value."""
+        values = []
+        for folder in sorted(output.glob("episode-*")):
+            outcome = json.loads((folder / "outcome.json").read_text())
+            transitions = [json.loads(line) for line in (folder / "transitions.jsonl").read_text().splitlines()]
+            self.assertTrue(transitions)
+            self.assertEqual({record["epsilon"] for record in transitions}, {outcome["epsilon"]})
+            values.append(outcome["epsilon"])
+        return values
+
+    def test_the_live_epsilon_schedule_is_the_stone_simulators_linear_epsilon(self):
+        # The stone simulator chooses live budgets assuming live training follows linear_epsilon; this ties
+        # that function to the epsilon the session records, so an edit to either one fails here.
+        following = deepcopy(self.start)
+        following.update(nearby_log=True, event="log_reached")
+        self.bridge.step.return_value = following
+        for episodes in (1, 2, 3, 11):
+            output = self.root / "runs" / f"schedule-{episodes}"
+            resource_session.run_resources(output=output, episodes=episodes, max_steps=1, epsilon=.6, epsilon_end=.1,
+                                           pause=0, condition="unmasked", algorithm="q_learning")
+            with self.subTest(episodes=episodes):
+                self.assertEqual(self._recorded_epsilons(output),
+                                 [linear_epsilon(index, episodes, .6, .1) for index in range(episodes)])
+        # resource-parallel continues a run cut short after `done` of 11 episodes from epsilon_at(done + 1);
+        # the rest of the schedule then matches the uninterrupted one to rounding.
+        for done in (1, 4, 9):
+            output = self.root / "runs" / f"continued-{done}"
+            resource_session.run_resources(output=output, episodes=11 - done, max_steps=1,
+                                           epsilon=epsilon_at(.6, .1, done + 1, 11), epsilon_end=.1, pause=0,
+                                           condition="unmasked", algorithm="q_learning")
+            recorded = self._recorded_epsilons(output)
+            self.assertEqual(len(recorded), 11 - done)
+            for index, value in enumerate(recorded):
+                with self.subTest(done=done, episode=done + index + 1):
+                    self.assertAlmostEqual(value, linear_epsilon(done + index, 11, .6, .1), places=12)
+        # epsilon_at clamps to [end, start], so it differs from linear_epsilon by rounding only.
+        for total in range(1, 40):
+            for episode in range(1, total + 1):
+                self.assertAlmostEqual(epsilon_at(.6, .1, episode, total), linear_epsilon(episode - 1, total, .6, .1),
+                                       places=12)
 
     def test_unmasked_training_keeps_infeasible_actions_as_observed_transitions(self):
         # The bridge reports an unchanged world: the chosen action was infeasible.
@@ -533,16 +589,14 @@ class ResourceSessionTests(unittest.TestCase):
         self.bridge.step.side_effect = None
 
     def test_survey_observations_are_recorded_in_full_and_never_change_the_state_or_reward(self):
+        self.assertEqual(set(WITH_PICKAXE), set(STONE_FIELDS))
         start = deepcopy(self.start)
         start["inventory_counts"].update(stone_materials=0, stone_pickaxes=0)
-        start.update(dict.fromkeys(STONE_FIELDS))
+        start.update(deepcopy(BEFORE_PICKAXE))
         crafted = deepcopy(start)
         crafted["inventory_counts"].update(planks=1, sticks=2, pickaxes=1)
         crafted.update(table_placed=True, nearby_table=True, held_item="wooden_pickaxe", success=True,
-                       event="crafted_wooden_pickaxe", nearby_stone=True, stone_visible=True,
-                       stone_targets=[{"name": "stone", "x": 2, "y": 63, "z": 0, "distance": 2.3, "drop": "cobblestone", "rest_y": 63}],
-                       pickaxe_uses_left=59, pickaxe_digs=0, hostile_nearby=[], time_of_day=2400,
-                       depth_below_stage_start=0, diagnostic_only=SURVEY_RECORD)
+                       event="crafted_wooden_pickaxe", **deepcopy(WITH_PICKAXE))
         plain = {key: value for key, value in crafted.items() if key not in STONE_FIELDS}
         plain["inventory_counts"] = {key: crafted["inventory_counts"][key] for key in ("logs", "planks", "sticks", "tables", "pickaxes")}
         self.bridge.observe.return_value = start
@@ -551,7 +605,7 @@ class ResourceSessionTests(unittest.TestCase):
         output = self._run("survey-record", policy, evaluate=True, stone_survey=True)
         record = json.loads((output / "episode-0001" / "transitions.jsonl").read_text())
         self.assertEqual(record["after"], crafted)
-        self.assertEqual(record["before"]["diagnostic_only"], None)
+        self.assertEqual((record["before"]["diagnostic_only"], record["before"]["time_of_day"]), (None, 1000))
         self.assertEqual((record["state"], record["next_state"]),
                          (list(state_from_observation(self.start)), list(state_from_observation(plain))))
         expected, _ = reward_transition(self.start, plain, gamma=.97, success=True, death=False)
@@ -570,21 +624,43 @@ class ResourceSessionTests(unittest.TestCase):
             self.skipTest("the retained 87673b8 checkpoint is not in this checkout")
         digest = hashlib.sha256(checkpoint.read_bytes()).hexdigest()
         self.assertEqual(digest, "7d0fcce8653df8d4afc0867b321fd9670a8c64ab6ef03a876c64b9cd1c9e0349")
-        following = deepcopy(self.start)
-        following.update(nearby_log=True, event="log_reached")
-        self.bridge.step.return_value = following
+        # What the bridge sends: inventory_counts always carries the stone counts, and with the survey every
+        # observation also carries the stone fields, filled with a survey record once the pickaxe is held.
+        start = deepcopy(self.start)
+        start["inventory_counts"].update(stone_materials=0, stone_pickaxes=0)
+        found = deepcopy(start)
+        found.update(nearby_log=True, event="log_reached")
+        crafted = deepcopy(found)
+        crafted["inventory_counts"].update(planks=1, sticks=2, pickaxes=1)
+        crafted.update(table_placed=True, nearby_table=True, held_item="wooden_pickaxe", success=True,
+                       event="crafted_wooden_pickaxe")
+        runs = {False: (start, [found, crafted]),
+                True: ({**start, **BEFORE_PICKAXE}, [{**found, **BEFORE_PICKAXE}, {**crafted, **WITH_PICKAXE}])}
         chosen = []
-        for survey in (False, True):
+        for survey, (first, steps) in runs.items():
+            self.bridge.observe.return_value = deepcopy(first)
             self.bridge.step.reset_mock()
-            output = self._run(f"checkpoint-survey-{survey}", checkpoint, evaluate=True, stone_survey=survey)
+            self.bridge.step.side_effect = deepcopy(steps)
+            with patch.object(resource_session, "state_from_observation",
+                              wraps=resource_session.state_from_observation) as encoder:
+                output, records = self._train(f"checkpoint-survey-{survey}", None, 3, evaluate=True, policy=checkpoint,
+                                              stone_survey=survey)
             metadata = json.loads((output / "metadata.json").read_text())
             self.assertEqual((metadata["initial_policy_sha256"], metadata["condition"], metadata["state_version"]),
                              (digest, "unmasked", "resource_v1"))
-            action = self.bridge.step.call_args.args[0]
-            self.assertIn(action, range(8))
-            record = json.loads((output / "episode-0001" / "transitions.jsonl").read_text())
-            self.assertEqual((record["action"], len(record["q_before"])), (ACTION_NAMES[action], 8))
-            chosen.append((action, record["state"], record["q_before"]))
+            # The survey's fields, and its filled record, reach the wood encoder in the survey run only.
+            encoded = [call.args[0] for call in encoder.call_args_list]
+            self.assertEqual(len(encoded), 3)
+            self.assertEqual([any(field in observation for observation in encoded) for field in STONE_FIELDS],
+                             [survey] * len(STONE_FIELDS))
+            self.assertEqual(encoded[-1].get("diagnostic_only"), SURVEY_RECORD if survey else None)
+            self.assertEqual([record["terminated"] for record in records], [False, True])
+            actions = [call.args[0] for call in self.bridge.step.call_args_list]
+            self.assertEqual([record["action"] for record in records], [ACTION_NAMES[action] for action in actions])
+            self.assertTrue(all(len(record["q_before"]) == 8 for record in records))
+            chosen.append([(record["action"], record["state"], record["next_state"], record["q_before"],
+                            record["reward"]) for record in records])
+        self.bridge.step.side_effect = None
         self.assertEqual(chosen[0], chosen[1])
         self.assertEqual(hashlib.sha256(checkpoint.read_bytes()).hexdigest(), digest)
 
@@ -655,7 +731,8 @@ class StoneObservationTests(unittest.TestCase):
                  "nearby_log": True, "nearby_table": True, "table_placed": True, "health": 20, "food": 18,
                  "position": {"x": 0.5, "y": 64.0, "z": 0.5}, "success": True, "death": False}
         stone = {**plain, "inventory_counts": {**plain["inventory_counts"], "stone_materials": 2, "stone_pickaxes": 0},
-                 "nearby_stone": True, "stone_visible": True, "stone_targets": [], "pickaxe_uses_left": 58, "pickaxe_digs": 1,
+                 "nearby_stone": True, "stone_visible": True, "stone_targets": [], "stone_reach_candidates": [],
+                 "pickaxe_uses_left": 58, "pickaxe_digs": 1,
                  "hostile_nearby": [{"name": "zombie", "x": 5.5, "y": 64.0, "z": 3.5, "distance": 5.83}],
                  "time_of_day": 12500, "depth_below_stage_start": 4, "diagnostic_only": SURVEY_RECORD}
         guarded = Guarded({**stone, "inventory_counts": Guarded(stone["inventory_counts"], stone_counts)}, STONE_FIELDS)

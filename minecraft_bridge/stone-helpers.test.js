@@ -8,13 +8,13 @@ const { spawnSync } = require('node:child_process')
 const { EventEmitter } = require('node:events')
 const { Vec3 } = require('vec3')
 const {
-  STONE_SOURCES, STONE_LOOKALIKES, HAND_DIG_BLOCKS, PICKAXE_DIG_BLOCKS, WOODEN_PICKAXE, DIG_REFUSALS, FAN_ELEVATIONS, MAX_STAIR_DEPTH,
-  SPAWNER_BLOCKS, isStoneSource, isStoneMaterial, stoneDrop, isInfested, isGravityBlock, digClass, stoneInventoryCounts, chooseTool,
-  inHitboxColumns, openFaces, visibleHostiles, findBlocksByName, stoneContext, digVerdict, dropRestY, inDropBand, reachableStone, rayFan,
-  visibleStoneTargets, StoneMemory, clearedView, planStairStep, chooseStairHeading, planStaircase, strictMovements, stairReversibility,
-  fillStoneRecipe
+  STONE_SOURCES, STONE_LOOKALIKES, HAND_DIG_BLOCKS, PICKAXE_DIG_BLOCKS, WOODEN_PICKAXE, DIG_REFUSALS, STAIR_REFUSALS, FACE_OFFSETS, FAN_ELEVATIONS,
+  MAX_STAIR_DEPTH, SPAWNER_BLOCKS, SPAWNER_RADIUS, isStoneSource, isStoneMaterial, stoneDrop, isInfested, isGravityBlock, digClass,
+  stoneInventoryCounts, chooseTool, inHitboxColumns, openFaces, visibleHostiles, findBlocksByName, stoneContext, stairSupports, digVerdict,
+  dropRestY, inDropBand, climbSearch, reachableStone, rayFan, visibleStoneTargets, StoneMemory, clearedView, headingsNearTable, planStairStep,
+  chooseStairHeading, planStaircase, strictMovements, stairReversibility, fillStoneRecipe
 } = require('./stone-helpers')
-const { SearchMemory, MAX_RADIUS, TARGET_MARGIN } = require('./resource-bridge')
+const { SearchMemory, MAX_RADIUS, TARGET_MARGIN, nodeCollectsItem, safeMovements } = require('./resource-bridge')
 
 // The offline 1.21.4 world builder of resource-bridge.test.js.
 const mineflayerEntry = require.resolve('mineflayer')
@@ -58,16 +58,20 @@ function workedExample (x0 = -6, x1 = 12, z0 = -6, z1 = 6) {
 const at = (x, y, z) => new Vec3(x, y, z)
 const centre = feet => new Vec3(feet.x + 0.5, feet.y, feet.z + 0.5)
 const spawn = { x: 0.5, z: 0.5 }
-function context (world, { bot = at(0.5, 64, 0.5), table = null, entities = [], startY = 64, home = spawn } = {}) {
-  return stoneContext(world, { botPosition: bot, spawn: home, table, entities, startY })
-}
 const { Movements } = require('mineflayer-pathfinder')
 const Move = require('mineflayer-pathfinder/lib/move')
+const climb = climbSearch(bot => strictMovements(bot, Movements, spawn), Move)
 const reversible = stairReversibility(bot => strictMovements(bot, Movements, spawn), Move)
-function stairContext (world, options = {}) {
-  return { ...context(world, options), reversible }
+function context (world, { bot = at(0.5, 64, 0.5), table = null, entities = [], startY = 64, home = spawn, stair = null } = {}) {
+  return stoneContext(world, { botPosition: bot, spawn: home, table, entities, startY, stair, climb })
 }
-const reachStop = ctx => (view, feet) => reachableStone(view, { ...ctx, botPosition: centre(feet) }).length > 0
+function stairContext (world, options = {}) {
+  return context(world, options)
+}
+// The staircase's stop rule: MINE_STONE would have a target from the new landing, with the stair so far.
+const reachStop = () => (view, feet, stepCtx) => reachableStone(view, stepCtx).length > 0
+// The highest feet height the bot reaches from `from` with the strict movements and no digging.
+const highestReach = (view, from) => climb(view, from, () => false, { limit: 5000 }).maxY
 
 test('stone sources, their drops and lookalikes are recognized by exact name', () => {
   assert.deepEqual(STONE_SOURCES, ['stone', 'cobblestone', 'deepslate', 'cobbled_deepslate'])
@@ -208,8 +212,8 @@ test('digVerdict refuses the bot\'s own columns above and below, the margin, its
 })
 
 test('digVerdict checks in its documented order and adds the staircase classes', async () => {
-  assert.deepEqual(DIG_REFUSALS.slice(0, 14), ['unloaded', 'nothing_to_dig', 'undiggable', 'own_table', 'own_column', 'outside_margin', 'liquid_adjacent',
-    'gravity_above', 'dripstone_below', 'melts_to_water', 'infested', 'spawner_nearby', 'hostile_nearby', 'stone_source'])
+  assert.deepEqual(DIG_REFUSALS.slice(0, 16), ['unloaded', 'nothing_to_dig', 'undiggable', 'own_table', 'stair_support', 'own_column', 'outside_margin',
+    'liquid_adjacent', 'gravity_above', 'gravity_beside', 'dripstone_below', 'melts_to_water', 'infested', 'spawner_nearby', 'hostile_nearby', 'stone_source'])
   const names = ['oak_log', 'oak_leaves', 'stone', 'deepslate', 'coal_ore', 'iron_ore', 'chest', 'furnace', 'moss_block', 'dirt', 'granite', 'bedrock']
   const world = await buildWorld(terrain(box(-2, 14, 60, 63, -2, 2, 'stone'), names.map((name, i) => [i, 63, 0, name])))
   const ctx = { ...context(world, { bot: at(0.5, 70, -1.5) }), purpose: 'stair' }
@@ -428,8 +432,350 @@ test('every staircase step has a drop-down move and a move back up under the rea
   assert.equal(reversible(clearedView(world, [at(1, 64, 0)]), at(0, 64, 0), at(1, 63, 0)).down, false)
   // A two-block feet drop (floor three below the old feet) is beyond maxDropDown 2.
   assert.deepEqual(reversible(clearedView(world, [at(1, 63, 0), at(1, 62, 0)]), at(0, 64, 0), at(1, 62, 0)), { down: false, up: false })
-  const refusing = planStairStep(world, at(0, 64, 0), '+x', { ...ctx, reversible: () => ({ down: true, up: false }) })
-  assert.equal(refusing.reason, 'not_reversible')
+  // planStairStep asks the climb search: a direct move down onto the landing, then the whole climb back up.
+  const noDown = planStairStep(world, at(0, 64, 0), '+x', { ...ctx, climb: (view, from) => ({ found: null, path: [from], maxY: from.y }) })
+  assert.deepEqual([noDown.reason, noDown.moves], ['not_reversible', { down: false, up: null }])
+  const downOnly = (view, from, done, options = {}) => options.limit === 1 ? climb(view, from, done, options) : { found: null, path: [from], maxY: from.y }
+  const noUp = planStairStep(world, at(0, 64, 0), '+x', { ...ctx, climb: downOnly })
+  assert.deepEqual([noUp.reason, noUp.moves], ['not_reversible', { down: true, up: false }])
+  assert.throws(() => planStairStep(world, at(0, 64, 0), '+x', { ...ctx, climb: undefined }), /climb search/)
+  assert.throws(() => reachableStone(world, { ...ctx, climb: undefined }), /climb search/)
+})
+
+test('a dig beside or above a loose gravity block is refused, and the staircase neither lands on nor parks under one', async () => {
+  // A 2-high tunnel whose ceiling over the bot's head is a 2-gravel chain resting on air: the ceiling stones beside it would drop it.
+  const tunnel = await buildWorld(terrain(box(-8, 8, 55, 72, -4, 4, 'stone'), box(-8, 8, 64, 65, -1, 1, 'air'), [[0, 66, 0, 'gravel'], [0, 67, 0, 'gravel']]))
+  const tctx = context(tunnel)
+  const beside = digVerdict(tunnel, at(1, 66, 0), tctx)
+  assert.deepEqual([beside.reason, beside.face, beside.neighbour.name, beside.under], ['gravity_beside', 'west', 'gravel', 'air'])
+  const touchesGravel = (world, position) => ['west', 'east', 'north', 'south', 'bottom'].some(face => world.getBlock(position.offset(...FACE_OFFSETS[face])).name === 'gravel')
+  const tunnelReach = reachableStone(tunnel, tctx)
+  assert(tunnelReach.length > 0)
+  assert.equal(tunnelReach.some(c => touchesGravel(tunnel, c.position)), false)
+  // A floating 3x3 blob collapses as a whole: the stone at its edge is refused too, though the bot is not under that cell.
+  const blob = await buildWorld(terrain(box(-8, 8, 55, 72, -4, 4, 'stone'), box(-8, 8, 64, 65, -2, 2, 'air'), box(-1, 1, 66, 67, -1, 1, 'gravel')))
+  assert.equal(digVerdict(blob, at(2, 66, 0), context(blob)).reason, 'gravity_beside')
+  const blobReach = reachableStone(blob, context(blob))
+  assert(blobReach.length > 0)
+  assert.equal(blobReach.some(c => touchesGravel(blob, c.position)), false)
+  // The bot on sand floating over a cave: the stone beside its support, and every first stair step (L is beside it), are refused.
+  const floating = await buildWorld(terrain(box(-6, 6, 40, 63, -6, 6, 'stone'), box(0, 0, 50, 62, 0, 0, 'cave_air'), [[0, 63, 0, 'sand']]))
+  assert.deepEqual([digVerdict(floating, at(1, 63, 0), context(floating)).reason, digVerdict(floating, at(1, 63, 0), context(floating)).under], ['gravity_beside', 'cave_air'])
+  assert.equal(reachableStone(floating, context(floating)).some(c => `${c.position}` === '(1, 63, 0)'), false)
+  const sandStart = await buildWorld(terrain(workedExample(), box(0, 0, 50, 62, 0, 0, 'cave_air'), [[0, 63, 0, 'sand']]))
+  const sandChoice = chooseStairHeading(sandStart, at(0, 64, 0), stairContext(sandStart))
+  assert.deepEqual([sandChoice.ok, sandChoice.refused], [false, { '+x': 'gravity_beside', '+z': 'gravity_beside', '-x': 'gravity_beside', '-z': 'gravity_beside' }])
+  // A landing floor of sand over a cave: digging L above it would drop it.
+  const sandFloor = await buildWorld(terrain(workedExample(), box(1, 1, 50, 61, 0, 0, 'cave_air'), [[1, 62, 0, 'sand']]))
+  const dropped = planStairStep(sandFloor, at(0, 64, 0), '+x', stairContext(sandFloor))
+  assert.deepEqual([dropped.reason, `${dropped.cell}`, dropped.neighbour], ['gravity_beside', '(1, 63, 0)', 'sand'])
+  // L already open over a floating gravel floor (step 2): the bot must not stand on it.
+  const gravelFloor = await buildWorld(terrain(workedExample(), [[2, 62, 0, 'air'], [2, 61, 0, 'gravel']], box(2, 2, 50, 60, 0, 0, 'cave_air')))
+  const gravelStair = planStaircase(gravelFloor, at(0, 64, 0), '+x', stairContext(gravelFloor), { maxSteps: 3 })
+  assert.deepEqual([gravelStair.stopped, gravelStair.dig_counts, `${gravelStair.steps[1].cell}`, gravelStair.steps[1].floor, gravelStair.steps[1].neighbour],
+    ['floor_unsupported', [1], '(2, 61, 0)', 'gravel', 'cave_air'])
+  // H already open (a cave pocket) under floating gravel: the step would park the bot under it.
+  const pocket = await buildWorld(terrain(box(-6, 8, 40, 70, -6, 6, 'stone'), box(-6, 8, 55, 66, -6, 6, 'dirt'), box(0, 0, 60, 66, 0, 0, 'air'),
+    box(1, 1, 60, 61, 0, 0, 'air'), [[1, 62, 0, 'gravel'], [1, 63, 0, 'gravel']]))
+  const parked = planStairStep(pocket, at(0, 60, 0), '+x', stairContext(pocket, { bot: at(0.5, 60, 0.5) }))
+  assert.deepEqual([parked.reason, `${parked.cell}`, parked.block], ['gravity_above', '(1, 62, 0)', 'gravel'])
+  // Supported gravity blocks stay allowed: gravel on stone beside the cell, and the same staircase with the gravel floor held up.
+  const held = await buildWorld(terrain(workedExample(), [[2, 62, 0, 'air'], [2, 61, 0, 'gravel']]))
+  assert.deepEqual(planStaircase(held, at(0, 64, 0), '+x', stairContext(held), { maxSteps: 2 }).dig_counts, [1, 1])
+  const resting = await buildWorld(terrain(box(-8, 8, 55, 72, -4, 4, 'stone'), box(-8, 8, 64, 65, -1, 1, 'air'), [[0, 67, 0, 'gravel'], [0, 68, 0, 'sand']]))
+  assert.equal(digVerdict(resting, at(1, 67, 0), context(resting, { bot: at(4.5, 64, 0.5) })).ok, true) // gravel on stone beside the cell
+  assert(STAIR_REFUSALS.includes('floor_unsupported') && STAIR_REFUSALS.includes('gravity_above'))
+})
+
+// MINE_STONE as S3 will run it: take the first reach target, dig it, and walk to the nearest node that picks its drop up.
+function mineAndCollect (view, feet, stair) {
+  const ctx = context(view, { bot: centre(feet), stair })
+  const target = reachableStone(view, ctx)[0]
+  if (!target) return null
+  const dug = clearedView(view, [target.position])
+  const item = { x: target.position.x + 0.5, y: target.rest_y, z: target.position.z + 0.5 }
+  let at = feet
+  if (!nodeCollectsItem(feet, item)) {
+    const ends = []
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dz = -1; dz <= 1; dz++) {
+        for (let y = Math.floor(item.y - 2.3); y <= Math.ceil(item.y + 0.75); y++) {
+          const node = target.position.offset(dx, y - target.position.y, dz)
+          const standable = dug.getBlock(node).boundingBox === 'empty' && dug.getBlock(node.offset(0, 1, 0)).boundingBox === 'empty' &&
+            dug.getBlock(node.offset(0, -1, 0)).boundingBox === 'block'
+          if (standable && nodeCollectsItem(node, item) && climb(dug, feet, cell => cell.equals(node), { limit: 200 }).found) ends.push(node)
+        }
+      }
+    }
+    assert(ends.length > 0, `no pickup node for ${target.position}`)
+    at = ends.sort((a, b) => a.distanceTo(feet) - b.distanceTo(feet))[0]
+  }
+  return { target: target.position, view: dug, feet: at }
+}
+
+test('MINE_STONE never takes a floor the bot climbs back up on: three mines after the staircase on every heading, and an uneven stone surface', async () => {
+  const world = await buildWorld(workedExample())
+  for (const heading of ['+x', '+z', '-x', '-z']) {
+    const stair = planStaircase(world, at(0, 64, 0), heading, stairContext(world), { stopWhen: reachStop() })
+    assert.deepEqual([stair.dig_counts, stair.stopped], [[1, 2, 3, 3, 2], 'stone_exposed'], heading)
+    assert.deepEqual(stairSupports(stair.stair).map(String), [at(0, 63, 0), ...stair.stair.landings.map(feet => feet.offset(0, -1, 0))].map(String))
+    let { view, feet } = stair
+    const mined = []
+    for (let i = 0; i < 3; i++) {
+      const step = mineAndCollect(view, feet, stair.stair)
+      assert(step, `${heading}: no target for mine ${i + 1}`)
+      mined.push(`${step.target}`)
+      ;({ view, feet } = step)
+      assert.equal(highestReach(view, feet), 64, `${heading}: mine ${i + 1} at ${step.target} leaves the bot below the surface`)
+    }
+    assert.equal(mined.some(cell => stairSupports(stair.stair).some(support => `${support}` === cell)), false, `${heading}: ${mined}`)
+  }
+  // From the pickup cell after the first mine, the floor of the last landing is never a target, with or without the stair record.
+  const stair = planStaircase(world, at(0, 64, 0), '+x', stairContext(world), { stopWhen: reachStop() })
+  const first = mineAndCollect(stair.view, stair.feet, stair.stair)
+  assert.deepEqual([`${first.target}`, `${first.feet}`], ['(5, 59, 0)', '(5, 59, 0)'])
+  for (const record of [stair.stair, null]) {
+    const reach = reachableStone(first.view, context(first.view, { bot: centre(first.feet), stair: record })).map(c => `${c.position}`)
+    assert(reach.length > 0)
+    assert.equal(reach.includes('(4, 59, 0)'), false, `${reach}`)
+  }
+  assert.equal(digVerdict(first.view, at(4, 59, 0), context(first.view, { bot: at(5.5, 59, 0.5), stair: stair.stair })).reason, 'stair_support')
+  // The stone surface one block higher under step 3's landing: its floor is no target, so the stair goes on and exposes (5, 59, 0).
+  const bump = await buildWorld(terrain(workedExample(), [[3, 60, 0, 'stone']]))
+  const bumpStair = planStaircase(bump, at(0, 64, 0), '+x', stairContext(bump), { stopWhen: reachStop() })
+  assert.deepEqual([bumpStair.dig_counts, bumpStair.stopped, `${bumpStair.steps[4].exposes}`], [[1, 2, 3, 3, 2], 'stone_exposed', '(5, 59, 0)'])
+  const atStep4 = clearedView(bump, bumpStair.steps.slice(0, 4).flatMap(step => step.digs.map(dig => dig.position)))
+  assert.deepEqual(reachableStone(atStep4, context(atStep4, { bot: at(4.5, 60, 0.5) })), []) // the climb check alone refuses (3, 60, 0)
+  assert.equal(highestReach(clearedView(atStep4, [at(3, 60, 0)]), at(4, 60, 0)), 60) // what mining it would have done
+  // A pickup that steps down into the dug cell must climb out again: here a block over the hole leaves no headroom to jump.
+  const ground = terrain(box(-6, 6, 50, 62, -6, 6, 'stone'), box(-6, 6, 63, 63, -6, 6, 'grass_block'), [[1, 63, 0, 'stone']])
+  const open = await buildWorld(ground)
+  assert.deepEqual(reachableStone(open, context(open)).map(c => [`${c.position}`, c.rest_y]), [['(1, 63, 0)', 63]])
+  const capped = await buildWorld(terrain(ground, [[1, 65, 0, 'dirt']]))
+  assert.equal(digVerdict(capped, at(1, 63, 0), { ...context(capped), purpose: 'mine' }).ok, true)
+  assert.deepEqual(reachableStone(capped, context(capped)), [])
+  assert.equal(highestReach(clearedView(capped, [at(1, 63, 0)]), at(1, 63, 0)), 63)
+})
+
+test('the staircase never turns back into itself: the reverse heading is dropped inside a staircase and fails the climb check outside one', async () => {
+  const cases = {
+    water: [[4, 62, 0, 'water'], [2, 62, 2, 'water'], [2, 62, -2, 'water']],
+    'stone walls': [[3, 63, 0, 'stone'], [3, 62, 0, 'stone'], [2, 63, 1, 'stone'], [2, 62, 1, 'stone'], [2, 63, -1, 'stone'], [2, 62, -1, 'stone']],
+    gravel: [[3, 64, 0, 'gravel'], [2, 64, 1, 'gravel'], [2, 64, -1, 'gravel']]
+  }
+  for (const [name, extra] of Object.entries(cases)) {
+    const world = await buildWorld(terrain(workedExample(), extra))
+    const two = planStaircase(world, at(0, 64, 0), '+x', stairContext(world), { maxSteps: 2 })
+    assert.equal(`${two.feet}`, '(2, 62, 0)')
+    for (let rotation = 0; rotation < 4; rotation++) {
+      const outside = chooseStairHeading(two.view, two.feet, stairContext(two.view, { bot: centre(two.feet) }), rotation)
+      const inside = chooseStairHeading(two.view, two.feet, stairContext(two.view, { bot: centre(two.feet), stair: two.stair }), rotation)
+      assert.deepEqual([outside.ok, outside.refused['-x'], inside.ok, inside.refused['-x']], [false, 'not_reversible', false, 'reverse_heading'], `${name} ${rotation}`)
+    }
+    // Planned directly, the reverse step is refused too, and it would have cut the climb.
+    assert.equal(planStairStep(two.view, two.feet, '-x', stairContext(two.view, { bot: centre(two.feet), stair: two.stair })).reason, 'reverse_heading')
+    assert.equal(highestReach(clearedView(two.view, [at(1, 62, 0), at(1, 61, 0)]), at(1, 61, 0)), 62)
+  }
+  // After the worked example, an expose step back into the stair would dig the floor of step 3's landing.
+  const wet = await buildWorld(terrain(workedExample(), [[4, 61, 2, 'water'], [4, 61, -2, 'water']]))
+  const full = planStaircase(wet, at(0, 64, 0), '+x', stairContext(wet), { maxSteps: 6 })
+  assert.deepEqual([full.dig_counts, `${full.feet}`], [[1, 2, 3, 3, 2], '(4, 60, 0)'])
+  const back = planStairStep(full.view, full.feet, '-x', stairContext(full.view, { bot: centre(full.feet) }))
+  assert.deepEqual([back.reason, back.moves], ['not_reversible', { down: null, up: false }])
+  assert.equal(digVerdict(full.view, at(3, 60, 0), { ...stairContext(full.view, { bot: centre(full.feet), stair: full.stair }), purpose: 'stair' }).reason, 'stair_support')
+  const exposeChoice = chooseStairHeading(full.view, full.feet, stairContext(full.view, { bot: centre(full.feet), stair: full.stair }))
+  assert.deepEqual([exposeChoice.ok, exposeChoice.refused], [false, { '+x': 'stone_source', '+z': 'liquid_adjacent', '-x': 'reverse_heading', '-z': 'liquid_adjacent' }])
+  // Inside a staircase the heading continues on flat ground, where ties would otherwise follow the rotation.
+  const flat = await buildWorld(workedExample())
+  const one = planStaircase(flat, at(0, 64, 0), '+x', stairContext(flat), { maxSteps: 1 })
+  assert.equal(chooseStairHeading(one.view, one.feet, stairContext(one.view, { bot: centre(one.feet) }), 1).heading, '+z')
+  assert.equal(chooseStairHeading(one.view, one.feet, stairContext(one.view, { bot: centre(one.feet), stair: one.stair }), 1).heading, '+x')
+  // Turning to a side keeps the climb: with +x refused at (2, 62, 0), the stair turns to +z.
+  const turn = await buildWorld(terrain(workedExample(), [[3, 63, 0, 'stone'], [3, 62, 0, 'stone']]))
+  const turned = planStaircase(turn, at(0, 64, 0), '+x', stairContext(turn), { maxSteps: 2 })
+  const side = chooseStairHeading(turned.view, turned.feet, stairContext(turned.view, { bot: centre(turned.feet), stair: turned.stair }))
+  assert.deepEqual([side.heading, side.refused['+x'], side.refused['-x']], ['+z', 'stone_source', 'reverse_heading'])
+})
+
+test('with no pickaxe held (pickaxeType null) pickaxe blocks are timed by hand and refused as wrong_tool', async () => {
+  const names = ['granite', 'terracotta', 'stone', 'dirt', 'andesite', 'sandstone']
+  const world = await buildWorld(terrain(box(-2, 8, 60, 62, -2, 2, 'stone'), names.map((name, i) => [i, 63, 0, name])))
+  const none = { ...stoneContext(world, { botPosition: at(0.5, 70, -1.5), spawn, startY: 64, pickaxeType: null, climb }), purpose: 'stair' }
+  assert.equal(none.pickaxeType, null)
+  const verdict = (name, extra = {}) => digVerdict(world, at(names.indexOf(name), 63, 0), { ...none, ...extra })
+  assert.deepEqual([verdict('granite').reason, verdict('granite').ms], ['wrong_tool', 7500])
+  assert.deepEqual([verdict('andesite').reason, verdict('andesite').ms], ['wrong_tool', 7500])
+  assert.deepEqual([verdict('terracotta').reason, verdict('terracotta').ms], ['wrong_tool', 6250])
+  assert.equal(verdict('sandstone').reason, 'wrong_tool') // 4 s by hand, and no drop
+  assert.deepEqual([verdict('stone', { purpose: 'mine' }).reason, verdict('stone', { purpose: 'mine' }).ms], ['wrong_tool', 7500])
+  assert.deepEqual([verdict('dirt').ok, verdict('dirt').tool, verdict('dirt').ms], [true, 'hand', 750])
+  // Left out, the wooden pickaxe is assumed, as before.
+  const wooden = { ...none, pickaxeType: undefined }
+  assert.deepEqual([digVerdict(world, at(0, 63, 0), wooden).ok, digVerdict(world, at(0, 63, 0), wooden).ms], [true, 1150])
+  const andesite = await buildWorld(terrain(workedExample(), [[1, 63, 0, 'andesite']]))
+  assert.equal(planStairStep(andesite, at(0, 64, 0), '+x', { ...stairContext(andesite), pickaxeType: null }).reason, 'wrong_tool')
+  assert.equal(planStairStep(andesite, at(0, 64, 0), '+x', stairContext(andesite)).ok, true)
+})
+
+test('unloaded cells beside a dug cell, a landing or a climb refuse as unloaded and never throw', async () => {
+  // A dug cell on a chunk border: its east neighbour is in an unloaded chunk, which may hide water or lava.
+  const edge = await buildWorld(workedExample(4, 15, -4, 4))
+  edge.unloadColumn(1, 0)
+  const ectx = context(edge, { bot: at(10.5, 64, 0.5) })
+  const mine = digVerdict(edge, at(15, 62, 0), { ...ectx, purpose: 'mine' })
+  assert.deepEqual([mine.reason, mine.face, mine.block.name], ['unloaded', 'east', 'dirt'])
+  const stair = digVerdict(edge, at(15, 63, 0), { ...ectx, purpose: 'stair' })
+  assert.deepEqual([stair.reason, stair.face, stair.block.name], ['unloaded', 'east', 'grass_block'])
+  const step = planStairStep(edge, at(14, 64, 0), '+x', stairContext(edge, { bot: at(14.5, 64, 0.5) }))
+  assert.deepEqual([step.reason, `${step.cell}`], ['unloaded', '(15, 63, 0)'])
+  // A natural step down with nothing to dig, beside the unloaded chunk east of L and M.
+  const ledge = await buildWorld(terrain(box(8, 15, 55, 62, -4, 4, 'dirt'), box(8, 15, 63, 63, -4, 0, 'grass_block')))
+  const lctx = stairContext(ledge, { bot: at(15.5, 64, 0.5) })
+  assert.equal(planStairStep(ledge, at(15, 64, 0), '+z', lctx).ok, true) // all loaded
+  ledge.unloadColumn(1, 0)
+  ledge.unloadColumn(1, -1)
+  const natural = planStairStep(ledge, at(15, 64, 0), '+z', lctx)
+  assert.deepEqual([natural.reason, `${natural.cell}`, natural.face, natural.digs], ['unloaded', '(15, 63, 1)', 'east', undefined])
+  assert.doesNotThrow(() => chooseStairHeading(ledge, at(15, 64, 0), lctx))
+  assert.doesNotThrow(() => planStaircase(ledge, at(15, 64, 0), '-z', lctx, { maxSteps: 3, stopWhen: reachStop() }))
+  assert.deepEqual(reversible(ledge, at(15, 64, 0), at(15, 63, 1)), { down: false, up: false, error: 'unloaded' })
+  // The strict movements exclude the pathfinder's stand-in for an unloaded block instead of throwing; the wood stage's object is its own.
+  const fake = { registry, game: { minY: -64 }, entity: { position: at(15.5, 64, 0.5), effects: {} }, entities: {}, inventory: { items: () => [] }, blockAt: p => ledge.getBlock(p) }
+  const strict = strictMovements(fake, Movements, spawn)
+  assert.doesNotThrow(() => strict.getNeighbors(new Move(15, 64, 0, 0, 0)))
+  assert.equal(strict.exclusionStep({ replaceable: false, safe: false, physical: false }), 100)
+  assert.equal(safeMovements(fake, Movements, spawn).maxDropDown, 4)
+  // A chunk corner: only the diagonal chunk is unloaded, which the climb search reads.
+  const corner = await buildWorld(terrain(box(10, 17, 55, 62, 10, 17, 'dirt'), box(10, 17, 63, 63, 15, 17, 'grass_block')))
+  corner.unloadColumn(1, 1)
+  const cornerStep = planStairStep(corner, at(15, 64, 15), '-z', stairContext(corner, { bot: at(15.5, 64, 15.5), home: { x: 15.5, z: 15.5 } }))
+  assert.deepEqual([cornerStep.ok, cornerStep.reason], [false, 'unloaded'])
+})
+
+test('the spawner scan covers every cell the ray fan can return, out to the 32-block edge, and rays stop at unloaded chunks', async () => {
+  // A stone cliff whose east face is 31.5 blocks west of the eyes, with a spawner inside it exactly 8 blocks beyond the face the
+  // fan hits, and 40.01 blocks from the floored feet, outside the old 40-block scan.
+  const placed = [at(-40, 65, 0), at(-39, 68, 8)]
+  const world = await buildWorld(terrain(box(-60, 8, 63, 63, -10, 10, 'grass_block'), box(-40, -32, 64, 70, -10, 10, 'stone'), placed.map(p => [p.x, p.y, p.z, 'spawner'])))
+  const home = { x: -20.5, z: 0.5 }
+  const ctx = context(world, { home })
+  assert.deepEqual(ctx.spawners.map(String).sort(), placed.map(String).sort())
+  assert(placed.every(spawner => spawner.distanceTo(at(0, 64, 0)) > 40))
+  const hits = rayFan(world, at(0.5, 65.62, 0.5)).hits
+  assert(hits.some(hit => `${hit.block.position}` === '(-32, 65, 0)' && hit.block.name === 'stone'))
+  // Every spawner within 8 blocks of any cell the fan returns is in the scan.
+  for (const hit of hits) for (const spawner of placed) if (spawner.distanceTo(hit.block.position) <= SPAWNER_RADIUS) assert(ctx.spawners.some(found => found.equals(spawner)), `${hit.block.position}`)
+  assert.equal(digVerdict(world, at(-32, 65, 0), ctx).reason, 'spawner_nearby')
+  assert.equal(visibleStoneTargets(world, ctx).targets.some(target => `${target.position}` === '(-32, 65, 0)'), false)
+  // Without the spawners that face is a target.
+  const bare = await buildWorld(terrain(box(-60, 8, 63, 63, -10, 10, 'grass_block'), box(-40, -32, 64, 70, -10, 10, 'stone')))
+  assert.deepEqual(visibleStoneTargets(bare, context(bare, { home })).targets.map(target => `${target.position}`), ['(-32, 65, 0)'])
+  // A cliff 30.5 blocks east, behind chunk column 0: seen while that chunk is loaded, not through it once it is unloaded.
+  const behind = await buildWorld(terrain(box(-12, 30, 63, 63, -10, 10, 'grass_block'), box(26, 28, 64, 70, -10, 10, 'stone')))
+  const east = () => visibleStoneTargets(behind, context(behind, { bot: at(-4.5, 64, 0.5) })).targets.filter(target => target.position.x >= 26)
+  assert(east().length > 0)
+  behind.unloadColumn(0, 0)
+  behind.unloadColumn(0, -1)
+  assert.deepEqual(east(), [])
+})
+
+test('the near-table rule filters only the first step\'s heading; the staircase itself records the terrain', async () => {
+  const base = workedExample()
+  // The table diagonal to the first +x column: the old per-step rule refused every step of that heading.
+  const world = await buildWorld(terrain(base, [[1, 64, 1, 'crafting_table']]))
+  const ctx = stairContext(world, { table: at(1, 64, 1) })
+  assert.deepEqual(headingsNearTable(at(0, 64, 0), at(1, 64, 1)), ['+x', '+z'])
+  assert.equal(planStairStep(world, at(0, 64, 0), '+x', ctx).ok, true)
+  assert.deepEqual(planStaircase(world, at(0, 64, 0), '+x', ctx, { stopWhen: reachStop() }).dig_counts, [1, 2, 3, 3, 2])
+  const choice = chooseStairHeading(world, at(0, 64, 0), ctx)
+  assert.deepEqual([choice.heading, choice.refused, choice.near_table], ['-x', { '+x': 'near_own_table', '+z': 'near_own_table' }, ['+x', '+z']])
+  // A staircase heading through the table is still refused at the table itself, by digVerdict.
+  const through = await buildWorld(terrain(base, [[2, 64, 0, 'crafting_table']]))
+  const tableStair = planStaircase(through, at(0, 64, 0), '+x', stairContext(through, { table: at(2, 64, 0) }))
+  assert.deepEqual([tableStair.stopped, tableStair.dig_counts, `${tableStair.steps[1].cell}`], ['own_table', [1], '(2, 64, 0)'])
+  // Inside a staircase the rule no longer applies: the stair continues past the table.
+  const near = await buildWorld(terrain(base, [[-3, 64, 1, 'crafting_table']]))
+  const one = planStaircase(near, at(0, 64, 0), '-x', stairContext(near, { table: at(-3, 64, 1) }), { maxSteps: 1 })
+  const fresh = chooseStairHeading(one.view, one.feet, stairContext(one.view, { bot: centre(one.feet), table: at(-3, 64, 1) }))
+  const inside = chooseStairHeading(one.view, one.feet, stairContext(one.view, { bot: centre(one.feet), table: at(-3, 64, 1), stair: one.stair }))
+  assert.deepEqual([fresh.refused['-x'], fresh.near_table], ['near_own_table', ['-x']])
+  assert.deepEqual([inside.heading, inside.near_table], ['-x', []])
+  // On its own table every heading is dropped (DIG_DOWN steps off it first).
+  assert.deepEqual(headingsNearTable(at(0, 65, 0), at(0, 64, 0)), ['+x', '+z', '-x', '-z'])
+  assert.deepEqual(headingsNearTable(at(0, 64, 0), null), [])
+})
+
+test('reach applies the drop band: stone whose drop leaves feet - 1 to feet + 2 is no target', async () => {
+  const ground = [...box(-6, 8, 50, 62, -6, 6, 'stone'), ...box(-6, 8, 63, 63, -6, 6, 'grass_block')]
+  const cases = [
+    ['pit', [...box(2, 2, 58, 63, 0, 0, 'air'), [2, 64, 0, 'stone']], at(2, 64, 0), 58],
+    ['slab ledge', [[2, 64, 0, 'dirt'], [2, 65, 0, 'dirt'], [2, 66, 0, 'oak_slab', { type: 'bottom', waterlogged: false }], [2, 67, 0, 'stone']], at(2, 67, 0), 66.5],
+    ['pillar ledge', [[1, 64, -1, 'dirt'], [1, 65, -1, 'dirt'], [1, 66, -1, 'dirt'], [1, 67, -1, 'stone']], at(1, 67, -1), 67],
+    ['water two below', [[2, 63, 0, 'air'], [2, 62, 0, 'water'], [2, 64, 0, 'stone']], at(2, 64, 0), null]
+  ]
+  for (const [name, extra, cell, rest] of cases) {
+    const world = await buildWorld(terrain(ground, extra))
+    const ctx = context(world)
+    assert.equal(dropRestY(world, cell), rest, name)
+    assert.equal(digVerdict(world, cell, { ...ctx, purpose: 'mine' }).ok, true, name) // the band is the only filter that drops it
+    assert.deepEqual(reachableStone(world, ctx), [], name)
+  }
+  const control = await buildWorld(terrain(ground, [[2, 64, 0, 'stone']]))
+  assert.deepEqual(reachableStone(control, context(control)).map(c => [`${c.position}`, c.rest_y]), [['(2, 64, 0)', 64]])
+})
+
+test('the landing\'s liquid check and the exposed stone\'s mining check each refuse on their own', async () => {
+  const base = workedExample()
+  // Flowing water beside an M that is already open: only the landing check sees it, since nothing is dug there.
+  const besideM = await buildWorld(terrain(base, [[1, 64, 1, 'water', { level: 7 }]]))
+  const m = planStairStep(besideM, at(0, 64, 0), '+x', stairContext(besideM))
+  assert.deepEqual([m.reason, `${m.cell}`, m.neighbour], ['liquid_adjacent', '(1, 64, 0)', 'water'])
+  // Lava beside an L that is already open, with nothing to dig at all.
+  const besideL = await buildWorld(terrain(base, [[1, 63, 0, 'air'], [2, 63, 0, 'lava']]))
+  const l = planStairStep(besideL, at(0, 64, 0), '+x', stairContext(besideL))
+  assert.deepEqual([l.reason, `${l.cell}`, l.neighbour], ['liquid_adjacent', '(1, 63, 0)', 'lava'])
+  // A stone knob that MINE_STONE would refuse (water against it) is not reported as exposed.
+  const wetKnob = await buildWorld(terrain(base, [[1, 64, 0, 'stone'], [1, 65, 0, 'dirt'], [2, 64, 0, 'water']]))
+  const knob = planStairStep(wetKnob, at(0, 64, 0), '+x', stairContext(wetKnob))
+  assert.deepEqual([knob.ok, knob.reason, knob.exposed_refusal, `${knob.cell}`], [false, 'stone_source', 'liquid_adjacent', '(1, 64, 0)'])
+  assert.equal(planStaircase(wetKnob, at(0, 64, 0), '+x', stairContext(wetKnob)).stopped, 'stone_source')
+})
+
+test('the climb check costs little on the surface and in the staircase, and is bounded in a closed cave', async (t) => {
+  const free = (view, from) => ({ found: from, path: [from], best: from, maxY: from.y })
+  const time = (world, ctx, runs = 5) => {
+    reachableStone(world, ctx)
+    const started = process.hrtime.bigint()
+    for (let i = 0; i < runs; i++) reachableStone(world, ctx)
+    return Number(process.hrtime.bigint() - started) / 1e6 / runs
+  }
+  const report = []
+  const surface = await buildWorld(terrain(box(-6, 8, 60, 62, -6, 6, 'stone'), box(-6, 8, 63, 63, -6, 6, 'grass_block'), [[2, 64, 0, 'stone'], [-2, 64, -2, 'cobblestone'], [3, 64, -3, 'stone']]))
+  const worked = await buildWorld(workedExample())
+  const stair = planStaircase(worked, at(0, 64, 0), '+x', stairContext(worked), { stopWhen: reachStop() })
+  const first = mineAndCollect(stair.view, stair.feet, stair.stair)
+  // A closed 13 x 13 cave 14 blocks below the stage start: no way up, so the search runs to its bound.
+  const cave = await buildWorld(terrain(box(-12, 12, 40, 70, -12, 12, 'stone'), box(-6, 6, 50, 52, -6, 6, 'cave_air')))
+  // An open cave: the same under a surface at 64, with a 1-wide passage climbing from x 7 to the surface at x 20.
+  const exit = []
+  for (let i = 0; i < 13; i++) exit.push(...box(7 + i, 7 + i, 51 + i, 53 + i, 0, 0, 'cave_air'))
+  const openCave = await buildWorld(terrain(box(-12, 24, 40, 63, -12, 12, 'stone'), box(-6, 6, 50, 52, -6, 6, 'cave_air'), exit))
+  for (const [name, world, bot, extra] of [['surface', surface, at(0.5, 64, 0.5)], ['staircase landing', stair.view, at(4.5, 60, 0.5), { stair: stair.stair }],
+    ['after the first mine', first.view, centre(first.feet), { stair: stair.stair }], ['closed cave', cave, at(0.5, 50, 0.5)], ['open cave', openCave, at(5.5, 50, 0.5)]]) {
+    const ctx = context(world, { bot, ...extra })
+    const withClimb = time(world, ctx)
+    const without = time(world, { ...ctx, climb: free })
+    const count = reachableStone(world, ctx).length
+    assert(count > 0, name)
+    report.push(`${name} ${count}/${reachableStone(world, { ...ctx, climb: free }).length} targets ${withClimb.toFixed(1)} ms (${(withClimb - without).toFixed(1)} ms for the climb)`)
+  }
+  // The open cave's way out: the floor of its first step is refused, and would have sealed the bot in.
+  assert.equal(highestReach(openCave, at(5, 50, 0)), 64)
+  const caveCtx = context(openCave, { bot: at(5.5, 50, 0.5) })
+  assert.equal(reachableStone(openCave, { ...caveCtx, climb: free }).some(c => `${c.position}` === '(7, 50, 0)'), true)
+  assert.equal(reachableStone(openCave, caveCtx).some(c => `${c.position}` === '(7, 50, 0)'), false)
+  assert.equal(highestReach(clearedView(openCave, [at(7, 50, 0)]), at(5, 50, 0)), 50)
+  t.diagnostic(`reach with the climb check: ${report.join('; ')}`)
 })
 
 test('a stone pickaxe is filled from 3 cobblestone or from mixed materials and refused short of materials or sticks', () => {
@@ -457,7 +803,7 @@ test('a stone pickaxe is filled from 3 cobblestone or from mixed materials and r
   assert.equal(fillStoneRecipe(null, []), null)
 })
 
-test('Mineflayer 4.39 keeps 1.21.4 sky light from map_chunk and update_light, and lit faces can be required', async () => {
+test('Mineflayer 4.39 takes 1.21.4 light only from map_chunk and update_light, never from a block_change, so the lit-face rule stays off', async () => {
   // A real map_chunk packet through the pinned 1.21.4 codec into Mineflayer's own blocks plugin.
   const version = '1.21.4'
   const Chunk = fromMineflayer('prismarine-chunk')(version)
@@ -483,8 +829,16 @@ test('Mineflayer 4.39 keeps 1.21.4 sky light from map_chunk and update_light, an
   update.setSkyLight(at(5, 55, 5), 4)
   bot._client.emit('update_light', roundTrip('update_light', { chunkX: 0, chunkZ: 0, ...update.dumpLight() }))
   assert.deepEqual([bot.world.getSkyLight(at(5, 55, 5)), bot.world.getSkyLight(at(2, 70, 2))], [4, 15])
+  // A dig reaches the bot as a block_change, which sets the block only: the dug cell keeps the 0 it had while solid,
+  // though it is now open to the sky. The vanilla server sends update_light only for chunks on a player's view edge
+  // (ChunkHolder.broadcastChanges), never for the chunk the bot digs in, so every dug cell stays dark. The bridge
+  // therefore leaves litOnly off (decision 9's fallback), and stone in dark places counts as visible.
+  assert.deepEqual([bot.blockAt(at(2, 63, 2)).name, bot.world.getSkyLight(at(2, 63, 2)), bot.world.getSkyLight(at(2, 64, 2))], ['stone', 0, 15])
+  bot._client.emit('block_change', roundTrip('block_change', { location: { x: 2, y: 63, z: 2 }, type: 0 }))
+  assert.deepEqual([bot.blockAt(at(2, 63, 2)).name, bot.world.getSkyLight(at(2, 63, 2)), bot.blockAt(at(2, 63, 2)).skyLight], ['air', 0, 0])
 
-  // A dark tunnel: stone walls in reach count only once their open cells are lit.
+  // The lit-face rule, kept as a documented capability the bridge does not use: in a dark tunnel, stone walls
+  // in reach count only once their open cells are lit.
   const tunnel = await buildWorld(terrain(box(-4, 8, 56, 64, -4, 4, 'stone'), box(0, 4, 60, 61, 0, 0, 'air')))
   const ctx = context(tunnel, { bot: at(0.5, 60, 0.5), startY: 60 })
   assert(reachableStone(tunnel, ctx).length > 0)

@@ -5,9 +5,11 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
+const crypto = require('node:crypto')
 const { spawn, spawnSync } = require('node:child_process')
 const { parseArgs, validateAction, inventoryCounts, validatePhysicalState, craftingRecipe, safeMovements, SearchMemory, replaceableForTable, isLeaves, fallDamage, descentAcceptable, planCanopyDescent, nodeCollectsItem, planLeafEscape, explorationTarget, underHitbox, escapeNote, canSeeFace, eyesAt, hitboxOverlapsCell, placementCandidates, approachCells, interactiveSupport, stepExclusion, ACTIONS, FALL_HAZARDS, MAX_CANOPY_LAYERS, PICKUP_REACH, MAX_ESCAPE_LEAVES, EXPLORATION_RINGS, EXPLORATION_DIRECTIONS, MAX_RADIUS, TARGET_MARGIN, STEP_MARGIN, APPROACH_OFFSETS,
-  WOOD_ACTIONS, GOALS, STONE_LIT_ONLY, SURVEY_STAIR_STEPS, actionsFor, runnableAction, goalReached, pickaxeUsesLeft, stoneScan, depthToStone, surveyStaircases, stoneSurveyRecord } = require('./resource-bridge')
+  WOOD_ACTIONS, GOALS, STONE_LIT_ONLY, SURVEY_STAIR_STEPS, actionsFor, runnableAction, goalReached, pickaxeUsesLeft, fanTargetSummary, stoneScan,
+  stageStartReference, depthToStone, surveyStaircases, stoneSurveyRecord } = require('./resource-bridge')
 const { Vec3 } = require('vec3')
 
 // A small offline 1.21.4 world built from the same libraries Mineflayer uses,
@@ -552,7 +554,8 @@ test('the bridge digs only through its chop and canopy helpers and still never i
   assert.match(source, /movements\.scafoldingBlocks = \[\]/)
   // The stone helpers never dig, chat, use creative mode or change what the pathfinder may do:
   // their stricter movement rules start from safeMovements (canDig false) and only tighten drops.
-  const helpers = fs.readFileSync(require.resolve('./stone-helpers'), 'utf8')
+  // Line ends are normalised, so a CRLF working copy is checked as the same code.
+  const helpers = fs.readFileSync(require.resolve('./stone-helpers'), 'utf8').replace(/\r\n/g, '\n')
   assert.doesNotMatch(helpers, /\.dig\s*\(|digBlock\s*\(/)
   assert.doesNotMatch(helpers, /\.chat\s*\(/)
   assert.doesNotMatch(helpers, /creative/i)
@@ -593,7 +596,15 @@ function stateIds (world, x0, x1, y0, y1, z0, z1) {
   for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) ids.push(world.getBlockStateId(new Vec3(x, y, z)))
   return ids
 }
-const STONE_FIELD_KEYS = ['nearby_stone', 'stone_visible', 'stone_targets', 'pickaxe_uses_left', 'pickaxe_digs', 'hostile_nearby', 'time_of_day', 'depth_below_stage_start']
+const STONE_FIELD_KEYS = ['nearby_stone', 'stone_visible', 'stone_targets', 'stone_targets_withheld', 'stone_reach_candidates', 'pickaxe_uses_left',
+  'pickaxe_digs', 'hostile_nearby', 'time_of_day', 'hand_off_y', 'stage_start_y', 'depth_below_stage_start']
+// The climb search every stone check needs, built as main() builds it: the strict movement rules on a simulated world.
+function climbFor (spawn) {
+  const stone = require('./stone-helpers')
+  const { Movements } = require('mineflayer-pathfinder')
+  const Move = require('mineflayer-pathfinder/lib/move')
+  return stone.climbSearch(fake => stone.strictMovements(fake, Movements, spawn), Move)
+}
 
 test('a stone pickaxe recipe is filled from the stone materials actually held, and the wooden recipes never use that fill', () => {
   const registry = fromMineflayer('prismarine-registry')('1.21.4')
@@ -645,59 +656,86 @@ test('a stone pickaxe recipe is filled from the stone materials actually held, a
   } finally { helpers.fillStoneRecipe = fill }
 })
 
-test('the stone fields come from the reach list and the ray fan, count lit faces only, and stone in reach is always visible', async () => {
+test('the stone fields come from the reach list and the ray fan in the context MINE_STONE uses, and stone in reach is always visible', async () => {
   const stone = require('./stone-helpers')
   const bot = new Vec3(0.5, 64, 0.5)
   const eyes = eyesAt(bot)
-  const scene = (extra = {}) => ({ botPosition: bot, spawn: { x: 0.5, z: 0.5 }, table: null, entities: {}, startY: 64, ...extra })
+  const spawn = { x: 0.5, z: 0.5 }
+  const climb = climbFor(spawn)
+  const scene = (extra = {}) => ({ botPosition: bot, spawn, table: null, entities: {}, startY: 64, climb, ...extra })
   const ground = [...cube(-20, 20, 58, 62, -20, 20, 'stone'), ...layer(-20, 20, -20, 20, 63, 'grass_block')]
   const outcrop = [[2, 64, 0, 'stone']]
   const cliff = cube(10, 11, 64, 67, -3, 3, 'stone')
   const lit = async blocks => skyLit(await buildWorld(blocks), -20, 20, -20, 20)
-  assert.equal(STONE_LIT_ONLY, true)
+  // Decision 9's fallback: the lit-face rule is off (Mineflayer never recomputes light, so dug cells stay dark).
+  assert.equal(STONE_LIT_ONLY, false)
 
   const both = await lit([...ground, ...outcrop, ...cliff])
   const scan = stoneScan(both, scene())
-  assert.deepEqual([scan.fields.nearby_stone, scan.fields.stone_visible], [true, true])
-  assert.deepEqual(scan.fields.stone_targets, [{ name: 'stone', x: 2, y: 64, z: 0, distance: Math.round(new Vec3(2.5, 64.5, 0.5).distanceTo(eyes) * 100) / 100, drop: 'cobblestone', rest_y: 64 }])
+  assert.deepEqual([scan.fields.nearby_stone, scan.fields.stone_visible, scan.fields.stone_targets_withheld, scan.lit_only], [true, true, false, false])
+  assert.deepEqual(scan.fields.stone_reach_candidates, [{ name: 'stone', x: 2, y: 64, z: 0, distance: Math.round(new Vec3(2.5, 64.5, 0.5).distanceTo(eyes) * 100) / 100, drop: 'cobblestone', rest_y: 64 }])
+  // stone_targets: the 3 nearest ray-fan targets in the order SEARCH_STONE tries them, the outcrop first, then the cliff.
+  assert.deepEqual(scan.fields.stone_targets, scan.fan.targets.slice(0, 3).map(fanTargetSummary))
+  assert.deepEqual(scan.fields.stone_targets.map(target => [target.name, target.x]), [['stone', 2], ['stone', 10], ['stone', 10]])
+  assert(scan.fields.stone_targets.every((target, i, all) => Object.keys(stone.FACE_OFFSETS).includes(target.face) && (i === 0 || all[i - 1].distance <= target.distance)))
   assert.deepEqual(scan.fields.hostile_nearby, [])
-  // nearby_stone is exactly what MINE_STONE's reach function returns, with the same light rule.
-  const reach = stone.reachableStone(both, stone.stoneContext(both, scene()), { litOnly: true })
+  // nearby_stone is exactly what MINE_STONE's reach function returns in the same context, climb check included;
+  // without the climb search there is no reach list at all.
+  const reach = stone.reachableStone(both, stone.stoneContext(both, scene()))
   assert.deepEqual(scan.reach.map(candidate => `${candidate.position}`), reach.map(candidate => `${candidate.position}`))
-  assert(scan.fan.targets.some(target => target.position.x === 10), 'the cliff is a SEARCH_STONE target')
+  assert.throws(() => stoneScan(both, scene({ climb: null })), /needs a climb search/)
   assert(Number.isFinite(scan.reach_ms) && Number.isFinite(scan.fan.stats.ms))
 
+  // In sight but out of reach, where SEARCH_STONE walks: its targets are recorded.
   const far = await lit([...ground, ...cliff])
   const seen = stoneScan(far, scene())
-  assert.deepEqual([seen.fields.nearby_stone, seen.fields.stone_visible, seen.fields.stone_targets], [false, true, []])
+  assert.deepEqual([seen.fields.nearby_stone, seen.fields.stone_visible, seen.fields.stone_reach_candidates, seen.fields.stone_targets_withheld], [false, true, [], false])
+  assert.deepEqual(seen.fields.stone_targets, seen.fan.targets.slice(0, 3).map(fanTargetSummary))
+  assert(seen.fields.stone_targets.length === 3 && seen.fields.stone_targets.every(target => target.x === 10 && target.distance > 4.5))
   const buried = stoneScan(await lit(ground), scene())
-  assert.deepEqual([buried.fields.nearby_stone, buried.fields.stone_visible], [false, false])
-  // Decision 9: without light (a sealed cave) the same stone is neither seen nor in reach.
+  assert.deepEqual([buried.fields.nearby_stone, buried.fields.stone_visible, buried.fields.stone_targets, buried.fields.stone_targets_withheld], [false, false, [], false])
+  // Without light (a sealed cave, and every cell the bot digs) the same stone counts, exactly as in daylight.
+  // The lit-face rule stays a tested option the bridge does not use.
   const dark = await buildWorld([...ground, ...outcrop, ...cliff])
-  assert.deepEqual([stoneScan(dark, scene()).fields.nearby_stone, stoneScan(dark, scene()).fields.stone_visible], [false, false])
-  assert.deepEqual([stoneScan(dark, scene(), { litOnly: false }).fields.nearby_stone, stoneScan(dark, scene(), { litOnly: false }).fields.stone_visible], [true, true])
+  assert.deepEqual(stoneScan(dark, scene()).fields, scan.fields)
+  const litRule = stoneScan(dark, scene(), { litOnly: true })
+  assert.deepEqual([litRule.fields.nearby_stone, litRule.fields.stone_visible, litRule.lit_only], [false, false, true])
+  assert.deepEqual([stoneScan(both, scene(), { litOnly: true }).fields.nearby_stone, stoneScan(both, scene(), { litOnly: true }).fields.stone_visible], [true, true])
+
+  // The drop band applies to the observation too: stone over a pit drops out of reach (it rests at feet - 4),
+  // although it passes digVerdict and SEARCH_STONE can still see it.
+  const pit = await lit([...ground, ...cube(2, 2, 60, 63, 0, 0, 'air'), ...outcrop])
+  const overPit = stoneScan(pit, scene())
+  assert.deepEqual([stone.dropRestY(pit, new Vec3(2, 64, 0)), stone.digVerdict(pit, new Vec3(2, 64, 0), { ...overPit.ctx, purpose: 'mine' }).ok], [60, true])
+  assert.deepEqual([overPit.fields.nearby_stone, overPit.fields.stone_reach_candidates], [false, []])
+  assert.deepEqual([overPit.fields.stone_visible, overPit.fields.stone_targets[0].x, overPit.fields.stone_targets[0].y], [true, 2, 64])
 
   // A zombie in sight within 12 blocks is listed, and every dig, so every target, is refused.
   const zombie = stoneScan(both, scene({ entities: { 7: { name: 'zombie', position: new Vec3(5.5, 64, 3.5), height: 1.95 } } }))
   assert.deepEqual(zombie.fields.hostile_nearby, [{ name: 'zombie', x: 5.5, y: 64, z: 3.5, distance: 5.83 }])
-  assert.deepEqual([zombie.fields.nearby_stone, zombie.fields.stone_visible], [false, false])
+  assert.deepEqual([zombie.fields.nearby_stone, zombie.fields.stone_visible, zombie.fields.stone_targets], [false, false, []])
   assert.deepEqual(stoneScan(both, scene({ entities: { 7: { name: 'cow', position: new Vec3(5.5, 64, 3.5), height: 1.4 } } })).fields.hostile_nearby, [])
+  // With no wooden pickaxe left (pickaxeType null) MINE_STONE could mine nothing, and the bits say so.
+  const unarmed = stoneScan(both, scene({ pickaxeType: null }))
+  assert.deepEqual([unarmed.fields.nearby_stone, unarmed.fields.stone_visible, unarmed.fields.stone_targets], [false, false, []])
 
-  // stone_visible follows what SEARCH_STONE's next() would return: two failures in a row force exploration.
+  // stone_visible follows what SEARCH_STONE's next() would return: after two failures in a row the memory
+  // withholds every target to force exploration, and the observation says so.
   const memory = new stone.StoneMemory()
   const targets = seen.fan.targets
   memory.failed(memory.next(targets).block)
   memory.failed(memory.next(targets).block)
   const blocked = stoneScan(far, scene(), { memory })
   assert(blocked.fan.targets.length > 0)
-  assert.equal(blocked.fields.stone_visible, false)
+  assert.deepEqual([blocked.fields.stone_visible, blocked.fields.stone_targets_withheld], [false, true])
+  assert.deepEqual(blocked.fields.stone_targets, blocked.fan.targets.slice(0, 3).map(fanTargetSummary))
   // Stone in reach is visible even when the fan has no target left for it.
   const single = await lit([...ground, ...outcrop])
   const forgetting = new stone.StoneMemory()
   forgetting.next(stoneScan(single, scene()).fan.targets)
   forgetting.failed(single.getBlock(new Vec3(2, 64, 0)))
   const inReach = stoneScan(single, scene(), { memory: forgetting })
-  assert.deepEqual([inReach.fan.targets.length, inReach.fields.nearby_stone, inReach.fields.stone_visible], [0, true, true])
+  assert.deepEqual([inReach.fan.targets.length, inReach.fields.nearby_stone, inReach.fields.stone_visible, inReach.fields.stone_targets], [0, true, true, []])
 })
 
 test('pickaxe uses left read the 1.21.4 damage component through prismarine-item, the held pickaxe first', () => {
@@ -729,13 +767,11 @@ test('pickaxe uses left read the 1.21.4 damage component through prismarine-item
   assert.equal(pickaxeUsesLeft([{ name: 'wooden_pickaxe', maxDurability: 59, durabilityUsed: null }]), null)
 })
 
-test('the survey reports the depth to stone and four simulated staircases without digging anything', async (t) => {
+test('the survey reports the stage start, the depth to stone and four simulated staircases without digging anything', async (t) => {
   const stone = require('./stone-helpers')
-  const { Movements } = require('mineflayer-pathfinder')
-  const Move = require('mineflayer-pathfinder/lib/move')
   const spawn = { x: 0.5, z: 0.5 }
-  const reversible = stone.stairReversibility(fake => stone.strictMovements(fake, Movements, spawn), Move)
-  const scene = (world, extra = {}) => ({ botPosition: new Vec3(0.5, 64, 0.5), spawn, table: null, entities: {}, startY: 64, ...extra })
+  const climb = climbFor(spawn)
+  const scene = (world, extra = {}) => ({ botPosition: new Vec3(0.5, 64, 0.5), spawn, table: null, entities: {}, startY: 64, climb, ...extra })
   const feet = new Vec3(0, 64, 0)
   const world = skyLit(await buildWorld(workedExample()), -8, 12, -8, 8)
   assert.deepEqual(depthToStone(world, feet), { depth: 5, block: 'stone', layers: [['grass_block', 1], ['dirt', 3]], stopped: null })
@@ -745,9 +781,13 @@ test('the survey reports the depth to stone and four simulated staircases withou
   const before = stateIds(world, -8, 12, 50, 66, -8, 8)
   const scan = stoneScan(world, scene(world))
   assert.deepEqual([scan.fields.nearby_stone, scan.fields.stone_visible], [false, false]) // all stone is buried
-  const record = stoneSurveyRecord(world, feet, scan, { startY: 64, reversible })
+  const stageStart = stageStartReference(world, feet)
+  assert.deepEqual(stageStart, { hand_off_y: 64, y: 64, floor: 'grass_block', skipped: [], stopped: null })
+  const record = stoneSurveyRecord(world, feet, scan, { stageStart })
   assert.deepEqual(stateIds(world, -8, 12, 50, 66, -8, 8), before) // nothing was dug
   assert.deepStrictEqual(JSON.parse(JSON.stringify(record)), record) // plain data only, no blocks or vectors
+  assert.deepEqual(Object.keys(record), ['lit_only', 'stage_start', 'depth_to_stone', 'table_offset', 'on_own_table', 'table_dropped_headings', 'staircases', 'fan', 'reach', 'survey_ms'])
+  assert.deepEqual([record.lit_only, record.stage_start, record.table_offset, record.on_own_table, record.table_dropped_headings], [false, stageStart, null, false, []])
   // Flat ground: every heading digs the worked example's 1, 2, 3, 3 and 2 cells by hand and exposes stone level with the floor.
   assert.deepEqual(Object.keys(record.staircases), ['+x', '+z', '-x', '-z'])
   for (const stair of Object.values(record.staircases)) assert.deepEqual([stair.stopped, stair.dig_counts, stair.end_y, stair.steps.length], ['stone_exposed', [1, 2, 3, 3, 2], 60, 5])
@@ -756,36 +796,104 @@ test('the survey reports the depth to stone and four simulated staircases withou
   // A planned dig is never a stone source.
   const dug = Object.values(record.staircases).flatMap(stair => stair.steps.flatMap(step => step.digs || []))
   assert(dug.length === 44 && dug.every(([name]) => !stone.isStoneSource(name)))
-  assert.deepEqual(record.depth_to_stone, depthToStone(world, feet))
-  assert.equal(record.lit_only, true)
+  assert.deepEqual(record.depth_to_stone, { ...depthToStone(world, feet), from_stage_start: 5 })
+  // With the light rule off, the any-light counts are the counts themselves.
   assert.deepEqual([record.fan.rays, record.fan.targets, record.fan.targets_any_light, record.reach.candidates, record.reach.candidates_any_light], [416, 0, 0, 0, 0])
   assert(record.fan.ms >= 0 && record.reach.ms >= 0 && record.survey_ms >= 0)
   t.diagnostic(`survey on the worked example: fan ${record.fan.ms} ms (${record.fan.reads} block reads), reach ${record.reach.ms} ms, survey ${record.survey_ms} ms`)
 
+  // The bot's own table beside the hand-off cell: every heading still reports the terrain (the heading through
+  // the table refuses as own_table, digVerdict's protection), and the record lists the three headings the
+  // first-step table rule drops, so DIG_DOWN would take -x.
+  const table = new Vec3(1, 64, 0)
+  const tabled = skyLit(await buildWorld([...workedExample(), [1, 64, 0, 'crafting_table']]), -8, 12, -8, 8)
+  const tabledScan = stoneScan(tabled, scene(tabled, { table }))
+  const beside = stoneSurveyRecord(tabled, feet, tabledScan, { stageStart: stageStartReference(tabled, feet, table) })
+  assert.deepEqual([beside.table_offset, beside.on_own_table, beside.table_dropped_headings], [[-1, 0, 0], false, ['+x', '+z', '-z']])
+  assert.deepEqual(Object.fromEntries(Object.entries(beside.staircases).map(([heading, stair]) => [heading, [stair.stopped, stair.dig_counts]])),
+    { '+x': ['own_table', []], '+z': ['stone_exposed', [1, 2, 3, 3, 2]], '-x': ['stone_exposed', [1, 2, 3, 3, 2]], '-z': ['stone_exposed', [1, 2, 3, 3, 2]] })
+  assert.deepEqual(beside.staircases['+x'].steps[0], { ok: false, reason: 'own_table', cell: [1, 64, 0], block: 'crafting_table' })
+  const choice = stone.chooseStairHeading(tabled, feet, tabledScan.ctx)
+  assert.deepEqual([choice.heading, choice.near_table], ['-x', beside.table_dropped_headings])
+  // A hand-off on top of the own table (3 of 124): the stage start is the ground under it, every heading is
+  // near the table, and the depth to stone is also counted from the stage start.
+  const ownTable = new Vec3(0, 64, 0)
+  const onTable = skyLit(await buildWorld([...workedExample(), [0, 64, 0, 'crafting_table']]), -8, 12, -8, 8)
+  const top = new Vec3(0, 65, 0)
+  const tableStart = stageStartReference(onTable, top, ownTable)
+  assert.deepEqual(tableStart, { hand_off_y: 65, y: 64, floor: 'grass_block', skipped: [['crafting_table', 1]], stopped: null })
+  const raised = stoneSurveyRecord(onTable, top, stoneScan(onTable, scene(onTable, { botPosition: new Vec3(0.5, 65, 0.5), table: ownTable, startY: tableStart.y })), { stageStart: tableStart })
+  assert.deepEqual([raised.table_offset, raised.on_own_table, raised.table_dropped_headings], [[0, 1, 0], true, ['+x', '+z', '-x', '-z']])
+  assert.deepEqual([raised.depth_to_stone.depth, raised.depth_to_stone.from_stage_start, raised.depth_to_stone.layers[0]], [6, 5, ['crafting_table', 1]])
+  for (const stair of Object.values(raised.staircases)) assert.deepEqual([stair.stopped, stair.dig_counts, stair.end_y], ['stone_exposed', [0, 1, 2, 3, 3, 2], 60])
+
   // A river along z = 1 refuses the headings beside it on their first step; a zombie in sight refuses all four.
   const river = skyLit(await buildWorld([...workedExample(), ...cube(-8, 12, 62, 63, 1, 1, 'water')]), -8, 12, -8, 8)
-  const wet = surveyStaircases(river, feet, { ...stoneScan(river, scene(river)).ctx, startY: 64, reversible })
+  const wet = surveyStaircases(river, feet, stoneScan(river, scene(river)).ctx)
   assert.deepEqual(Object.fromEntries(Object.entries(wet).map(([heading, stair]) => [heading, stair.steps[0].reason || null])),
     { '+x': 'liquid_adjacent', '+z': 'liquid_adjacent', '-x': 'liquid_adjacent', '-z': null })
   assert.equal(wet['+z'].steps[0].ok, false)
   const watched = stoneScan(world, scene(world, { entities: { 3: { name: 'skeleton', position: new Vec3(-4.5, 64, 4.5), height: 1.99 } } }))
   assert.equal(watched.fields.hostile_nearby.length, 1)
-  const refused = surveyStaircases(world, feet, { ...watched.ctx, startY: 64, reversible })
+  const refused = surveyStaircases(world, feet, watched.ctx)
   for (const stair of Object.values(refused)) assert.deepEqual([stair.stopped, stair.steps.length, stair.dig_counts], ['hostile_nearby', 1, []])
   // Rock that is not a recipe material is dug with the pickaxe; the depth limit counts from the stage start
   // (a start nine blocks above these feet leaves room for three steps).
   const granite = skyLit(await buildWorld([...workedExample(), [1, 63, 0, 'granite']]), -8, 12, -8, 8)
-  assert.deepEqual(surveyStaircases(granite, feet, { ...stoneScan(granite, scene(granite)).ctx, startY: 64, reversible }, 1)['+x'].steps[0].digs, [['granite', 'pickaxe']])
-  const deep = surveyStaircases(world, feet, { ...scan.ctx, startY: 64 + 9, reversible })
+  assert.deepEqual(surveyStaircases(granite, feet, stoneScan(granite, scene(granite)).ctx, 1)['+x'].steps[0].digs, [['granite', 'pickaxe']])
+  const deep = surveyStaircases(world, feet, { ...scan.ctx, startY: 64 + 9 })
   assert.deepEqual([deep['+x'].stopped, deep['+x'].dig_counts, deep['+x'].end_y], ['depth_limit', [1, 2, 3], 61])
+  // The stop rule protects the staircase's floors as MINE_STONE will: a stone block under the start is no
+  // target after the first step (without the staircase record every heading would stop there).
+  const capped = skyLit(await buildWorld([...workedExample(), [0, 63, 0, 'stone']]), -8, 12, -8, 8)
+  const kept = surveyStaircases(capped, feet, stoneScan(capped, scene(capped)).ctx)
+  for (const stair of Object.values(kept)) assert.deepEqual([stair.stopped, stair.dig_counts, stair.end_y], ['stone_exposed', [1, 2, 3, 3, 2], 60])
   assert.equal(SURVEY_STAIR_STEPS, 6)
+})
+
+test('the stage start is the natural floor under the hand-off, so the depth cap is 12 below the ground wherever the hand-off stood', async () => {
+  const stone = require('./stone-helpers')
+  const spawn = { x: 0.5, z: 0.5 }
+  const climb = climbFor(spawn)
+  const table = new Vec3(-4, 64, -4)
+  // Deep dirt under grass at y 63 (natural feet at 64, no stone), with the bot's table, an oak stump, a stranger's
+  // table, a slab, and spruce leaves at y 67 to 69 over open ground.
+  const world = await buildWorld([...cube(-8, 30, 30, 62, -8, 8, 'dirt'), ...layer(-8, 30, -8, 8, 63, 'grass_block'), [-4, 64, -4, 'crafting_table'],
+    [-4, 64, 4, 'oak_log'], [-2, 64, 4, 'crafting_table'], [-2, 64, -4, 'oak_slab'], ...cube(-6, -4, 67, 69, -1, 1, 'spruce_leaves')])
+  const start = (feet, ownTable = table) => stageStartReference(world, feet, ownTable)
+  assert.deepEqual(start(new Vec3(0, 64, 0)), { hand_off_y: 64, y: 64, floor: 'grass_block', skipped: [], stopped: null })
+  assert.deepEqual(start(new Vec3(-4, 65, -4)), { hand_off_y: 65, y: 64, floor: 'grass_block', skipped: [['crafting_table', 1]], stopped: null })
+  assert.deepEqual(start(new Vec3(-4, 65, 4)), { hand_off_y: 65, y: 64, floor: 'grass_block', skipped: [['oak_log', 1]], stopped: null })
+  assert.deepEqual(start(new Vec3(-5, 70, 0)), { hand_off_y: 70, y: 64, floor: 'grass_block', skipped: [['spruce_leaves', 3], ['air', 3]], stopped: null })
+  // Only the bot's own table is skipped, and a partial block (the slab, where the standing cell is one up) is a floor.
+  assert.deepEqual([start(new Vec3(-2, 65, 4)).y, start(new Vec3(-2, 65, 4)).floor], [65, 'crafting_table'])
+  assert.deepEqual([start(new Vec3(-4, 65, -4), null).y, start(new Vec3(-2, 65, -4)).y, start(new Vec3(-2, 65, -4)).floor], [65, 65, 'oak_slab'])
+  // No floor within 12 cells, or an unloaded column: the hand-off y itself, which only makes the cap shallower.
+  assert.deepEqual(start(new Vec3(-5, 90, 0)), { hand_off_y: 90, y: 90, floor: null, skipped: [['air', 12]], stopped: 'scan_limit' })
+  assert.deepEqual(start(new Vec3(300, 64, 0)), { hand_off_y: 64, y: 64, floor: null, skipped: [], stopped: 'unloaded' })
+  assert.deepEqual(stageStartReference(world, new Vec3(-5, 70, 0), null, 3), { hand_off_y: 70, y: 70, floor: null, skipped: [['spruce_leaves', 3]], stopped: 'scan_limit' })
+  // The staircase DIG_DOWN would dig from the ground beside the hand-off stops 12 below the ground for every
+  // hand-off; counted from the raw hand-off y, a table would cost a block and the canopy six.
+  const plan = startY => stone.planStaircase(world, new Vec3(0, 64, 0), '+x', stone.stoneContext(world, { botPosition: new Vec3(0.5, 64, 0.5), spawn, table, entities: {}, startY, climb }), { maxSteps: 30 })
+  for (const feet of [new Vec3(0, 64, 0), new Vec3(-4, 65, -4), new Vec3(-4, 65, 4), new Vec3(-5, 70, 0)]) {
+    const reference = start(feet)
+    assert(reference.y <= reference.hand_off_y)
+    const stair = plan(reference.y)
+    assert.deepEqual([stair.stopped, stair.feet.y], ['depth_limit', 52], `${feet}`)
+  }
+  assert.deepEqual([plan(65).feet.y, plan(70).feet.y], [53, 58])
 })
 
 // The real bridge process with Mineflayer replaced by a stand-in bot on an
 // offline world (node --require), so goal gating and the observation schema
-// are tested on main() itself. The stand-in never moves, digs or crafts; its
-// inventory fills only after the bridge has checked that it starts empty. It
-// counts calls to the stone helpers' scans and can make one of them fail.
+// are tested on main() itself. The stand-in never walks or crafts: its goto
+// always fails and it has no recipes. A dig completes at once and puts the
+// block in the inventory, as a collected drop. Its inventory fills only after
+// the bridge has checked that it starts empty. scenario.after[id] changes the
+// stand-in once the answer to request `id` is written, before the bridge
+// reads the next request: position, held (an item name or null), inventory,
+// and boxes of blocks (light is not recomputed, as in Mineflayer). It counts
+// calls to the stone helpers' scans and can make one of them fail.
 function fakeMineflayer () {
   const Module = require('node:module')
   const fs = require('node:fs')
@@ -793,14 +901,23 @@ function fakeMineflayer () {
   const scenario = JSON.parse(fs.readFileSync(process.env.FAKE_BOT_SCENARIO, 'utf8'))
   const calls = {}
   let wrapped = false
+  let change = () => {}
   process.on('exit', () => fs.writeFileSync(process.env.FAKE_BOT_CALLS, JSON.stringify(calls)))
+  const write = process.stdout.write.bind(process.stdout)
+  process.stdout.write = (chunk, ...rest) => {
+    for (const line of String(chunk).split('\n')) {
+      const id = /^\{"id":(\d+),/.exec(line)?.[1]
+      if (id && scenario.after?.[id]) change(scenario.after[id])
+    }
+    return write(chunk, ...rest)
+  }
   const load = Module._load
   Module._load = function (request, parent) {
     if (request === 'mineflayer' && /resource-bridge\.js$/.test(parent?.filename || '')) return { createBot }
     const loaded = load.apply(this, arguments)
     if (request === './stone-helpers' && !wrapped) {
       wrapped = true
-      for (const name of ['stoneInventoryCounts', 'stoneContext', 'reachableStone', 'visibleStoneTargets', 'planStaircase', 'fillStoneRecipe']) {
+      for (const name of ['stoneInventoryCounts', 'stoneContext', 'reachableStone', 'visibleStoneTargets', 'planStaircase', 'climbSearch', 'fillStoneRecipe']) {
         const original = loaded[name]
         loaded[name] = (...args) => {
           calls[name] = (calls[name] || 0) + 1
@@ -826,6 +943,20 @@ function fakeMineflayer () {
     bot._client = new EventEmitter()
     let started = false
     let items = []
+    const toItem = ([name, count, damage]) => Item.fromNotch({
+      itemId: registry.itemsByName[name].id, itemCount: count, addedComponentCount: damage ? 1 : 0, removedComponentCount: 0,
+      components: damage ? [{ type: 'damage', data: damage }] : [], removeComponents: []
+    })
+    const setBox = ([bx0, bx1, by0, by1, bz0, bz1, name]) => {
+      const state = registry.blocksByName[name].defaultState
+      for (let x = bx0; x <= bx1; x++) for (let y = by0; y <= by1; y++) for (let z = bz0; z <= bz1; z++) bot.world.setBlockStateId(new Vec3(x, y, z), state)
+    }
+    change = ({ position, held, inventory, boxes = [] }) => {
+      for (const box of boxes) setBox(box)
+      if (position) bot.entity.position = new Vec3(...position)
+      if (held !== undefined) scenario.held = held
+      if (inventory) items = inventory.map(toItem)
+    }
     Object.assign(bot, {
       registry,
       version: '1.21.4',
@@ -850,6 +981,11 @@ function fakeMineflayer () {
       recipesFor: () => [],
       recipesAll: () => [],
       canDigBlock: () => true,
+      digTime: () => 0,
+      async dig (block) {
+        bot.world.setBlockStateId(block.position, registry.blocksByName.air.defaultState)
+        items = [...items, toItem([block.name, 1])]
+      },
       nearestEntity: () => null,
       blockAt: position => bot.world.getBlock(position),
       findBlocks ({ matching, maxDistance, count }) {
@@ -872,22 +1008,16 @@ function fakeMineflayer () {
       for (let cx = Math.floor(x0 / 16) - 1; cx <= Math.floor(x1 / 16) + 1; cx++) {
         for (let cz = Math.floor(z0 / 16) - 1; cz <= Math.floor(z1 / 16) + 1; cz++) await world.setColumn(cx, cz, new Chunk({ minY: -64, worldHeight: 384 }))
       }
-      for (const [bx0, bx1, by0, by1, bz0, bz1, name] of scenario.boxes) {
-        const state = registry.blocksByName[name].defaultState
-        for (let x = bx0; x <= bx1; x++) for (let y = by0; y <= by1; y++) for (let z = bz0; z <= bz1; z++) world.sync.setBlockStateId(new Vec3(x, y, z), state)
-      }
+      bot.world = world.sync
+      for (const box of scenario.boxes) setBox(box)
       for (let x = x0; x <= x1; x++) {
         for (let z = z0; z <= z1; z++) {
           for (let y = y1 + 2; y > -64 && world.sync.getBlock(new Vec3(x, y, z)).boundingBox === 'empty'; y--) world.sync.setSkyLight(new Vec3(x, y, z), 15)
         }
       }
-      bot.world = world.sync
       bot.entity = { position: new Vec3(...scenario.position), onGround: true, height: 1.8, width: 0.6, name: 'player', effects: {} }
       bot.entities = { 0: bot.entity }
-      items = scenario.inventory.map(([name, count, damage]) => Item.fromNotch({
-        itemId: registry.itemsByName[name].id, itemCount: count, addedComponentCount: damage ? 1 : 0, removedComponentCount: 0,
-        components: damage ? [{ type: 'damage', data: damage }] : [], removeComponents: []
-      }))
+      items = scenario.inventory.map(toItem)
       bot.emit('spawn')
       bot._client.emit('window_items', { windowId: 0 })
     })
@@ -940,13 +1070,22 @@ const STAND_IN_WORLD = {
 const standIn = (inventory = [], held = null) => ({ ...STAND_IN_WORLD, inventory, held })
 // Two uses already spent on the wooden pickaxe.
 const WOODEN_HELD = standIn([['wooden_pickaxe', 1, 2], ['stick', 2], ['oak_planks', 1]], 'wooden_pickaxe')
+// The same world with a two-log trunk beside the bot, in reach: CHOP digs its lower log and collects it.
+const LOG_IN_REACH = { ...standIn(), boxes: [...STAND_IN_WORLD.boxes, [-2, -2, 64, 65, 1, 1, 'oak_log']] }
 // The observation keys of the wood stage at 409560e, in order.
 const WOOD_OBSERVATION_KEYS = ['position', 'health', 'food', 'gamemode', 'inventory', 'inventory_counts', 'nearby_log', 'nearby_table', 'table_placed',
   'nearby_visible_logs', 'biome', 'feet_block', 'head_block', 'ground_block', 'support_block', 'on_canopy', 'adjacent_drops', 'table_position',
   'held_item', 'success', 'death', 'recovery', 'action_detail', 'event', 'action_duration_seconds', 'backend', 'game_version']
-// The wood-stage bridge before step S1 (unchanged since 529bf7d).
+// The wood-stage bridge before step S1 (unchanged since 529bf7d), and its git blob id
+// (git rev-parse 409560e:minecraft_bridge/resource-bridge.js).
 const WOOD_BASELINE = '409560e'
-const STONE_SCANS = ['stoneContext', 'reachableStone', 'visibleStoneTargets', 'planStaircase']
+const WOOD_BASELINE_BLOB = '29c792f8f36383ff9865e1e27858425ac4ecbc00'
+const STONE_SCANS = ['stoneContext', 'reachableStone', 'visibleStoneTargets', 'planStaircase', 'climbSearch']
+// The default-goal request script, over three stand-in scenarios: nothing in reach, the wooden pickaxe held
+// (every step is already_completed), and a log in reach (CHOP digs and collects it, then SEARCH finds the
+// next log already in reach).
+const DEFAULT_GOAL_REQUESTS = [{ op: 'status' }, { op: 'observe' }, { op: 'step', action: 1 }, { op: 'step', action: 0 }, { op: 'step', action: 8 }, { op: 'observe' }]
+const DEFAULT_GOAL_SCENARIOS = [['empty inventory', standIn()], ['wooden pickaxe held', WOODEN_HELD], ['a log in reach', LOG_IN_REACH]]
 // A response with the step's measured duration removed, after checking it is a number.
 function withoutDuration (response) {
   if (!response.ok || response.result.event === 'already_completed' || !('action_duration_seconds' in response.result)) return response
@@ -955,38 +1094,65 @@ function withoutDuration (response) {
   return { ...response, result }
 }
 
-test('under the default goal the bridge answers exactly as the 409560e bridge did, apart from the two stone counts', async (t) => {
-  const shown = spawnSync('git', ['show', `${WOOD_BASELINE}:minecraft_bridge/resource-bridge.js`], { cwd: __dirname, encoding: 'utf8' })
-  if (shown.status !== 0) { t.skip(`git history is not available here: ${(shown.stderr || shown.error?.message || '').trim()}`); return }
+// The wood bridge's two stone counts removed from a response, after checking they are 0.
+function withoutStoneCounts (response) {
+  if (!response.ok || !response.result.inventory_counts) return response
+  const { stone_materials: materials, stone_pickaxes: pickaxes, ...counts } = response.result.inventory_counts
+  assert.deepEqual([materials, pickaxes], [0, 0])
+  return { ...response, result: { ...response.result, inventory_counts: counts } }
+}
+
+// These checks need no git history, so they always run.
+test('under the default goal the observations keep the wood keys, add no stone field and run no stone scan, with or without the explicit options', async () => {
+  for (const [label, scenario] of DEFAULT_GOAL_SCENARIOS) {
+    const [now, explicit] = await Promise.all([
+      runBridge({ scenario, requests: DEFAULT_GOAL_REQUESTS }),
+      runBridge({ scenario, requests: DEFAULT_GOAL_REQUESTS, args: ['--goal', 'wooden_pickaxe', '--stone-survey', 'off'] })
+    ])
+    // Five answers: the refused action 8 ends the session, so the last request is never answered.
+    assert.equal(now.responses.length, 5, `${label}: ${now.stderr}`)
+    assert.deepEqual(now.responses[4], { id: 5, ok: false, error: 'action must be an integer from 0 through 7' })
+    assert.deepEqual(explicit.responses.map(withoutDuration), now.responses.map(withoutDuration), label)
+    // The bot connects with the same options: the goal and the survey never reach Mineflayer.
+    for (const run of [now, explicit]) assert.deepEqual(run.calls.createBot, { host: '127.0.0.1', port: 25567, username: 'RLResourceBot', version: '1.21.4', auth: 'offline', hideErrors: true, respawn: false })
+    // The keys of 409560e in the same order, the two stone counts at 0, and not one stone scan.
+    for (const response of now.responses.slice(1, 4)) assert.deepEqual(Object.keys(response.result), WOOD_OBSERVATION_KEYS, label)
+    now.responses.forEach(withoutStoneCounts)
+    for (const name of STONE_SCANS) assert.equal(now.calls[name], undefined, `${label}: ${name} ran under the default goal`)
+    assert(now.calls.stoneInventoryCounts > 0)
+    if (label === 'a log in reach') assert.deepEqual(now.responses.slice(2, 4).map(response => response.result.event), ['log_collected', 'log_already_reachable'])
+  }
+})
+
+// What this comparison covers: status, observations, CHOP digging and collecting a log in reach, SEARCH with a
+// log in reach, CHOP and SEARCH with nothing in reach, the refused action 8 and the already_completed short cut.
+// It does not cover the wood procedures that walk or craft: the stand-in's goto always fails and it has no
+// recipes, so crafting, PLACE_TABLE, APPROACH_TABLE, walking pickups, exploration, the canopy descent and the
+// leaf escape are not compared; a guard for them belongs with step S3's change to the action-6 procedure.
+// The baseline comes from git: without commit 409560e the test fails with the reason, never skips. Refresh it
+// only on purpose, when the wood path changes.
+test('under the default goal the bridge answers the stand-in requests exactly as the 409560e bridge did, apart from the two stone counts', async () => {
+  const shown = spawnSync('git', ['show', `${WOOD_BASELINE}:minecraft_bridge/resource-bridge.js`], { cwd: __dirname })
+  const reason = shown.error?.message || (shown.status !== 0 && String(shown.stderr).trim())
+  if (reason) {
+    assert.fail(`The wood baseline, ${WOOD_BASELINE}:minecraft_bridge/resource-bridge.js, cannot be read from git (${reason}). ` +
+      `Run the tests in a git checkout that contains commit ${WOOD_BASELINE} (branch codex/pc-canopy-descent), with git on PATH.`)
+  }
+  const blob = crypto.createHash('sha1').update(`blob ${shown.stdout.length}\0`).update(shown.stdout).digest('hex')
+  assert.equal(blob, WOOD_BASELINE_BLOB, `git returned another file for ${WOOD_BASELINE}`)
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'resource-bridge-baseline-'))
   const baseline = path.join(dir, 'resource-bridge.js')
   fs.writeFileSync(baseline, shown.stdout)
   try {
-    const requests = [{ op: 'status' }, { op: 'observe' }, { op: 'step', action: 1 }, { op: 'step', action: 0 }, { op: 'step', action: 8 }, { op: 'observe' }]
-    for (const [label, scenario] of [['empty inventory', standIn()], ['wooden pickaxe held', WOODEN_HELD]]) {
-      const [now, explicit, before] = await Promise.all([
-        runBridge({ scenario, requests }),
-        runBridge({ scenario, requests, args: ['--goal', 'wooden_pickaxe', '--stone-survey', 'off'] }),
-        runBridge({ scenario, requests, bridge: baseline })
+    for (const [label, scenario] of DEFAULT_GOAL_SCENARIOS) {
+      const [now, before] = await Promise.all([
+        runBridge({ scenario, requests: DEFAULT_GOAL_REQUESTS }),
+        runBridge({ scenario, requests: DEFAULT_GOAL_REQUESTS, bridge: baseline })
       ])
-      // Five answers each: the refused action 8 ends the session, so the last request is never answered.
       assert.deepEqual([now.responses.length, before.responses.length], [5, 5], `${label}: ${now.stderr} ${before.stderr}`)
       assert.deepEqual(before.responses[4], { id: 5, ok: false, error: 'action must be an integer from 0 through 7' })
-      assert.deepEqual(explicit.responses.map(withoutDuration), now.responses.map(withoutDuration), label)
-      const stripped = now.responses.map(response => {
-        if (!response.ok || !response.result.inventory_counts) return response
-        const { stone_materials: materials, stone_pickaxes: pickaxes, ...counts } = response.result.inventory_counts
-        assert.deepEqual([materials, pickaxes], [0, 0])
-        return { ...response, result: { ...response.result, inventory_counts: counts } }
-      })
-      assert.deepEqual(stripped.map(withoutDuration), before.responses.map(withoutDuration), label)
-      // The bot connects with the same options: the goal and the survey never reach Mineflayer.
+      assert.deepEqual(now.responses.map(withoutStoneCounts).map(withoutDuration), before.responses.map(withoutDuration), label)
       assert.deepEqual(now.calls.createBot, before.calls.createBot)
-      assert.deepEqual(explicit.calls.createBot, { host: '127.0.0.1', port: 25567, username: 'RLResourceBot', version: '1.21.4', auth: 'offline', hideErrors: true, respawn: false })
-      // The same keys in the same order as before, and not one stone scan.
-      for (const response of now.responses.slice(1, 4)) assert.deepEqual(Object.keys(response.result), WOOD_OBSERVATION_KEYS, label)
-      for (const name of STONE_SCANS) assert.equal(now.calls[name], undefined, `${label}: ${name} ran under the default goal`)
-      assert(now.calls.stoneInventoryCounts > 0)
     }
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 })
@@ -1002,34 +1168,44 @@ test('under the default goal a wooden pickaxe completes the episode and actions 
   }
 })
 
-test('under the stone goal the fields are null until a wooden pickaxe, success needs a held stone pickaxe, and stone actions fail loudly', async () => {
+test('under the stone goal only the time of day is recorded before a wooden pickaxe, success needs a held stone pickaxe, and stone actions fail loudly', async () => {
   const args = ['--goal', 'stone_pickaxe']
   const crafted = [['wooden_pickaxe', 1], ['stone_pickaxe', 1], ['oak_planks', 1]]
   const [empty, wooden, done, unheld] = await Promise.all([
-    runBridge({ args, scenario: standIn(), requests: [{ op: 'observe' }, { op: 'step', action: 8 }, { op: 'observe' }] }),
+    runBridge({ args, scenario: standIn(), requests: [{ op: 'observe' }, { op: 'step', action: 1 }, { op: 'step', action: 8 }, { op: 'observe' }] }),
     runBridge({ args, scenario: WOODEN_HELD, requests: [{ op: 'observe' }, { op: 'step', action: 1 }, { op: 'step', action: 13 }] }),
     runBridge({ args, scenario: standIn(crafted, 'stone_pickaxe'), requests: [{ op: 'observe' }, { op: 'step', action: 0 }, { op: 'step', action: 12 }] }),
     runBridge({ args, scenario: standIn(crafted, 'wooden_pickaxe'), requests: [{ op: 'observe' }] })
   ])
-  // Before any wooden pickaxe: every stone field is present and null, and nothing is scanned.
-  const start = empty.responses[0].result
-  assert.deepEqual(Object.keys(start), [...WOOD_OBSERVATION_KEYS, ...STONE_FIELD_KEYS])
-  assert(STONE_FIELD_KEYS.every(key => start[key] === null))
-  assert.equal(start.success, false)
+  // Before any wooden pickaxe: every stone field is present, the time of day is recorded on observations
+  // and on steps alike, the others are null, and nothing is scanned.
+  const [start, chopped] = empty.responses.map(response => response.result)
+  for (const result of [start, chopped]) {
+    assert.deepEqual(Object.keys(result), [...WOOD_OBSERVATION_KEYS, ...STONE_FIELD_KEYS])
+    assert.equal(result.time_of_day, 1000)
+    assert(STONE_FIELD_KEYS.every(key => key === 'time_of_day' || result[key] === null))
+  }
+  assert.deepEqual([start.success, chopped.event], [false, 'no_reachable_log'])
   for (const name of STONE_SCANS) assert.equal(empty.calls[name], undefined)
-  assert.deepEqual(empty.responses.slice(1), [{ id: 2, ok: false, error: 'SEARCH_STONE (action 8) is not implemented until step S3; this episode is invalid' }])
+  assert.deepEqual(empty.responses.slice(2), [{ id: 3, ok: false, error: 'SEARCH_STONE (action 8) is not implemented until step S3; this episode is invalid' }])
   // With the wooden pickaxe held the stage has started: the fields are measured, and the wood actions still run.
   const handoff = wooden.responses[0].result
   assert.equal(handoff.success, false)
   assert.deepEqual(handoff.inventory_counts, { logs: 0, planks: 1, sticks: 2, tables: 0, pickaxes: 1, stone_materials: 0, stone_pickaxes: 0 })
-  assert.deepEqual([handoff.nearby_stone, handoff.stone_visible, handoff.pickaxe_uses_left, handoff.pickaxe_digs, handoff.time_of_day, handoff.depth_below_stage_start],
-    [true, true, 57, 0, 1000, 0])
-  assert.deepEqual(handoff.stone_targets.map(target => [target.name, target.x, target.y, target.z, target.drop, target.rest_y]), [['stone', 2, 64, 0, 'cobblestone', 64]])
+  assert.deepEqual([handoff.nearby_stone, handoff.stone_visible, handoff.stone_targets_withheld, handoff.pickaxe_uses_left, handoff.pickaxe_digs, handoff.time_of_day,
+    handoff.hand_off_y, handoff.stage_start_y, handoff.depth_below_stage_start], [true, true, false, 57, 0, 1000, 64, 64, 0])
+  assert.deepEqual(handoff.stone_reach_candidates.map(target => [target.name, target.x, target.y, target.z, target.drop, target.rest_y]), [['stone', 2, 64, 0, 'cobblestone', 64]])
+  // The fan's targets, nearest first: the outcrop, then the cliff.
+  assert.deepEqual(handoff.stone_targets.map(target => Object.keys(target)), Array(3).fill(['name', 'x', 'y', 'z', 'distance', 'face']))
+  assert.deepEqual([handoff.stone_targets[0].x, handoff.stone_targets[0].y, handoff.stone_targets[0].z], [2, 64, 0])
+  assert(handoff.stone_targets.slice(1).every(target => target.name === 'stone' && target.x === 8))
   assert.deepEqual(handoff.hostile_nearby, [])
   assert.equal('diagnostic_only' in handoff, false)
   assert.deepEqual([wooden.responses[1].ok, wooden.responses[1].result.event, wooden.responses[1].result.success], [true, 'no_reachable_log', false])
   assert.deepEqual(wooden.responses[2], { id: 3, ok: false, error: 'action must be an integer from 0 through 12' })
   assert(STONE_SCANS.slice(0, 3).every(name => wooden.calls[name] >= 2))
+  // One climb search per process, shared by every scan.
+  assert.equal(wooden.calls.climbSearch, 1)
   // Only a held stone pickaxe completes the stone goal.
   assert.equal(done.responses[0].result.success, true)
   assert.deepEqual([done.responses[1].result.event, done.responses[1].result.action_duration_seconds], ['already_completed', 0])
@@ -1048,17 +1224,20 @@ test('the passive survey adds diagnostic_only once a wooden pickaxe is held and 
   ])
   const start = empty.responses[0].result
   assert.deepEqual(Object.keys(start), [...WOOD_OBSERVATION_KEYS, ...STONE_FIELD_KEYS, 'diagnostic_only'])
-  assert.equal(start.diagnostic_only, null)
+  assert.deepEqual([start.diagnostic_only, start.time_of_day, start.nearby_stone], [null, 1000, null])
   for (const name of STONE_SCANS) assert.equal(empty.calls[name], undefined)
   // The hand-off observation of a wood run: still a success, now with the stone fields and the survey record.
   const handoff = wooden.responses[0].result
   assert.deepEqual([handoff.success, handoff.nearby_stone, handoff.stone_visible, handoff.pickaxe_uses_left], [true, true, true, 57])
   const survey = handoff.diagnostic_only
-  assert.deepEqual(Object.keys(survey), ['lit_only', 'depth_to_stone', 'staircases', 'fan', 'reach', 'survey_ms'])
-  assert.deepEqual(survey.depth_to_stone, { depth: 2, block: 'stone', layers: [['grass_block', 1]], stopped: null })
+  assert.deepEqual(Object.keys(survey), ['lit_only', 'stage_start', 'depth_to_stone', 'table_offset', 'on_own_table', 'table_dropped_headings', 'staircases', 'fan', 'reach', 'survey_ms'])
+  assert.deepEqual(survey.stage_start, { hand_off_y: 64, y: 64, floor: 'grass_block', skipped: [], stopped: null })
+  assert.deepEqual(survey.depth_to_stone, { depth: 2, block: 'stone', layers: [['grass_block', 1]], stopped: null, from_stage_start: 2 })
+  assert.deepEqual([survey.table_offset, survey.on_own_table, survey.table_dropped_headings], [null, false, []])
   assert.deepEqual(Object.keys(survey.staircases), ['+x', '+z', '-x', '-z'])
   assert(Object.values(survey.staircases).every(stair => typeof stair.stopped === 'string' && stair.steps.length >= 1 && stair.steps.length <= 6))
-  assert.deepEqual([survey.fan.rays, survey.reach.candidates, survey.lit_only], [416, 1, true])
+  assert.deepEqual([survey.fan.rays, survey.reach.candidates, survey.lit_only], [416, 1, false])
+  assert.deepEqual(survey.fan.nearest, handoff.stone_targets)
   assert(survey.fan.targets >= 1 && Number.isFinite(survey.fan.ms))
   // Four headings for each of three observations: the bridge's own first look (the stand-in's inventory is
   // already full then), the observe request, and the step's look before acting.
@@ -1070,4 +1249,52 @@ test('the passive survey adds diagnostic_only once a wooden pickaxe is held and 
   assert.match(failing.stderr, /Stone survey failed: injected planStaircase failure/)
   // Under the stone goal the same failure ends the session: the stone state needs these fields.
   assert.deepEqual(stoneFailing.responses, [{ id: 1, ok: false, error: 'injected planStaircase failure' }])
+})
+
+test('under the stone goal pickaxe_digs counts digs with the wooden pickaxe held, the depth counts from the latched stage start, and the fields outlive the pickaxe', async () => {
+  const scenario = {
+    ...LOG_IN_REACH,
+    inventory: [['wooden_pickaxe', 1, 2], ['stick', 2]],
+    held: 'wooden_pickaxe',
+    after: {
+      2: { held: null }, // after the first CHOP the pickaxe stays in the inventory, not held
+      3: { held: 'wooden_pickaxe', boxes: [[0, 0, 62, 63, 0, 0, 'air']], position: [0.5, 62, 0.5] }, // held again, in a pit two blocks deep
+      4: { inventory: [['stick', 2], ['oak_log', 2]] } // then the pickaxe is gone, as if it broke
+    }
+  }
+  const run = await runBridge({ args: ['--goal', 'stone_pickaxe'], scenario, requests: [{ op: 'observe' }, { op: 'step', action: 1 }, { op: 'step', action: 1 }, { op: 'observe' }, { op: 'observe' }] })
+  assert.equal(run.responses.length, 5, run.stderr)
+  const [handoff, held, unheld, lower, broken] = run.responses.map(response => response.result)
+  const fields = result => [result.pickaxe_digs, result.pickaxe_uses_left, result.hand_off_y, result.stage_start_y, result.depth_below_stage_start]
+  assert.deepEqual(fields(handoff), [0, 57, 64, 64, 0])
+  // A log dug with the wooden pickaxe held counts; the same dig without holding it does not.
+  assert.deepEqual([held.event, held.held_item, ...fields(held)], ['log_collected', 'wooden_pickaxe', 1, 57, 64, 64, 0])
+  assert.deepEqual([unheld.event, unheld.held_item, ...fields(unheld)], ['log_collected', null, 1, 57, 64, 64, 0])
+  // Two blocks lower, with the pickaxe held again: the stage start stays where it was latched, never re-derived.
+  assert.deepEqual([lower.held_item, ...fields(lower)], ['wooden_pickaxe', 1, 57, 64, 64, 2])
+  assert.equal(typeof lower.nearby_stone, 'boolean')
+  // Without the pickaxe the fields stay present: MINE_STONE would have nothing to mine with, so neither bit is set.
+  assert.deepEqual(fields(broken), [1, null, 64, 64, 2])
+  assert.deepEqual([broken.inventory_counts.pickaxes, broken.nearby_stone, broken.stone_visible, broken.stone_targets, broken.success], [0, false, false, [], false])
+  assert(STONE_FIELD_KEYS.every(key => key in broken))
+})
+
+test('the stage start is latched only once the wooden pickaxe is held, on the natural floor under the hand-off, and the survey records it', async () => {
+  // An oak stump at the bot's feet; the wooden pickaxe is in the inventory but only held from the second request on.
+  const scenario = {
+    ...standIn([['wooden_pickaxe', 1, 2], ['stick', 2]], null),
+    boxes: [...STAND_IN_WORLD.boxes, [0, 0, 64, 64, 0, 0, 'oak_log']],
+    position: [0.5, 65, 0.5],
+    after: { 1: { held: 'wooden_pickaxe' } }
+  }
+  const run = await runBridge({ args: ['--stone-survey', 'on'], scenario, requests: [{ op: 'observe' }, { op: 'observe' }] })
+  assert.equal(run.responses.length, 2, run.stderr)
+  const [unheld, held] = run.responses.map(response => response.result)
+  // Not held yet: the stone fields are measured, the stage start and the survey wait.
+  assert.deepEqual([unheld.hand_off_y, unheld.stage_start_y, unheld.depth_below_stage_start, unheld.diagnostic_only], [null, null, null, null])
+  assert.deepEqual([typeof unheld.nearby_stone, unheld.pickaxe_digs, unheld.time_of_day], ['boolean', 0, 1000])
+  // Held on the stump: the hand-off y is the stump's top, the stage start the ground under it, one block lower.
+  assert.deepEqual([held.hand_off_y, held.stage_start_y, held.depth_below_stage_start], [65, 64, -1])
+  assert.deepEqual(held.diagnostic_only.stage_start, { hand_off_y: 65, y: 64, floor: 'grass_block', skipped: [['oak_log', 1]], stopped: null })
+  assert.deepEqual(held.diagnostic_only.depth_to_stone, { depth: 3, block: 'stone', layers: [['oak_log', 1], ['grass_block', 1]], stopped: null, from_stage_start: 2 })
 })

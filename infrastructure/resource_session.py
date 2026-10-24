@@ -155,12 +155,15 @@ def recovery_summary(recovery) -> str:
 
 
 STONE_SURVEY_NOTE = (
-    "Passive stone survey (docs/stone_tools_design.md, section 7.6 item 1), in development: once a wooden pickaxe is "
-    "held, each observation also records the stone stage's fields (nearby_stone, stone_visible, stone_targets, "
-    "pickaxe_uses_left, pickaxe_digs, hostile_nearby, time_of_day, depth_below_stage_start) and a diagnostic_only "
-    "record: the depth to stone below the feet, what the staircase planner would refuse on each heading over six "
-    "simulated steps (nothing is dug), and the cost of the stone scans. These read loaded blocks the bot cannot see. "
-    "No state encoder reads them, and the wood stage's actions, events, and success rule are unchanged")
+    "Passive stone survey (docs/stone_tools_design.md, section 7.6 item 1), in development: every observation records "
+    "time_of_day, and once a wooden pickaxe has been in the inventory also the stone stage's fields (nearby_stone, "
+    "stone_visible, stone_targets: the nearest seen targets in SEARCH_STONE order, stone_targets_withheld, "
+    "stone_reach_candidates: MINE_STONE's reach list, pickaxe_uses_left, pickaxe_digs, hostile_nearby, hand_off_y, "
+    "stage_start_y, and depth_below_stage_start, counted from the natural floor under the hand-off). With a wooden "
+    "pickaxe held it adds a diagnostic_only record: the depth to stone below the feet, what the staircase planner "
+    "would refuse on each heading over six simulated steps (nothing is dug), the headings the near-table rule drops, "
+    "and the cost of the stone scans. These read loaded blocks the bot cannot see. No state encoder reads them, and "
+    "the wood stage's actions, events, and success rule are unchanged")
 
 CONDITION_NOTES = {
     "masked": "Disclosed feasibility/budget mask recipe_and_budget_v1 removes impossible and redundant actions; state resource_v1",

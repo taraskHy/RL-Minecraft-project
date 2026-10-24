@@ -1,6 +1,6 @@
 # Stone-tools milestone: design
 
-**Status.** Design accepted: on 24 October 2026 the user accepted all 12 recommendations in section 11. Offline step S1 (section 9) is under way on branch `codex/stone-tools`; no stone-stage episode has been run. Numbers marked *computed* were computed on 24 October 2026 from retained files under `results/pc_resource_runs/`. Numbers marked *estimate* are guesses; measurements replace them. Line numbers refer to commit `2618695` on `codex/pc-canopy-descent`; the initial-Q fixes in `cb63ef2` moved a few lines in `minecraft_rl/resources.py` and `infrastructure/resource_session.py`. Two of the computed figures were re-checked independently from the retained files before this was committed: 114 of the 124 held-out successes ended with 0 logs, 3 planks and 2 sticks, and a stone-tool material was under or beside the bot in 34 of the 400 `87673b8` episodes. `minecraft_bridge/resource-bridge.js` has not changed since `529bf7d`.
+**Status.** Design accepted: on 24 October 2026 the user accepted all 12 recommendations in section 11. Offline step S1 (section 9) was built on branch `codex/stone-tools` on 24 October 2026 (commit `c441c5f`) and corrected after a review the same day; this document describes the corrected code. No stone-stage episode has been run. Numbers marked *computed* were computed on 24 October 2026 from retained files under `results/pc_resource_runs/`, or from the pinned libraries where the text says so. Numbers marked *estimate* are guesses; measurements replace them. Timings marked *measured offline* come from the offline tests on the development PC and vary with its load. Line numbers refer to commit `2618695` on `codex/pc-canopy-descent`; the initial-Q fixes in `cb63ef2` moved a few lines in `minecraft_rl/resources.py` and `infrastructure/resource_session.py`. Code added in S1 (`minecraft_bridge/stone-helpers.js`, `minecraft_rl/stone.py` and the stone parts of `resource-bridge.js`) is cited by function name. Two of the computed figures were re-checked independently from the retained files before this was committed: 114 of the 124 held-out successes ended with 0 logs, 3 planks and 2 sticks, and a stone-tool material was under or beside the bot in 34 of the 400 `87673b8` episodes. On `codex/pc-canopy-descent`, `minecraft_bridge/resource-bridge.js` has not changed since `529bf7d`; S1 changed it on `codex/stone-tools`.
 
 This document merges three independent designs: execution helpers and safety, the learning problem, and evidence and schedule. Section 12 lists where they disagreed and what was decided.
 
@@ -16,7 +16,7 @@ This document merges three independent designs: execution helpers and safety, th
 
 **Goal.** The bot starts in a fresh Survival world with an empty inventory and ends holding a stone pickaxe. It crafts the pickaxe at its own crafting table from 3 stone-tool materials and 2 sticks. It mines the materials itself with its wooden pickaxe. No server commands, supplied items, teleports or creative mode are allowed, in training or in testing.
 
-**Facts checked in the pinned `minecraft-data` 3.117.0 (`pc/1.21.4`).** These come from the data files only, not from a running game.
+**Facts checked in the pinned `minecraft-data` 3.117.0 (`pc/1.21.4`).** These come from the data files only, not from a running game. `minecraft_bridge/stone-mechanics.test.js` checks every row against the data, except the silverfish, which is game behaviour.
 
 | Fact | Value |
 | --- | --- |
@@ -30,15 +30,14 @@ This document merges three independent designs: execution helpers and safety, th
 | Furnace (next stage) | 8 of one stone-tool material |
 
 **Not verified.** Each of these must be tested, not assumed.
-- **Mixed materials.** It is not known whether the server accepts a grid that mixes materials, for example 2 cobblestone and 1 cobbled deepslate. I expect it does, because vanilla matches a tag in each slot. But `minecraft-data` lists only single-material variants, so `bot.recipesFor` will not find a mixed recipe.
-- **Dig times.** These come from the vanilla formula; check them against `bot.digTime`.
-  - stone: about 1.15 s with the wooden pickaxe, or 7.5 s by hand with no drop;
-  - cobblestone: about 1.5 s;
-  - deepslate: about 2.25 s;
-  - dirt: about 0.75 s by hand; grass block: about 0.9 s by hand;
-  - about 5 times slower when the bot is off the ground.
+- **Mixed materials.** It is not known whether the server accepts a grid that mixes materials, for example 2 cobblestone and 1 cobbled deepslate. I expect it does, because vanilla matches a tag in each slot. But `minecraft-data` lists only single-material variants, so `bot.recipesFor` will not find a mixed recipe. The bridge fills one from the materials actually held instead (`fillStoneRecipe`, tested offline).
+- **Dig times.** The library values were checked offline in S1 (`stone-mechanics.test.js`). Whether the server accepts a dig at these times is still a question for the helper probes (section 7.6). `prismarine-block`'s `digTime` and Mineflayer's `bot.digTime` agree in every case. The values, with the wooden pickaxe unless marked (computed):
+  - stone: 1.15 s, or 7.5 s by hand with no drop; cobblestone: 1.5 s; blackstone: 1.15 s; cobbled deepslate: 2.65 s;
+  - deepslate: 2.30 s, not the 2.25 s estimated from the vanilla formula. The library computes in double precision, where 1 / (2/3 / 30) is just above 45, so it rounds up to 46 ticks. Vanilla computes in single precision and needs 45 ticks. Mineflayer sends the finish after the library's time, so a deepslate dig ends 1 tick later than vanilla needs, never earlier;
+  - dirt: 0.75 s by hand, and no faster with the wooden pickaxe; grass block: 0.9 s by hand;
+  - off the ground the bot breaks at a fifth of the rate, rounded up to whole ticks: stone 5.65 s (4.91 times), cobblestone 7.5 s, deepslate 11.25 s, dirt 3.75 s, grass block 4.5 s. With the eyes in water a dig is 5 times slower too.
 - **Durability.** It is not known whether a tool loses durability on dirt, grass and leaves. I believe it loses 1 for every block with non-zero hardness.
-- **Reading durability.** It is not known whether `prismarine-item` 1.18.0 reports `durabilityUsed` for 1.21.4 items. The getter reads the `damage` component (`index.js:369-386`).
+- **Reading durability.** Checked offline in S1: `prismarine-item` 1.18.0 reads the `damage` component of a 1.21.4 `set_slot` packet (`index.js:369-386`), so `durabilityUsed` is 0 for a new pickaxe and 1 after one use (`resource-bridge.test.js`). Not verified live: that the server sends the component after each use.
 - **Depth to stone.** How deep the dirt is above stone, per biome, is unknown.
 - **Time of day.** I expect morning at the first spawn, with dusk about 10 real minutes later.
 
@@ -121,7 +120,7 @@ The stone learner has five actions, all allowed in every state, with no mask.
 | `nearby_table` | 0/1 | The own table is in reach and visible (`tableInReach`, `:550-553`) |
 | `health_bin` | 0/1/2 | 0, 1–10 or more than 10 points, as in `resources.py:153`; 0 is terminal |
 
-**Size.** 4 × 2 × 2 × 2 × 3 = 96 nominal states, 64 of them with health above 0. Excluding `nearby_stone=1` with `stone_visible=0` leaves 48 consistent live states, so the table holds at most 240 Q values. For comparison, the unmasked wood learner visited 180 states (computed from its `policy.json`).
+**Size.** 4 × 2 × 2 × 2 × 3 = 96 nominal states, 64 of them with health above 0. Excluding `nearby_stone=1` with `stone_visible=0` leaves 48 consistent live states, so the table holds at most 240 Q values. For comparison, the unmasked wood learner visited 180 states (computed from its `policy.json`). The encoder raises on an inconsistent observation, and loading a policy file that holds an inconsistent state is refused (the `consistent` check of `STONE_STAGE`).
 
 **Why these fields.** Each bit is the precondition of the helper that uses it, computed by the same function, as `nearby_log` is for `CHOP` (`:695`, `:894`). An unmasked learner can therefore learn exactly which actions are feasible from the state; only failures that depend on the terrain stay random. `stone_items=3` is the "can I afford the next craft" field from open problem 4 in `TEAM_STATUS.md`. The wood-shortage loop cannot recur here, because nothing uses up stone except the final craft.
 
@@ -132,7 +131,7 @@ The stone learner has five actions, all allowed in every state, with no mask.
 - **Pickaxe uses left.** It is recorded and is a failure cause, but it is not a state field (section 4.9).
 - **History bits.** Excluded by assumption A2.
 
-**Disclosure.** `stone_visible` depends on helper memory. Failed targets are blocked for a few attempts, as in `SearchMemory` (`:40-54`). It is the helper's precondition, not a pure perception bit.
+**Disclosure.** `stone_visible` depends on helper memory. Failed targets are blocked for a few attempts, as in `SearchMemory` (`:40-54`). It is the helper's precondition, not a pure perception bit. Both bits also pass the checks of section 4.3 that read blocks a player cannot see. A hidden liquid, loose gravity block, dripstone or spawner next to visible stone can turn either bit from 1 to 0. The drop's fall path and the climb check can turn `nearby_stone` from 1 to 0, and `stone_visible` only through it. Nothing hidden can turn a bit on.
 
 ### 3.3 Reward and potential
 
@@ -200,17 +199,25 @@ With initial Q 0, the first update of a useful action whose next state has no le
 
 ### 3.6 Observation fields added (recorded; only those in 3.2 enter the state)
 
-- **Inventory counts:** `inventory_counts.stone_materials` and `stone_pickaxes`, in `inventoryCounts` (`:372-383`).
-- **State bits and targets:** `nearby_stone` and `stone_visible`, plus `stone_targets`, the up to 3 nearest seen targets.
+- **Inventory counts:** `inventory_counts.stone_materials` and `stone_pickaxes`, in `inventoryCounts` (`:372-383`). They are on every observation under every goal. The wood state ignores both, and in a wood episode both are 0.
+- **State bits:** `nearby_stone` and `stone_visible`, from one scan (`stoneScan`) in the context `MINE_STONE` and `SEARCH_STONE` use.
+- **Targets:**
+  - `stone_targets`: the up to 3 nearest ray-fan targets, in the order `SEARCH_STONE` would try them (memory-blocked targets are left out), as {name, x, y, z, distance, face};
+  - `stone_targets_withheld`: true when targets exist but the memory gives none, after two failed searches in a row;
+  - `stone_reach_candidates`: the up to 3 best blocks of the reach list that `MINE_STONE` re-checks, as {name, x, y, z, distance, drop, rest_y}.
 - **Durability:**
-  - `pickaxe_uses_left`: 59 minus `durabilityUsed`, or null if it cannot be read;
-  - `pickaxe_digs`: the bridge's own count of blocks broken while the wooden pickaxe was held.
-- **Hostile mobs:** `hostile_nearby` lists hostile entities within 12 blocks with line of sight; `entities.json` marks zombie, skeleton, spider, creeper and silverfish as `hostile`.
-- **Time and depth:** `time_of_day` (`bot.time.timeOfDay`; the bridge does not read it today) and `depth_below_stage_start`.
-- **Records:** `staircase` and `stone_mining`, each published as soon as it is created, as `recovery` is in `descendCanopy` (`:775`).
-- **Survey only:** `diagnostic_only.*` (section 7.6).
+  - `pickaxe_uses_left`: the wooden pickaxe's 59 minus `durabilityUsed`, the held pickaxe first, or null when none is left or it cannot be read;
+  - `pickaxe_digs`: the bridge's own count of completed digs that started with the wooden pickaxe held.
+- **Hostile mobs:** `hostile_nearby` lists the mobs `digVerdict` refuses on, as {name, x, y, z, distance}: within 12 blocks, in sight, and in the hostile set of section 4.3.
+- **Time:** `time_of_day` (`bot.time.timeOfDay`), on every observation, before the wooden pickaxe too.
+- **Depth and the stage start:**
+  - `hand_off_y`: the y of the bot's cell at the first observation with the wooden pickaxe held;
+  - `stage_start_y`: the natural floor under that cell, plus one (section 4.4), latched at the same observation;
+  - `depth_below_stage_start`: `stage_start_y` minus the current feet y. It is −1 on a log stump at the hand-off, for example.
+- **Records (S3):** `staircase` and `stone_mining`, each published as soon as it is created, as `recovery` is in `descendCanopy` (`:775`).
+- **Survey only:** `diagnostic_only` (section 7.6).
 
-The stone scans run only once a wooden pickaxe is in the inventory, so the wood stage's observation cost stays as it was at `87673b8`.
+**When they appear.** Under the default goal without the survey, these fields are absent and no stone scan runs, so a wood observation differs from `87673b8` only by the two inventory counts. Under the stone goal or the survey, every observation has them: `time_of_day` always, the others null until a wooden pickaxe is first in the inventory. The stage start and the depth stay null until the pickaxe is held. Once set, the fields stay, so a pickaxe that breaks does not remove them.
 
 ---
 
@@ -244,51 +251,64 @@ The stone scans run only once a wooden pickaxe is in the inventory, so the wood 
 
 **Stone sources.** stone, cobblestone, deepslate and cobbled deepslate. Blackstone counts in the inventory but is not searched for in the Overworld. Lookalikes (granite and the others in section 1) are never targets.
 
-**Discovery (`stone_visible`, the targets of `SEARCH_STONE`).**
+**Discovery (`stone_visible`, the targets of `SEARCH_STONE`; `visibleStoneTargets`).**
 - **Ray fan.** Rays are cast from the eyes at 32 headings by 13 elevations, from −60° to +60°, each up to 32 blocks.
-- **Occlusion.** Each ray uses `bot.world.raycast` with the same per-shape occlusion as `canSeeFace` (`:223-242`).
-- **Targets.** A first hit counts if it is a stone source, lies inside `TARGET_MARGIN` (`:14`, `withinRadius` `:180-182`), passes `digVerdict`, and is not blocked in a `StoneMemory` copied from `SearchMemory`.
-- **Cost (estimate).** About 10^4 block reads per scan; measure it offline before the survey.
+- **Occlusion.** Each ray walks the cells with prismarine-world's raycast iterator and uses the same per-shape occlusion as `canSeeFace` (`:223-242`). A ray stops at the first unloaded cell; `world.raycast` would pass through it.
+- **Targets.** A first hit counts if it is a stone source, lies inside `TARGET_MARGIN` (`:14`, `withinRadius` `:180-182`), passes `digVerdict`, and is not blocked in `StoneMemory`. That memory has the rules of `SearchMemory`, keyed by column, plus a read-only `peek` for the observation. Targets are sorted nearest first. They do not pass the drop band or the climb check of the reach list.
+- **Cost (measured offline).** 416 rays and about 12,000 block reads per scan (11,986 on the test's open ground with a cliff, 12,735 on the worked example), 8 to 25 ms. The tests print it on every run.
 - **Gaps.** The rays are about 6 blocks apart at 32 blocks, so `stone_visible` understates what is there.
 - **Rejected:** `findBlocks` with `count: 64`, the pattern in `visibleLogs` (`:515`). It would return the 64 nearest stone blocks, almost all of them buried.
 
-**Reach (`nearby_stone`, `MINE_STONE`).** A block is in reach when all of these hold:
-- `findBlocks` finds it within 6 blocks, with an exposed-face prefilter (a face next to an empty, non-liquid cell);
-- `canSeeFace` passes;
+**Reach (`nearby_stone`, `MINE_STONE`; `reachableStone`).** A block is in reach when all of these hold:
+- it is a stone source within 6 blocks of the floored feet, with at least one open face: a face next to a cell with no collision box and no liquid;
+- `canSeeFace` passes for one of those faces;
 - the block centre is at most 4.5 from the eyes. This is the bridge's existing limit; `canDigBlock` allows 5.1 (`mineflayer/lib/plugins/digging.js:220-226`);
 - the block is not in the bot's hitbox columns, either below or above. This extends `underHitbox` (`:174-178`) upward, because a block dug above the head can let gravel fall onto the bot;
 - the drop comes to rest at a height the bot can collect (section 4.5);
-- `digVerdict` passes.
+- `digVerdict` passes;
+- after the dig and the pickup, the bot can still climb back up without digging: the climb check of section 4.4, from where it stands and from every node that could pick the drop up. So `MINE_STONE` never mines a floor the bot climbs out on, such as the floor of the last staircase landing.
 
-`observe()` and `MINE_STONE` call the same function. This is the same rule that fixed the CHOP ping-pong loop at `e88cb7c`.
+Candidates are sorted nearest to the eyes first, then lowest, then by x and z. The observation calls this function now, through `stoneScan`, in the context `MINE_STONE` will use from S3: `stoneScene()` in the bridge, with the shared climb search, the own table, the stage start, the staircase record and the pickaxe type. This is the same rule that fixed the CHOP ping-pong loop at `e88cb7c`. The function throws without a climb search, so no caller can skip that check.
 
 **Limits to disclose.**
 - Sight covers 360°, as it does for logs.
-- Rays pass through water. The liquid rule removes stone seen only through water.
+- **Light.** Stone counts as seen and in reach on any open face, lit or dark (decision 9's fallback, section 11). So stone in a dark cave counts as visible, which a player could not see. A lit-face rule cannot work with Mineflayer: it never recomputes light, so every cell the bot digs reads light 0 (section 4.4).
+- Rays pass through water. Stone under water touches it, so the liquid rule removes it.
 - Leaves block rays.
 - Infested stone is visible to the bot by name, while a player sees ordinary stone. This is a perception advantage.
+- **Seen but not minable.** A fan target can fail the drop band or the climb check, for example stone over a pit. The bot then has `stone_visible=1` and `nearby_stone=0` next to stone that `MINE_STONE` refuses. `SEARCH_STONE` re-checks the reach list on arrival and reports `stone_path_blocked` (section 4.6).
 
 ### 4.3 One safety check for every dig: `digVerdict`
 
-`digVerdict(world, cell, ctx)` is a pure function that can be tested offline. It returns `{ ok, reason, block, neighbour }`, is modelled on `planCanopyDescent` (`:82-105`), and both `MINE_STONE` and `DIG_DOWN` use it. It refuses when any of the following holds:
+`digVerdict(world, cell, ctx)` in `minecraft_bridge/stone-helpers.js` is a pure function, tested offline. It returns `{ ok, reason, block, neighbour }`, plus the tool and the dig time when it passes, and is modelled on `planCanopyDescent` (`:82-105`). The reach list, the ray fan and the staircase planner use it, so `MINE_STONE`, `SEARCH_STONE` and `DIG_DOWN` will. It takes a purpose: `mine` or `stair`. It checks in this order and reports the first refusal (the order is exported as `DIG_REFUSALS`; cheap position checks come first):
 
-1. **`liquid_adjacent`.** Water, lava, bubble column, seagrass, kelp or any waterlogged block is on one of the cell's 6 faces. The pathfinder's own check, `dontCreateFlow`, covers 5 faces (`mineflayer-pathfinder/lib/movements.js:256-264`).
-2. **`gravity_above`.** The scan goes up through a chain of sand, red sand, gravel, suspicious sand or gravel, concrete powder or anvils, for at most 6 blocks. The pathfinder checks only one block (`movements.js:266-271`).
-3. **`dripstone_below`.** Pointed dripstone hangs from the cell and would fall.
-4. **`melts_to_water`.** The cell is any kind of ice.
-5. **`infested`.** The block name starts with `infested_`.
-6. **`spawner_nearby`.** A spawner is within 8 blocks.
-7. **`own_column`.** The cell is in the bot's hitbox columns, above or below.
-8. **`wrong_tool`.** The block's harvest tools exclude the wooden pickaxe (ores, obsidian), or its dig time with the chosen tool is over 4 s.
-9. **`outside_margin`.** The cell's centre is outside `MAX_RADIUS - TARGET_MARGIN`.
-10. **`own_table`.** The cell is the bot's table or the block under it (`ownTable`, `:456`).
-11. **`hostile_nearby`.** A hostile mob is within 12 blocks with line of sight.
+1. **`unloaded`.** The cell is in an unloaded chunk. An unloaded cell on one of its 6 faces, or under a gravity block beside it, refuses the same way at that check, with the face.
+2. **`nothing_to_dig`.** The cell is air.
+3. **`undiggable`.** Bedrock, or another block with no hardness.
+4. **`own_table`.** The cell is the bot's table or the block under it (`ownTable`, `:456`).
+5. **`stair_support`.** The cell is the floor under the staircase's start or under one of its landings (the staircase record, `ctx.stair`). These are the floors the bot climbs back up on.
+6. **`own_column`.** The cell is in the bot's hitbox columns, above or below.
+7. **`outside_margin`.** The cell's centre is more than `MAX_RADIUS - TARGET_MARGIN` (61 blocks) from the spawn, horizontally.
+8. **`liquid_adjacent`.** The cell itself, or a block on one of its 6 faces, is water, lava, a bubble column, seagrass, kelp or any waterlogged block. The pathfinder's own check, `dontCreateFlow`, covers 5 faces (`mineflayer-pathfinder/lib/movements.js:256-264`).
+9. **`gravity_above`.** The scan goes up through a chain of sand, red sand, gravel, suspicious sand or gravel, concrete powder or anvils, for at most 6 blocks. The pathfinder checks only one block (`movements.js:266-271`).
+10. **`gravity_beside`.** One of the 4 side neighbours, or the block below, is a gravity block whose own cell below is free: air, a block with no collision box, or a liquid. A dig updates its 6 neighbours, and such a block then falls. A floating blob falls as a whole once one block of it moves, so the check applies wherever the bot stands. Gravity blocks resting on something stay allowed.
+11. **`dripstone_below`.** Pointed dripstone is directly under the cell, pointing down or up. A hanging one would fall.
+12. **`melts_to_water`.** The cell is any kind of ice.
+13. **`infested`.** The block name starts with `infested_`.
+14. **`spawner_nearby`.** A spawner or trial spawner is within 8 blocks of the cell. The scan covers 45 blocks around the bot: the fan's 32, 5 for the eyes and the hit cell, and 8. It reads chunk palettes, as Mineflayer's `findBlocks` does.
+15. **`hostile_nearby`.** A hostile mob is within 12 blocks of the bot, with a clear line from the eyes to its middle or its head. Hostile means that `minecraft-data` 3.117.0 gives it the type `hostile` or the category "Hostile mobs": 43 names (computed), against 33 of type `hostile` alone. The category adds the slime, magma cube, phantom, ghast, shulker, hoglin, the zombie and skeleton horses, the ender dragon and evoker fangs. This is the more conservative choice, and the `hostile_nearby` field lists the same mobs.
+16. **For the staircase only:** `stone_source`, `log` (logs, wood, stems and hyphae), `leaves`, `ore`, `container` (the bridge's list of blocks a click would use, which includes crafting tables and furnaces) and `not_dig_class` (any block outside the two dig lists of section 4.4, such as coloured terracotta).
+17. **`wrong_tool`.** `chooseTool` takes the pickaxe for `mineable/pickaxe` blocks (and those marked `incorrect_for_*`) and the hand for everything else. The check refuses a pickaxe block whose harvest tools exclude the pickaxe (ores that need stone, obsidian), and any dig over 4 s with the chosen tool, for example an ender chest (16.9 s with the pickaxe) or a door by hand (4.55 s). A block dug by hand needs no drop, so snow, which drops nothing without a shovel, is allowed. The pickaxe is the wooden one unless `ctx.pickaxeType` is null, which the bridge sets when no wooden pickaxe is in the inventory. Pickaxe blocks are then timed and harvested by hand, so stone (7.5 s) refuses.
 
-`DIG_DOWN` also refuses logs, leaves, stone sources, ores and containers or interactive blocks.
+**Disclosure.** Checks 8 to 11 and 14 read loaded blocks that a player could not see; check 13 knows infested stone by name. Two checks outside `digVerdict` read hidden blocks too: the drop's fall path (up to 16 cells below a reach target, section 4.5) and the climb check (section 4.4), which reads the way back up. They only ever refuse: targets come only from visible blocks, and the staircase heading uses no knowledge of where stone is.
 
-**Disclosure.** Checks 1 to 6 read loaded blocks that a player could not see. They only ever refuse: targets come only from visible blocks, and the staircase heading uses no knowledge of where stone is. The canopy descent already reads hidden blocks in the same way, scanning 12 blocks down (`:571-580`). The user accepted this on 24 October 2026; whether the instructor accepts it is still to be asked (section 11, item 1).
+Because `nearby_stone` and `stone_visible` are these helpers' preconditions (section 3.2), the refusals also enter the learner's state. A hidden liquid, gravity block, dripstone or spawner next to visible stone can turn either bit from 1 to 0. The fall path and the climb check can turn `nearby_stone` from 1 to 0, and `stone_visible` only through it. Nothing hidden can turn a bit on, and the state never shows where hidden stone is.
+
+The canopy descent already reads hidden blocks in the same way, scanning 12 blocks down (`:571-580`). The user accepted this on 24 October 2026; whether the instructor accepts it is still to be asked (section 11, item 1).
 
 ### 4.4 `DIG_DOWN`: a staircase
+
+S1 built the pure planner: `planStairStep`, `chooseStairHeading` and `planStaircase` in `stone-helpers.js`, which the survey runs on a simulated world. The live helper, with its moves, stop rules, memory and record, comes in S3.
 
 **Geometry.** The bot stands with its feet at (x, y, z) and picks a heading d of +x, −x, +z or −z. One step digs three cells in the next column, top first:
 - H at (x+d, y+1);
@@ -303,31 +323,51 @@ The bot then moves to (x+d, y−1) with `navigate(GoalBlock)` (`:728-744`) and l
   - the cell two above its own feet, which is H of column k;
   - M and L of column k−1, which are clear;
   - a solid floor under column k−1, one block higher.
-- **Consequence.** The bot can walk back up the staircase, and `RETURN_TO_TABLE` works without digging.
+- **Consequence.** The bot can walk back up the staircase without digging. The climb check below enforces this for every step and every `MINE_STONE`, with the strict movements of section 4.5. `RETURN_TO_TABLE`'s ordinary movements allow every move the strict ones do.
 
-**Light (expected, not verified).** The first three columns are open to the sky; after that, the tunnel is roofed. Sky light should drop by about 1 per block from the opening, which leaves no light-0 cell within 6 steps.
+**Light (decision 9, settled in S1).** The lit-face rule is off (`STONE_LIT_ONLY = false` in the bridge). Mineflayer 4.39 stores light only from `map_chunk` and `update_light` packets and never recomputes it after a `block_change` (`stone-helpers.test.js`). The vanilla 1.21.4 server sends `update_light` only for chunks on the edge of a player's view (`ChunkHolder.broadcastChanges`, read from the server jar during the S1 review), so never for the chunk the bot digs in. Every cell the bot digs therefore reads light 0, even when it is open to the sky, and a lit-face rule would never count the stone a staircase exposes. Stone in dark places counts as visible, and this is disclosed (section 4.2). The earlier expectation, that sky light falls by about 1 per block from the opening, assumed light computed by the client, which Mineflayer does not do. The `litOnly` option of `reachableStone` and `visibleStoneTargets` stays as a tested capability that the bridge does not use.
 
 **Before the first step:**
 - If the bot stands on its own table or on a log (4 of 124 hand-offs), it first steps onto natural ground next to it, in one move of at most 4 s (`stepped_off_table`).
 - If it stands on leaves (1 of 124), it first runs the existing canopy descent, as `SEARCH` does (`:848-858`).
 - It centres on its cell, because `underHitbox` refuses cells under an off-centre hitbox.
 
-**Checks on each step**, made by a pure `planStairStep(world, feet, heading, ctx)` against the current world, before every dig:
-- `digVerdict` passes for every non-empty cell among H, M and L;
-- the floor at (x+d, y−2) is a `walkableFloor` and not a `FALL_HAZARDS` block (`:314-320`, `:31-32`). Otherwise the step stops with `cave_below`;
-- the landing feet and head cells pass `passableCell` and have no liquid beside them;
-- the step's total dig time is at most 8 s (estimate of what fits the budget);
-- the column is inside the margin;
-- the depth is at most 12 below the stage-2 start;
-- after the step, the movement rules still offer a move back up. This is the `getNeighbors` check that `enclosed()` uses (`:622-630`).
+**Checks on each step**, made by a pure `planStairStep(world, feet, heading, ctx)` against the current world before every dig, in this order. It throws without the stage-start height or the climb search, so no check can be skipped silently.
+1. Inside a staircase, the reverse heading is refused before anything is read (`reverse_heading`): its column holds the floor the bot climbs back on.
+2. The column is inside the margin (`outside_margin`).
+3. The landing is at most 12 below the stage start (`depth_limit`; the stage start is defined below).
+4. H, M, L and the floor are loaded (`unloaded`).
+5. H, M and L, top first: a stone source ends the digging (the expose step below); a liquid refuses (`liquid_adjacent`); a passable cell needs no dig; any other cell must pass `digVerdict` with the purpose `stair`.
+6. The step's total dig time is at most 8 s (`dig_time`). With the allowed dig classes this check cannot fire: `digVerdict` refuses any cell over 4 s, and the slowest allowed cell takes 1.15 s (granite, diorite, andesite and tuff with the wooden pickaxe), so a step takes at most 3.45 s (computed).
+7. For a step that moves:
+   - the floor at (x+d, y−2) is a `walkableFloor` and not a `FALL_HAZARDS` block (`:314-320`, `:31-32`); otherwise `cave_below`;
+   - a gravity floor must rest on something: sand or gravel over a free cell refuses (`floor_unsupported`), even when L was already open;
+   - L and M pass `passableCell` (`landing_blocked`) and have no liquid (`liquid_adjacent`) and no unloaded cell (`unloaded`) beside them;
+   - nothing loose hangs over the open column: the first cell above H that is not passable, within 6 cells, must not be a gravity block (`gravity_above`);
+   - the pathfinder offers a direct drop-down move onto the landing, and the climb check passes from the landing (`not_reversible`).
 
-**Choosing the heading.** Among the headings whose first step passes:
-1. drop headings within one column of the bot's own table;
-2. prefer the first column with the most solid cells at H and M, because digging into a slope reaches stone sooner;
-3. break ties in a fixed order rotated on each call, like `explorationIndex`.
+**The expose step.** When H, M or L is a stone source, the step digs only the cells above it and does not move (`move: false`); the staircase then ends with `stone_exposed`. It is refused as `stone_source` when nothing needs digging, because that stone would already be in reach if it could be mined. It is also refused when the exposed stone would fail `digVerdict` for mining (`exposed_refusal` names why). The bot must keep its way up from where it stands. The worked example's fifth step is an expose step.
+
+**The climb check** (`keepsWayUp`, with the search `climbSearch`). It replaced the one-step reversibility check, which accepted a dig that cut the climb further up. It runs the pinned pathfinder's own moves with the strict movements, no digging and no placing, on a view of the world with the planned cells dug. The search goes at most 16 blocks from its start on each axis and expands at most 400 nodes.
+- Before a dig, it finds the bot's way up: a path to the stage-start height or, when that is beyond the search's reach, to the highest cell it can reach now.
+- After the dig, every cell the bot ends on must still reach that height, or its own height if higher, or a cell of the known path. These cells are the landing for a step that moves, the bot's own cell for an expose step, and, for `MINE_STONE`, every standable node whose pickup box reaches the drop.
+- A dig can cut a path only by removing the floor of one of its cells, so the bot's own cell is searched again only then.
+- It fails closed: an error or a read of an unloaded cell refuses the step or the target (`unloaded` or `not_reversible`). So within about 17 blocks of an unloaded chunk, `nearby_stone` is 0 and staircase steps refuse; with the server's view distance of 8 chunks this should not happen inside the 64-block radius (estimate).
+- The stage-start height stands in for the table: the check does not prove that the table's approach cells can be reached.
+- **Cost (measured offline, per observation).** About 0 to 2 ms on the surface and in the worked example; 10 to 16 ms in a closed 13×13 cave, where the search runs to its bound; 55 to 100 ms in an open cave with 89 targets and a one-wide exit. `stone-helpers.test.js` prints it.
+
+**The stage start** (`stageStartReference`), from which the depth cap and `depth_below_stage_start` count. It is the natural floor under the hand-off cell, plus one. The scan skips the bot's own table, logs, leaves and passable cells, at most 12 cells down (the canopy descent's range). With no such floor (an unloaded cell, or none in range) it stays the hand-off y, which can only make the cap shallower. It is latched once, at the first observation with the wooden pickaxe held, and never derived again, so a walk into a valley cannot deepen the cap. The cap is therefore 12 below the ground wherever the hand-off stood within 12 cells of it: on the ground, on its own table (3 of 124 hand-offs), a log (1) or a canopy (1).
+
+**Choosing the heading** (`chooseStairHeading`).
+- At a staircase's first step, among the headings whose step passes:
+  1. drop the headings whose first column lies within one column of the bot's own table (`near_own_table`, listed in `near_table`). This applies to the first step only; `digVerdict`'s `own_table` protects the table and the block under it at every step;
+  2. prefer the first column with the most solid cells at H and M, because digging into a slope reaches stone sooner;
+  3. break ties in a fixed order rotated on each call, like `explorationIndex`.
+- Inside a staircase (its record `ctx.stair` has a landing), it continues the staircase's heading and turns to a side only when that heading is refused. It never takes the reverse heading, and the near-table rule does not apply.
+- `DIG_DOWN` calls it only at a staircase's start or with the staircase record set.
 
 **Stop rules**, checked after every dig and before every move:
-- `stone_exposed`: a valid `MINE_STONE` target now exists. The floor the bot is about to land on is not a target;
+- `stone_exposed`: a valid `MINE_STONE` target now exists from the new landing, or an expose step uncovered one. No floor of the staircase is a target (`stair_support`), and no target may cut the way back up (the climb check);
 - `time_budget`: 30 s have passed, or fewer than 8 s remain for a new step (estimate);
 - `step_limit`: 6 steps;
 - `dig_unconfirmed`, using the existing check that the cell became empty (`:661-662`);
@@ -338,29 +378,27 @@ The bot then moves to (x+d, y−1) with `navigate(GoalBlock)` (`:728-744`) and l
 - `liquid_revealed`: the bot steps back one step.
 
 **What it digs.**
-- **By hand**, with a hotbar slot that holds no tool: grass block, dirt, coarse and rooted dirt, podzol, mycelium, clay, mud, sand, red sand, gravel and snow.
-- **With the pickaxe:** granite, diorite, andesite, tuff, calcite, sandstone, red sandstone and terracotta.
-- **Never:** stone sources, logs, leaves, ores, containers, ice, its own support or its own table. A heading that needs one of these is refused for that step.
+- **By hand**, with a hotbar slot that holds no tool: grass block, dirt, coarse and rooted dirt, podzol, mycelium, clay, mud, sand, red sand, gravel, snow and snow block. `minecraft-data` gives snow layers no collision box, so the planner walks through them instead of digging.
+- **With the pickaxe:** granite, diorite, andesite, tuff, calcite, sandstone, red sandstone and plain terracotta. Coloured terracotta is refused (`not_dig_class`).
+- **Never:** stone sources, logs, leaves, ores, containers, ice, any other block outside these two lists, its own support, the floors of its staircase or its own table. A heading that needs one of these is refused for that step, except that a stone source ends the staircase with an expose step.
 
-**Memory.** It remembers refused headings per position. When all four are refused, it moves up to 4 blocks along the surface, inside the margin (`moved_along_surface`), so a repeated `DIG_DOWN` tries something new, as `SEARCH` does. If the bot already stands in its staircase, the next call continues it downward.
+**Memory.** It remembers refused headings per position. When all four are refused, it moves up to 4 blocks along the surface, inside the margin (`moved_along_surface`), so a repeated `DIG_DOWN` tries something new, as `SEARCH` does. If the bot already stands in its staircase, the next call continues it, by the heading rule above.
 
-**Record.** The `staircase` record holds `heading`, `steps[{cells:[{name, pos, tool, seconds}], floor, planned_y, actual_y, damage}]`, `refused{heading: reason}`, `items_picked_up`, `start_y`, `end_y` and `stopped`. Dirt and sand picked up on the way go into the inventory like any natural item, and the record lists them.
+**Record.** The `staircase` record holds `heading`, `steps[{cells:[{name, pos, tool, seconds}], floor, planned_y, actual_y, damage}]`, `refused{heading: reason}`, `items_picked_up`, `start_y`, `end_y` and `stopped`. Dirt and sand picked up on the way go into the inventory like any natural item, and the record lists them. The checks also need the live staircase as `{ heading, start, landings }`: the heading of the last move, the feet where the staircase began, and each landing after a confirmed move. The observation's scan and `MINE_STONE` read the same record, so both protect its floors.
 
-**Worked example (estimate; the real dirt depth is unknown).** Take flat ground with grass, then 3 dirt, then stone 5 blocks below the feet.
+**Worked example (the terrain is made up; the real dirt depth is unknown).** Take flat ground with grass, then 3 dirt, then stone 5 blocks below the feet. The planner and the reach rule give (computed, and tested on all four headings):
 - The five steps dig 1, 2, 3, 3 and 2 cells; the last step exposes the top of a stone block level with the floor.
-- In total that is 11 hand digs and about 15–20 s, in one decision.
-- Then 3 × `MINE_STONE` gives 3 cobblestone for 3 pickaxe uses:
-  1. the exposed block (picked up after one reversible step down);
-  2. the stone ahead at feet level;
-  3. a side wall.
+- In total that is 11 hand digs: 3 grass blocks at 0.9 s and 8 dirt at 0.75 s, 8.7 s of digging. With the moves it takes about 15–20 s (estimate), in one decision.
+- Then 3 × `MINE_STONE` gives 3 cobblestone for 3 pickaxe uses. On the +x heading the targets are the exposed block, picked up after one step down into its cell, and then the two side walls of that cell, at feet level.
+- The floor of the last landing is never a target, and after each mine the bot can still climb to the surface.
 
 ### 4.5 `MINE_STONE`
 
 - **No walking before the dig.** Like `CHOP` (`:888-928`), it re-checks up to 3 candidates from the reach list.
 - **The dig.** It equips the wooden pickaxe (`no_pickaxe` if there is none), then digs with `digBlock`. The dig is bounded by dig time + 3 s and by death (`:745-766`).
-- **Drop band.** A target is allowed only if its drop comes to rest between feet −1 and feet +2. The vanilla pickup box covers that range (`nodeCollectsItem`, `:110-113`), and a drop at feet −1 needs only a reversible one-block step down.
+- **Drop band.** A target is allowed only if its drop comes to rest between feet −1 and feet +2, measured from the bot's actual y. The vanilla pickup box covers that range (`nodeCollectsItem`, `:110-113`). The rest height is the collision top of the first block below with a shape; a fall into a liquid or an unloaded cell, or of more than 16 blocks, refuses. A drop at feet −1 needs a one-block step down, and the climb check requires a way back out of it.
 - **Pickup.** It waits up to 1 s for a dropped item that is a stone material. Dirt drops from `DIG_DOWN` lie around, so the type must be checked; `droppedItemNear` (`:542-545`) does not check it. It then walks with `GoalPickup` (`:443-447`), using `CHOP`'s 9 s deadline, its 2 attempts and its rule for items out of bounds (`:912-925`).
-- **Stricter movement.** Pickups and staircase moves use a second Movements object, with `maxDropDown = 2` (a feet drop of at most 1; see the comment at `:424-427`) and with `pointed_dripstone` added to `blocksToAvoid`. The wood stage's `safeMovements` (`:416-436`) stays unchanged, so stage 1 behaves as it did at `87673b8`.
+- **Stricter movement.** Pickups and staircase moves use a second Movements object (`strictMovements`), with `maxDropDown = 2` (a feet drop of at most 1; see the comment at `:424-427`) and with `pointed_dripstone` added to `blocksToAvoid`. Its step exclusion treats the pathfinder's stand-in for an unloaded block as excluded instead of throwing. The climb check uses the same rules. The wood stage's `safeMovements` (`:416-436`) stays unchanged, so stage 1 behaves as it did at `87673b8`.
 
 ### 4.6 `SEARCH_STONE`
 
@@ -369,7 +407,7 @@ The structure follows `search()` (`:844-887`):
 2. `stone_already_reachable` if a stone is in reach;
 3. foliage escape if the bot is enclosed;
 4. otherwise, walk to `StoneMemory.next(targets)` with a `GoalMineStone(block)`, for at most 18 s. `GoalMineStone` is modelled on `GoalPickup`; its `isEnd(node)` requires the eyes within 4.5 of the block centre, a node outside the block's column, and a block at most 2 above the node;
-5. after arriving, re-check against the reach list, then report `stone_reached` or `stone_path_blocked` (the target is blocked in memory);
+5. after arriving, re-check against the reach list, then report `stone_reached` or `stone_path_blocked` (the target is blocked in memory). A fan target can fail the reach list's drop band or climb check (section 4.2), so this re-check is needed;
 6. with no target, take up to 4 moves on the spawn-relative exploration rings (`explorationTarget`, `:145-150`), with their own index, rescanning after each move.
 
 The budget is 36 s, as for `SEARCH_BUDGET_MS` (`:19`). Long walks use the ordinary movement settings.
@@ -394,14 +432,14 @@ Success is the bridge's `success` field under the stone goal (section 5).
 
 ### 4.9 Tools and durability
 
-- **Which item to hold.** The bridge holds the pickaxe only for `mineable/pickaxe` blocks. For everything else it selects a hotbar slot that holds no tool, which digs at hand speed and costs no durability. It checks `heldItem` after each switch.
+- **Which item to hold.** The bridge holds the pickaxe only for `mineable/pickaxe` blocks and those marked `incorrect_for_*` (`chooseTool`). For everything else it selects a hotbar slot that holds no tool, which digs at hand speed and costs no durability. It checks `heldItem` after each switch.
 - **Uses per episode (estimate).** The worked example costs 3 pickaxe uses; holding the pickaxe for every dig would cost about 14. An episode should use well under 59.
-- **A broken pickaxe.** If the pickaxe breaks, the stage cannot finish: stone dug by hand drops nothing. `MINE_STONE` then returns `no_pickaxe`, and the failure cause `pickaxe_broken` is recorded.
+- **A broken pickaxe.** If the pickaxe breaks, the stage cannot finish: stone dug by hand drops nothing. `MINE_STONE` then returns `no_pickaxe`, and the failure cause `pickaxe_broken` is recorded. With no wooden pickaxe in the inventory, the stone checks run with `pickaxeType: null`, so every stone source refuses as `wrong_tool` and `nearby_stone` and `stone_visible` are 0.
 - **Wood stage.** Its `CHOP` stays unchanged.
 
 ### 4.10 Night, mobs and health
 
-- **Night.** Each episode starts in a fresh world, presumably in the morning. A successful wood-plus-stone episode should take about 2 to 2.5 minutes (estimate). The bridge records `time_of_day` in every observation, and episodes that pass tick 12000 are flagged. No time cap is declared; revisit this if the probes show episodes reaching dusk.
+- **Night.** Each episode starts in a fresh world, presumably in the morning. A successful wood-plus-stone episode should take about 2 to 2.5 minutes (estimate). The bridge records `time_of_day` in every observation under the stone goal or the survey, before the wooden pickaxe too. Episodes that pass tick 12000 are to be flagged (S3). The value wraps every 24000 ticks (20 minutes), so the flag should look at every reading, not only the last. No time cap is declared; revisit this if the probes show episodes reaching dusk.
 - **Mobs.** The server runs at difficulty normal with monsters on (`infrastructure/resource_server.py:180`, `:185`). New digs are refused while a hostile mob is within 12 blocks with line of sight, and a running macro stops at 6 blocks. There is no combat or flee skill; `hostile_nearby` and `took_damage` are observed events. Deaths do happen: a cactus at `87673b8` and a spider in the benchmark. The cause of every death is reported from the server log.
 - **Health and food.** The health bin is in the state. Food is recorded; a full food bar should last a 10-minute episode (estimate).
 
@@ -439,7 +477,7 @@ Success is the bridge's `success` field under the stone goal (section 5).
 3. **Hand-off.** It happens when an observation shows a wooden pickaxe after `crafted_wooden_pickaxe`. The coordinator checks the two-node recipe requirement (wooden pickaxe, then stone pickaxe):
    - sticks at least 2;
    - table placed and in reach (`CRAFT_PICKAXE` refuses unless it is, `:934-935`);
-   - 3 stone materials missing.
+   - fewer than 3 stone materials held (`handoff_failures` in `minecraft_rl/stone.py` names the failure `stone_materials_already_held`).
 
    It records the check. If a requirement is unmet, the episode ends as `precondition_unmet`; this has not been observed (124 of 124 retained successes had at least 2 sticks, computed). The requirement is written in code, with a test that checks it against the pinned `minecraft-data` recipes and harvest tools. The general planner waits for a third node (furnace or iron).
 4. **Stage 2.** The stone learner runs in the same world and bridge, for at most 30 decisions. The bridge keeps its spawn centre, `ownTable` and memories (`:455-458`). A new bridge would lose these and fail the empty-inventory check.
@@ -515,28 +553,45 @@ It runs on the CPU; tabular work needs no GPU.
 
 ## 7. Tests
 
-### 7.1 JavaScript unit tests (`node --test`, offline world builder in `resource-bridge.test.js`)
+### 7.1 JavaScript unit tests (`node --test`, offline 1.21.4 worlds)
 
+S1 put these tests in three files: `stone-mechanics.test.js` (the facts of section 1, against the pinned `minecraft-data` and libraries), `stone-helpers.test.js` (the pure helpers, on the offline world builder of `resource-bridge.test.js`) and `resource-bridge.test.js` (the bridge, partly through a stand-in Mineflayer bot on an offline world). Every item below has a test now, except those marked S3.
+
+- **Pinned facts.** `minecraft-data` 3.117.0 for pc 1.21.4; the three stone pickaxe recipes; the five blocks that give a material, with their hardness; the lookalikes and infested blocks; durability 59 and 131; the furnace; the dig times of section 1 through `block.digTime` and Mineflayer's `bot.digTime`.
 - **Block classes.** Stone sources and their drops are recognized. Granite, andesite, diorite, tuff, calcite, sandstone, terracotta and mossy cobblestone are never sources. `infested_*` is refused.
-- **Tool choice.** The pickaxe is used on `mineable/pickaxe` blocks and the hand otherwise. Ores and obsidian are refused, as is anything over 4 s.
-- **`digVerdict`.** Every refusal reason in section 4.3 has a test, including liquid on each of the 6 faces, a waterlogged neighbour, a chain of sand above, dripstone, ice, a spawner, own column above and below, the margin, and the own table.
-- **`planStairStep` and heading choice.** Cases:
-  - flat dirt, with the worked example's dig counts of 1, 2, 3, 3 and 2;
-  - a slope;
-  - a sand ceiling at step 4;
-  - a cave below;
-  - a river beside the staircase;
-  - the radius edge;
-  - the depth limit;
-  - an unloaded column.
-- **Reversibility.** With the real `Movements`, as the existing test at `:171-190` uses it, and `canDig = false`:
-  - every staircase cell has a move one step back up;
-  - every step has a drop-down move.
-- **Drop band.** The rest height is computed correctly for targets from feet −2 to feet +3.
-- **Visibility.** The ray fan sees an exposed face and ignores buried stone and stone behind leaves. `nearby_stone` and `MINE_STONE` use one function.
+- **Tool choice.** The pickaxe is used on `mineable/pickaxe` blocks and the hand otherwise. Ores and obsidian are refused, as is anything over 4 s. With no pickaxe (`pickaxeType: null`), pickaxe blocks are timed by hand and refused as `wrong_tool`.
+- **`digVerdict`.** Every refusal reason in section 4.3 has a test, and the exported order is pinned. The cases include:
+  - liquid on each of the 6 faces, and a waterlogged neighbour or cell;
+  - a chain of sand above; a loose gravity block beside or below (a gravel chain over a tunnel, the edge of a floating 3×3 blob, sand floating over a cave), with supported gravity blocks still allowed;
+  - dripstone, ice and infested stone;
+  - a spawner within 8 blocks, including one 8 blocks from a fan hit at the 32-block edge;
+  - own column above and below, the margin, the own table and a staircase floor;
+  - a hostile in sight, and not behind a wall;
+  - unloaded neighbours on a chunk border.
+- **Staircase planner** (`planStairStep`, `chooseStairHeading`, `planStaircase`). Cases:
+  - flat dirt, with the worked example's dig counts of 1, 2, 3, 3 and 2 and 8.7 s of hand digs;
+  - a slope; a sand ceiling at step 4; a cave below; a river beside the staircase; the radius edge; the depth limit;
+  - an unloaded column, and unloaded cells beside L and M;
+  - a log, an ore, leaves or stone in the way; an expose step; granite dug with the pickaxe;
+  - a landing floor of loose sand or gravel, and the bot parked under floating gravel;
+  - liquid beside an M or L that is already open, and exposed stone that `MINE_STONE` would refuse;
+  - the near-table rule on the first step only, with a heading through the table refused as `own_table`;
+  - inside a staircase, the heading continues, turns only to a side, and never reverses.
+- **Climb check.** With the real pinned `Movements` (the strict ones, `canDig = false`, no placing):
+  - every step of the worked example has a drop-down move and a move back up;
+  - after the worked example, three `MINE_STONE`s in a row on every heading keep y 64 reachable, and the floor of the last landing is never a target;
+  - a pickup step-down with no headroom is refused;
+  - the reverse heading would have cut the climb;
+  - an open cave's one-wide exit keeps its floor;
+  - the test prints the check's cost.
+- **Drop band.** The rest height for targets from feet −2 to feet +3, and reach refusing stone over a pit, on a slab or pillar ledge, or over water.
+- **Visibility.** The ray fan sees an exposed face and ignores buried stone, stone behind leaves, lookalikes and stone behind an unloaded chunk. A hostile in sight empties it. `nearby_stone` and `MINE_STONE` use one function. The stone memory blocks failed columns, and `peek` does not advance it.
+- **Light.** Mineflayer's own blocks plugin keeps the light of `map_chunk` and `update_light`, and a `block_change` leaves the dug cell at sky light 0. The unused `litOnly` option still works.
 - **Recipes.** A stone pickaxe can be made from 3 cobblestone, or from 2 cobblestone and 1 cobbled deepslate through the fill. It is refused with 2 materials or 1 stick.
-- **Goal gating.** Under `--goal wooden_pickaxe`, actions 8–12 are refused. Under `stone_pickaxe`, `already_completed` appears only after a stone pickaxe.
-- **Static checks.** The updated `digBlock` count; no chat, no creative mode, `canDig = false`; `DIG_DOWN` never digs a stone source.
+- **Observation fields and survey.** The fields of section 3.6 and the survey record of section 7.6, on offline worlds: the fan targets and reach candidates, the withheld flag, a dark world counting like a lit one, stone over a pit, a hostile in sight, no pickaxe, the stage start on the ground, the own table, a stump, a canopy and a slab, and the pickaxe-use count and depth over several requests.
+- **Goal gating.** Under `--goal wooden_pickaxe`, actions 8–12 are refused. Under `stone_pickaxe`, `already_completed` appears only after a stone pickaxe, and a stone action ends the episode as invalid until S3.
+- **Wood stage unchanged.** Under the default goal the observations keep the wood keys, carry no stone field apart from the two inventory counts, and run no stone scan. The bridge answers a scripted stand-in bot exactly as the `409560e` bridge did, apart from the two stone counts; that test needs git and commit `409560e`, and fails without them.
+- **Static checks.** No chat, no creative mode, `canDig = false`; the stone helpers never dig, craft, equip, place or move the bot. S3: the updated `digBlock` count, and `DIG_DOWN` never digs a stone source. Until then the survey test checks that no planned staircase dig is a stone source.
 
 ### 7.2 Python unit tests
 
@@ -544,6 +599,8 @@ It runs on the CPU; tabular work needs no GPU.
 - **Potential.** Phi stays between 0 and 1.1, and terminal Phi is 0. Every progress transition in section 3.3 has a positive shaped reward, and a step that changes nothing gives −0.01 − 0.03·Phi.
 - **Agent.**
   - a five-action agent saves and loads, and loading a policy from the other stage is refused;
+  - loading a policy file that holds a state the encoder never produces (`nearby_stone=1` with `stone_visible=0`) is refused;
+  - a copied or unpickled agent saves the same file, and a stone one still evaluates;
   - `initial_q` is carried;
   - the retained `87673b8` checkpoint still loads (read only).
 - **Reference mask.** The diagnostic mask `stone_reference_v1` is never used to choose actions. It allows:
@@ -580,24 +637,32 @@ It runs on the CPU; tabular work needs no GPU.
   - the new plan keys are validated;
   - `scripted_baseline` is accepted;
   - a continuation passes the stage-1 policy, and `initial_q` only on the first part.
-- **Seeds.** A new `configs/seed_registry.json` lists every range used or reserved. `tests/test_seed_registry.py` expands every `configs/*.json` plan and every retained `metadata.json` (`first_world_seed` plus `episodes_requested`) and fails on any overlap between experiments.
+- **Seeds.** `configs/seed_registry.json` lists every range used or reserved. `tests/test_seed_registry.py` expands every plan and declaration under `configs/` (subfolders included) and every retained `metadata.json` (`first_world_seed` plus `episodes_requested`). It fails:
+  - on a used seed that no range of its experiment covers;
+  - on seeds that several experiments use when the one range holding them does not name them all;
+  - on a held-out range used by more than one experiment, and on any training run on a held-out range;
+  - on any evaluation on a training range;
+  - on a committed plan outside `configs/`.
+
+  A second test pass inside one experiment is not detected there; the experiment's declaration governs it (section 8.5).
 
 ### 7.6 Live checks before any learning (all on development or validation seeds)
 
 1. **Passive survey.**
-   - **Setup.** Seeds 61000–61019, 1 slot, about 25 minutes (estimate). The frozen wood checkpoint plays its normal wood run with the new bridge; no stone action runs.
-   - **What it records** at hand-off:
-     - `stone_visible`, `nearby_stone`, `stone_targets`;
-     - the time of day;
-     - the cost of the ray fan in milliseconds.
-   - **Survey-only diagnostics** (`diagnostic_only`, never read by the state encoder; a test checks this):
-     - the depth to stone below the feet;
-     - what `planStairStep` would refuse on each heading for 6 steps.
+   - **Setup.** Seeds 61000–61019, 1 slot, about 25 minutes (estimate). The frozen wood checkpoint plays its normal wood run with the new bridge and `--stone-survey`; no stone action runs. It runs by hand with the command in `docs/resource_training.md`, because a parallel plan cannot set the survey.
+   - **What it records** once a wooden pickaxe is in the inventory: the fields of section 3.6, among them `stone_visible`, `nearby_stone`, `stone_targets`, `stone_reach_candidates` and the stage start. The time of day is on every observation.
+   - **Survey-only diagnostics** (`diagnostic_only`, never read by the state encoder; a test checks this), once the pickaxe is held:
+     - `lit_only` (false) and `stage_start`: the hand-off y, the floor, and the cells skipped above it;
+     - `depth_to_stone`: the depth to stone below the feet, the layers above it, and the depth from the stage start;
+     - `table_offset`, `on_own_table` and `table_dropped_headings`: where the bot stands relative to its table, and which headings the first-step table rule drops;
+     - `staircases`: what `planStairStep` would refuse on each of the four headings for up to 6 steps. Every heading is planned, so each reports the terrain. A heading stops at a refusal, at exposed stone, or once `MINE_STONE` would have a target, with the floors of the staircase so far protected;
+     - the cost of the ray fan, of the reach scan and of the whole record (about 35 to 60 ms on the worked example, measured offline).
+   - **Not simulated.** The survey plans from the hand-off cell. It does not simulate `DIG_DOWN`'s step off a table or log, the canopy descent or the centring; `on_own_table` and `stage_start.skipped` mark those hand-offs.
    - **What it tells us.** How deep stone is, and how often each check refuses, before the depth cap and budgets are frozen.
 2. **Helper probes.**
    - **Setup.** Seeds 61020–61049, 1 slot, about 1–2 h (estimate).
    - **Questions:**
-     - Is a stone dig with the wooden pickaxe accepted at about 23 ticks?
+     - Is a stone dig with the wooden pickaxe accepted at about 23 ticks, and a deepslate dig at 45 (the library waits 46)?
      - Does `durabilityUsed` go from 0 to 1, and stay unchanged on a dirt dig by hand?
      - Are drops collected?
      - For each staircase step: what are the planned against the actual y and the dig times, and does the bot walk back up?
@@ -623,9 +688,10 @@ It runs on the CPU; tabular work needs no GPU.
 
 ### 8.1 World seeds
 
-**Seeds already used.**
-- In retained runs: 1–3, 42, 100–149, 10000–10009, 20000–20019 and 30000–30019 (computed from every retained `metadata.json`).
-- Declared tonight: 100–149 again and 40000–40019 (`configs/initial_q_experiment.json`).
+**Seeds already used.** `configs/seed_registry.json` lists all of these and the stone ranges below, and `tests/test_seed_registry.py` checks it (section 7.5).
+- In retained runs: 1–3, 42, 100–149, 10000–10009, 20000–20019 and 30000–30019 (computed from every retained `metadata.json`). The registry reserves 42–46, the worlds a run started without `--world-seed` plays.
+- Declared tonight: 100–149 again, 40000–40019 (`configs/initial_q_experiment.json`) and 40100–40119. The last is the initial-Q filler run, which only keeps the second slot busy at the end of the schedule and is never analysed (`configs/initial_q_plan.json`).
+- 777: one ad hoc frozen evaluation of the `87673b8` unmasked Q-learning policy on 24 October 2026. It was not retained and is not evidence.
 - Published in the example plan: 50000–50107.
 
 **Stone ranges.** None of these has been used:
@@ -719,7 +785,7 @@ The PC runs one live run or schedule at a time, because of the machine-wide lock
 | Date | Step | PC |
 | --- | --- | --- |
 | Sat 24 Oct | **S0.** The initial-Q overnight schedule runs (the user's request; estimate 10–12 h). The team reviews this design and creates the worktree. Nothing in this checkout's run code changes. | Busy |
-| Sun 25 – Tue 27 Oct | **S1, offline.** Seed registry and its test; mechanics tests against `minecraft-data`; the pure JS functions and their tests; `--goal`; the observation fields and survey diagnostics; the Python stage specification, `stone_v1`, the potential and the `StoneSimulator` skeleton. | Free after S0 |
+| Sat 24 Oct (planned Sun 25 – Tue 27) | **S1, offline. Done** (see below). Seed registry and its test; mechanics tests against `minecraft-data`; the pure JS functions and their tests; `--goal`; the observation fields and survey diagnostics; the Python stage specification, `stone_v1`, the potential and the `StoneSimulator` skeleton. | Free after S0 |
 | After S0 is retained (estimate Sun 25 or Mon 26) | **S2.** Passive survey on 61000–61019. The main checkout switches to the stone branch only after the schedule has ended. | About 30 min |
 | Tue 27 – Sat 31 Oct | **S3.** The five actions, coordinator, scripted controller, report, scheduler, CLI and disclosure text; review round 1. Teammates' bridge fixes, such as the deep-canopy fix, merge now or wait until after the experiment. | Free |
 | Sun 1 Nov | **S4.** Helper probes and scripted smoke on 61020–61049; viewer footage. **Decision F1.** | About 2 h |
@@ -731,6 +797,27 @@ The PC runs one live run or schedule at a time, because of the machine-wide lock
 | Mon 9 – Fri 13 Nov | **S10.** Analysis, plus buffer for one full rerun with an amended declaration and test range 64100–64119. **The last launch is on the evening of Fri 13 Nov.** | As needed |
 | Sat 14 – Wed 18 Nov | **S11.** Write-up and failure analysis for the assessment. | — |
 | Thu 19 Nov | **S12.** Assessment of natural gathering and basic survival: wood results, stone results C1 to C3, bottlenecks, the next stage. | — |
+
+**S1 as built (24 October 2026).** Everything in the S1 row exists on `codex/stone-tools`, offline. Built at `c441c5f`, it was reviewed the same day, and the confirmed findings were fixed. In the bridge: loose gravity blocks beside a dig, the climb check, the staircase floors, the reverse heading, no pickaxe, unloaded cells, the spawner scan radius, the light rule, the table rule, the stage start, `time_of_day` and the target fields. In Python: copied agents and inconsistent policy states. In the seed test: the reuse rules, range kinds, seed keys and plans in subfolders.
+- Of the code changes in section 4.12, S1 did items 1 to 3, the pure functions of item 4, item 5, and item 8 for `stone-helpers.js`.
+- Under `--goal stone_pickaxe` a stone action ends the episode as invalid until S3, and `resource_session` refuses the stone goal, so the stone stage cannot run yet.
+- `--stone-survey` exists on `resource-train` and `resource-demo`.
+
+**Before S2.**
+- S0 has ended and is retained; only then does the main checkout move to the stone branch.
+- The survey runs by hand at 1 slot (section 7.6, item 1).
+- Its retained folder itself must be registered under `stone_development` in `configs/seed_registry.json`, or the seed test fails.
+- S2 then measures what sets the depth cap and budgets: the depth to stone from the stage start, each check's refusals on all four headings, the fan cost and the time of day.
+
+**What S3 inherits.**
+- `MINE_STONE`, `DIG_DOWN` and `SEARCH_STONE` take their context from the bridge's `stoneScene()`: the shared climb search, the own table, the latched stage start and the pickaxe type. `DIG_DOWN` replaces its `stair: null` with the live staircase record, and the observation's scan and `MINE_STONE` read the same record.
+- `DIG_DOWN` calls `chooseStairHeading` only at a staircase's start or with the record set, sets the record's heading after a turn, and counts its depth cap from `stage_start_y`, not from the hand-off y.
+- `SEARCH_STONE`'s goal must expect to arrive at stone that `MINE_STONE` refuses (section 4.2).
+- The live parts of sections 4.4 and 4.5: the moves before the first step, the stop rules, the memory and the records.
+- The static test: the new `digBlock` count, and a check that `DIG_DOWN` never digs a stone source.
+- The session: the coordinator, loading the stone policy with its stage, the stone condition note, the disclosure text of section 4.12 item 7 with the state-bit sentence of section 4.3, and digesting `minecraft_rl/stone.py` once the session imports it.
+- The tick-12000 flag (section 4.10).
+- The climb check's cost in a large open cave, about 55–100 ms per observation (measured offline). The S4 probes show whether that matters live.
 
 **Effort (estimate).** About 12–15 person-days of implementation and review, so roughly one calendar week for 3–4 students. The parallel-run change needed three review rounds.
 
@@ -766,10 +853,10 @@ The PC runs one live run or schedule at a time, because of the machine-wide lock
 
 ## 11. Decisions for the user
 
-**Decided 24 October 2026: the user accepted all 12 recommendations below.** Three of them still need an action:
-- **Item 1.** Someone on the team must still ask the instructor whether the hybrid scope, and the disclosed hidden-block checks of item 2, are acceptable.
+**Decided 24 October 2026: the user accepted all 12 recommendations below.** Two of them still need an action, and S1 settled a third:
+- **Item 1.** Someone on the team must still ask the instructor whether the hybrid scope, and the disclosed hidden-block checks of item 2, are acceptable. The question should include what S1 added to section 4.3: loose gravity blocks beside a dig, the drop's fall path and the climb check. It should also say that these refusals enter the state bits `nearby_stone` and `stone_visible`, which they can only turn off.
 - **Item 4.** The rule is fixed; the value follows from the initial-Q experiment (not yet run) and the stone simulator check.
-- **Item 9.** The lit-face rule applies only if the offline sky-light check in step S1 shows that Mineflayer keeps sky light for 1.21.4 chunks; otherwise stone in dark caves counts as visible and this is disclosed.
+- **Item 9 (settled in S1): the fallback applies.** Mineflayer does keep the sky light of 1.21.4 chunks, but only from `map_chunk` and `update_light`; it never recomputes it. The vanilla server sends `update_light` only for chunks on the edge of a player's view, so every cell the bot digs reads light 0, and a lit-face rule would never count the stone a staircase exposes. The rule is off. Stone in dark places counts as visible, and this is disclosed (sections 4.2 and 4.4).
 
 1. **Accept `DIG_DOWN`.** It is a new, disclosed, scripted staircase helper that digs dirt and rock that is not a recipe material. *Recommendation:* yes. Ask the instructor now whether the hybrid scope is acceptable (`docs/course_requirements.md:39`).
 2. **Accept safety checks that read blocks the bot cannot see** (liquids, gravity blocks, floors, ice, spawners, infested stone), provided they only refuse. *Recommendation:* yes, with the disclosure in section 4.3.
@@ -779,7 +866,7 @@ The PC runs one live run or schedule at a time, because of the machine-wide lock
 6. **Milestone bar.** *Recommendation:* 2 of 3 checkpoints of one algorithm at 15/20 or more end to end.
 7. **Stage-2 step limit.** *Recommendation:* 30, falling back to 40 only by the declared simulator check.
 8. **Run the scripted reference on the held-out test worlds.** *Recommendation:* yes, descriptive only. It answers course question 4 (`docs/course_requirements.md:50`).
-9. **Count only stone on a lit face as visible.** *Recommendation:* use this rule if an offline check shows that Mineflayer keeps sky light for 1.21.4 chunks; otherwise disclose that stone in dark caves counts as visible.
+9. **Count only stone on a lit face as visible.** *Recommendation:* use this rule if an offline check shows that Mineflayer keeps sky light for 1.21.4 chunks; otherwise disclose that stone in dark caves counts as visible. *Outcome:* the fallback (see the note above).
 10. **Count cobbled deepslate and blackstone toward the 3 materials.** *Recommendation:* yes, as the recipe allows, with the mixed craft checked once live.
 11. **PC time.** About two evenings or nights at 2 slots after the initial-Q run, with all development in a worktree. *Recommendation:* accept. Who owns food and "basic survival" for 19 November should be decided separately, because these runs only measure health, food and deaths.
 12. **Missing evidence for tonight's run (resolved).** `configs/initial_q_experiment.json` cited `results/initial_q_study` and `results/initial_q_study_harsh` before they existed. Both were generated at `cb63ef2` with provenance and are committed with this document; they reproduce the declared numbers.
@@ -800,4 +887,4 @@ The PC runs one live run or schedule at a time, because of the machine-wide lock
 | Milestone bar | Any checkpoint at 15/20 | 2 of 3 checkpoints of one algorithm | Best of six inflates the chance of passing (0.55 against 0.04 at a true 0.6, computed) |
 | Seeds | "30000 and up"; 61000–64119 | 61000–64119 with a registry | 30000–30019 is used by the contention benchmark; 40000–40019 is declared tonight |
 | Order of live work | Survey, probes, scripted, then learning; gate plus contention check | All of them, in that order | Measure the helpers before learning results depend on them |
-| Survey diagnostics | Log the depth to stone or not | Log it in the survey only, never as a state input | It sets the depth cap without leaking hidden information into results |
+| Survey diagnostics | Log the depth to stone or not | Log it in the survey only, never as a state input | It sets the depth cap without putting the hidden depth into the state (the safety refusals do enter the state bits, section 4.3) |

@@ -242,6 +242,9 @@ class StageSpec:
     environment); ``actions_for(state, action_mask, environment)`` returns a
     condition's allowed actions. A policy file records the environment,
     action names, fields, and caps, so an agent refuses another stage's file.
+    ``consistent(state, environment)``, when given, says whether the stage's
+    encoder can produce a state within the caps; loading refuses a policy
+    file that holds any other state.
     """
 
     name: str
@@ -250,6 +253,7 @@ class StageSpec:
     conditions: Mapping[str, tuple[str, str]]
     actions_for: Callable[[State, str, str], tuple[int, ...]]
     default_condition: str
+    consistent: Callable[[State, str], bool] | None = None
 
     @property
     def n_actions(self) -> int:
@@ -361,8 +365,9 @@ class ResourceAgent:
 
     def save(self, path: str | Path, metadata: dict | None = None) -> None:
         fields, caps = self.stage.state_versions[self.state_version]
-        # Wood policies keep their original layout, which has no stage key.
-        stage = {} if self.stage is WOOD_STAGE else {"stage": self.stage.name}
+        # Wood policies keep their original layout, which has no stage key. The stage is matched by
+        # name, as load matches it: a copied or unpickled agent holds a new StageSpec object.
+        stage = {} if self.stage.name == WOOD_STAGE.name else {"stage": self.stage.name}
         payload = {
             "format_version": 1, **stage, "environment": self.state_version,
             "algorithm": self.algorithm, "alpha": self.alpha, "gamma": self.gamma,
@@ -405,6 +410,9 @@ class ResourceAgent:
             for entry in payload["q"]:
                 state, values = tuple(entry["state"]), entry["values"]
                 stage.validate(state, version)
+                if stage.consistent is not None and not stage.consistent(state, version):
+                    raise ValueError(f"Invalid Q table: the {stage.name} stage never produces "
+                                     f"the state {list(state)}")
                 if (not isinstance(values, list) or len(values) != stage.n_actions
                         or any(isinstance(v, bool) or not isinstance(v, (int, float))
                                or not math.isfinite(v) for v in values)

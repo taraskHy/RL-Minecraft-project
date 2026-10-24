@@ -512,18 +512,36 @@ The stone-tools milestone (`docs/stone_tools_design.md`) is being built on branc
   `resource-train` and `resource-demo` always run the wood goal; the stone goal gets a
   command-line option together with its stage coordinator.
 - **`--stone-survey`** (`resource-train` and `resource-demo`) turns on the passive survey of
-  design section 7.6. Once the bot holds a wooden pickaxe, each observation also carries the
-  stone stage's fields (`nearby_stone`, `stone_visible`, `stone_targets`,
-  `pickaxe_uses_left`, `pickaxe_digs`, `hostile_nearby`, `time_of_day`, and
-  `depth_below_stage_start`, counted from the cell the bot stood in when it first held the
-  wooden pickaxe) and a `diagnostic_only` record: the depth to stone below the
-  feet, what the staircase planner would refuse on each of the four headings over six
-  simulated steps (nothing is dug), and the cost of the ray fan and the reach scan. Before
-  the pickaxe these fields are present and null; without the survey, under the wood goal,
-  they are absent. Stone counts as seen or in reach only on a face next to an open cell with
-  sky or block light (decision 9 of the design). The survey reads loaded blocks the bot
-  cannot see. No state encoder reads any of these fields, the policy's actions, events,
-  states and rewards are unchanged, and a failure inside the survey is recorded as
+  design section 7.6. Each observation then carries the stone stage's fields: `time_of_day`
+  always, and once a wooden pickaxe has been in the inventory:
+  - `nearby_stone`, and `stone_reach_candidates`: the up to 3 best stone blocks `MINE_STONE`
+    could mine from where the bot stands, keeping its way back up;
+  - `stone_visible`, and `stone_targets`: the up to 3 nearest stone blocks the ray fan sees,
+    in the order `SEARCH_STONE` would try them. `stone_targets_withheld` is true when the
+    search memory gives none of them (after two failed searches in a row it explores);
+  - `pickaxe_uses_left`, `pickaxe_digs` and `hostile_nearby`;
+  - `hand_off_y`, the y of the cell the bot stood in when it first held the wooden pickaxe, and
+    `stage_start_y`, the natural floor under that cell plus one (the bot's own table, logs,
+    leaves, air, plants and other passable cells are skipped, at most 12 cells down).
+    `depth_below_stage_start` and the staircase's 12-block depth cap count from
+    `stage_start_y`.
+
+  Before the pickaxe these fields are present and null (`hand_off_y`, `stage_start_y` and
+  the depth stay null until the pickaxe is held). Once it is held, a `diagnostic_only` record
+  is added: the stage start, the depth to stone below the feet (also counted from the stage
+  start), where the bot stands relative to its own table and which staircase headings the
+  table rule would drop, what the staircase planner would refuse on each of the four headings
+  over six simulated steps (nothing is dug), and the cost of the ray fan and the reach scan.
+  Without the survey, under the wood goal, these fields are absent.
+- Stone counts as seen or in reach on any open face, lit or dark (the fallback of decision 9
+  of the design). Mineflayer never recomputes light, and the server sends no light update for
+  the cells the bot digs, so a lit-face rule would never count the stone a staircase exposes.
+  Stone in a dark cave therefore counts as visible.
+- These fields read loaded blocks the bot cannot see. The safety checks behind
+  `nearby_stone` and `stone_visible` (hidden water, lava, falling blocks, dripstone and
+  spawners, the path a drop falls, and the bot's way back up) can only turn those values
+  off, never on. The wood stage's state reads none of these fields: the policy's actions,
+  events, states and rewards are unchanged, and a failure inside the survey is recorded as
   `diagnostic_only.error` instead of ending the episode. Because a wooden pickaxe ends a wood
   episode, the survey describes the place where the stone stage would start.
 - Every observation's `inventory_counts` also has `stone_materials` (cobblestone, cobbled

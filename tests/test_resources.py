@@ -2,6 +2,7 @@ import copy
 import hashlib
 import json
 from pathlib import Path
+import pickle
 import tempfile
 import unittest
 
@@ -334,6 +335,30 @@ class StageSpecificationTests(unittest.TestCase):
                     labels.append(label)
             self.assertEqual(labels, list(GOLDEN_POLICY_SHA256))
 
+    def test_copied_or_unpickled_wood_agents_still_save_the_format_before_stages(self):
+        # copy.deepcopy and pickle give the agent a new StageSpec object; the file layout follows the stage's name.
+        clones = {"deepcopy": copy.deepcopy, "pickle": lambda agent: pickle.loads(pickle.dumps(agent))}
+        with tempfile.TemporaryDirectory() as directory:
+            original, copied = Path(directory) / "original.json", Path(directory) / "copied.json"
+            for label, agent in golden_agents():
+                agent.save(original, GOLDEN_METADATA)
+                for how, clone in clones.items():
+                    with self.subTest(policy=label, clone=how):
+                        twin = clone(agent)
+                        self.assertIsNot(twin.stage, WOOD_STAGE)
+                        twin.save(copied, GOLDEN_METADATA)
+                        self.assertEqual(copied.read_bytes(), original.read_bytes())
+                        self.assertEqual(text_sha256(copied), GOLDEN_POLICY_SHA256[label])
+                        self.assertNotIn("stage", json.loads(copied.read_text(encoding="utf-8")))
+                        self.assertEqual(ResourceAgent.load(copied).q, agent.q)
+            # The retained stage-1 checkpoint, loaded and then copied, still saves the 409560e text (read only).
+            checkpoint = ResourceAgent.load(STAGE1_POLICY)
+            metadata = json.loads(STAGE1_POLICY.read_text(encoding="utf-8"))["metadata"]
+            for how, clone in clones.items():
+                with self.subTest(policy="stage1", clone=how):
+                    clone(checkpoint).save(copied, metadata)
+                    self.assertEqual(text_sha256(copied), STAGE1_RESAVED_SHA256)
+
     def test_the_retained_stage1_checkpoint_loads_unchanged(self):
         # Read only: the accepted stage-1 policy (design section 5); nothing under results/ is written.
         digest = "7d0fcce8653df8d4afc0867b321fd9670a8c64ab6ef03a876c64b9cd1c9e0349"
@@ -399,6 +424,24 @@ class StageSpecificationTests(unittest.TestCase):
                 wood_path.write_text(json.dumps(payload), encoding="utf-8")
                 with self.subTest(environment=bad), self.assertRaises(ValueError):
                     ResourceAgent.load(wood_path)
+
+    def test_a_stage_can_refuse_policy_states_its_encoder_never_produces(self):
+        # The wood stage checks caps only, as before stages.
+        self.assertIsNone(WOOD_STAGE.consistent)
+        toy = StageSpec("toy", ("LEFT", "RIGHT"), {"toy_v1": (("x", "y"), (1, 1))}, {"toy_free": (UNMASKED, "toy_v1")},
+                        lambda state, mask, version: (0, 1), "toy_free", lambda state, version: state != (1, 0))
+        agent = ResourceAgent(stage=toy)
+        agent.q[(0, 0)] = [0.5, 0.0]
+        agent.q[(1, 1)] = [0.0, 0.5]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "toy.json"
+            agent.save(path)
+            self.assertEqual(ResourceAgent.load(path, stage=toy).q, agent.q)
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            payload["q"].append({"state": [1, 0], "values": [0.0, 0.0]})
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, r"the toy stage never produces the state \[1, 0\]"):
+                ResourceAgent.load(path, stage=toy)
 
 
 if __name__ == "__main__":

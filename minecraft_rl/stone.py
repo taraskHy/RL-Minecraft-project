@@ -65,14 +65,19 @@ def stone_actions_for(state: State, action_mask: str = UNMASKED,
     return tuple(range(len(StoneAction)))
 
 
-STONE_STAGE = StageSpec("stone", STONE_ACTION_NAMES, {STONE_ENVIRONMENT: (STONE_FIELDS, STONE_CAPS)},
-                        {STONE_CONDITION: (UNMASKED, STONE_ENVIRONMENT)}, stone_actions_for, STONE_CONDITION)
+def consistent(state: State, state_version: str = STONE_ENVIRONMENT) -> bool:
+    """Stone in reach is always visible: nearby_stone=1 with stone_visible=0 never occurs.
 
-
-def consistent(state: State) -> bool:
-    """Stone in reach is always visible: nearby_stone=1 with stone_visible=0 never occurs."""
-    STONE_STAGE.validate(state, STONE_ENVIRONMENT)
+    The encoder refuses such an observation, so loading refuses a policy file
+    that holds such a state.
+    """
+    STONE_STAGE.validate(state, state_version)
     return not (state[1] and not state[2])
+
+
+STONE_STAGE = StageSpec("stone", STONE_ACTION_NAMES, {STONE_ENVIRONMENT: (STONE_FIELDS, STONE_CAPS)},
+                        {STONE_CONDITION: (UNMASKED, STONE_ENVIRONMENT)}, stone_actions_for, STONE_CONDITION,
+                        consistent)
 
 
 # 4 x 2 x 2 x 2 x 3 = 96 nominal states, 64 with health above 0, 48 of them consistent.
@@ -485,6 +490,14 @@ def train_stone_simulator(episodes: int, seed: int = 0, *, algorithm: str = "q_l
     return agent, records
 
 
+def _is_stone_stage(stage) -> bool:
+    """STONE_STAGE or a copy of it: copy.deepcopy and pickle make a new StageSpec with the same contract."""
+    return (isinstance(stage, StageSpec) and stage.name == STONE_STAGE.name and stage.actions == STONE_STAGE.actions
+            and dict(stage.state_versions) == dict(STONE_STAGE.state_versions)
+            and dict(stage.conditions) == dict(STONE_STAGE.conditions)
+            and stage.actions_for is stone_actions_for and stage.consistent is consistent)
+
+
 def evaluate_stone_policy(agent: ResourceAgent, episodes: int, seed: int,
                           config: StoneSimConfig | None = None) -> dict:
     """SIMULATOR ONLY: frozen greedy play (epsilon 0, no updates) on seeds seed, seed+1, ...
@@ -492,7 +505,7 @@ def evaluate_stone_policy(agent: ResourceAgent, episodes: int, seed: int,
     An untried choice picks an action never updated in that state, as in
     scripts/initial_q_study.py.
     """
-    if not isinstance(agent, ResourceAgent) or agent.stage is not STONE_STAGE:
+    if not isinstance(agent, ResourceAgent) or not _is_stone_stage(agent.stage):
         raise ValueError("A stone evaluation needs a stone-stage ResourceAgent")
     if type(episodes) is not int or episodes < 1 or type(seed) is not int:
         raise ValueError("episodes must be a positive integer and seed an integer")

@@ -6,14 +6,16 @@ import json
 import math
 import os
 from pathlib import Path
+import pickle
 import random
+import re
 import statistics
 import tempfile
 import unittest
 from unittest import mock
 
 from minecraft_rl import stone
-from minecraft_rl.resources import MASKED, UNMASKED, WOOD_STAGE, ResourceAgent, state_from_observation
+from minecraft_rl.resources import MASKED, UNMASKED, WOOD_STAGE, ResourceAgent, StageSpec, state_from_observation
 from minecraft_rl.stone import (
     HANDOFF_REQUIREMENTS, PICKAXE_MATERIALS, PICKAXE_STICKS, STONE_ACTION_NAMES, STONE_CAPS, STONE_CONDITION,
     STONE_ENVIRONMENT, STONE_FIELDS, STONE_LIVE_STATES, STONE_MATERIALS, STONE_STAGE, StoneAction as A,
@@ -24,6 +26,8 @@ from minecraft_rl.stone import (
 
 ROOT = Path(__file__).resolve().parents[1]
 STAGE1_POLICY = ROOT / "results" / "pc_resource_runs" / "87673b8" / "mx-unmasked-q-train" / "policy.json"
+# The bridge's pinned minecraft-data; stone-mechanics.test.js asserts the same version.
+PINNED_MINECRAFT_DATA = "3.117.0"
 ALL_STATES = tuple(itertools.product(*(range(cap + 1) for cap in STONE_CAPS)))
 HEALTH_FOR_BIN = {0: 0, 1: 6, 2: 20}
 
@@ -56,23 +60,35 @@ def for_state(state):
     return at(items, bool(near_stone), bool(near_table), bool(visible), HEALTH_FOR_BIN[health])
 
 
-def pinned_minecraft_data():
-    """The pinned minecraft-data 3.117.0 files for pc 1.21.4, from NODE_PATH or this checkout; None if absent."""
+def node_module_roots():
+    """The node_modules folders that exist on NODE_PATH and in this checkout's bridge, in that order."""
     roots = [Path(p) for p in os.environ.get("NODE_PATH", "").split(os.pathsep) if p]
     roots.append(ROOT / "minecraft_bridge" / "node_modules")
+    return [root for root in roots if root.is_dir()]
+
+
+def pinned_minecraft_data(roots):
+    """The pinned minecraft-data files for pc 1.21.4 (None if no root has that version) and every version seen.
+
+    A root holds minecraft-data at its top level or in its pnpm store. Once
+    the pinned package is found, unreadable data raises instead of skipping.
+    """
+    versions = []
     for root in roots:
-        for package in (root / "minecraft-data",
-                        root / ".pnpm" / "minecraft-data@3.117.0" / "node_modules" / "minecraft-data"):
+        stored = sorted((root / ".pnpm").glob("minecraft-data@*/node_modules/minecraft-data"))
+        for package in (root / "minecraft-data", *stored):
             try:
-                if json.loads((package / "package.json").read_text(encoding="utf-8")).get("version") != "3.117.0":
-                    continue
-                data = package / "minecraft-data" / "data"
-                paths = json.loads((data / "dataPaths.json").read_text(encoding="utf-8"))["pc"]["1.21.4"]
-                return {kind: json.loads((data / paths[kind] / f"{kind}.json").read_text(encoding="utf-8"))
-                        for kind in ("items", "blocks", "recipes")}
-            except (OSError, ValueError, KeyError):
+                version = json.loads((package / "package.json").read_text(encoding="utf-8")).get("version")
+            except (OSError, ValueError):
                 continue
-    return None
+            versions.append(version)
+            if version != PINNED_MINECRAFT_DATA:
+                continue
+            data = package / "minecraft-data" / "data"
+            paths = json.loads((data / "dataPaths.json").read_text(encoding="utf-8"))["pc"]["1.21.4"]
+            return {kind: json.loads((data / paths[kind] / f"{kind}.json").read_text(encoding="utf-8"))
+                    for kind in ("items", "blocks", "recipes")}, versions
+    return None, versions
 
 
 class StoneStateTests(unittest.TestCase):
@@ -112,10 +128,15 @@ class StoneStateTests(unittest.TestCase):
         self.assertEqual(stone_state_from_observation(minimal), (2, 1, 1, 0, 2))
         for materials in range(12):
             self.assertEqual(stone_state_from_observation(at(materials))[0], min(3, materials))
-        # Wood counts, the pickaxe count, food, position, and every other field play no part.
+        # Wood counts, the pickaxe count, food, position, and every other field play no part, the recorded
+        # stone fields included.
         changed = at(1, True, True)
         changed["inventory_counts"].update(logs=9, planks=0, sticks=0, pickaxes=0, stone_pickaxes=4)
-        changed.update(food=0, position=None, held_item=None, table_placed=False, nearby_log=True)
+        changed.update(food=0, position=None, held_item=None, table_placed=False, nearby_log=True,
+                       stone_targets=[{"name": "stone", "x": 4, "y": 63, "z": 1, "distance": 4.2, "face": "+y"}],
+                       stone_reach_candidates=[], pickaxe_uses_left=1, pickaxe_digs=58, time_of_day=13000,
+                       hostile_nearby=[{"name": "zombie", "x": 5.5, "y": 64.0, "z": 3.5, "distance": 5.83}],
+                       depth_below_stage_start=7)
         self.assertEqual(stone_state_from_observation(changed), stone_state_from_observation(at(1, True, True)))
 
     def test_health_is_binned_exactly_as_the_wood_state(self):
@@ -332,10 +353,24 @@ class HandoffTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 handoff_failures(value)
 
+    def test_the_lockfile_pins_minecraft_data(self):
+        # Never skipped: the lockfile is in every checkout, with or without node_modules.
+        lock = (ROOT / "minecraft_bridge" / "pnpm-lock.yaml").read_text(encoding="utf-8")
+        resolved = re.findall(r"^  minecraft-data@([^:\s]+):", lock, re.MULTILINE)
+        required = re.findall(r"^ +minecraft-data: (\S+)$", lock, re.MULTILINE)
+        self.assertTrue(resolved and required)
+        self.assertEqual(set(resolved) | set(required), {PINNED_MINECRAFT_DATA})
+
     def test_requirements_match_the_pinned_minecraft_data(self):
-        data = pinned_minecraft_data()
+        roots = node_module_roots()
+        if not roots:
+            # Only a checkout without node_modules (a fresh clone, or a worktree with NODE_PATH unset) skips;
+            # the lockfile test above still pins the version.
+            self.skipTest("no node_modules: run setup.cmd, or set NODE_PATH to the bridge's node_modules")
+        data, versions = pinned_minecraft_data(roots)
         if data is None:
-            self.skipTest("minecraft-data 3.117.0 not found (set NODE_PATH to the bridge's node_modules)")
+            self.fail(f"minecraft-data {PINNED_MINECRAFT_DATA} is not installed in {', '.join(map(str, roots))}; "
+                      f"versions found: {', '.join(map(str, versions)) or 'none'}")
         items = {item["id"]: item["name"] for item in data["items"]}
         ids = {name: number for number, name in items.items()}
         recipes = data["recipes"][str(ids["stone_pickaxe"])]
@@ -463,6 +498,60 @@ class StoneAgentTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "wood stage"):
             ResourceAgent.load(STAGE1_POLICY, stage=STONE_STAGE)
         self.assertEqual(len(ResourceAgent.load(STAGE1_POLICY).q), 180)
+
+    def test_a_copied_or_unpickled_stone_agent_saves_loads_and_evaluates(self):
+        # copy.deepcopy and pickle give the agent a new StageSpec object with the stone stage's contract.
+        trained, _ = train_stone_simulator(10, seed=3)
+        clones = {"deepcopy": copy.deepcopy, "pickle": lambda agent: pickle.loads(pickle.dumps(agent))}
+        with tempfile.TemporaryDirectory() as directory:
+            path, copied = Path(directory) / "stone.json", Path(directory) / "copied.json"
+            trained.save(path, {"source": "stone simulator"})
+
+            def fresh():
+                return ResourceAgent.load(path, seed=6, stage=STONE_STAGE)
+
+            expected = evaluate_stone_policy(fresh(), 40, 9)
+            for how, clone in clones.items():
+                with self.subTest(clone=how):
+                    twin = clone(fresh())
+                    self.assertIsNot(twin.stage, STONE_STAGE)
+                    self.assertEqual(evaluate_stone_policy(twin, 40, 9), expected)
+                    twin.save(copied, {"source": "stone simulator"})
+                    self.assertEqual(copied.read_bytes(), path.read_bytes())
+                    self.assertEqual(json.loads(copied.read_text(encoding="utf-8"))["stage"], "stone")
+                    self.assertEqual(ResourceAgent.load(copied, stage=STONE_STAGE).q, trained.q)
+        # A stage that only borrows the stone stage's name is still refused.
+        versions = {STONE_ENVIRONMENT: (STONE_FIELDS, STONE_CAPS)}
+        conditions = {STONE_CONDITION: (UNMASKED, STONE_ENVIRONMENT)}
+        impostors = (StageSpec("stone", STONE_ACTION_NAMES, versions, conditions, lambda state, mask, version: (2,),
+                               STONE_CONDITION, consistent),
+                     StageSpec("stone", STONE_ACTION_NAMES, versions, conditions, stone.stone_actions_for,
+                               STONE_CONDITION))
+        for impostor in impostors:
+            with self.assertRaisesRegex(ValueError, "needs a stone-stage ResourceAgent"):
+                evaluate_stone_policy(ResourceAgent(stage=impostor), 5, 0)
+
+    def test_a_policy_file_with_a_state_the_encoder_never_produces_is_refused(self):
+        self.assertIs(STONE_STAGE.consistent, consistent)
+        inconsistent = [state for state in ALL_STATES if not consistent(state)]
+        self.assertEqual(len(inconsistent), 24)
+        self.assertTrue(all(state[1:3] == (1, 0) for state in inconsistent))
+        agent = ResourceAgent(stage=STONE_STAGE)
+        agent.q[self.S] = [0.1] * 5
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "stone.json"
+            agent.save(path)
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            for state in inconsistent:
+                broken = copy.deepcopy(payload)
+                broken["q"].append({"state": list(state), "values": [0.0] * 5})
+                path.write_text(json.dumps(broken), encoding="utf-8")
+                with self.subTest(state=state), self.assertRaisesRegex(ValueError, "stone stage never produces"):
+                    ResourceAgent.load(path, stage=STONE_STAGE)
+            # Every consistent state loads, the terminal health-0 states included.
+            payload["q"] = [{"state": list(state), "values": [0.0] * 5} for state in ALL_STATES if consistent(state)]
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            self.assertEqual(len(ResourceAgent.load(path, stage=STONE_STAGE).q), 72)
 
     def test_initial_q_is_carried(self):
         agent = ResourceAgent(stage=STONE_STAGE, initial_q=-1)
@@ -721,12 +810,14 @@ class StoneSimulatorTests(unittest.TestCase):
             share = faces.count(size) / len(faces)
             self.assertLessEqual(abs(share - 1 / 6), 5 * math.sqrt((1 / 6) * (5 / 6) / len(faces)))
 
-    def test_training_uses_the_live_agent_reward_and_linear_schedule(self):
+    def test_training_uses_the_agent_class_the_stone_reward_and_the_linear_schedule(self):
         agent, rows = train_stone_simulator(11, seed=1)
         self.assertIsInstance(agent, ResourceAgent)
         self.assertIs(agent.stage, STONE_STAGE)
+        self.assertEqual([row["epsilon"] for row in rows], [linear_epsilon(i, 11, 0.6, 0.1) for i in range(11)])
         self.assertEqual([round(row["epsilon"], 12) for row in rows], [round(0.6 - 0.05 * i, 12) for i in range(11)])
-        # The live session's formula: epsilon + (epsilon_end - epsilon) * (episode - 1) / max(1, episodes - 1).
+        # A pin of the closed form only: tests/test_resource_session.py ties linear_epsilon to the epsilon the
+        # live session records in each episode, and to resource-parallel's continuation schedule.
         for episode in range(1, 12):
             self.assertEqual(linear_epsilon(episode - 1, 11, 0.6, 0.1), 0.6 + (0.1 - 0.6) * (episode - 1) / max(1, 10))
         self.assertEqual(linear_epsilon(0, 1, 0.6, 0.1), 0.6)
@@ -734,7 +825,8 @@ class StoneSimulatorTests(unittest.TestCase):
         self.assertTrue(all(set(row) >= {"surface_stone", "visible_at_start", "dig_good", "outside_reference_choices"}
                             for row in rows))
         self.assertTrue(all(len(state) == 5 for state in agent.q))
-        # Every simulator reward is the live stone reward of its own observations.
+        # Every simulator reward is stone_reward_transition of its own observations and of the success and
+        # death flags step reports. No live loop calls stone_reward_transition before step S3.
         env = StoneSimulator()
         obs = env.reset(8)
         for action in (1, 2, 2, 0, 2, 3, 4):
