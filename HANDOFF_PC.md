@@ -177,6 +177,29 @@ What actually happened on the PC so far; nothing below is a live-game result.
   - **Code review.** Three adversarial review rounds confirmed 47 findings,
     all fixed. A fix for the policy-save lock that invalidated one episode is
     included.
+- **Initial-Q experiment, declared and ready (24 October, not yet run).**
+  `resource-train --initial-q` sets the value of untried actions, which used
+  to be an implicit 0.
+  - **Declaration.** `configs/initial_q_experiment.json` declares unmasked
+    Q-learning and SARSA from 0 and -1, three agent seeds each, 50 live
+    training episodes on worlds 100-149, then frozen tests on new worlds
+    40000-40019.
+  - **Plan and analysis.** The plan is `configs/initial_q_plan.json` (2
+    slots, matched pairs, and a filler run that is never analysed). The
+    declared analysis is `scripts/initial_q_analysis.py`, which compares the
+    arms on paired seeds, with a conservative check.
+  - **Why -1.** It was chosen in `results/initial_q_study` and
+    `results/initial_q_study_harsh` (simulator only). Theory predicts no
+    effect on the late-stage loops.
+  - **Review.** One adversarial review confirmed 22 findings, all fixed; 161
+    Python tests pass.
+  - **Launch.** `.\run.cmd resource-parallel configs\initial_q_plan.json`,
+    with the PC otherwise idle, for about 10-12 hours.
+- **Stone tools design (24 October).** `docs/stone_tools_design.md` merges
+  three independent designs and a judge's review: the actions, the state,
+  the potential, the bridge safety rules, the simulator, the tests, the
+  experiment on seeds 61000-64119, and the schedule to 19 November. Nothing
+  is implemented yet.
 - **Live verification plan:** done on 23 October 2026 (seed-1 reproduction,
   three development seeds with both algorithms, the masked random baseline,
   frozen evaluation, and the declared validation seeds 10000–10009, retained

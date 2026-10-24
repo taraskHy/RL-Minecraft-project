@@ -125,6 +125,13 @@ Other options:
 - `--condition masked|unmasked|unmasked_history`: the experiment condition
   (see the next section). New agents and baselines default to `masked`; a
   `--policy` carries its own condition and a different one is refused.
+- `--initial-q VALUE` (training only, default 0): the value of every action
+  before its first update in a state. It is saved in the policy and the run
+  metadata; a `--policy` carries its own, and the report never pools different
+  values. With the potential-based shaping, an action that fails in place
+  converges to about -0.33 minus the state's potential, so a negative start
+  ranks untried actions below it only where the start is lower than that.
+  See `configs/initial_q_experiment.json`.
 
 ## Experiment conditions: is anything learned?
 

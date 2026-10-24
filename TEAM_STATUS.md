@@ -6,7 +6,7 @@ every result. For the full technical history read [HANDOFF_PC.md](HANDOFF_PC.md)
 for every measured number read
 [results/pc_resource_runs/README.md](results/pc_resource_runs/README.md).
 
-**Last updated:** 24 October 2026, 05:40 (branch `codex/pc-canopy-descent`,
+**Last updated:** 24 October 2026, 10:30 (branch `codex/pc-canopy-descent`,
 pull request [#1](https://github.com/taraskHy/RL-Minecraft-project/pull/1),
 not yet merged into `main`).
 
@@ -111,6 +111,35 @@ failure.
 
 ## Planned next
 
+- **Initial-Q experiment, ready to launch (not started).** It runs overnight
+  on the desktop PC at 2 slots, for an estimated 10 to 12 hours, so start it
+  in the early evening:
+
+  ```powershell
+  .\run.cmd resource-parallel configs\initial_q_plan.json
+  ```
+
+  - **What it compares.** Unmasked Q-learning and SARSA trained from an
+    initial Q of 0 against -1, three agents each, 50 live episodes per agent.
+    Every frozen policy and random play are then tested on new held-out
+    worlds 40000-40019.
+  - **Rules.** The plan, the comparison rule and the analysis script are
+    fixed in advance in
+    [configs/initial_q_experiment.json](configs/initial_q_experiment.json).
+  - **What we expect.** The simulator showed that -1 is the most pessimistic
+    value that does not harm learning. Theory predicts it will *not* fix the
+    late-stage loops, because with shaping a start of 0 is optimistic by the
+    state's potential (about 1.9 there). Either way, three agents per arm
+    measure how reliably learning succeeds.
+  - **Keep the PC free while it runs.**
+- **Stone tools: the design is ready for review.**
+  [docs/stone_tools_design.md](docs/stone_tools_design.md) has the full
+  milestone: five new macro actions (including a safe dig-down staircase), a
+  48-state learner after the frozen wood policy, the simulator study, the
+  tests, a pre-registered experiment on new seeds 61000-64119, and a schedule
+  to the 19 November assessment. Its section 11 lists the decisions the team
+  needs to make. All stone code goes in a separate worktree, so tonight's run
+  is not disturbed.
 - **Use parallel live runs for the next experiment.** On the desktop PC, use
   `.\run.cmd resource-parallel PLAN` with `"slots": 2` (see the next
   section). Run every arm of one experiment in one schedule with the same
@@ -145,9 +174,10 @@ command and option.
 Pick one, start a branch from `codex/pc-canopy-descent`, and add a line to the
 update log below when you start, so we do not duplicate work.
 
-1. **Stone tools, the next milestone.** Design a small state and action set
-   for mining stone with the wooden pickaxe and crafting a stone pickaxe,
-   reusing the wood chain. See [docs/full_survival_plan.md](docs/full_survival_plan.md).
+1. **Stone tools, the next milestone.** The design is in
+   [docs/stone_tools_design.md](docs/stone_tools_design.md); section 9 splits
+   it into ordered steps, and the offline ones can start now in a
+   `codex/stone-tools` worktree.
 2. **Sparse rewards.** The experiment uses potential-based shaping. A
    separate condition with only the step cost and the final +10/-10 would be
    the purest learning test; it needs more training episodes.
@@ -166,8 +196,8 @@ update log below when you start, so we do not duplicate work.
    - a state field saying whether the next craft can be afforded;
    - several training seeds, to see how often the loop happens.
 5. **Training more than one agent.** Each condition was trained once (agent
-   seed 0). Training three to five agents per condition would show how much
-   learning varies between runs. Parallel live runs make this affordable.
+   seed 0). The initial-Q experiment trains three agents per arm for unmasked
+   Q-learning and SARSA; other conditions are still single runs.
 6. **Report and presentation.** The report needs 8 to 20 pages and the talk
    15 minutes; [docs/report_plan.md](docs/report_plan.md) has the outline. The
    masked negative result, the unmasked positive one, and the failure analysis
@@ -202,6 +232,10 @@ update log below when you start, so we do not duplicate work.
 
 ## Update log
 
+- **24 Oct 2026, 10:30:** the initial-Q option (`resource-train --initial-q`)
+  and a pre-registered overnight experiment (0 against -1, three agents per
+  arm, 2 slots) are committed and reviewed, ready to launch. The stone-tools
+  design is in `docs/stone_tools_design.md`.
 - **24 Oct 2026, 05:40:** parallel live runs merged into
   `codex/pc-canopy-descent` (151 Python, 5 bridge and 31 Node tests pass) and
   verified live: 2 slots adopted on the desktop PC, 4 slots rejected by the
