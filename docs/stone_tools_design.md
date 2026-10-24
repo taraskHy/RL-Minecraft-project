@@ -1,6 +1,6 @@
 # Stone-tools milestone: design
 
-**Status.** Design only. Nothing here is implemented, and no stone-stage episode has been run. Numbers marked *computed* were computed on 24 October 2026 from retained files under `results/pc_resource_runs/`. Numbers marked *estimate* are guesses; measurements replace them. Line numbers refer to commit `2618695` on `codex/pc-canopy-descent`; the initial-Q fixes in `cb63ef2` moved a few lines in `minecraft_rl/resources.py` and `infrastructure/resource_session.py`. Two of the computed figures were re-checked independently from the retained files before this was committed: 114 of the 124 held-out successes ended with 0 logs, 3 planks and 2 sticks, and a stone-tool material was under or beside the bot in 34 of the 400 `87673b8` episodes. `minecraft_bridge/resource-bridge.js` has not changed since `529bf7d`.
+**Status.** Design accepted: on 24 October 2026 the user accepted all 12 recommendations in section 11. Offline step S1 (section 9) is under way on branch `codex/stone-tools`; no stone-stage episode has been run. Numbers marked *computed* were computed on 24 October 2026 from retained files under `results/pc_resource_runs/`. Numbers marked *estimate* are guesses; measurements replace them. Line numbers refer to commit `2618695` on `codex/pc-canopy-descent`; the initial-Q fixes in `cb63ef2` moved a few lines in `minecraft_rl/resources.py` and `infrastructure/resource_session.py`. Two of the computed figures were re-checked independently from the retained files before this was committed: 114 of the 124 held-out successes ended with 0 logs, 3 planks and 2 sticks, and a stone-tool material was under or beside the bot in 34 of the 400 `87673b8` episodes. `minecraft_bridge/resource-bridge.js` has not changed since `529bf7d`.
 
 This document merges three independent designs: execution helpers and safety, the learning problem, and evidence and schedule. Section 12 lists where they disagreed and what was decided.
 
@@ -286,7 +286,7 @@ The stone scans run only once a wooden pickaxe is in the inventory, so the wood 
 
 `DIG_DOWN` also refuses logs, leaves, stone sources, ores and containers or interactive blocks.
 
-**Disclosure.** Checks 1 to 6 read loaded blocks that a player could not see. They only ever refuse: targets come only from visible blocks, and the staircase heading uses no knowledge of where stone is. The canopy descent already reads hidden blocks in the same way, scanning 12 blocks down (`:571-580`). Whether the instructor accepts this is an open decision (section 11).
+**Disclosure.** Checks 1 to 6 read loaded blocks that a player could not see. They only ever refuse: targets come only from visible blocks, and the staircase heading uses no knowledge of where stone is. The canopy descent already reads hidden blocks in the same way, scanning 12 blocks down (`:571-580`). The user accepted this on 24 October 2026; whether the instructor accepts it is still to be asked (section 11, item 1).
 
 ### 4.4 `DIG_DOWN`: a staircase
 
@@ -445,7 +445,7 @@ Success is the bridge's `success` field under the stone goal (section 5).
 4. **Stage 2.** The stone learner runs in the same world and bridge, for at most 30 decisions. The bridge keeps its spawn centre, `ownTable` and memories (`:455-458`). A new bridge would lose these and fail the empty-inventory check.
 5. **End.** The outcome records `stage1_success`, `stage2_started`, `stage2_success`, and decisions and seconds per stage. Every transition carries `stage`. A stage-1 failure is reported as "stone stage not reached" and is never replayed.
 
-**Stage-1 checkpoint (recommendation; open decision).** `results/pc_resource_runs/87673b8/mx-unmasked-q-train/policy.json`:
+**Stage-1 checkpoint (accepted 24 October 2026).** `results/pc_resource_runs/87673b8/mx-unmasked-q-train/policy.json`:
 - SHA-256 `7d0fcce8653df8d4afc0867b321fd9670a8c64ab6ef03a876c64b9cd1c9e0349` (computed);
 - condition unmasked, 180 states, 20/20 on 20000–20019.
 
@@ -764,7 +764,12 @@ The PC runs one live run or schedule at a time, because of the machine-wide lock
 
 ---
 
-## 11. Open decisions for the user
+## 11. Decisions for the user
+
+**Decided 24 October 2026: the user accepted all 12 recommendations below.** Three of them still need an action:
+- **Item 1.** Someone on the team must still ask the instructor whether the hybrid scope, and the disclosed hidden-block checks of item 2, are acceptable.
+- **Item 4.** The rule is fixed; the value follows from the initial-Q experiment (not yet run) and the stone simulator check.
+- **Item 9.** The lit-face rule applies only if the offline sky-light check in step S1 shows that Mineflayer keeps sky light for 1.21.4 chunks; otherwise stone in dark caves counts as visible and this is disclosed.
 
 1. **Accept `DIG_DOWN`.** It is a new, disclosed, scripted staircase helper that digs dirt and rock that is not a recipe material. *Recommendation:* yes. Ask the instructor now whether the hybrid scope is acceptable (`docs/course_requirements.md:39`).
 2. **Accept safety checks that read blocks the bot cannot see** (liquids, gravity blocks, floors, ice, spawners, infested stone), provided they only refuse. *Recommendation:* yes, with the disclosure in section 4.3.

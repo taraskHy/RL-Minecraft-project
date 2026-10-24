@@ -175,9 +175,9 @@ Pick one, start a branch from `codex/pc-canopy-descent`, and add a line to the
 update log below when you start, so we do not duplicate work.
 
 1. **Stone tools, the next milestone.** The design is in
-   [docs/stone_tools_design.md](docs/stone_tools_design.md); section 9 splits
-   it into ordered steps, and the offline ones can start now in a
-   `codex/stone-tools` worktree.
+   [docs/stone_tools_design.md](docs/stone_tools_design.md) and was accepted
+   on 24 October; section 9 splits it into ordered steps. Step S1 is taken
+   (branch `codex/stone-tools`); later steps build on it.
 2. **Sparse rewards.** The experiment uses potential-based shaping. A
    separate condition with only the step cost and the final +10/-10 would be
    the purest learning test; it needs more training episodes.
@@ -232,6 +232,12 @@ update log below when you start, so we do not duplicate work.
 
 ## Update log
 
+- **24 Oct 2026, afternoon:** the stone-tools design is accepted (all 12
+  recommendations in its section 11). Offline step S1 has started on branch
+  `codex/stone-tools`, in its own worktree, so this checkout's run code stays
+  frozen for the initial-Q run. Please do not start S1 pieces in parallel.
+  Someone still has to ask the instructor about the scripted dig-down helper
+  and the hidden-block safety checks (design section 11, item 1).
 - **24 Oct 2026, 10:30:** the initial-Q option (`resource-train --initial-q`)
   and a pre-registered overnight experiment (0 against -1, three agents per
   arm, 2 slots) are committed and reviewed, ready to launch. The stone-tools
