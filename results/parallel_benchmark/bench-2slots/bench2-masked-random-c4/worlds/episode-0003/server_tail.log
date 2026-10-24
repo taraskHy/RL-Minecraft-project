@@ -1,0 +1,39 @@
+[05:25:07] [ServerMain/INFO]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, name=PROD]
+[05:25:08] [ServerMain/INFO]: No existing world data, creating new world
+[05:25:08] [ServerMain/INFO]: Loaded 1370 recipes
+[05:25:08] [ServerMain/INFO]: Loaded 1481 advancements
+[05:25:08] [Server thread/INFO]: Starting minecraft server version 1.21.4
+[05:25:08] [Server thread/INFO]: Loading properties
+[05:25:08] [Server thread/INFO]: Default game type: SURVIVAL
+[05:25:08] [Server thread/INFO]: Generating keypair
+[05:25:09] [Server thread/INFO]: Starting Minecraft server on 127.0.0.1:25569
+[05:25:09] [Server thread/INFO]: Using default channel type
+[05:25:09] [Server thread/WARN]: **** SERVER IS RUNNING IN OFFLINE/INSECURE MODE!
+[05:25:09] [Server thread/WARN]: The server will make no attempt to authenticate usernames. Beware.
+[05:25:09] [Server thread/WARN]: While this makes the game possible to play without internet access, it also opens up the ability for hackers to connect with any username they choose.
+[05:25:09] [Server thread/WARN]: To change this, set "online-mode" to "true" in the server.properties file.
+[05:25:09] [Server thread/INFO]: Preparing level "world"
+[05:25:11] [Server thread/INFO]: Preparing start region for dimension minecraft:overworld
+[05:25:11] [Worker-Main-1/INFO]: Preparing spawn area: 2%
+[05:25:12] [Worker-Main-8/INFO]: Preparing spawn area: 2%
+[05:25:13] [Worker-Main-1/INFO]: Preparing spawn area: 16%
+[05:25:13] [Worker-Main-8/INFO]: Preparing spawn area: 18%
+[05:25:13] [Worker-Main-9/INFO]: Preparing spawn area: 18%
+[05:25:14] [Worker-Main-3/INFO]: Preparing spawn area: 51%
+[05:25:14] [Server thread/INFO]: Time elapsed: 2868 ms
+[05:25:14] [Server thread/INFO]: Done (5.466s)! For help, type "help"
+[05:25:16] [Server thread/INFO]: RLResourceBot[/127.0.0.1:58652] logged in with entity id 15 at (-126.5, 71.0, -104.5)
+[05:25:16] [Server thread/INFO]: RLResourceBot joined the game
+[05:25:36] [Server thread/INFO]: RLResourceBot lost connection: Disconnected
+[05:25:36] [Server thread/INFO]: RLResourceBot left the game
+[05:25:37] [Server thread/INFO]: Stopping the server
+[05:25:37] [Server thread/INFO]: Stopping server
+[05:25:37] [Server thread/INFO]: Saving players
+[05:25:37] [Server thread/INFO]: Saving worlds
+[05:25:37] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:overworld
+[05:25:38] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_nether
+[05:25:38] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_end
+[05:25:38] [Server thread/INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[05:25:38] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[05:25:38] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[05:25:38] [Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved

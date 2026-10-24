@@ -1,0 +1,12 @@
+step,action,reward,td_error,q_before,q_after,event,success,death,recovery
+1,SEARCH,-0.01,,0.0,0.0,log_reached,False,False,
+2,CHOP,0.378,,0.0,0.0,log_collected,False,False,
+3,CHOP,0.366,,0.0,0.0,log_collected,False,False,
+4,CRAFT_PLANKS,0.2569999999999999,,0.0,0.0,crafted_acacia_planks,False,False,
+5,CRAFT_PLANKS,-0.04300000000000014,,0.0,0.0,crafted_acacia_planks,False,False,
+6,CRAFT_TABLE,0.345,,0.0,0.0,crafted_crafting_table,False,False,
+7,PLACE_TABLE,0.139,,0.0,0.0,table_placed,False,False,
+8,CRAFT_STICKS,0.133,,0.0,0.0,crafted_stick,False,False,
+9,CHOP,0.030000000000000256,,0.0,0.0,log_collected,False,False,
+10,CRAFT_PLANKS,0.026999999999999476,,0.0,0.0,crafted_acacia_planks,False,False,
+11,CRAFT_PICKAXE,7.890000000000001,,0.0,0.0,crafted_wooden_pickaxe,True,False,

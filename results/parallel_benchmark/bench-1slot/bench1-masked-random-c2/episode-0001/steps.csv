@@ -1,0 +1,16 @@
+step,action,reward,td_error,q_before,q_after,event,success,death,recovery
+1,SEARCH,-0.01,,0.0,0.0,cleared_2_leaf_layers;descended_canopy;explored,False,False,"canopy_descent:layers=2,descent=2,damage=0,stopped=-"
+2,SEARCH,-0.01,,0.0,0.0,cleared_1_leaf_layer;still_on_canopy:fall_too_far,False,False,"canopy_descent:layers=1,descent=1,damage=0,stopped=fall_too_far"
+3,SEARCH,-0.01,,0.0,0.0,canopy_descent_refused:fall_too_far;log_path_blocked,False,False,"canopy_descent:layers=0,descent=0,damage=0,stopped=fall_too_far"
+4,SEARCH,-0.01,,0.0,0.0,explored,False,False,
+5,SEARCH,-0.01,,0.0,0.0,log_reached,False,False,
+6,CHOP,0.378,,0.0,0.0,log_collected,False,False,
+7,CRAFT_PLANKS,0.2689999999999999,,0.0,0.0,crafted_pale_oak_planks,False,False,
+8,CRAFT_TABLE,0.06600000000000007,,0.0,0.0,crafted_crafting_table,False,False,
+9,PLACE_TABLE,0.15999999999999992,,0.0,0.0,table_placed,False,False,
+10,CHOP,0.3480000000000001,,0.0,0.0,log_collected,False,False,
+11,CHOP,0.044999999999999936,,0.0,0.0,log_collected,False,False,
+12,CRAFT_PLANKS,0.236,,0.0,0.0,crafted_pale_oak_planks,False,False,
+13,CRAFT_PLANKS,-0.06400000000000004,,0.0,0.0,crafted_pale_oak_planks,False,False,
+14,CRAFT_STICKS,0.22699999999999987,,0.0,0.0,crafted_stick,False,False,
+15,CRAFT_PICKAXE,7.890000000000001,,0.0,0.0,crafted_wooden_pickaxe,True,False,

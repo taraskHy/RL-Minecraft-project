@@ -1,0 +1,84 @@
+{
+  "episode": 4,
+  "world_seed": 30008,
+  "status": "completed",
+  "mode": "frozen_evaluation",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": -0.6000000000000003,
+  "epsilon": 0.0,
+  "seconds": 43.203000000008615,
+  "elapsed_wall_seconds": 61.0,
+  "started_at": "2026-10-24T02:18:21.667397+00:00",
+  "finished_at": "2026-10-24T02:19:22.664412+00:00",
+  "final_observation": {
+    "position": {
+      "x": 264.50000000000006,
+      "y": 65.875,
+      "z": 411.82026603885424
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {},
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 0,
+      "sticks": 0,
+      "tables": 0,
+      "pickaxes": 0
+    },
+    "nearby_log": false,
+    "nearby_table": false,
+    "table_placed": false,
+    "nearby_visible_logs": [],
+    "biome": "mangrove_swamp",
+    "feet_block": "mud",
+    "head_block": "air",
+    "ground_block": "mud",
+    "support_block": "mud",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "mud",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "mud",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "mud",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "mud",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": null,
+    "held_item": null,
+    "success": false,
+    "death": false,
+    "recovery": null,
+    "action_detail": null,
+    "event": "exploration_blocked",
+    "action_duration_seconds": 0.475,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

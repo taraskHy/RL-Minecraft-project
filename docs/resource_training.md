@@ -234,22 +234,30 @@ folder under `runs/<plan name>/`. A job runs exactly the `resource-train` or
 `resource-demo` command you would type by hand, with `--port`,
 `--parallel-slots`, and `--schedule-id` added.
 
-**Not yet verified live.** This was written while the masking batch held the
-PC, and it has not yet run Minecraft. Before any experiment uses it, run the
-contention benchmark declared in
-[`configs/parallel_contention_benchmark.json`](../configs/parallel_contention_benchmark.json).
-The helpers stop on wall-clock limits (SEARCH 36 s, canopy descent 20 s, table
+**Verified live on the desktop PC (24 October 2026): use 2 slots there.** The
+helpers stop on wall-clock limits (SEARCH 36 s, canopy descent 20 s, table
 approach 18 s, navigation 12 s), so a busy CPU can change successes and
-decision counts, not only task time. The benchmark compares 4 slots (or 2)
-against 1 slot on the same 20 worlds and decides, by a rule fixed in advance,
-whether parallel runs are allowed.
+decision counts, not only task time. The contention benchmark declared in
+[`configs/parallel_contention_benchmark.json`](../configs/parallel_contention_benchmark.json)
+ran 20 worlds at 1, 4 and 2 slots, and compared each with 1 slot by a rule
+fixed in advance.
+- **4 slots failed** on time per decision: 1.28 times the 1-slot value,
+  against an allowed 1.25. It was fully loaded for only about a third of its
+  run, so this understates sustained four-way contention.
+- **2 slots passed** all four criteria and ran 1.57 times faster than 1 slot.
+  Two of the criteria were met exactly at their limits.
+
+Details: [`results/parallel_benchmark/README.md`](../results/parallel_benchmark/README.md).
+On any other machine, such as the RTX 5080 PC, declare new world seeds and
+rerun the benchmark before trusting more than one slot. The example plan uses
+the adopted 2 slots.
 
 A plan is a JSON file; [`configs/parallel_example_plan.json`](../configs/parallel_example_plan.json)
 is a complete example (not an experiment):
 
 ```json
 {
-  "schema": 1, "name": "example-parallel", "slots": 4,
+  "schema": 1, "name": "example-parallel", "slots": 2,
   "interleave": true, "evaluate_after_all_training": true,
   "defaults": {"agent_seed": 0, "max_steps": 60, "pause": 0},
   "jobs": [

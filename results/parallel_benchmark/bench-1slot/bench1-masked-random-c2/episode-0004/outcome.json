@@ -1,0 +1,177 @@
+{
+  "episode": 4,
+  "world_seed": 30008,
+  "status": "completed",
+  "mode": "frozen_evaluation",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": -1.361000000000002,
+  "epsilon": 0.0,
+  "seconds": 56.844000000011874,
+  "elapsed_wall_seconds": 74.53100000000268,
+  "started_at": "2026-10-24T01:51:31.156401+00:00",
+  "finished_at": "2026-10-24T01:52:45.688759+00:00",
+  "final_observation": {
+    "position": {
+      "x": 275.5622420583282,
+      "y": 76,
+      "z": 415.5027953719611
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {},
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 0,
+      "sticks": 0,
+      "tables": 0,
+      "pickaxes": 0
+    },
+    "nearby_log": false,
+    "nearby_table": true,
+    "table_placed": true,
+    "nearby_visible_logs": [
+      {
+        "name": "mangrove_log",
+        "x": 273,
+        "y": 82,
+        "z": 415
+      }
+    ],
+    "biome": "mangrove_swamp",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "mangrove_roots",
+    "support_block": "mangrove_roots",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "mangrove_roots",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "mangrove_roots",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "grass_block",
+        "feet_drop": 4,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "grass_block",
+        "feet_drop": 4,
+        "loaded": true
+      }
+    ],
+    "table_position": {
+      "x": 274,
+      "y": 78,
+      "z": 415
+    },
+    "held_item": null,
+    "success": false,
+    "death": false,
+    "recovery": {
+      "type": "leaf_escape",
+      "blocks_dug": [],
+      "direction": null,
+      "floor": null,
+      "walls": {
+        "+x": {
+          "feet": {
+            "name": "mangrove_roots",
+            "boundingBox": "block"
+          },
+          "head": {
+            "name": "mangrove_roots",
+            "boundingBox": "block"
+          },
+          "below": {
+            "name": "mangrove_roots",
+            "boundingBox": "block"
+          },
+          "lower": {
+            "name": "mangrove_roots",
+            "boundingBox": "block"
+          }
+        },
+        "-x": {
+          "feet": {
+            "name": "mangrove_roots",
+            "boundingBox": "block"
+          },
+          "head": {
+            "name": "moss_carpet",
+            "boundingBox": "block"
+          },
+          "below": {
+            "name": "mangrove_roots",
+            "boundingBox": "block"
+          },
+          "lower": {
+            "name": "air",
+            "boundingBox": "empty"
+          }
+        },
+        "+z": {
+          "feet": {
+            "name": "air",
+            "boundingBox": "empty"
+          },
+          "head": {
+            "name": "air",
+            "boundingBox": "empty"
+          },
+          "below": {
+            "name": "air",
+            "boundingBox": "empty"
+          },
+          "lower": {
+            "name": "air",
+            "boundingBox": "empty"
+          }
+        },
+        "-z": {
+          "feet": {
+            "name": "air",
+            "boundingBox": "empty"
+          },
+          "head": {
+            "name": "vine",
+            "boundingBox": "empty"
+          },
+          "below": {
+            "name": "air",
+            "boundingBox": "empty"
+          },
+          "lower": {
+            "name": "air",
+            "boundingBox": "empty"
+          }
+        }
+      },
+      "escaped": false,
+      "items_picked_up": {},
+      "stopped": "no_leaf_exit"
+    },
+    "action_detail": null,
+    "event": "leaf_escape_refused:no_leaf_exit;exploration_blocked",
+    "action_duration_seconds": 0.445,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

@@ -6,7 +6,7 @@ every result. For the full technical history read [HANDOFF_PC.md](HANDOFF_PC.md)
 for every measured number read
 [results/pc_resource_runs/README.md](results/pc_resource_runs/README.md).
 
-**Last updated:** 24 October 2026, 05:00 (branch `codex/pc-canopy-descent`,
+**Last updated:** 24 October 2026, 05:40 (branch `codex/pc-canopy-descent`,
 pull request [#1](https://github.com/taraskHy/RL-Minecraft-project/pull/1),
 not yet merged into `main`).
 
@@ -35,8 +35,18 @@ yet.
   and a bounded helper clears the leaves under it. It refuses drops it judges
   unsafe, and a bot over such a drop can still be stranded (see the open
   problems).
+- **Parallel live runs work: two at a time on the desktop PC.** The
+  scheduler (`.\run.cmd resource-parallel PLAN`) gives each run its own port
+  and refuses anything that could mix up results. A contention benchmark,
+  declared in advance, compared 1, 2 and 4 slots on 20 worlds:
+  - 2 slots passed and were 1.57 times faster than 1 slot;
+  - 4 slots failed, because each decision took 1.28 times as long, against
+    an allowed 1.25.
+
+  See [results/parallel_benchmark](results/parallel_benchmark/README.md).
+  Rerun the benchmark on any other machine first.
 - Every number is computed by `run.cmd resource-report` from files retained
-  under `results/pc_resource_runs/<commit>/`, each with SHA-256 digests.
+  under `results/`, each with SHA-256 digests.
 
 ## Latest result: learning beats random play without the mask
 
@@ -101,15 +111,10 @@ failure.
 
 ## Planned next
 
-- **Parallel live runs.** The code is written and has had three review rounds
-  on branch `codex/parallel-runs`; its tests and the contention benchmark run
-  next. Each run gets its own port, so three or four episodes can run at once
-  (the PC used about 31% of its CPU and had 30 of 63 GB of memory free with
-  one episode running).
-  Independent runs (Q-learning and SARSA training, the test worlds) would run
-  side by side, cutting a batch like this from about six hours to about two.
-  Contention is benchmarked first, and every arm of one experiment runs under
-  the same setup, because task time is a measured outcome.
+- **Use parallel live runs for the next experiment.** On the desktop PC, use
+  `.\run.cmd resource-parallel PLAN` with `"slots": 2` (see the next
+  section). Run every arm of one experiment in one schedule with the same
+  slot count, because task time is a measured outcome.
 - **GPUs.** The PC has an RTX 2000 Ada (16 GB), and an RTX 5080 machine is
   coming. Today's work does not use a GPU: tabular Q-learning is a table
   lookup, and the Minecraft server and the bot run on the CPU. The GPU becomes
@@ -197,13 +202,17 @@ update log below when you start, so we do not duplicate work.
 
 ## Update log
 
-- **24 Oct 2026, 05:00:** the masking experiment ended at 04:17, and all 15
+- **24 Oct 2026, 05:40:** parallel live runs merged into
+  `codex/pc-canopy-descent` (151 Python, 5 bridge and 31 Node tests pass) and
+  verified live: 2 slots adopted on the desktop PC, 4 slots rejected by the
+  declared rule. Plan4MC added to the related work and two open problems.
+- **24 Oct 2026, 04:35:** the masking experiment ended at 04:17, and all 15
   runs are retained under `results/pc_resource_runs/87673b8`. Without the
   mask, all four learned policies beat random play on the held-out worlds
   (20/20, 14/20, and 16/20 and 17/20 with the history bit, against 4/20).
   No effect of the history bit was shown. One invalid training episode (a Windows
   file lock) was handled by the declared continuation.
-- **24 Oct 2026, 02:05:** masked and unmasked conditions finished. Without
+- **24 Oct 2026, 01:55:** masked and unmasked conditions finished. Without
   the mask both learners beat random play on the held-out worlds (Q-learning
   20/20, SARSA 14/20, random 4/20); with it, no benefit was shown (16/20 and
   18/20 against 19/20). History condition running; retention and write-up

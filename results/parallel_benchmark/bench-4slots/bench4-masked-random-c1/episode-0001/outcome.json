@@ -1,0 +1,88 @@
+{
+  "episode": 1,
+  "world_seed": 30000,
+  "status": "completed",
+  "mode": "frozen_evaluation",
+  "success": false,
+  "death": false,
+  "truncated": true,
+  "steps": 60,
+  "return": -1.319000000000002,
+  "epsilon": 0.0,
+  "seconds": 326.93799999999464,
+  "elapsed_wall_seconds": 368.75,
+  "started_at": "2026-10-24T02:00:09.003404+00:00",
+  "finished_at": "2026-10-24T02:06:17.752168+00:00",
+  "final_observation": {
+    "position": {
+      "x": -15.3,
+      "y": 44,
+      "z": 12.893769825493093
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {},
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 0,
+      "sticks": 0,
+      "tables": 0,
+      "pickaxes": 0
+    },
+    "nearby_log": false,
+    "nearby_table": false,
+    "table_placed": true,
+    "nearby_visible_logs": [],
+    "biome": "snowy_plains",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "andesite",
+    "support_block": "andesite",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "andesite",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "andesite",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "andesite",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "andesite",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": {
+      "x": 16,
+      "y": 71,
+      "z": 10
+    },
+    "held_item": null,
+    "success": false,
+    "death": false,
+    "recovery": null,
+    "action_detail": null,
+    "event": "table_path_blocked",
+    "action_duration_seconds": 2.112,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

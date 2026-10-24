@@ -163,6 +163,20 @@ What actually happened on the PC so far; nothing below is a live-game result.
   Evidence: `results/pc_resource_runs/87673b8/` (15 runs, 2,874 files with
   digests, `report-test/`, `report-training/`, and `batch/` with the script
   and log). The README section there has every table, failure and limit.
+- **Parallel live runs, merged at `88c8ec7` and verified live.**
+  `run.cmd resource-parallel PLAN` runs a plan's jobs on ports 25568 and up,
+  at most `slots` at a time.
+  - **Safeguards.** It holds a machine-wide live-run lock, refuses busy ports
+    and uncommitted run code, and checks the code before every launch.
+    Continuations follow the declared rule.
+  - **Benchmark.** The declared contention benchmark
+    (`configs/parallel_contention_benchmark.json`, worlds 30000–30019,
+    masked random) adopted **2 slots** for this PC. 4 slots failed on time
+    per decision: 1.28 times the 1-slot value, against an allowed 1.25.
+  - **Evidence.** `results/parallel_benchmark/`.
+  - **Code review.** Three adversarial review rounds confirmed 47 findings,
+    all fixed. A fix for the policy-save lock that invalidated one episode is
+    included.
 - **Live verification plan:** done on 23 October 2026 (seed-1 reproduction,
   three development seeds with both algorithms, the masked random baseline,
   frozen evaluation, and the declared validation seeds 10000–10009, retained

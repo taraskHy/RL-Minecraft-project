@@ -1,0 +1,111 @@
+{
+  "episode": 5,
+  "world_seed": 30014,
+  "status": "completed",
+  "mode": "frozen_evaluation",
+  "success": true,
+  "death": false,
+  "truncated": false,
+  "steps": 10,
+  "return": 9.540000000000001,
+  "epsilon": 0.0,
+  "seconds": 14.735000000000582,
+  "elapsed_wall_seconds": 36.84399999999732,
+  "started_at": "2026-10-24T02:05:00.365734+00:00",
+  "finished_at": "2026-10-24T02:05:37.204106+00:00",
+  "final_observation": {
+    "position": {
+      "x": -10.332291181750815,
+      "y": 69,
+      "z": 8.500000000000044
+    },
+    "health": 20,
+    "food": 20,
+    "gamemode": "survival",
+    "inventory": {
+      "stick": 2,
+      "birch_planks": 3,
+      "wooden_pickaxe": 1
+    },
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 3,
+      "sticks": 2,
+      "tables": 0,
+      "pickaxes": 1
+    },
+    "nearby_log": true,
+    "nearby_table": true,
+    "table_placed": true,
+    "nearby_visible_logs": [
+      {
+        "name": "birch_log",
+        "x": -11,
+        "y": 72,
+        "z": 8
+      },
+      {
+        "name": "oak_log",
+        "x": -11,
+        "y": 69,
+        "z": 3
+      },
+      {
+        "name": "oak_log",
+        "x": -4,
+        "y": 70,
+        "z": 8
+      }
+    ],
+    "biome": "forest",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "dirt",
+    "support_block": "dirt",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "grass_block",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": {
+      "x": -10,
+      "y": 69,
+      "z": 8
+    },
+    "held_item": "wooden_pickaxe",
+    "success": true,
+    "death": false,
+    "recovery": null,
+    "action_detail": null,
+    "event": "crafted_wooden_pickaxe",
+    "action_duration_seconds": 0.269,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}

@@ -2,7 +2,7 @@
   "schema": 1,
   "name": "example-parallel",
   "description": "EXAMPLE ONLY, not a declared experiment and not evidence: train Q-learning and SARSA side by side without the mask, then, once both have finished, test both policies and the uniform random baseline on the same worlds, interleaved so every arm runs under the same load. Copy it, rename the plan and every job, choose new seeds, and commit it before a real run.",
-  "slots": 4,
+  "slots": 2,
   "interleave": true,
   "evaluate_after_all_training": true,
   "defaults": {"agent_seed": 0, "max_steps": 60, "pause": 0},

@@ -1,0 +1,84 @@
+{
+  "episode": 2,
+  "world_seed": 30006,
+  "status": "completed",
+  "mode": "frozen_evaluation",
+  "success": false,
+  "death": true,
+  "truncated": false,
+  "steps": 21,
+  "return": -10.209999999999999,
+  "epsilon": 0.0,
+  "seconds": 136.84399999999732,
+  "elapsed_wall_seconds": 166.98500000000058,
+  "started_at": "2026-10-24T02:01:18.806112+00:00",
+  "finished_at": "2026-10-24T02:04:05.781649+00:00",
+  "final_observation": {
+    "position": {
+      "x": -29.264258785954596,
+      "y": 79,
+      "z": 21.704786448932797
+    },
+    "health": 0,
+    "food": 17,
+    "gamemode": "survival",
+    "inventory": {},
+    "inventory_counts": {
+      "logs": 0,
+      "planks": 0,
+      "sticks": 0,
+      "tables": 0,
+      "pickaxes": 0
+    },
+    "nearby_log": false,
+    "nearby_table": false,
+    "table_placed": false,
+    "nearby_visible_logs": [],
+    "biome": "meadow",
+    "feet_block": "air",
+    "head_block": "air",
+    "ground_block": "stone",
+    "support_block": "stone",
+    "on_canopy": false,
+    "adjacent_drops": [
+      {
+        "dx": 1,
+        "dz": 0,
+        "ground_block": "stone",
+        "feet_drop": 0,
+        "loaded": true
+      },
+      {
+        "dx": -1,
+        "dz": 0,
+        "ground_block": "stone",
+        "feet_drop": 1,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": 1,
+        "ground_block": "stone",
+        "feet_drop": 1,
+        "loaded": true
+      },
+      {
+        "dx": 0,
+        "dz": -1,
+        "ground_block": "stone",
+        "feet_drop": 0,
+        "loaded": true
+      }
+    ],
+    "table_position": null,
+    "held_item": null,
+    "success": false,
+    "death": true,
+    "recovery": null,
+    "action_detail": null,
+    "event": "exploration_time_budget;exploration_blocked",
+    "action_duration_seconds": 36.009,
+    "backend": "minecraft-java-natural-resources",
+    "game_version": "1.21.4"
+  }
+}
