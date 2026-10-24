@@ -226,6 +226,13 @@ def resources(arguments: list[str], *, evaluate: bool = False) -> int:
                    help="Experiment condition: masked (default for new agents and baselines), unmasked (all eight actions "
                         "allowed), or unmasked_history (unmasked with the last_action_failed state bit). A --policy "
                         "carries its own condition; a different one is refused")
+    p.add_argument("--port", type=int, default=25567,
+                   help="Loopback port for this run's fresh servers, 25567 to 25599; a port in use is refused. "
+                        "One live run or schedule runs at a time: use resource-parallel to run several at once")
+    p.add_argument("--parallel-slots", type=int, default=1,
+                   help="Recorded number of live episodes running at once on this PC (resource-parallel sets it; "
+                        "1 = alone). The report compares only runs with equal values")
+    p.add_argument("--schedule-id", help="Set by resource-parallel: the schedule this run belongs to (recorded)")
     if evaluate:
         p.add_argument("--random-baseline", action="store_true",
                        help="Evaluate the random baseline instead of a checkpoint: same helpers, uniformly random "
@@ -245,22 +252,54 @@ def resources(arguments: list[str], *, evaluate: bool = False) -> int:
                          algorithm=getattr(args, "algorithm", "q_learning"),
                          epsilon=getattr(args, "epsilon", 0), epsilon_end=getattr(args, "epsilon_end", 0),
                          pretrain=getattr(args, "pretrain", 0),
-                         random_baseline=getattr(args, "random_baseline", False), condition=args.condition)
+                         random_baseline=getattr(args, "random_baseline", False), condition=args.condition,
+                         port=args.port, parallel_slots=args.parallel_slots, schedule_id=args.schedule_id)
+
+
+def resource_parallel(arguments: list[str]) -> int:
+    p = argparse.ArgumentParser(prog="run.cmd resource-parallel", description=
+        "Run the live resource jobs of a plan file several at a time, each on its own loopback port. "
+        "Read docs/resource_training.md before writing a plan.")
+    p.add_argument("plan", type=Path, help="Plan JSON file, normally committed under configs/")
+    p.add_argument("--dry-run", action="store_true",
+                   help="Check the plan and print its runs, ports, and commands; start nothing")
+    args = p.parse_args(arguments)
+    from .parallel_runs import run_schedule
+    return run_schedule(args.plan, dry_run=args.dry_run)
 
 
 def resource_report(arguments: list[str]) -> int:
     p = argparse.ArgumentParser(prog="run.cmd resource-report", description=
         "Summarize retained natural-resource run folders: success rate with a Wilson interval, decisions, "
         "task time, deaths, invalid episodes, and failure causes. Training and frozen evaluation stay separate.")
-    p.add_argument("runs", nargs="+", type=Path, help="Run folders written by resource-train or resource-demo")
+    p.add_argument("runs", nargs="+", type=Path,
+                   help="Run folders written by resource-train or resource-demo, or resource-parallel schedule "
+                        "folders, which stand for every run and continuation they recorded")
     p.add_argument("--out", type=Path, help="New or empty folder for summary.json, episodes.csv, and report.md")
     args = p.parse_args(arguments)
-    for run_directory in args.runs:
+    from .parallel_runs import schedule_record_path, schedule_run_folders
+    runs: list[Path] = []
+    for path in args.runs:
+        if (path / "schedule.json").is_file() and not (path / "metadata.json").is_file():
+            record = schedule_record_path(path)
+            if record.name != "schedule.json":
+                print(f"Note: schedule {path} holds its final record in {record.name}; schedule.json is out of date",
+                      file=sys.stderr)
+            found, missing = schedule_run_folders(path)
+            for name in missing:
+                print(f"Note: {path / name} is recorded in {record.name} but holds no run", file=sys.stderr)
+            status = json.loads(record.read_text(encoding="utf-8")).get("status")
+            if status != "completed":
+                print(f"Note: schedule {path} ended {status!r}, not 'completed'", file=sys.stderr)
+            runs += found
+        else:
+            runs.append(path)
+    for run_directory in runs:
         if not (run_directory / "metadata.json").is_file():
             p.error(f"not a resource run folder (missing metadata.json): {run_directory}")
     from minecraft_rl.resource_report import render_markdown, summarize_runs, write_report
     try:
-        summary = summarize_runs(args.runs)
+        summary = summarize_runs(runs)
     except ValueError as exc:
         p.error(str(exc))
     output = args.out or Path(new_output("resource-report"))
@@ -340,6 +379,8 @@ def main(argv: list[str] | None = None) -> int:
             return resources(arguments, evaluate=command == "resource-demo")
         if command == "resource-report":
             return resource_report(arguments)
+        if command == "resource-parallel":
+            return resource_parallel(arguments)
         if command == "server":
             p = argparse.ArgumentParser(prog="run.cmd server")
             p.add_argument("profile", choices=("arena", "survival"))
@@ -367,6 +408,7 @@ def main(argv: list[str] | None = None) -> int:
                   "  resource-demo --policy PATH     Evaluate a frozen resource policy in a fresh world\n"
                   "  resource-demo --random-baseline Evaluate the masked random baseline (same helpers, no learning)\n"
                   "  resource-report RUN [RUN...]    Summarize retained resource runs for the report\n"
+                  "  resource-parallel PLAN          Run a plan's live resource jobs several at a time\n"
                   "  survival-check              Check bot connection to ordinary Survival\n"
                   "  server arena|survival       Keep a server running until Ctrl+C\n"
                   "Without a command, opens the menu. Read docs/windows_setup.md.")

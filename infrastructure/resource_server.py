@@ -13,6 +13,7 @@ import math
 import os
 from pathlib import Path
 import subprocess
+import tempfile
 import threading
 import time
 from typing import Any, Iterator
@@ -22,6 +23,99 @@ from . import server as managed_server
 
 ROOT = Path(__file__).resolve().parents[1]
 PORT = 25567
+# Loopback ports for resource episodes. Runs that execute at the same time each
+# take a different one; the arena (25565) and ordinary Survival (25566) stay apart.
+PORTS = range(25567, 25600)
+# At most this many resource servers at once on one machine.
+MAX_PARALLEL_SLOTS = 8
+# One live resource run or schedule at a time for this user on this machine, from any checkout.
+LOCK_PATH = Path(os.environ.get("LOCALAPPDATA") or tempfile.gettempdir()) / "rl-minecraft" / "resource-live.lock"
+
+
+def validate_port(port) -> int:
+    if isinstance(port, bool) or not isinstance(port, int) or port not in PORTS:
+        raise ValueError(f"Resource server port must be an integer from {PORTS.start} to {PORTS.stop - 1}")
+    return port
+
+
+def _lock(handle) -> None:
+    handle.seek(0)
+    if os.name == "nt":
+        import msvcrt
+        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+    else:
+        import fcntl
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+def _unlock(handle) -> None:
+    handle.seek(0)
+    if os.name == "nt":
+        import msvcrt
+        msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        import fcntl
+        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+def _owner_path() -> Path:
+    return LOCK_PATH.with_name(LOCK_PATH.name + ".owner")
+
+
+def _read_owner() -> str | None:
+    try:
+        return _owner_path().read_text(encoding="utf-8").strip() or None
+    except OSError:
+        return None
+
+
+@contextmanager
+def live_run_lock(owner: str) -> Iterator[None]:
+    """Hold the machine-wide lock for live resource runs and record who holds it.
+
+    A run started by hand holds it for its whole duration and a schedule for all
+    of its runs, so live runs never share the machine without recording it. The
+    operating system releases the lock if the holder dies.
+    """
+    path = LOCK_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle = path.open("a+b")
+    try:
+        _lock(handle)
+    except OSError as exc:
+        handle.close()
+        raise managed_server.ServerError(
+            f"A live resource run is already going on this machine ({_read_owner() or 'holder unknown'}); "
+            "wait for it to finish") from exc
+    try:
+        _owner_path().write_text(owner, encoding="utf-8")
+        yield
+    finally:
+        try:
+            _owner_path().unlink(missing_ok=True)
+        except OSError:
+            pass
+        try:
+            _unlock(handle)
+        except OSError:
+            pass
+        handle.close()
+
+
+def current_owner() -> str | None:
+    """Who holds the live-run lock now, as that holder named itself, or None when nobody does."""
+    path = LOCK_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a+b") as handle:
+        try:
+            _lock(handle)
+        except OSError:
+            return _read_owner() or "holder unknown"
+        try:
+            _unlock(handle)
+        except OSError:
+            pass
+    return None
 
 
 def _is_link(path: Path) -> bool:
@@ -56,7 +150,7 @@ def _episode_directory(run_directory: Path, episode: int, world_seed: int) -> Pa
     return directory
 
 
-def _prepare(directory: Path, episode: int, world_seed: int) -> dict[str, Any]:
+def _prepare(directory: Path, episode: int, world_seed: int, port: int = PORT) -> dict[str, Any]:
     # mkdir(exist_ok=False) also refuses a concurrent attempt to reuse this episode.
     try:
         directory.mkdir(parents=True, exist_ok=False)
@@ -64,13 +158,13 @@ def _prepare(directory: Path, episode: int, world_seed: int) -> dict[str, Any]:
         raise managed_server.ServerError(
             f"Fresh-world episode directory already exists: {directory}") from exc
     info = {
-        "profile": "resource-training", "port": PORT, "level_name": "world",
+        "profile": "resource-training", "port": port, "level_name": "world",
         "world_seed": world_seed, "episode": episode, "directory": directory,
         "host": "127.0.0.1", "version": managed_server.MINECRAFT_VERSION,
         "eula_accepted": True,
     }
     marker = {
-        "schema": 1, "profile": info["profile"], "port": PORT,
+        "schema": 1, "profile": info["profile"], "port": port,
         "minecraft_version": info["version"], "world_seed": world_seed,
         "episode": episode, "fresh_world": True,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -78,7 +172,7 @@ def _prepare(directory: Path, episode: int, world_seed: int) -> dict[str, Any]:
     (directory / managed_server.MARKER_NAME).write_text(
         json.dumps(marker, indent=2) + "\n", encoding="utf-8")
     properties = {
-        "server-ip": "127.0.0.1", "server-port": str(PORT),
+        "server-ip": "127.0.0.1", "server-port": str(port),
         "online-mode": "false", "enforce-secure-profile": "false",
         "level-name": "world", "level-seed": str(world_seed),
         "level-type": "minecraft:normal", "generator-settings": "{}",
@@ -104,27 +198,31 @@ def _prepare(directory: Path, episode: int, world_seed: int) -> dict[str, Any]:
 
 @contextmanager
 def fresh_resource_server(*, world_seed: int, run_directory: Path, episode: int,
-                          mirror_output: bool = False, timeout: float = 120
+                          mirror_output: bool = False, timeout: float = 120,
+                          port: int = PORT
                           ) -> Iterator[dict[str, Any]]:
     """Start and own one fresh Survival server, saving its world on every exit.
 
     The user must have already accepted the Minecraft EULA. No directory is
     created until validation, runtime checks, and the port availability check
     succeed. A failed launch still reserves its episode directory for diagnosis.
+    ``port`` is this server's loopback port; runs at the same time need
+    different ones, and a port already in use is refused, never freed.
     """
     if (isinstance(timeout, bool) or not isinstance(timeout, (int, float))
             or not math.isfinite(timeout) or timeout <= 0):
         raise ValueError("Server startup timeout must be positive and finite")
+    validate_port(port)
     directory = _episode_directory(run_directory, episode, world_seed)
     if not managed_server.eula_accepted():
         raise managed_server.ServerError(
             "Minecraft EULA has not been accepted. Read " + managed_server.EULA_URL
             + ", then run run.cmd accept-eula if you agree.")
     command = managed_server.server_command("survival")
-    managed_server._check_port(PORT)
-    info = _prepare(directory, episode, world_seed)
+    managed_server._check_port(port)
+    info = _prepare(directory, episode, world_seed, port)
     log_file = directory / "launcher.log"
-    print(f"Starting fresh Survival episode {episode} (world seed {world_seed}); "
+    print(f"Starting fresh Survival episode {episode} (world seed {world_seed}, port {port}); "
           f"startup log: {log_file}", flush=True)
     flags = 0
     if os.name == "nt":

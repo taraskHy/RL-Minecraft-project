@@ -35,6 +35,10 @@ class ResourceSessionTests(unittest.TestCase):
             self.root / "infrastructure" / "resource_session.py")))
         self.stack.enter_context(patch.object(resource_session, "runtime_paths", return_value={"node": sys.executable}))
         self.stack.enter_context(patch.object(resource_session.time, "sleep"))
+        self.live_lock = self.stack.enter_context(
+            patch.object(resource_session, "live_run_lock", side_effect=lambda owner: nullcontext()))
+        self.owner = self.stack.enter_context(
+            patch.object(resource_session, "current_owner", return_value="schedule px:abc:t0"))
         self.stack.enter_context(patch("builtins.input", return_value=""))
         self.camera = MagicMock()
         self.camera.following.side_effect = lambda: nullcontext()
@@ -187,6 +191,28 @@ class ResourceSessionTests(unittest.TestCase):
                                                                        "direction": "+x", "escaped": True, "stopped": None}}),
                          "canopy_descent:layers=2,descent=2.0,damage=0,stopped=-,escape_blocks=2,escaped=True")
 
+    def test_a_policy_held_open_for_a_moment_is_still_replaced(self):
+        agent = MagicMock()
+        agent.save.side_effect = lambda path, metadata: Path(path).write_text("new", encoding="utf-8")
+        policy = self.root / "policy.json"
+        policy.write_text("old", encoding="utf-8")
+        real_replace, refusals = Path.replace, []
+
+        def replace(source, target):
+            if len(refusals) < 2:
+                refusals.append(1)
+                raise PermissionError(5, "Access is denied")
+            return real_replace(source, target)
+
+        with patch.object(Path, "replace", replace):
+            resource_session._save_policy(agent, policy, {})
+        self.assertEqual((policy.read_text(encoding="utf-8"), len(refusals)), ("new", 2))
+        self.assertFalse(policy.with_suffix(".tmp").exists())
+        # A file that stays locked still fails loudly instead of being skipped.
+        with patch.object(Path, "replace", side_effect=PermissionError(5, "Access is denied")):
+            with self.assertRaises(PermissionError):
+                resource_session._save_policy(agent, policy, {})
+
     def test_missing_or_failed_observation_is_invalid_without_invented_policy_result(self):
         following = deepcopy(self.start)
         following.update(nearby_log=True, event="found_log")
@@ -309,6 +335,87 @@ class ResourceSessionTests(unittest.TestCase):
             self.assertEqual((run.call_args.kwargs["condition"], run.call_args.kwargs["random_baseline"]), ("unmasked", True))
             resources(["--out", str(self.root / "runs" / "cli3")])
             self.assertIsNone(run.call_args.kwargs["condition"])
+
+
+    def test_port_and_parallel_slots_are_recorded_and_checked(self):
+        following = deepcopy(self.start)
+        following.update(nearby_log=True, event="log_reached")
+        self.bridge.step.return_value = following
+        output, _ = self._train("parallel", "masked", 1, algorithm="q_learning", port=25570, parallel_slots=4,
+                                schedule_id="px:abc:t0")
+        self.assertEqual(resource_session.fresh_resource_server.call_args.kwargs["port"], 25570)
+        execution = json.loads((output / "metadata.json").read_text())["execution"]
+        self.assertEqual((execution["server_port"], execution["parallel_slots"], execution["schedule_id"]),
+                         (25570, 4, "px:abc:t0"))
+        outcome = json.loads((output / "episode-0001" / "outcome.json").read_text())
+        self.assertLessEqual(outcome["started_at"], outcome["finished_at"])
+        alone, _ = self._train("alone", "masked", 1, algorithm="q_learning")
+        execution = json.loads((alone / "metadata.json").read_text())["execution"]
+        self.assertEqual((execution["server_port"], execution["parallel_slots"], execution["schedule_id"]),
+                         (25567, 1, None))
+        refused = ({"port": 25566}, {"port": 25600}, {"port": True}, {"parallel_slots": 0}, {"parallel_slots": 9},
+                   {"parallel_slots": True}, {"parallel_slots": 2},
+                   {"parallel_slots": 2, "schedule_id": "px:abc:t0", "viewer": "Watcher"},
+                   {"schedule_id": ""}, {"schedule_id": "a\nb"}, {"schedule_id": 5})
+        for index, bad in enumerate(refused):
+            output = self.root / "runs" / f"refused-{index}"
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                resource_session.run_resources(output=output, episodes=1, max_steps=1, condition="masked",
+                                               pause=0, **bad)
+            self.assertFalse(output.exists())
+
+    def test_command_line_passes_port_and_parallel_slots(self):
+        from infrastructure.__main__ import resources
+        with patch.object(resource_session, "run_resources", return_value=0) as run:
+            resources(["--port", "25569", "--parallel-slots", "3", "--schedule-id", "px:abc:t0",
+                       "--out", str(self.root / "runs" / "cli")])
+            self.assertEqual((run.call_args.kwargs["port"], run.call_args.kwargs["parallel_slots"],
+                              run.call_args.kwargs["schedule_id"]), (25569, 3, "px:abc:t0"))
+            resources(["--random-baseline", "--condition", "masked", "--out", str(self.root / "runs" / "cli2")],
+                      evaluate=True)
+            self.assertEqual((run.call_args.kwargs["port"], run.call_args.kwargs["parallel_slots"],
+                              run.call_args.kwargs["schedule_id"]), (25567, 1, None))
+
+
+    def test_a_run_started_by_hand_holds_the_live_lock_and_a_schedule_id_must_be_its_schedules(self):
+        following = deepcopy(self.start)
+        following.update(nearby_log=True, event="log_reached")
+        self.bridge.step.return_value = following
+        alone, _ = self._train("by-hand", "masked", 1, algorithm="q_learning")
+        self.assertTrue(self.live_lock.call_args.args[0].startswith("run by-hand (pid "))
+        self.live_lock.side_effect = RuntimeError("A live resource run is already going on this machine (schedule x)")
+        output = self.root / "runs" / "refused"
+        with self.assertRaisesRegex(RuntimeError, "already going"):
+            resource_session.run_resources(output=output, episodes=1, max_steps=1, condition="masked", pause=0)
+        self.assertFalse(output.exists())
+        # A schedule's own runs carry its id and run under the schedule's lock; a copied or stale id is refused.
+        self.live_lock.reset_mock()
+        scheduled, _ = self._train("scheduled", "masked", 1, algorithm="q_learning", schedule_id="px:abc:t0")
+        self.assertTrue((scheduled / "episode-0001" / "outcome.json").is_file())
+        self.live_lock.assert_not_called()
+        for owner in ("schedule px:abc:other", None):
+            self.owner.return_value = owner
+            output = self.root / "runs" / f"stale-{owner is None}"
+            with self.subTest(owner=owner), self.assertRaisesRegex(RuntimeError, "set only by resource-parallel"):
+                resource_session.run_resources(output=output, episodes=1, max_steps=1, condition="masked", pause=0,
+                                               schedule_id="px:abc:t0")
+            self.assertFalse(output.exists())
+
+    def test_an_episode_never_runs_on_sources_that_changed_after_the_run_started(self):
+        following = deepcopy(self.start)
+        following.update(nearby_log=True, event="log_reached")
+        source = self.root / "minecraft_rl" / "resources.py"
+
+        def step(_action):
+            source.write_text("changed during the run\n", encoding="utf-8")
+            return following
+
+        self.bridge.step.side_effect = step
+        output = self.root / "runs" / "changed"
+        with self.assertRaisesRegex(RuntimeError, "sources changed"):
+            resource_session.run_resources(output=output, episodes=2, max_steps=1, condition="masked", pause=0)
+        self.assertTrue((output / "episode-0001" / "outcome.json").is_file())
+        self.assertFalse((output / "episode-0002").exists())
 
 
 if __name__ == "__main__":

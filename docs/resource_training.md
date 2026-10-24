@@ -35,8 +35,8 @@ From the project terminal, run:
 
 Replace `TaraskHy` with your Java username if needed. Alternatively, double-click
 `run.cmd` and choose **12**. Use **Minecraft Java 1.21.4**. When the terminal asks
-you to join, connect to **127.0.0.1:25567**. This is a separate server from the
-crafting arena (25565) and your ordinary Survival world (25566).
+you to join, connect to **127.0.0.1:25567** (or the `--port` you chose). This is a
+separate server from the crafting arena (25565) and your ordinary Survival world (25566).
 
 You become a spectator and the camera follows `RLResourceBot`. The action bar
 shows the current action and exploration probability. Minecraft chat and the
@@ -223,6 +223,137 @@ The laptop runs these tabular methods on the CPU; no GPU is used. Each fresh
 world takes time to generate and is retained on disk, so many episodes cost
 substantially more time and space than simulator training. Logs and worlds stay
 under `runs/`; they are excluded from Git. Do not remove an active run's folder.
+
+## Run several live episodes at once
+
+A live episode mostly waits on one Minecraft server and one bot, so one PC can
+run several. `run.cmd resource-parallel PLAN` runs the jobs of a plan file, at
+most `slots` at a time. Each running job gets its own loopback port, from 25568
+upward by default (25567 stays free for a run started by hand), and its own
+folder under `runs/<plan name>/`. A job runs exactly the `resource-train` or
+`resource-demo` command you would type by hand, with `--port`,
+`--parallel-slots`, and `--schedule-id` added.
+
+**Not yet verified live.** This was written while the masking batch held the
+PC, and it has not yet run Minecraft. Before any experiment uses it, run the
+contention benchmark declared in
+[`configs/parallel_contention_benchmark.json`](../configs/parallel_contention_benchmark.json).
+The helpers stop on wall-clock limits (SEARCH 36 s, canopy descent 20 s, table
+approach 18 s, navigation 12 s), so a busy CPU can change successes and
+decision counts, not only task time. The benchmark compares 4 slots (or 2)
+against 1 slot on the same 20 worlds and decides, by a rule fixed in advance,
+whether parallel runs are allowed.
+
+A plan is a JSON file; [`configs/parallel_example_plan.json`](../configs/parallel_example_plan.json)
+is a complete example (not an experiment):
+
+```json
+{
+  "schema": 1, "name": "example-parallel", "slots": 4,
+  "interleave": true, "evaluate_after_all_training": true,
+  "defaults": {"agent_seed": 0, "max_steps": 60, "pause": 0},
+  "jobs": [
+    {"name": "ex-unmasked-q-train", "kind": "train", "condition": "unmasked", "algorithm": "q_learning",
+     "episodes": 10, "first_world_seed": 50000, "epsilon": 0.6, "epsilon_end": 0.1},
+    {"name": "ex-unmasked-q-test", "kind": "evaluate", "policy_from": "ex-unmasked-q-train",
+     "episodes": 8, "first_world_seed": 50100, "chunks": 4},
+    {"name": "ex-unmasked-random-test", "kind": "evaluate", "random_baseline": true, "condition": "unmasked",
+     "episodes": 8, "first_world_seed": 50100, "chunks": 4}
+  ]
+}
+```
+
+- A `train` job is one run that learns, in order; it cannot be split.
+- An `evaluate` job is frozen and names exactly one policy source:
+  `policy_from` (a training job listed earlier, whose final policy it tests),
+  `policy` (a file), or `random_baseline: true` with a `condition`. `chunks`
+  splits its worlds into consecutive seed ranges that run side by side, and
+  `resource-report` pools the chunks back into one group. Chunk *k* starts
+  from agent seed `agent_seed + k - 1`, so no two chunks start from the same
+  random stream. Within a chunk the draws for later worlds depend on how many
+  decisions the earlier worlds took, and a continuation restarts its chunk's
+  seed, as the declared `--seed` rule says.
+- `interleave: true` starts the first chunk of every job, then every second
+  chunk, and so on, so the arms share the load instead of running in blocks.
+- `evaluate_after_all_training: true` holds every evaluation until all training
+  has ended, so all test arms run under the same load. A plan with evaluations
+  and more than one slot must set both options. Run every arm of one
+  experiment in one schedule: the report groups and compares parallel runs
+  only within one schedule.
+- `defaults` sets `agent_seed`, `max_steps`, and `pause` for every job. They
+  have no hidden defaults: each job must end up with all three.
+- Names: every run name must be distinct (ignoring case), may not end in
+  `-partN`, must leave room for a `-partN` continuation suffix within 64
+  characters, and may not be the plan's own name, `logs`, `plan.json`,
+  `schedule.json`, or `schedule.final.json`. Plans you want to report together
+  need distinct run names.
+
+What the scheduler guarantees:
+
+- It refuses uncommitted run code (`minecraft_bridge`, `infrastructure`,
+  `minecraft_rl`) and a plan that is not committed in this checkout, and
+  records the commit in `schedule.json`. It checks the committed run code
+  again before every launch and every minute while runs are going, and every
+  episode checks its own sources before its world starts. If the run code
+  changed, nothing more starts and the schedule ends as `code_changed`.
+  Drafting or committing the next plan under `configs/` is not a code change.
+- One live run or schedule runs at a time per user on the machine, from any
+  checkout: a run started by hand holds the same machine-wide lock for its
+  whole duration, and a schedule refuses to start while any Minecraft port
+  (25565 to 25599) is in use, never stopping what holds it. A schedule's own
+  runs carry its id, which is accepted only while that schedule holds the
+  lock. Update every checkout on the PC, because older code takes no lock.
+- It checks each slot's port again before every launch; a port taken
+  meanwhile retires that slot for the rest of the schedule.
+- It never reuses a folder: every schedule needs a new plan name.
+- An invalid episode is continued as declared for the masking experiment: in
+  `<run>-partN` from the next world seed (at most `max_continuations`,
+  default 5), never replayed. A training continuation resumes from the last
+  saved policy at the declared exploration rate for its next episode. If the
+  invalid episode was the last one planned, the run is finished: the episode
+  counts as attempted, and its policy is the one that is tested. A run that
+  fails without attempting an episode is not retried, and no evaluation of its
+  policy starts. A continuation that cannot start (after a code change or a
+  scheduler error) is recorded as `continuation_not_started`.
+- **Ctrl+C** starts nothing new and waits while each run stops its own server
+  and saves its world; nothing is killed. A run launched at the very moment
+  of the Ctrl+C may not receive it; the scheduler names it, and one more
+  Ctrl+C reaches it. A second Ctrl+C only lists the runs still stopping and
+  keeps waiting; a third leaves, and then the window must stay open until
+  those runs exit. After any other scheduler error it also waits for the
+  running runs before it stops. The closing record is written whatever is
+  pressed while it is written, and a press then marks the schedule
+  `interrupted`; git runs in its own process group, so Ctrl+C never ends a
+  code check half-way. A run with a viewer cannot be scheduled; watch
+  training alone with `resource-train --viewer`.
+
+```powershell
+.\run.cmd resource-parallel configs\parallel_benchmark_4slots.json --dry-run
+.\run.cmd resource-parallel configs\parallel_benchmark_4slots.json
+.\run.cmd resource-report runs\bench-1slot runs\bench-4slots --out results\your-benchmark-report
+python -m infrastructure.retention runs\bench-1slot runs\bench-4slots --out results\your-retained-runs --label "..."
+```
+
+A schedule folder given to `resource-report` or to retention stands for every
+run and continuation its `schedule.json` recorded, so no continuation is left
+out. Retention keeps those runs nested under the schedule's folder, so a
+retained schedule can be reported the same way, and keeps its `plan.json` and
+`schedule.json` (not its logs) with digests. If `schedule.json` was held open
+by another program when the schedule ended, the final record is written beside
+it as `schedule.final.json`; the report and retention then read that newer
+record (the report says so) and retention keeps both files. Every run records its port, `parallel_slots`, and schedule in
+`metadata.json`, and every episode its UTC start and end. The report keeps
+runs with different slot counts, and parallel runs of different schedules, in
+separate groups, shows the slot count in its comparison tables, and compares
+parallel runs only within one schedule;
+runs recorded before this option existed ran one at a time and count as one
+slot. `schedule.json` records each run's port, process id, start and end, exit
+code, and the most runs going at once while it ran (`max_running`).
+
+Each server may use up to 2 GB of Java heap (`server_memory_mb` in
+`.local/machine.json`), so 4 slots need about 8 GB plus the bots. None of this
+uses a GPU: the Minecraft server, the bot, and tabular Q-learning and SARSA run
+on the CPU. A GPU matters only for a later stage that needs a neural network.
 
 ## What is learned and what is programmed
 

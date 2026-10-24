@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "name": "bench-1slot",
+  "description": "Contention benchmark reference: masked random baseline on worlds 30000-30019, one episode at a time. Declared in configs/parallel_contention_benchmark.json.",
+  "slots": 1,
+  "interleave": true,
+  "evaluate_after_all_training": true,
+  "defaults": {"agent_seed": 0, "max_steps": 60, "pause": 0},
+  "jobs": [
+    {"name": "bench1-masked-random", "kind": "evaluate", "random_baseline": true, "condition": "masked",
+     "episodes": 20, "first_world_seed": 30000, "chunks": 4}
+  ]
+}

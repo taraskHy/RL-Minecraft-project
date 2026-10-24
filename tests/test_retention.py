@@ -113,5 +113,57 @@ class RetentionTests(unittest.TestCase):
                 retention.main(bad)
 
 
+    def test_a_schedule_folder_keeps_only_its_plan_and_record(self):
+        schedule = self.root / "runs" / "px"
+        (schedule / "logs").mkdir(parents=True)
+        (schedule / "plan.json").write_text('{"name": "px"}', encoding="utf-8")
+        (schedule / "schedule.json").write_text('{"plan_name": "px"}', encoding="utf-8")
+        (schedule / "logs" / "px-a.log").write_text("long log\n", encoding="utf-8")
+        nested = make_run(schedule, "px-a")
+        out = self.root / "results" / "schedule"
+        manifest = retention.retain([schedule, nested], out, "SCHEDULE EVIDENCE")
+        for key in ("px/plan.json", "px/schedule.json", "px-a/metadata.json"):
+            self.assertIn(key, manifest["sha256"])
+        self.assertFalse(any(key.startswith("px/logs") or key.startswith("px/px-a") for key in manifest["sha256"]))
+        self.assertEqual(retention.verify(out), [])
+
+
+    def test_a_schedule_folder_brings_every_run_it_recorded(self):
+        schedule = self.root / "runs" / "pq"
+        schedule.mkdir(parents=True)
+        (schedule / "plan.json").write_text('{"name": "pq"}', encoding="utf-8")
+        units = [{"name": "pq-a", "parts": [{"folder": "pq-a"}, {"folder": "pq-a-part1"}]}]
+        (schedule / "schedule.json").write_text(json.dumps({"units": units}), encoding="utf-8")
+        make_run(schedule, "pq-a")
+        make_run(schedule, "pq-a-part1")
+        out = self.root / "results" / "expanded"
+        manifest = retention.retain([schedule], out, "SCHEDULE EVIDENCE")
+        # The runs stay nested under their schedule, so the retained copy can be expanded again.
+        for key in ("pq/plan.json", "pq/schedule.json", "pq/pq-a/metadata.json", "pq/pq-a-part1/episode-0001/outcome.json"):
+            self.assertIn(key, manifest["sha256"])
+        self.assertEqual(retention.verify(out), [])
+        from infrastructure.parallel_runs import schedule_run_folders
+        self.assertEqual(schedule_run_folders(out / "pq"), ([out / "pq" / "pq-a", out / "pq" / "pq-a-part1"], []))
+        # Passing a run explicitly as well never copies it twice.
+        again = retention.retain([schedule, schedule / "pq-a"], self.root / "results" / "again", "SCHEDULE EVIDENCE")
+        self.assertNotIn("pq-a/metadata.json", again["sha256"])
+
+    def test_a_fallback_final_record_is_retained_and_followed(self):
+        schedule = self.root / "runs" / "pf"
+        schedule.mkdir(parents=True)
+        (schedule / "plan.json").write_text('{"name": "pf"}', encoding="utf-8")
+        stale = [{"name": "pf-a", "parts": [{"folder": "pf-a"}]}]
+        final = [{"name": "pf-a", "parts": [{"folder": "pf-a"}, {"folder": "pf-a-part1"}]}]
+        (schedule / "schedule.json").write_text(json.dumps({"units": stale}), encoding="utf-8")
+        (schedule / "schedule.final.json").write_text(json.dumps({"units": final}), encoding="utf-8")
+        make_run(schedule, "pf-a")
+        make_run(schedule, "pf-a-part1")
+        out = self.root / "results" / "fallback"
+        manifest = retention.retain([schedule], out, "SCHEDULE EVIDENCE")
+        for key in ("pf/schedule.json", "pf/schedule.final.json", "pf/pf-a-part1/metadata.json"):
+            self.assertIn(key, manifest["sha256"])
+        self.assertEqual(retention.verify(out), [])
+
+
 if __name__ == "__main__":
     unittest.main()

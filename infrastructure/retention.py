@@ -17,6 +17,7 @@ from collections import Counter
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import sys
@@ -24,6 +25,9 @@ import sys
 RUN_FILES = ("metadata.json", "initial_policy.json", "policy.json", "episodes.csv", "summary.json",
              "simulator_training.csv")
 EPISODE_FILES = ("start.json", "transitions.jsonl", "steps.csv", "outcome.json", "session_error.json")
+# A resource-parallel schedule folder: the plan as run and the scheduler's record, including the final
+# record the scheduler writes beside schedule.json when that file is held open at the end.
+SCHEDULE_FILES = ("plan.json", "schedule.json", "schedule.final.json")
 WORLD_FILES = ("server.properties", "ops.json")
 SERVER_LOG_TAIL_LINES = 200
 NOTE = ("Files were copied unchanged and hashed after copying; server_tail.log holds the last lines of "
@@ -38,16 +42,34 @@ def retain(run_directories, destination, label: str, log_tail_lines: int = SERVE
     """Copy the compact evidence of each run folder into ``destination`` and return the manifest."""
     if not isinstance(label, str) or not label.strip():
         raise ValueError("A non-empty evidence label is required")
-    runs = [Path(d) for d in run_directories]
+    given, runs, places = [Path(d) for d in run_directories], [], {}
+
+    def key(path: Path) -> str:
+        return os.path.normcase(str(path.resolve()))
+
+    for run in given:
+        if key(run) in places:
+            continue
+        places[key(run)] = Path(run.name)
+        runs.append(run)
+        # A schedule folder brings every run and continuation it recorded, nested under it so that a
+        # retained schedule can be expanded again by resource-report.
+        if (run / "schedule.json").is_file() and not (run / "metadata.json").is_file():
+            from .parallel_runs import schedule_run_folders
+            for path in schedule_run_folders(run)[0]:
+                if key(path) not in places:
+                    runs.append(path)
+                places[key(path)] = Path(run.name) / path.name
     if not runs:
         raise ValueError("At least one run folder is required")
     # Case-folded: the destination file system may not distinguish abc from ABC.
-    repeated = sorted(name for name, count in Counter(run.name.casefold() for run in runs).items() if count > 1)
+    repeated = sorted(name for name, count in Counter(places[key(run)].as_posix().casefold() for run in runs).items()
+                      if count > 1)
     if repeated:
         raise ValueError("Run folders must have distinct names: " + ", ".join(repeated))
     for run in runs:
-        if not (run / "metadata.json").is_file():
-            raise ValueError(f"Not a run folder (missing metadata.json): {run}")
+        if not (run / "metadata.json").is_file() and not (run / "schedule.json").is_file():
+            raise ValueError(f"Not a run or schedule folder (missing metadata.json or schedule.json): {run}")
     out = Path(destination)
     if out.exists() and any(out.iterdir()):
         raise ValueError(f"Destination is not empty: {out}. Choose a new folder; retained evidence is never overwritten.")
@@ -66,15 +88,19 @@ def retain(run_directories, destination, label: str, log_tail_lines: int = SERVE
         digests[relative.as_posix()] = digest
 
     for run in runs:
+        base = places[key(run)]
+        for name in SCHEDULE_FILES if not (run / "metadata.json").is_file() else ():
+            if (run / name).is_file():
+                copy(run / name, base / name)
         for name in RUN_FILES:
             if (run / name).is_file():
-                copy(run / name, Path(run.name) / name)
+                copy(run / name, base / name)
         for episode in sorted(run.glob("episode-*")):
             if not episode.is_dir():
                 continue
             for name in EPISODE_FILES:
                 if (episode / name).is_file():
-                    copy(episode / name, Path(run.name) / episode.name / name)
+                    copy(episode / name, base / episode.name / name)
         worlds = run / "worlds"
         if worlds.is_dir():
             for world in sorted(worlds.glob("episode-*")):
@@ -82,11 +108,11 @@ def retain(run_directories, destination, label: str, log_tail_lines: int = SERVE
                     continue
                 for name in WORLD_FILES:
                     if (world / name).is_file():
-                        copy(world / name, Path(run.name) / "worlds" / world.name / name)
+                        copy(world / name, base / "worlds" / world.name / name)
                 latest = world / "logs" / "latest.log"
                 if latest.is_file():
                     lines = latest.read_text(encoding="utf-8", errors="replace").splitlines()
-                    relative = Path(run.name) / "worlds" / world.name / "server_tail.log"
+                    relative = base / "worlds" / world.name / "server_tail.log"
                     target = out / relative
                     target.parent.mkdir(parents=True, exist_ok=True)
                     target.write_text("\n".join(lines[-log_tail_lines:]) + "\n", encoding="utf-8")
@@ -113,7 +139,8 @@ def verify(destination) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m infrastructure.retention", description=__doc__.split("\n\n")[0])
-    parser.add_argument("runs", nargs="*", type=Path, help="Run folders written by resource-train or resource-demo")
+    parser.add_argument("runs", nargs="*", type=Path,
+                        help="Run folders written by resource-train or resource-demo, or resource-parallel schedule folders")
     parser.add_argument("--out", required=True, type=Path, help="New or empty folder, normally under results/")
     parser.add_argument("--label", help="Honest evidence label stored in retention.json (required unless --verify)")
     parser.add_argument("--verify", action="store_true", help="Instead of copying, check --out against its retention.json")

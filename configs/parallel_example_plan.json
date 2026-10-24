@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "name": "example-parallel",
+  "description": "EXAMPLE ONLY, not a declared experiment and not evidence: train Q-learning and SARSA side by side without the mask, then, once both have finished, test both policies and the uniform random baseline on the same worlds, interleaved so every arm runs under the same load. Copy it, rename the plan and every job, choose new seeds, and commit it before a real run.",
+  "slots": 4,
+  "interleave": true,
+  "evaluate_after_all_training": true,
+  "defaults": {"agent_seed": 0, "max_steps": 60, "pause": 0},
+  "jobs": [
+    {"name": "ex-unmasked-q-train", "kind": "train", "condition": "unmasked", "algorithm": "q_learning",
+     "episodes": 10, "first_world_seed": 50000, "epsilon": 0.6, "epsilon_end": 0.1},
+    {"name": "ex-unmasked-sarsa-train", "kind": "train", "condition": "unmasked", "algorithm": "sarsa",
+     "episodes": 10, "first_world_seed": 50000, "epsilon": 0.6, "epsilon_end": 0.1},
+    {"name": "ex-unmasked-q-test", "kind": "evaluate", "policy_from": "ex-unmasked-q-train",
+     "episodes": 8, "first_world_seed": 50100, "chunks": 4},
+    {"name": "ex-unmasked-sarsa-test", "kind": "evaluate", "policy_from": "ex-unmasked-sarsa-train",
+     "episodes": 8, "first_world_seed": 50100, "chunks": 4},
+    {"name": "ex-unmasked-random-test", "kind": "evaluate", "random_baseline": true, "condition": "unmasked",
+     "episodes": 8, "first_world_seed": 50100, "chunks": 4}
+  ]
+}
