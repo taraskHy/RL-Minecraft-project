@@ -15,12 +15,16 @@ conditions differ only in what the policy must decide:
 The bounded observation omits terrain and most history: it is a partial
 observation, not a claim that natural Minecraft is a finite fully observed MDP.
 
+ResourceAgent learns over one stage specification (``StageSpec``): this wood
+stage by default, or another stage such as the stone stage in ``stone.py``.
+
 ResourceSimulator is a CPU-only teaching abstraction with correct resource
 accounting and random macro failures. Its results are NOT Minecraft results.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import IntEnum
 import json
@@ -229,8 +233,54 @@ def reward_transition(previous_observation: dict, observation: dict, *,
     return base + shaping, {"base_reward": base, "shaping_reward": shaping}
 
 
+@dataclass(frozen=True, eq=False)
+class StageSpec:
+    """One stage's policy contract: its macro actions, state versions, and conditions.
+
+    ``state_versions`` maps each environment name to its state fields and
+    caps; ``conditions`` maps each condition to its (action mask,
+    environment); ``actions_for(state, action_mask, environment)`` returns a
+    condition's allowed actions. A policy file records the environment,
+    action names, fields, and caps, so an agent refuses another stage's file.
+    """
+
+    name: str
+    actions: tuple[str, ...]
+    state_versions: Mapping[str, tuple[tuple[str, ...], tuple[int, ...]]]
+    conditions: Mapping[str, tuple[str, str]]
+    actions_for: Callable[[State, str, str], tuple[int, ...]]
+    default_condition: str
+
+    @property
+    def n_actions(self) -> int:
+        return len(self.actions)
+
+    def condition_name(self, action_mask: str, state_version: str) -> str:
+        for name, pair in self.conditions.items():
+            if pair == (action_mask, state_version):
+                return name
+        raise ValueError(f"Unsupported {self.name} condition: action_mask={action_mask!r}, "
+                         f"state_version={state_version!r}")
+
+    def validate(self, state: State, state_version: str) -> None:
+        if not isinstance(state_version, str) or state_version not in self.state_versions:
+            raise ValueError(f"Unknown state version: {state_version!r}")
+        caps = self.state_versions[state_version][1]
+        if (not isinstance(state, tuple) or len(state) != len(caps)
+                or any(type(v) is not int or not 0 <= v <= cap
+                       for v, cap in zip(state, caps))):
+            raise ValueError("Invalid bounded resource state")
+
+
+WOOD_STAGE = StageSpec("wood", ACTION_NAMES, STATE_VERSIONS, CONDITIONS, actions_for, "masked")
+
+
 class ResourceAgent:
     """Q-learning or SARSA with epsilon-greedy selection over a condition's allowed actions.
+
+    ``stage`` fixes the actions, state versions, and conditions (the wood
+    stage by default); ``action_mask`` and ``state_version`` default to the
+    stage's default condition.
 
     ``initial_q`` is the value of every action in a state before its first
     update (default 0). With potential-based shaping, an action that fails in
@@ -241,8 +291,11 @@ class ResourceAgent:
     """
 
     def __init__(self, algorithm: str = "q_learning", alpha: float = 0.2,
-                 gamma: float = 0.97, seed: int = 0, *, action_mask: str = MASKED,
-                 state_version: str = POLICY_ENVIRONMENT, initial_q: float = 0.0):
+                 gamma: float = 0.97, seed: int = 0, *, action_mask: str | None = None,
+                 state_version: str | None = None, initial_q: float = 0.0,
+                 stage: StageSpec = WOOD_STAGE):
+        if not isinstance(stage, StageSpec):
+            raise TypeError("stage must be a StageSpec")
         if algorithm not in ("q_learning", "sarsa", "random"):
             raise ValueError("algorithm must be q_learning, sarsa, or random")
         _number(alpha, "alpha", 0, 1)
@@ -252,7 +305,11 @@ class ResourceAgent:
         if type(seed) is not int:
             raise ValueError("seed must be an integer")
         _number(initial_q, "initial_q", -100, 100)
-        self.condition = condition_name(action_mask, state_version)
+        default_mask, default_version = stage.conditions[stage.default_condition]
+        action_mask = default_mask if action_mask is None else action_mask
+        state_version = default_version if state_version is None else state_version
+        self.stage = stage
+        self.condition = stage.condition_name(action_mask, state_version)
         self.action_mask, self.state_version = action_mask, state_version
         self.algorithm, self.alpha, self.gamma = algorithm, alpha, gamma
         self.initial_q = float(initial_q)
@@ -260,11 +317,11 @@ class ResourceAgent:
         self.q: dict[State, list[float]] = {}
 
     def allowed(self, state: State) -> tuple[int, ...]:
-        return actions_for(state, self.action_mask, self.state_version)
+        return self.stage.actions_for(state, self.action_mask, self.state_version)
 
     def values(self, state: State) -> list[float]:
-        _validate_state(state, self.state_version)
-        return self.q.get(state, [self.initial_q] * N_ACTIONS)
+        self.stage.validate(state, self.state_version)
+        return self.q.get(state, [self.initial_q] * self.stage.n_actions)
 
     def act(self, state: State, epsilon: float = 0.0) -> int:
         _number(epsilon, "epsilon", 0, 1)
@@ -278,8 +335,8 @@ class ResourceAgent:
     def update(self, state: State, action: int, reward: float,
                next_state: State, terminated: bool,
                next_action: int | None = None) -> float:
-        _validate_state(state, self.state_version)
-        _validate_state(next_state, self.state_version)
+        self.stage.validate(state, self.state_version)
+        self.stage.validate(next_state, self.state_version)
         if self.algorithm == "random":
             raise ValueError("A random baseline does not learn")
         if (isinstance(action, bool) or not isinstance(action, int)
@@ -297,18 +354,20 @@ class ResourceAgent:
                     or next_action not in self.allowed(next_state)):
                 raise ValueError("SARSA needs the next sampled, allowed behavior action")
             bootstrap = self.values(next_state)[next_action]
-        row = self.q.setdefault(state, [self.initial_q] * N_ACTIONS)
+        row = self.q.setdefault(state, [self.initial_q] * self.stage.n_actions)
         td_error = reward + self.gamma * bootstrap - row[action]
         row[action] += self.alpha * td_error
         return td_error
 
     def save(self, path: str | Path, metadata: dict | None = None) -> None:
-        fields, caps = STATE_VERSIONS[self.state_version]
+        fields, caps = self.stage.state_versions[self.state_version]
+        # Wood policies keep their original layout, which has no stage key.
+        stage = {} if self.stage is WOOD_STAGE else {"stage": self.stage.name}
         payload = {
-            "format_version": 1, "environment": self.state_version,
+            "format_version": 1, **stage, "environment": self.state_version,
             "algorithm": self.algorithm, "alpha": self.alpha, "gamma": self.gamma,
             "initial_q": self.initial_q,
-            "actions": list(ACTION_NAMES), "state_fields": list(fields),
+            "actions": list(self.stage.actions), "state_fields": list(fields),
             "state_caps": list(caps), "action_mask": self.action_mask,
             "condition": self.condition, "metadata": metadata or {},
             "q": [{"state": list(s), "values": v} for s, v in sorted(self.q.items())],
@@ -316,28 +375,37 @@ class ResourceAgent:
         Path(path).write_text(json.dumps(payload, indent=2, allow_nan=False), encoding="utf-8")
 
     @classmethod
-    def load(cls, path: str | Path, seed: int = 0) -> ResourceAgent:
+    def load(cls, path: str | Path, seed: int = 0, *, stage: StageSpec = WOOD_STAGE) -> ResourceAgent:
+        """Load a policy saved by ``stage``; a policy from any other stage is refused."""
+        if not isinstance(stage, StageSpec):
+            raise TypeError("stage must be a StageSpec")
         payload = json.loads(Path(path).read_text(encoding="utf-8"))
         version = payload.get("environment") if isinstance(payload, dict) else None
+        if isinstance(payload, dict):
+            # A policy without a stage key predates stages, so it is a wood policy.
+            saved_stage = payload.get("stage", WOOD_STAGE.name)
+            if saved_stage != stage.name:
+                raise ValueError(f"This policy was saved by the {saved_stage} stage (environment {version!r}); "
+                                 f"a {stage.name}-stage agent cannot load it")
+        versions = stage.state_versions
         if (not isinstance(payload, dict) or payload.get("format_version") != 1
-                or version not in STATE_VERSIONS
-                or payload.get("actions") != list(ACTION_NAMES)
-                or payload.get("state_fields") != list(STATE_VERSIONS[version][0])
-                or payload.get("state_caps") != list(STATE_VERSIONS[version][1])
-                or payload.get("action_mask") not in ACTION_MASKS
-                or (payload.get("action_mask"), version) not in CONDITIONS.values()):
+                or not isinstance(version, str) or version not in versions
+                or payload.get("actions") != list(stage.actions)
+                or payload.get("state_fields") != list(versions[version][0])
+                or payload.get("state_caps") != list(versions[version][1])
+                or (payload.get("action_mask"), version) not in stage.conditions.values()):
             raise ValueError("Incompatible resource policy, state encoding, action order, or condition")
         try:
             # Policies saved before initial_q was recorded all started from 0.
             agent = cls(payload["algorithm"], payload["alpha"], payload["gamma"], seed,
                         action_mask=payload["action_mask"], state_version=version,
-                        initial_q=payload.get("initial_q", 0.0))
+                        initial_q=payload.get("initial_q", 0.0), stage=stage)
             if not isinstance(payload["q"], list):
                 raise ValueError("Invalid Q table")
             for entry in payload["q"]:
                 state, values = tuple(entry["state"]), entry["values"]
-                _validate_state(state, version)
-                if (not isinstance(values, list) or len(values) != N_ACTIONS
+                stage.validate(state, version)
+                if (not isinstance(values, list) or len(values) != stage.n_actions
                         or any(isinstance(v, bool) or not isinstance(v, (int, float))
                                or not math.isfinite(v) for v in values)
                         or state in agent.q):

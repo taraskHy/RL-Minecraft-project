@@ -1,11 +1,23 @@
 'use strict'
 
-// Natural-world executor for eight learned macro-actions. This file never sends
+// Natural-world executor for learned macro-actions: the eight wood actions, and
+// under --goal stone_pickaxe the stone stage's five. This file never sends
 // chat commands, creates resources, resets a world, or chooses the next action.
 const readline = require('node:readline')
 const { Vec3 } = require('vec3')
 
-const ACTIONS = ['SEARCH', 'CHOP', 'CRAFT_PLANKS', 'CRAFT_STICKS', 'CRAFT_TABLE', 'PLACE_TABLE', 'APPROACH_TABLE', 'CRAFT_PICKAXE']
+const ACTIONS = ['SEARCH', 'CHOP', 'CRAFT_PLANKS', 'CRAFT_STICKS', 'CRAFT_TABLE', 'PLACE_TABLE', 'APPROACH_TABLE', 'CRAFT_PICKAXE',
+  'SEARCH_STONE', 'DIG_DOWN', 'MINE_STONE', 'RETURN_TO_TABLE', 'CRAFT_STONE_PICKAXE']
+// The default goal accepts only the wood actions, as before the stone stage.
+const WOOD_ACTIONS = ACTIONS.slice(0, 8)
+const GOALS = ['wooden_pickaxe', 'stone_pickaxe']
+// Decision 9: stone counts as seen or in reach only on a face whose open
+// neighbour cell has sky or block light, which Mineflayer keeps for 1.21.4.
+const STONE_LIT_ONLY = true
+// The passive survey simulates this many staircase steps per heading and
+// scans this far down the bot's column for stone.
+const SURVEY_STAIR_STEPS = 6
+const SURVEY_DEPTH = 64
 const BACKEND = 'minecraft-java-natural-resources'
 const MAX_RADIUS = 64
 // Navigation targets' block coordinates stay this far inside MAX_RADIUS (a
@@ -349,11 +361,14 @@ function stepExclusion (spawn, cell, botPosition) {
   return centre <= ownCentre + 1e-9 && centre <= MAX_RADIUS - 0.75 ? 0 : 100
 }
 
+// Loaded on first use, never when this module loads: stone-helpers requires it.
+function stoneHelpers () { return require('./stone-helpers') }
+
 function parseArgs (args) {
-  const config = { host: '127.0.0.1', port: 25567, username: 'RLResourceBot', version: '1.21.4' }
-  const fields = { '--host': 'host', '--port': 'port', '--username': 'username', '--version': 'version' }
+  const config = { host: '127.0.0.1', port: 25567, username: 'RLResourceBot', version: '1.21.4', goal: 'wooden_pickaxe', stoneSurvey: 'off' }
+  const fields = { '--host': 'host', '--port': 'port', '--username': 'username', '--version': 'version', '--goal': 'goal', '--stone-survey': 'stoneSurvey' }
   for (let i = 0; i < args.length; i++) {
-    if (!fields[args[i]] || args[i + 1] === undefined) throw new Error(`Unknown or incomplete option: ${args[i]}`)
+    if (!Object.hasOwn(fields, args[i]) || args[i + 1] === undefined) throw new Error(`Unknown or incomplete option: ${args[i]}`)
     config[fields[args[i]]] = args[++i]
   }
   config.port = Number(config.port)
@@ -361,12 +376,40 @@ function parseArgs (args) {
   if (!Number.isInteger(config.port) || config.port < 1 || config.port > 65535) throw new Error('Invalid port')
   if (!/^[A-Za-z0-9_]{1,16}$/.test(config.username)) throw new Error('Invalid bot username')
   if (config.version !== '1.21.4') throw new Error('Natural-resource bridge is pinned to Minecraft Java 1.21.4')
+  // The goal decides success and which actions run; the survey only adds diagnostics.
+  if (!GOALS.includes(config.goal)) throw new Error(`--goal must be one of ${GOALS.join(', ')}`)
+  if (!['on', 'off'].includes(config.stoneSurvey)) throw new Error('--stone-survey must be on or off')
+  config.stoneSurvey = config.stoneSurvey === 'on'
   return config
 }
 
-function validateAction (action) {
-  if (!Number.isInteger(action) || action < 0 || action >= ACTIONS.length) throw new Error('action must be an integer from 0 through 7')
+function actionsFor (goal) {
+  if (goal === 'wooden_pickaxe') return WOOD_ACTIONS
+  if (goal === 'stone_pickaxe') return ACTIONS
+  throw new Error(`Unknown goal: ${goal}`)
+}
+
+function validateAction (action, goal = 'wooden_pickaxe') {
+  const count = actionsFor(goal).length
+  if (!Number.isInteger(action) || action < 0 || action >= count) throw new Error(`action must be an integer from 0 through ${count - 1}`)
   return action
+}
+
+// The stone actions' helpers arrive in step S3. Until then a stone action
+// stops the episode with this error, never an observed transition that would
+// look like an ordinary refusal.
+function runnableAction (action, goal) {
+  validateAction(action, goal)
+  if (action >= WOOD_ACTIONS.length) throw new Error(`${ACTIONS[action]} (action ${action}) is not implemented until step S3; this episode is invalid`)
+  return action
+}
+
+// The wood goal ends on any wooden pickaxe in the inventory, as it always has;
+// the stone goal only on a held stone pickaxe (section 4.8).
+function goalReached (goal, counts, heldItem) {
+  if (goal === 'wooden_pickaxe') return counts.pickaxes > 0
+  if (goal === 'stone_pickaxe') return heldItem === 'stone_pickaxe'
+  throw new Error(`Unknown goal: ${goal}`)
 }
 
 function inventoryCounts (inventory) {
@@ -379,7 +422,7 @@ function inventoryCounts (inventory) {
     if (name === 'crafting_table') counts.tables += amount
     if (name === 'wooden_pickaxe') counts.pickaxes += amount
   }
-  return counts
+  return { ...counts, ...stoneHelpers().stoneInventoryCounts(inventory) }
 }
 
 function validatePhysicalState (observation) {
@@ -396,6 +439,8 @@ function craftingRecipe (bot, item, table) {
   // Minecraft accepts mixed plank species, but minecraft-data enumerates only
   // single-species variants. Fill a standard recipe with the actual inventory
   // IDs, so aggregating planks in the learning state does not hide a dead end.
+  // Stone pickaxe materials are mixed the same way (decision 10).
+  if (item.name === 'stone_pickaxe') return stoneHelpers().fillStoneRecipe(bot.recipesAll(item.id, null, table)[0], bot.inventory.items(), id => bot.registry.items[id]?.name)
   if (!['stick', 'crafting_table', 'wooden_pickaxe'].includes(item.name)) return null
   const template = bot.recipesAll(item.id, null, table)[0]
   if (!template?.inShape) return null
@@ -435,17 +480,128 @@ function safeMovements (bot, Movements, spawn) {
   return movements
 }
 
+function roundedPosition (position) {
+  return { x: Math.round(position.x * 100) / 100, y: Math.round(position.y * 100) / 100, z: Math.round(position.z * 100) / 100 }
+}
+
+// Uses left on the wooden pickaxe, the held one first: its maximum durability
+// less prismarine-item's durabilityUsed, which reads 1.21.4's damage
+// component. Null without a wooden pickaxe or when the value is unreadable.
+function pickaxeUsesLeft (items, heldItem = null) {
+  const pickaxe = heldItem?.name === 'wooden_pickaxe' ? heldItem : items.find(item => item.name === 'wooden_pickaxe')
+  if (!pickaxe) return null
+  let used
+  try { used = pickaxe.durabilityUsed } catch (_) { return null }
+  return Number.isInteger(used) && used >= 0 && Number.isInteger(pickaxe.maxDurability) ? pickaxe.maxDurability - used : null
+}
+
+// The stone stage's observation fields (section 3.6) from one scan of the
+// loaded world: nearby_stone and stone_targets from the reach list that
+// MINE_STONE uses, stone_visible from SEARCH_STONE's ray-fan targets through
+// the search memory (or from stone in reach), and hostile_nearby from the
+// mobs digVerdict refuses on. `scene` is stoneContext's input.
+function stoneScan (world, scene, { memory = null, litOnly = STONE_LIT_ONLY } = {}) {
+  const stone = stoneHelpers()
+  const ctx = stone.stoneContext(world, scene)
+  const started = process.hrtime.bigint()
+  const reach = stone.reachableStone(world, ctx, { litOnly })
+  const reachMs = Number(process.hrtime.bigint() - started) / 1e6
+  const fan = stone.visibleStoneTargets(world, ctx, { memory, litOnly })
+  const target = memory ? memory.peek(fan.targets) : fan.targets[0] || null
+  return {
+    ctx,
+    reach,
+    fan,
+    reach_ms: reachMs,
+    fields: {
+      nearby_stone: reach.length > 0,
+      stone_visible: reach.length > 0 || Boolean(target),
+      stone_targets: reach.slice(0, 3).map(candidate => ({
+        name: candidate.block.name, x: candidate.position.x, y: candidate.position.y, z: candidate.position.z,
+        distance: Math.round(candidate.distance * 100) / 100, drop: candidate.drop, rest_y: candidate.rest_y
+      })),
+      hostile_nearby: ctx.hostiles.map(entity => ({
+        name: entity.name, ...roundedPosition(entity.position), distance: Math.round(entity.position.distanceTo(scene.botPosition) * 100) / 100
+      }))
+    }
+  }
+}
+
+// Survey only: how far below the feet the first stone source lies in the
+// bot's own column, with the layers above it as [name, count], top first.
+function depthToStone (world, feet, maxDepth = SURVEY_DEPTH) {
+  const stone = stoneHelpers()
+  const layers = []
+  for (let depth = 1; depth <= maxDepth; depth++) {
+    const block = world.getBlock(feet.offset(0, -depth, 0))
+    if (!block) return { depth: null, block: null, layers, stopped: 'unloaded' }
+    if (stone.isStoneSource(block.name)) return { depth, block: block.name, layers, stopped: null }
+    const last = layers[layers.length - 1]
+    if (last && last[0] === block.name) last[1]++
+    else layers.push([block.name, 1])
+  }
+  return { depth: null, block: null, layers, stopped: 'scan_limit' }
+}
+
+// One planned staircase step in a survey record: what it digs, or why it is refused.
+function stairStepSummary (step) {
+  const cell = position => position ? [position.x, position.y, position.z] : null
+  const summary = step.ok
+    ? { ok: true, digs: step.digs.map(dig => [dig.name, dig.tool]), dig_ms: step.dig_ms, move: step.move, landing_y: step.landing?.y, floor: step.floor?.name, exposes: step.exposed_block }
+    : { ok: false, reason: step.reason, cell: cell(step.cell), block: step.block, neighbour: step.neighbour, floor: step.floor, exposed_refusal: step.exposed_refusal, dig_ms: step.dig_ms, moves: step.moves }
+  return Object.fromEntries(Object.entries(summary).filter(([, value]) => value !== undefined && value !== null))
+}
+
+// Survey only: what planStairStep would refuse on each heading for up to
+// `maxSteps` consecutive steps, simulated on a view of the world with the
+// planned cells dug; nothing is dug. A heading ends at a refusal, at exposed
+// stone, or once MINE_STONE would have a target. That check ignores light: a
+// dug cell's light is unknown until the server sends it.
+function surveyStaircases (world, feet, ctx, maxSteps = SURVEY_STAIR_STEPS) {
+  const stone = stoneHelpers()
+  const stopWhen = (view, at) => stone.reachableStone(view, { ...ctx, botPosition: new Vec3(at.x + 0.5, at.y, at.z + 0.5) }).length > 0
+  return Object.fromEntries(Object.keys(stone.STAIR_HEADINGS).map(heading => {
+    const stair = stone.planStaircase(world, feet, heading, ctx, { maxSteps, stopWhen })
+    return [heading, { stopped: stair.stopped, dig_counts: stair.dig_counts, end_y: stair.feet.y, steps: stair.steps.map(stairStepSummary) }]
+  }))
+}
+
+// The passive survey's diagnostic_only record (section 7.6, item 1), never an
+// input to any state encoder. `scan` is the observation's own stoneScan; the
+// survey adds the depth to stone, the four simulated staircases, the ray-fan
+// cost, and how many targets the light rule removed.
+function stoneSurveyRecord (world, feet, scan, { memory = null, startY, reversible }) {
+  const stone = stoneHelpers()
+  const started = process.hrtime.bigint()
+  const anyLight = { reach: stone.reachableStone(world, scan.ctx).length, fan: stone.visibleStoneTargets(world, scan.ctx, { memory }).targets.length }
+  const record = {
+    lit_only: STONE_LIT_ONLY,
+    depth_to_stone: depthToStone(world, feet),
+    staircases: surveyStaircases(world, feet, { ...scan.ctx, startY, reversible }),
+    fan: {
+      ms: Math.round(scan.fan.stats.ms * 100) / 100, rays: scan.fan.stats.rays, reads: scan.fan.stats.reads, hits: scan.fan.stats.hits,
+      targets: scan.fan.targets.length, targets_any_light: anyLight.fan,
+      nearest: scan.fan.targets.slice(0, 3).map(target => ({ name: target.block.name, x: target.position.x, y: target.position.y, z: target.position.z, distance: Math.round(target.distance * 100) / 100, face: target.face }))
+    },
+    reach: { ms: Math.round(scan.reach_ms * 100) / 100, candidates: scan.reach.length, candidates_any_light: anyLight.reach }
+  }
+  record.survey_ms = Math.round(Number(process.hrtime.bigint() - started) / 1e4) / 100
+  return record
+}
+
 async function main () {
   const config = parseArgs(process.argv.slice(2))
   const mineflayer = require('mineflayer')
   const { pathfinder, Movements, goals } = require('mineflayer-pathfinder')
   const Move = require('mineflayer-pathfinder/lib/move')
+  const stone = stoneHelpers()
   class GoalPickup extends goals.GoalNear {
     // Ends only on nodes from which the vanilla pickup box reaches the item.
     constructor (entity) { super(entity.position.x, entity.position.y, entity.position.z, 1); this.item = entity.position.clone() }
     isEnd (node) { return nodeCollectsItem(node, this.item) }
   }
-  const bot = mineflayer.createBot({ ...config, auth: 'offline', hideErrors: true, respawn: false })
+  const connection = { host: config.host, port: config.port, username: config.username, version: config.version }
+  const bot = mineflayer.createBot({ ...connection, auth: 'offline', hideErrors: true, respawn: false })
   bot.loadPlugin(pathfinder)
   let connected = false
   let initialized = false
@@ -461,6 +617,18 @@ async function main () {
   let recovery = null
   let actionDetail = null
   const searchMemory = new SearchMemory()
+  // The stone fields (section 3.6) are on every observation under the stone
+  // goal or the survey, null until a wooden pickaxe is first in the
+  // inventory; without either they are absent, so the wood stage's
+  // observations and their cost are unchanged.
+  const stoneFields = config.goal === 'stone_pickaxe' || config.stoneSurvey
+  const stoneMemory = new stone.StoneMemory()
+  let stoneStarted = false
+  // The stage-2 start: the standing cell's y at the first observation with
+  // the wooden pickaxe held.
+  let stageStartY = null
+  let pickaxeDigs = 0
+  let stairReversible = null
   const log = message => process.stderr.write(`[natural-resource bridge] ${message}\n`)
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
   bot.on('spawn', () => { connected = true })
@@ -702,12 +870,41 @@ async function main () {
       on_canopy: onCanopy(),
       adjacent_drops: adjacentDrops,
       table_position: tableBlock() ? { x: ownTable.x, y: ownTable.y, z: ownTable.z } : null,
-      held_item: bot.heldItem?.name || null, success: counts.pickaxes > 0, death: bot.health <= 0,
+      held_item: bot.heldItem?.name || null, success: goalReached(config.goal, counts, bot.heldItem?.name), death: bot.health <= 0,
       recovery, action_detail: actionDetail,
       event, action_duration_seconds: duration, backend: BACKEND, game_version: bot.version
     })
     if (!inBounds(result.position)) throw new Error('Bot left the 64-block starting radius; episode invalid')
+    if (stoneFields) Object.assign(result, observeStone(counts))
     return result
+  }
+  function observeStone (counts) {
+    const fields = { nearby_stone: null, stone_visible: null, stone_targets: null, pickaxe_uses_left: null, pickaxe_digs: null, hostile_nearby: null, time_of_day: null, depth_below_stage_start: null }
+    if (config.stoneSurvey) fields.diagnostic_only = null
+    // Latched, so a pickaxe that breaks later does not remove the fields.
+    stoneStarted = stoneStarted || counts.pickaxes > 0
+    if (!stoneStarted) return fields
+    const feet = standingCell()
+    if (stageStartY === null && bot.heldItem?.name === 'wooden_pickaxe') stageStartY = feet.y
+    try {
+      const scan = stoneScan(bot.world, { botPosition: bot.entity.position, spawn, table: ownTable, entities: bot.entities, startY: stageStartY }, { memory: stoneMemory })
+      Object.assign(fields, scan.fields, {
+        pickaxe_uses_left: pickaxeUsesLeft(bot.inventory.items(), bot.heldItem), pickaxe_digs: pickaxeDigs,
+        time_of_day: Number.isFinite(bot.time?.timeOfDay) ? bot.time.timeOfDay : null,
+        depth_below_stage_start: stageStartY === null ? null : stageStartY - feet.y
+      })
+      if (config.stoneSurvey && stageStartY !== null) {
+        stairReversible = stairReversible || stone.stairReversibility(fake => stone.strictMovements(fake, Movements, spawn), Move)
+        fields.diagnostic_only = stoneSurveyRecord(bot.world, feet, scan, { memory: stoneMemory, startY: stageStartY, reversible: stairReversible })
+      }
+    } catch (error) {
+      // Under the wood goal these fields are survey diagnostics only: a
+      // failure is recorded and never ends a wood episode.
+      if (config.goal === 'stone_pickaxe') throw error
+      log(`Stone survey failed: ${error.message}`)
+      fields.diagnostic_only = { error: error.message }
+    }
+    return fields
   }
   async function initialize (signal) {
     if (initialized) return
@@ -748,6 +945,7 @@ async function main () {
     // bound every dig by its expected duration and by a death event instead of
     // leaving it to the 44-second request deadline.
     if (bot.health <= 0) throw new Error('Bot died before digging')
+    const withPickaxe = bot.heldItem?.name === 'wooden_pickaxe'
     let timer
     let onDeath
     const died = new Promise((_, reject) => { onDeath = () => reject(new Error('Bot died while digging')); bot.once('death', onDeath) })
@@ -757,6 +955,7 @@ async function main () {
         died,
         new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Dig did not complete in time')), bot.digTime(block) + 3000) })
       ])
+      if (withPickaxe) pickaxeDigs++
     } finally {
       clearTimeout(timer)
       bot.removeListener('death', onDeath)
@@ -998,7 +1197,7 @@ async function main () {
     return label('table_placed')
   }
   async function step (request, signal) {
-    const action = validateAction(request.action)
+    const action = runnableAction(request.action, config.goal)
     recovery = null
     actionDetail = null
     const before = observe()
@@ -1097,6 +1296,8 @@ module.exports = {
   placementRank, placementCandidates, standableIn, approachCells, interactiveSupport, cellIntersectsBox, stepExclusion,
   passableCell, walkableFloor, ACTIONS, BACKEND, FALL_HAZARDS, MAX_CANOPY_LAYERS, CANOPY_SCAN_DEPTH, PICKUP_REACH,
   MAX_ESCAPE_LEAVES, EXPLORATION_RINGS, EXPLORATION_DIRECTIONS, MAX_RADIUS, TARGET_MARGIN, STEP_MARGIN, EYE_HEIGHT,
-  APPROACH_OFFSETS
+  APPROACH_OFFSETS, collisionTop, HITBOX_HALF_WIDTH,
+  WOOD_ACTIONS, GOALS, STONE_LIT_ONLY, SURVEY_STAIR_STEPS, SURVEY_DEPTH, actionsFor, runnableAction, goalReached, pickaxeUsesLeft,
+  stoneScan, depthToStone, stairStepSummary, surveyStaircases, stoneSurveyRecord
 }
 if (require.main === module) main().catch(error => { process.stderr.write(`${error.stack}\n`); process.exit(1) })

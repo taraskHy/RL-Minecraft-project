@@ -497,6 +497,48 @@ using observable material/crafting progress. Terminal potential is zero;
 time-limit truncation still bootstraps. Variable-duration helpers are discounted
 per **decision**, not per second. These are modeling choices to explain in the report.
 
+## In development: the stone stage's goal and survey options
+
+The stone-tools milestone (`docs/stone_tools_design.md`) is being built on branch
+`codex/stone-tools`. No stone-stage episode has been run, and nothing here is a result.
+
+- **`--goal`** is an option of the bridge process (`minecraft_bridge/resource-bridge.js`),
+  not of `run.cmd`. The default, `wooden_pickaxe`, is the wood stage exactly as described
+  above: actions 0 to 7, success on any wooden pickaxe, and actions 8 to 12 refused like any
+  other out-of-range action. `stone_pickaxe` accepts actions 0 to 12 and counts only a held
+  stone pickaxe as success. The five stone actions (`SEARCH_STONE`, `DIG_DOWN`, `MINE_STONE`,
+  `RETURN_TO_TABLE`, `CRAFT_STONE_PICKAXE`) are not implemented yet: until step S3 choosing
+  one ends the episode as invalid with a "not implemented until step S3" error.
+  `resource-train` and `resource-demo` always run the wood goal; the stone goal gets a
+  command-line option together with its stage coordinator.
+- **`--stone-survey`** (`resource-train` and `resource-demo`) turns on the passive survey of
+  design section 7.6. Once the bot holds a wooden pickaxe, each observation also carries the
+  stone stage's fields (`nearby_stone`, `stone_visible`, `stone_targets`,
+  `pickaxe_uses_left`, `pickaxe_digs`, `hostile_nearby`, `time_of_day`, and
+  `depth_below_stage_start`, counted from the cell the bot stood in when it first held the
+  wooden pickaxe) and a `diagnostic_only` record: the depth to stone below the
+  feet, what the staircase planner would refuse on each of the four headings over six
+  simulated steps (nothing is dug), and the cost of the ray fan and the reach scan. Before
+  the pickaxe these fields are present and null; without the survey, under the wood goal,
+  they are absent. Stone counts as seen or in reach only on a face next to an open cell with
+  sky or block light (decision 9 of the design). The survey reads loaded blocks the bot
+  cannot see. No state encoder reads any of these fields, the policy's actions, events,
+  states and rewards are unchanged, and a failure inside the survey is recorded as
+  `diagnostic_only.error` instead of ending the episode. Because a wooden pickaxe ends a wood
+  episode, the survey describes the place where the stone stage would start.
+- Every observation's `inventory_counts` also has `stone_materials` (cobblestone, cobbled
+  deepslate and blackstone) and `stone_pickaxes`; the wood state ignores both.
+- `metadata.json` records `goal`, `stone_survey` and, with the survey, `stone_survey_note`.
+  `minecraft_bridge/stone-helpers.js` is a digested source, so a change to it stops the next
+  episode like any other source change.
+
+The survey of step S2 is planned on the development worlds 61000 to 61019
+(`configs/seed_registry.json`) with the frozen wood checkpoint:
+
+```powershell
+.\run.cmd resource-demo --policy results/pc_resource_runs/87673b8/mx-unmasked-q-train/policy.json --stone-survey --episodes 20 --world-seed 61000 --max-steps 60 --pause 0 --out runs/stone-survey
+```
+
 ## Saved evidence
 
 - `metadata.json`: parameters, action order, source hashes, initial policy provenance, and declared helper boundaries.

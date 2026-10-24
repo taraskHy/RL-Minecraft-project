@@ -9,22 +9,38 @@ import subprocess
 import threading
 from typing import Any
 
+# The bridge's goals: the wood stage as before, or the stone stage (step S3 of the stone-tools milestone).
+GOALS = ("wooden_pickaxe", "stone_pickaxe")
+
 
 class ResourceBridge:
     """Own a bot connection, never a world or a Minecraft server.
 
     A fresh world supplies the episode reset. This bridge exposes no reset,
     teleport, give, creative-mode, or other privileged bot operation.
+
+    ``goal`` sets the bridge's success rule and the actions it accepts:
+    ``wooden_pickaxe`` (the default) is the wood stage exactly as before, and
+    ``stone_pickaxe`` succeeds only on a held stone pickaxe. ``stone_survey``
+    adds the stone fields and a ``diagnostic_only`` record to observations
+    once a wooden pickaxe is held; no state encoder reads them.
     """
 
-    def __init__(self, *, node: str | Path, port: int = 25567):
+    def __init__(self, *, node: str | Path, port: int = 25567, goal: str = "wooden_pickaxe",
+                 stone_survey: bool = False):
+        if goal not in GOALS:
+            raise ValueError(f"goal must be one of {', '.join(GOALS)}")
+        if type(stone_survey) is not bool:
+            raise ValueError("stone_survey must be True or False")
+        self.goal, self.stone_survey = goal, stone_survey
         self._closed = False
         self._sequence = 0
         self._responses: queue.Queue[str | None] = queue.Queue()
         root = Path(__file__).resolve().parents[1]
         self._process = subprocess.Popen(
             [str(node), str(root / "minecraft_bridge" / "resource-bridge.js"),
-             "--port", str(port)], cwd=root, stdin=subprocess.PIPE,
+             "--port", str(port), "--goal", goal, "--stone-survey", "on" if stone_survey else "off"],
+            cwd=root, stdin=subprocess.PIPE,
             stdout=subprocess.PIPE, text=True, encoding="utf-8", bufsize=1,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         self._reader = threading.Thread(target=self._read, daemon=True)

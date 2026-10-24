@@ -1,18 +1,31 @@
 """Check learning/evaluation evidence with real agents and a simulated transport."""
 
-from contextlib import contextmanager, ExitStack, nullcontext, redirect_stderr
+from contextlib import contextmanager, ExitStack, nullcontext, redirect_stderr, redirect_stdout
 from copy import deepcopy
 import csv
+import hashlib
 import io
 import json
 from pathlib import Path
+import re
 import sys
 import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
 from infrastructure import resource_session
-from minecraft_rl.resources import ResourceAgent, state_from_observation
+from minecraft_rl import resource_live
+from minecraft_rl.resource_live import GOALS, ResourceBridge
+from minecraft_rl.resources import ACTION_NAMES, ResourceAgent, potential, reward_transition, state_from_observation
+
+# The fields the bridge adds under the stone goal or the survey (design section 3.6), and the survey record.
+STONE_FIELDS = ("nearby_stone", "stone_visible", "stone_targets", "pickaxe_uses_left", "pickaxe_digs", "hostile_nearby",
+                "time_of_day", "depth_below_stage_start", "diagnostic_only")
+SURVEY_RECORD = {"lit_only": True,
+                 "depth_to_stone": {"depth": 5, "block": "stone", "layers": [["grass_block", 1], ["dirt", 3]], "stopped": None},
+                 "staircases": {"+x": {"stopped": "stone_exposed", "dig_counts": [1, 2, 3, 3, 2], "end_y": 60, "steps": []}},
+                 "fan": {"ms": 12.5, "rays": 416, "reads": 12000, "hits": 100, "targets": 0, "targets_any_light": 0, "nearest": []},
+                 "reach": {"ms": 0.9, "candidates": 0, "candidates_any_light": 0}, "survey_ms": 45.0}
 
 
 class ResourceSessionTests(unittest.TestCase):
@@ -24,7 +37,7 @@ class ResourceSessionTests(unittest.TestCase):
         self.addCleanup(self.stack.close)
         self.stack.enter_context(patch.object(resource_session, "ROOT", self.root))
         source_names = (
-            "minecraft_bridge/resource-bridge.js", "minecraft_bridge/pnpm-lock.yaml",
+            "minecraft_bridge/resource-bridge.js", "minecraft_bridge/stone-helpers.js", "minecraft_bridge/pnpm-lock.yaml",
             "minecraft_rl/resources.py", "infrastructure/resource_session.py",
             "minecraft_rl/resource_live.py", "infrastructure/resource_server.py",
         )
@@ -466,6 +479,238 @@ class ResourceSessionTests(unittest.TestCase):
             resource_session.run_resources(output=output, episodes=2, max_steps=1, condition="masked", pause=0)
         self.assertTrue((output / "episode-0001" / "outcome.json").is_file())
         self.assertFalse((output / "episode-0002").exists())
+
+    def test_the_goal_and_the_survey_reach_the_bridge_and_the_metadata(self):
+        following = deepcopy(self.start)
+        following.update(nearby_log=True, event="log_reached")
+        self.bridge.step.return_value = following
+        wood, _ = self._train("wood-goal", "masked", 1, algorithm="q_learning")
+        settings = resource_session.ResourceBridge.call_args.kwargs
+        self.assertEqual((settings["goal"], settings["stone_survey"]), ("wooden_pickaxe", False))
+        metadata = json.loads((wood / "metadata.json").read_text())
+        self.assertEqual((metadata["goal"], metadata["stone_survey"], metadata["stone_survey_note"]), ("wooden_pickaxe", False, None))
+        self.assertEqual(metadata["actions"], list(ACTION_NAMES))
+        self.assertEqual(len(metadata["actions"]), 8)
+        # The S2 survey: the frozen wood checkpoint on development worlds, with the survey on.
+        policy, _ = self._policy("survey", following)
+        surveyed, _ = self._train("survey", None, 1, evaluate=True, policy=policy, world_seed=61000, stone_survey=True)
+        self.assertIs(resource_session.ResourceBridge.call_args.kwargs["stone_survey"], True)
+        self.assertEqual(resource_session.ResourceBridge.call_args.kwargs["goal"], "wooden_pickaxe")
+        metadata = json.loads((surveyed / "metadata.json").read_text())
+        self.assertEqual((metadata["goal"], metadata["stone_survey"], metadata["first_world_seed"]), ("wooden_pickaxe", True, 61000))
+        for phrase in ("diagnostic_only", "nothing is dug", "No state encoder reads them", "cannot see"):
+            self.assertIn(phrase, metadata["stone_survey_note"])
+        # The stone goal waits for the stage-2 coordinator (step S3); nothing else is a goal.
+        for index, bad in enumerate(({"goal": "stone_pickaxe"}, {"goal": "iron_pickaxe"}, {"goal": None},
+                                     {"stone_survey": 1}, {"stone_survey": "on"}, {"stone_survey": None})):
+            output = self.root / "runs" / f"refused-goal-{index}"
+            with self.subTest(bad=bad), self.assertRaises(ValueError) as refusal:
+                resource_session.run_resources(output=output, episodes=1, max_steps=1, condition="masked", pause=0, **bad)
+            if bad.get("goal") == "stone_pickaxe":
+                self.assertIn("step S3", str(refusal.exception))
+            self.assertFalse(output.exists())
+
+    def test_the_stone_helpers_are_digested_and_a_change_to_them_stops_the_next_episode(self):
+        following = deepcopy(self.start)
+        following.update(nearby_log=True, event="log_reached")
+        self.bridge.step.return_value = following
+        output, _ = self._train("digested", "masked", 1, algorithm="q_learning")
+        digests = json.loads((output / "metadata.json").read_text())["source_sha256"]
+        self.assertIn(str(Path("minecraft_bridge/stone-helpers.js")), digests)
+        self.assertIn(str(Path("minecraft_bridge/resource-bridge.js")), digests)
+        source = self.root / "minecraft_bridge" / "stone-helpers.js"
+
+        def step(_action):
+            source.write_text("changed during the run\n", encoding="utf-8")
+            return following
+
+        self.bridge.step.side_effect = step
+        changed = self.root / "runs" / "helpers-changed"
+        with self.assertRaisesRegex(RuntimeError, "sources changed"):
+            resource_session.run_resources(output=changed, episodes=2, max_steps=1, condition="masked", pause=0)
+        self.assertTrue((changed / "episode-0001" / "outcome.json").is_file())
+        self.assertFalse((changed / "episode-0002").exists())
+        self.bridge.step.side_effect = None
+
+    def test_survey_observations_are_recorded_in_full_and_never_change_the_state_or_reward(self):
+        start = deepcopy(self.start)
+        start["inventory_counts"].update(stone_materials=0, stone_pickaxes=0)
+        start.update(dict.fromkeys(STONE_FIELDS))
+        crafted = deepcopy(start)
+        crafted["inventory_counts"].update(planks=1, sticks=2, pickaxes=1)
+        crafted.update(table_placed=True, nearby_table=True, held_item="wooden_pickaxe", success=True,
+                       event="crafted_wooden_pickaxe", nearby_stone=True, stone_visible=True,
+                       stone_targets=[{"name": "stone", "x": 2, "y": 63, "z": 0, "distance": 2.3, "drop": "cobblestone", "rest_y": 63}],
+                       pickaxe_uses_left=59, pickaxe_digs=0, hostile_nearby=[], time_of_day=2400,
+                       depth_below_stage_start=0, diagnostic_only=SURVEY_RECORD)
+        plain = {key: value for key, value in crafted.items() if key not in STONE_FIELDS}
+        plain["inventory_counts"] = {key: crafted["inventory_counts"][key] for key in ("logs", "planks", "sticks", "tables", "pickaxes")}
+        self.bridge.observe.return_value = start
+        self.bridge.step.return_value = crafted
+        policy, _ = self._policy("survey-record", crafted)
+        output = self._run("survey-record", policy, evaluate=True, stone_survey=True)
+        record = json.loads((output / "episode-0001" / "transitions.jsonl").read_text())
+        self.assertEqual(record["after"], crafted)
+        self.assertEqual(record["before"]["diagnostic_only"], None)
+        self.assertEqual((record["state"], record["next_state"]),
+                         (list(state_from_observation(self.start)), list(state_from_observation(plain))))
+        expected, _ = reward_transition(self.start, plain, gamma=.97, success=True, death=False)
+        self.assertAlmostEqual(record["reward"], expected)
+        self.assertTrue(json.loads((output / "episode-0001" / "outcome.json").read_text())["success"])
+        # A stone material at the start is not an empty inventory.
+        held = deepcopy(start)
+        held["inventory_counts"]["stone_materials"] = 1
+        self.bridge.observe.return_value = held
+        with self.assertRaisesRegex(RuntimeError, "Fresh-start inventory was not empty"):
+            self._run("stone-at-start", policy, evaluate=True)
+
+    def test_the_frozen_wood_checkpoint_runs_the_same_with_and_without_the_survey(self):
+        checkpoint = Path(__file__).resolve().parents[1] / "results" / "pc_resource_runs" / "87673b8" / "mx-unmasked-q-train" / "policy.json"
+        if not checkpoint.is_file():
+            self.skipTest("the retained 87673b8 checkpoint is not in this checkout")
+        digest = hashlib.sha256(checkpoint.read_bytes()).hexdigest()
+        self.assertEqual(digest, "7d0fcce8653df8d4afc0867b321fd9670a8c64ab6ef03a876c64b9cd1c9e0349")
+        following = deepcopy(self.start)
+        following.update(nearby_log=True, event="log_reached")
+        self.bridge.step.return_value = following
+        chosen = []
+        for survey in (False, True):
+            self.bridge.step.reset_mock()
+            output = self._run(f"checkpoint-survey-{survey}", checkpoint, evaluate=True, stone_survey=survey)
+            metadata = json.loads((output / "metadata.json").read_text())
+            self.assertEqual((metadata["initial_policy_sha256"], metadata["condition"], metadata["state_version"]),
+                             (digest, "unmasked", "resource_v1"))
+            action = self.bridge.step.call_args.args[0]
+            self.assertIn(action, range(8))
+            record = json.loads((output / "episode-0001" / "transitions.jsonl").read_text())
+            self.assertEqual((record["action"], len(record["q_before"])), (ACTION_NAMES[action], 8))
+            chosen.append((action, record["state"], record["q_before"]))
+        self.assertEqual(chosen[0], chosen[1])
+        self.assertEqual(hashlib.sha256(checkpoint.read_bytes()).hexdigest(), digest)
+
+    def test_command_line_turns_on_the_survey_and_never_sets_the_goal(self):
+        from infrastructure.__main__ import resources
+        with patch.object(resource_session, "run_resources", return_value=0) as run:
+            resources(["--policy", "results/pc_resource_runs/87673b8/mx-unmasked-q-train/policy.json", "--stone-survey",
+                       "--world-seed", "61000", "--episodes", "20", "--out", str(self.root / "runs" / "cli")], evaluate=True)
+            self.assertEqual((run.call_args.kwargs["stone_survey"], run.call_args.kwargs["world_seed"],
+                              run.call_args.kwargs["episodes"]), (True, 61000, 20))
+            self.assertNotIn("goal", run.call_args.kwargs)
+            resources(["--stone-survey", "--out", str(self.root / "runs" / "cli2")])
+            self.assertIs(run.call_args.kwargs["stone_survey"], True)
+            resources(["--out", str(self.root / "runs" / "cli3")])
+            self.assertIs(run.call_args.kwargs["stone_survey"], False)
+            # The stone goal has no command-line option until its coordinator exists (step S3).
+            for evaluate in (False, True):
+                with self.subTest(evaluate=evaluate), self.assertRaises(SystemExit), redirect_stderr(io.StringIO()):
+                    resources(["--goal", "stone_pickaxe", "--random-baseline", "--out", str(self.root / "runs" / "cli4")],
+                              evaluate=evaluate)
+
+
+class LauncherCheckTests(unittest.TestCase):
+    def test_the_checks_run_the_stone_helper_tests_and_their_syntax_check(self):
+        from infrastructure import __main__ as launcher
+        commands = []
+        with patch.object(launcher, "run", side_effect=lambda command: commands.append([str(value) for value in command]) or 0), \
+                patch("infrastructure.runtime.runtime_paths", return_value={"node": sys.executable}), \
+                redirect_stdout(io.StringIO()):
+            self.assertEqual(launcher.checks(), 0)
+        tests = next(command[2:] for command in commands if command[1:2] == ["--test"])
+        self.assertEqual(tests, ["minecraft_bridge/bridge.test.js", "minecraft_bridge/survival-probe.test.js",
+                                 "minecraft_bridge/resource-bridge.test.js", "minecraft_bridge/stone-helpers.test.js",
+                                 "minecraft_bridge/stone-mechanics.test.js"])
+        root = Path(launcher.__file__).resolve().parents[1]
+        self.assertTrue(all((root / name).is_file() for name in tests))
+        checked = [command[2] for command in commands if command[1:2] == ["--check"]]
+        self.assertIn("minecraft_bridge/stone-helpers.js", checked)
+        self.assertIn("minecraft_bridge/resource-bridge.js", checked)
+        # package.json runs the same test files and syntax-checks the stone helpers too.
+        scripts = json.loads((root / "minecraft_bridge" / "package.json").read_text(encoding="utf-8"))["scripts"]
+        self.assertEqual(scripts["test"].split()[2:], [Path(name).name for name in tests])
+        self.assertIn("node --check stone-helpers.js", scripts["check"])
+
+
+class StoneObservationTests(unittest.TestCase):
+    """The stone fields and the survey record ride along in observations; the wood stage never reads them."""
+
+    def test_the_wood_state_and_reward_never_read_the_stone_fields_or_the_survey(self):
+        stone_counts = ("stone_materials", "stone_pickaxes")
+
+        class Guarded(dict):
+            def __init__(self, values, forbidden):
+                super().__init__(values)
+                self.forbidden = forbidden
+
+            def __getitem__(self, key):
+                if key in self.forbidden:
+                    raise AssertionError(f"the wood stage read {key}")
+                return super().__getitem__(key)
+
+            def get(self, key, default=None):
+                if key in self.forbidden:
+                    raise AssertionError(f"the wood stage read {key}")
+                return super().get(key, default)
+
+        plain = {"inventory_counts": {"logs": 1, "planks": 3, "sticks": 2, "tables": 0, "pickaxes": 1},
+                 "nearby_log": True, "nearby_table": True, "table_placed": True, "health": 20, "food": 18,
+                 "position": {"x": 0.5, "y": 64.0, "z": 0.5}, "success": True, "death": False}
+        stone = {**plain, "inventory_counts": {**plain["inventory_counts"], "stone_materials": 2, "stone_pickaxes": 0},
+                 "nearby_stone": True, "stone_visible": True, "stone_targets": [], "pickaxe_uses_left": 58, "pickaxe_digs": 1,
+                 "hostile_nearby": [{"name": "zombie", "x": 5.5, "y": 64.0, "z": 3.5, "distance": 5.83}],
+                 "time_of_day": 12500, "depth_below_stage_start": 4, "diagnostic_only": SURVEY_RECORD}
+        guarded = Guarded({**stone, "inventory_counts": Guarded(stone["inventory_counts"], stone_counts)}, STONE_FIELDS)
+        self.assertEqual(state_from_observation(guarded), state_from_observation(plain))
+        self.assertEqual(potential(guarded), potential(plain))
+        self.assertEqual(reward_transition(guarded, guarded, success=True), reward_transition(plain, plain, success=True))
+        # Null stone fields, as before the wooden pickaxe, are ignored the same way.
+        nulls = {**plain, **dict.fromkeys(STONE_FIELDS)}
+        self.assertEqual(state_from_observation(nulls), state_from_observation(plain))
+
+
+class ResourceBridgeCommandTests(unittest.TestCase):
+    """The transport passes the goal and the survey option to the bridge process, and nothing else changes."""
+
+    def _open(self, **settings):
+        launched = []
+
+        class Process:
+            def __init__(self, command, **_options):
+                launched.append(command)
+                self.stdin = io.StringIO()
+                self.stdout = io.StringIO(json.dumps({"id": 1, "ok": True, "result": {"connected": True}}) + "\n")
+
+            def wait(self, timeout=None):
+                return 0
+
+            def terminate(self):
+                pass
+
+            def kill(self):
+                pass
+
+        with patch.object(resource_live.subprocess, "Popen", Process):
+            with ResourceBridge(node="node.exe", port=25570, **settings) as bridge:
+                self.assertEqual(bridge.connection, {"connected": True})
+        return launched, bridge
+
+    def test_the_bridge_process_gets_the_goal_and_the_survey_option(self):
+        launched, bridge = self._open()
+        self.assertTrue(launched[0][1].endswith("resource-bridge.js"))
+        self.assertEqual(launched[0][2:], ["--port", "25570", "--goal", "wooden_pickaxe", "--stone-survey", "off"])
+        self.assertEqual((bridge.goal, bridge.stone_survey), ("wooden_pickaxe", False))
+        launched, _ = self._open(stone_survey=True)
+        self.assertEqual(launched[0][-4:], ["--goal", "wooden_pickaxe", "--stone-survey", "on"])
+        launched, _ = self._open(goal="stone_pickaxe")
+        self.assertEqual(launched[0][-4:], ["--goal", "stone_pickaxe", "--stone-survey", "off"])
+        for bad in ({"goal": "stone"}, {"goal": None}, {"stone_survey": "on"}, {"stone_survey": 1}):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                self._open(**bad)
+
+    def test_the_python_goals_match_the_bridge(self):
+        source = (Path(resource_live.__file__).resolve().parents[1] / "minecraft_bridge" / "resource-bridge.js").read_text(encoding="utf-8")
+        declared = re.search(r"^const GOALS = \[(.*)\]$", source, re.MULTILINE)
+        self.assertIsNotNone(declared)
+        self.assertEqual(tuple(re.findall(r"'([a-z_]+)'", declared.group(1))), GOALS)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "description": "Every Minecraft world-seed range that a live run, plan or experiment declaration of this project used or reserved. tests/test_seed_registry.py expands every configs/*.json plan and declaration and every retained results/**/metadata.json, and fails on a used seed that no range of its experiment covers, on an overlap between experiments that no range declares, and on any reuse of a held-out range. Before committing a new plan or declaration, add it to its experiment's sources and register its seeds here; before retaining runs, add the results folder to its experiment's sources.",
+  "seed_rule": "A run started with --world-seed f and --episodes n plays world seeds f to f + n - 1, episode k on f + k - 1 (infrastructure/resource_session.py); --world-seed defaults to 42 (infrastructure/__main__.py). A scheduler job uses first_world_seed and episodes the same way. An evaluation job with c chunks plays consecutive blocks of that range, the first n mod c chunks one episode longer, chunk k with agent seed agent_seed + k - 1 (infrastructure/parallel_runs.py, parse_plan). A continuation folder -partN starts at f plus the episodes already attempted, with the rest of the count, so it stays inside f to f + n - 1. A retained run counts first_world_seed to first_world_seed + episodes_requested - 1 from its metadata.json as used, whether or not every episode was played.",
+  "kinds": {
+    "development": "Worlds for building and debugging helpers; reusable; never validation or test evidence",
+    "validation": "Worlds declared in advance to check helpers or choose settings; may inform fixes; never a held-out test",
+    "training": "Worlds on which live learners update their tables",
+    "test": "Held-out worlds for one experiment's frozen policies; never used before it and never used to choose anything",
+    "replacement test": "A held-out range kept unused, for testing again if the code changes after the first test episode",
+    "benchmark": "Worlds of an engineering check that says nothing about learning",
+    "example": "Seeds printed in an example file; reserved so that no experiment copies them",
+    "filler": "Worlds that only keep a parallel slot busy; never analysed or reported"
+  },
+  "experiments": {
+    "wood_resource_development": {
+      "description": "Development and validation of the live wood-to-pickaxe task before the masking experiment: the PC batches at 5bb7b25, b9625f5 and e88cb7c (results/pc_resource_runs/README.md) and the retained resource smoke runs.",
+      "sources": ["results/pc_resource_runs/5bb7b25", "results/pc_resource_runs/b9625f5", "results/pc_resource_runs/e88cb7c",
+                  "results/resource_smoke"]
+    },
+    "resource_masking_experiment": {
+      "description": "The pre-registered masking experiment, run and retained at 87673b8.",
+      "sources": ["configs/resource_masking_experiment.json", "results/pc_resource_runs/87673b8"]
+    },
+    "initial_q_experiment": {
+      "description": "The initial-Q experiment declared on 24 October 2026; not yet retained when this registry was written. Add its retained folder to these sources when it is retained.",
+      "sources": ["configs/initial_q_experiment.json", "configs/initial_q_plan.json"]
+    },
+    "parallel_contention_benchmark": {
+      "description": "The contention benchmark that adopted 2 parallel slots on the desktop PC.",
+      "sources": ["configs/parallel_contention_benchmark.json", "configs/parallel_benchmark_1slot.json",
+                  "configs/parallel_benchmark_2slots.json", "configs/parallel_benchmark_4slots.json", "results/parallel_benchmark"]
+    },
+    "parallel_example_plan": {
+      "description": "The example plan; not an experiment. Its seeds are reserved so that a copied plan cannot run on them unnoticed.",
+      "sources": ["configs/parallel_example_plan.json"]
+    },
+    "stone_development": {
+      "description": "Stone-tools live checks 1 to 3 of docs/stone_tools_design.md section 7.6: the passive survey (61000-61019), the helper probes and the scripted smoke (61020-61049), and the viewer footage. Add their plans and retained folders here.",
+      "sources": []
+    },
+    "stone_helper_gate": {
+      "description": "Stone-tools live check 4 of docs/stone_tools_design.md section 7.6: the helper gate and the stone contention check, the scripted reference at 1 slot and then 2 slots in two schedules. Add their plans and retained folders here.",
+      "sources": []
+    },
+    "stone_pickaxe_experiment": {
+      "description": "The pre-registered stone-tools experiment of docs/stone_tools_design.md section 8. Add its retained folder (results/stone_runs/<commit>) here when it is retained.",
+      "sources": [],
+      "planned_sources": ["configs/stone_pickaxe_experiment.json", "configs/stone_pickaxe_plan.json"]
+    }
+  },
+  "not_world_seed_configs": {
+    "configs/course_experiment.json": "Offline grid-world simulator plan: validation_seed_start and test_seed_start are simulator episode seeds (1000000 and up), not Minecraft world seeds; tests/test_training_protocol.py keeps them apart.",
+    "configs/smoke.json": "Offline grid-world simulator plan: validation_seed_start and test_seed_start are simulator episode seeds (1000000 and up), not Minecraft world seeds; tests/test_training_protocol.py keeps them apart."
+  },
+  "ranges": [
+    {"first": 1, "last": 3, "kind": "development",
+     "purpose": "Wood-stage development worlds: online training, frozen and random-baseline checks of the 5bb7b25, b9625f5 and e88cb7c batches, the canopy reproduction and two smoke runs on seed 1",
+     "experiments": ["wood_resource_development"],
+     "reuse": {"allowed": true, "by": "any development or smoke run of the wood stage, added to this range; never validation or test evidence"}},
+    {"first": 42, "last": 46, "kind": "development",
+     "purpose": "The defaults of a run started without --world-seed: resource-train plays 42-46 (5 episodes), resource-demo 42 (1 episode); one retained smoke run on 42 (results/resource_smoke/resource-smoke-online)",
+     "experiments": ["wood_resource_development"],
+     "reuse": {"allowed": true, "by": "any run started without --world-seed; never validation or test evidence"}},
+    {"first": 100, "last": 149, "kind": "training",
+     "purpose": "Live wood-stage training worlds",
+     "experiments": ["resource_masking_experiment", "initial_q_experiment"],
+     "reuse": {"allowed": true, "by": "training runs of a declared wood-stage experiment that states the reuse in its declaration and is added to this range; never validation or test"},
+     "notes": "Masking experiment at 87673b8: masked arms 100-119, unmasked and unmasked_history arms 100-149; mx-history-sarsa-train attempted 100-123 and was continued in mx-history-sarsa-train-part1 on 124-149. The initial-Q experiment reuses 100-149 for all 12 training runs by declaration; spawn points are not deterministic, so the runs are not replays."},
+    {"first": 777, "last": 777, "kind": "development",
+     "purpose": "One ad hoc frozen evaluation of the 87673b8 unmasked Q-learning policy (24 October 2026, 07:54 UTC), found unretained in the main checkout's runs/resource-demo-20261024-075454-286065; not evidence",
+     "experiments": ["wood_resource_development"],
+     "reuse": {"allowed": true, "by": "development runs only; never validation or test evidence"}},
+    {"first": 10000, "last": 10009, "kind": "validation",
+     "purpose": "Wood-stage validation worlds of the 5bb7b25, b9625f5 and e88cb7c batches, declared before they were run",
+     "experiments": ["wood_resource_development"],
+     "reuse": {"allowed": true, "by": "further wood-stage development checks only; never a held-out test (configs/resource_masking_experiment.json excluded them from its test)"},
+     "notes": "b9625f5/pc2-q-frozen-val requested 10000-10009 but attempted only 10000-10004."},
+    {"first": 20000, "last": 20019, "kind": "test",
+     "purpose": "Held-out test worlds of the masking experiment",
+     "experiments": ["resource_masking_experiment"],
+     "reuse": {"allowed": false, "by": "no one; configs/initial_q_experiment.json declares it does not reuse them, because their failure analysis motivated it"}},
+    {"first": 30000, "last": 30019, "kind": "benchmark",
+     "purpose": "The parallel contention benchmark: the masked random baseline in four chunks of five worlds at 1, 2 and 4 slots",
+     "experiments": ["parallel_contention_benchmark"],
+     "reuse": {"allowed": true, "by": "reruns of the contention benchmark only, for example on a new PC as its declaration asks; never training, validation or test"}},
+    {"first": 40000, "last": 40019, "kind": "test",
+     "purpose": "Held-out test worlds of the initial-Q experiment: the 12 frozen policies and the uniform random baseline",
+     "experiments": ["initial_q_experiment"],
+     "reuse": {"allowed": false, "by": "no one"}},
+    {"first": 40100, "last": 40119, "kind": "filler",
+     "purpose": "iq-filler-random, a uniform random baseline that only keeps the second slot busy at the end of the initial-Q schedule; never analysed",
+     "experiments": ["initial_q_experiment"],
+     "reuse": {"allowed": false, "by": "no one"}},
+    {"first": 50000, "last": 50107, "kind": "example",
+     "purpose": "Seeds printed in configs/parallel_example_plan.json: training 50000-50009 and tests 50100-50107; the span between them is reserved with them",
+     "experiments": ["parallel_example_plan"],
+     "reuse": {"allowed": false, "by": "no experiment; the example tells its readers to choose new seeds"}},
+    {"first": 61000, "last": 61049, "kind": "development",
+     "purpose": "Stone-tools development: passive survey on 61000-61019, helper probes and scripted smoke on 61020-61049, viewer footage",
+     "experiments": ["stone_development"],
+     "reuse": {"allowed": true, "by": "stone-tools development checks, before and after fixes; never held-out evidence"}},
+    {"first": 62000, "last": 62019, "kind": "validation",
+     "purpose": "Stone-tools helper gate and stone contention check, declared in advance",
+     "experiments": ["stone_helper_gate"],
+     "reuse": {"allowed": true, "by": "repeats of the helper gate and contention check; may inform helper fixes; never a test"}},
+    {"first": 63000, "last": 63049, "kind": "training",
+     "purpose": "Stone-tools training: the same worlds for all six learners, N of 30, 40 or 50 from 63000",
+     "experiments": ["stone_pickaxe_experiment"],
+     "reuse": {"allowed": true, "by": "training runs of the stone experiment only, including a retraining after a code change; never validation or test"}},
+    {"first": 63050, "last": 63099, "kind": "training",
+     "purpose": "Reserve for stone-tools training beyond 50 episodes",
+     "experiments": ["stone_pickaxe_experiment"],
+     "reuse": {"allowed": true, "by": "training runs of the stone experiment only; never validation or test"}},
+    {"first": 64000, "last": 64019, "kind": "test",
+     "purpose": "Stone-tools held-out test worlds for all 8 arms",
+     "experiments": ["stone_pickaxe_experiment"],
+     "reuse": {"allowed": false, "by": "no one; never used before the stone experiment and never used to choose anything"}},
+    {"first": 64100, "last": 64119, "kind": "replacement test",
+     "purpose": "Stone-tools replacement test range, used only if the code changes after the first test episode",
+     "experiments": ["stone_pickaxe_experiment"],
+     "reuse": {"allowed": false, "by": "no one"}}
+  ]
+}

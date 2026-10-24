@@ -154,6 +154,14 @@ def recovery_summary(recovery) -> str:
             f"{picked_note(recovery)}{escape_note}")
 
 
+STONE_SURVEY_NOTE = (
+    "Passive stone survey (docs/stone_tools_design.md, section 7.6 item 1), in development: once a wooden pickaxe is "
+    "held, each observation also records the stone stage's fields (nearby_stone, stone_visible, stone_targets, "
+    "pickaxe_uses_left, pickaxe_digs, hostile_nearby, time_of_day, depth_below_stage_start) and a diagnostic_only "
+    "record: the depth to stone below the feet, what the staircase planner would refuse on each heading over six "
+    "simulated steps (nothing is dug), and the cost of the stone scans. These read loaded blocks the bot cannot see. "
+    "No state encoder reads them, and the wood stage's actions, events, and success rule are unchanged")
+
 CONDITION_NOTES = {
     "masked": "Disclosed feasibility/budget mask recipe_and_budget_v1 removes impossible and redundant actions; state resource_v1",
     "unmasked": "No action mask: all eight actions are allowed in every state; an infeasible action fails as an observed "
@@ -169,7 +177,7 @@ def _run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
                   policy: Path | None = None, pretrain: int = 0, evaluate: bool = False,
                   pause: float = .5, random_baseline: bool = False, condition: str | None = None,
                   port: int = PORT, parallel_slots: int = 1, schedule_id: str | None = None,
-                  initial_q: float | None = None) -> int:
+                  initial_q: float | None = None, goal: str = "wooden_pickaxe", stone_survey: bool = False) -> int:
     """Train from observed transitions, or explicitly evaluate a frozen policy.
 
     ``condition`` names the experiment condition (masked, unmasked, or
@@ -192,6 +200,11 @@ def _run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
     ``initial_q`` sets the value of untried actions for a new learning agent
     (default 0). A loaded policy carries its own, and a different explicit
     value is refused; evaluation never takes one.
+
+    ``goal`` is the bridge's goal. Only ``wooden_pickaxe`` runs here: the
+    stone goal needs the stage-2 coordinator (step S3 of the stone-tools
+    milestone), so it is refused. ``stone_survey`` runs the passive survey
+    (STONE_SURVEY_NOTE); it changes no action, event, state, or reward.
     """
     if condition is not None and condition not in CONDITIONS:
         raise ValueError(f"condition must be one of {', '.join(CONDITIONS)}")
@@ -225,6 +238,13 @@ def _run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
         if (isinstance(initial_q, bool) or not isinstance(initial_q, (int, float))
                 or not math.isfinite(initial_q) or not -100 <= initial_q <= 100):
             raise ValueError("initial_q must be a finite number from -100 to 100")
+    if goal == "stone_pickaxe":
+        raise ValueError("goal stone_pickaxe needs the stage-2 coordinator, which is step S3 of the stone-tools "
+                         "milestone; this session runs the wood goal only")
+    if goal != "wooden_pickaxe":
+        raise ValueError("goal must be wooden_pickaxe")
+    if type(stone_survey) is not bool:
+        raise ValueError("stone_survey must be True or False")
     node = runtime_paths()["node"]
     if not node or not Path(node).is_file():
         raise RuntimeError("Run setup.cmd first")
@@ -254,7 +274,8 @@ def _run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
     baseline = None
     if agent.algorithm == "random":
         baseline = "masked_random" if agent.action_mask == MASKED else "uniform_random"
-    metadata = {"evidence": EVIDENCE, "mode": mode, "algorithm": agent.algorithm,
+    metadata = {"evidence": EVIDENCE, "mode": mode, "goal": goal, "stone_survey": stone_survey,
+                "algorithm": agent.algorithm,
                 "baseline": baseline, "condition": agent.condition, "action_mask": agent.action_mask,
                 "state_version": agent.state_version, "condition_note": CONDITION_NOTES[agent.condition],
                 "episodes_requested": episodes, "first_world_seed": world_seed,
@@ -288,6 +309,7 @@ def _run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
                                     "leaf blocks beside the bot (feet and head height) towards a floored exit; never a log, "
                                     "dirt, or stone; recorded as leaf_escape (alone, or as the escape field of the descent "
                                     "record that led to it). Apart from these leaf blocks, no block is dug outside CHOP",
+                "stone_survey_note": STONE_SURVEY_NOTE if stone_survey else None,
                 "reset": "Each episode generates a separate new normal Survival world; bot has no operator permissions",
                 "seed_note": "World seed controls terrain; server timing and spawn selection are not deterministic",
                 "execution": {"server_port": port, "parallel_slots": parallel_slots, "schedule_id": schedule_id,
@@ -295,13 +317,17 @@ def _run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
                                       "machine (1 = alone). Task time and the helpers' time budgets are wall-clock, "
                                       "so the report compares only runs with equal values, and parallel runs only "
                                       "within one schedule"}}
-    sources = [ROOT / "minecraft_bridge" / "resource-bridge.js", ROOT / "minecraft_bridge" / "pnpm-lock.yaml",
+    # The bridge loads stone-helpers.js in every run (its inventory counts), so it is digested like the bridge.
+    sources = [ROOT / "minecraft_bridge" / "resource-bridge.js", ROOT / "minecraft_bridge" / "stone-helpers.js",
+               ROOT / "minecraft_bridge" / "pnpm-lock.yaml",
                ROOT / "minecraft_rl" / "resources.py", Path(__file__),
                ROOT / "minecraft_rl" / "resource_live.py", ROOT / "infrastructure" / "resource_server.py"]
     metadata["source_sha256"] = {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}
     write_json(output / "metadata.json", metadata)
     print(f"{EVIDENCE}\nMode: {mode}\nResults and worlds: {output}", flush=True)
     print(f"Condition: {agent.condition} ({CONDITION_NOTES[agent.condition]})", flush=True)
+    if stone_survey:
+        print("STONE SURVEY: diagnostic only; the wood stage runs unchanged.", flush=True)
     if baseline == "masked_random":
         print("MASKED RANDOM BASELINE: same feasibility mask and execution helpers, uniformly random "
               "allowed actions, no learning. It measures what the helpers alone achieve.", flush=True)
@@ -333,7 +359,7 @@ def _run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
         try:
             with fresh_resource_server(world_seed=world_seed + episode - 1, run_directory=output,
                                        episode=episode, mirror_output=False, port=port) as server:
-                with ResourceBridge(node=node, port=server["port"]) as bridge:
+                with ResourceBridge(node=node, port=server["port"], goal=goal, stone_survey=stone_survey) as bridge:
                     camera = Viewer(server, viewer)
                     camera.prepare(bridge)
                     observation = bridge.observe()

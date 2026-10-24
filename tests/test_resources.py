@@ -1,4 +1,5 @@
 import copy
+import hashlib
 import json
 from pathlib import Path
 import tempfile
@@ -8,6 +9,9 @@ from minecraft_rl.resources import (
     ACTION_NAMES, N_ACTIONS, ResourceAction as A, ResourceAgent,
     ResourceSimConfig, ResourceSimulator, allowed_actions, potential,
     reward_transition, state_from_observation, train_simulator,
+)
+from minecraft_rl.resources import (
+    CONDITIONS, MASKED, STATE_VERSIONS, UNMASKED, WOOD_STAGE, StageSpec, encode_state,
 )
 
 
@@ -246,6 +250,155 @@ class ResourceSimulatorTests(unittest.TestCase):
                        {"gamma": 1}, {"reward_mode": "other"}):
             with self.assertRaises(ValueError):
                 ResourceSimConfig(**kwargs)
+
+
+ROOT = Path(__file__).resolve().parents[1]
+STAGE1_POLICY = ROOT / "results" / "pc_resource_runs" / "87673b8" / "mx-unmasked-q-train" / "policy.json"
+# SHA-256 of the text ResourceAgent.save wrote at 409560e, before stage specifications existed, for
+# golden_agents() with GOLDEN_METADATA. Text is compared with "\n" line ends, so it holds on every platform.
+GOLDEN_METADATA = {"source": "golden", "episode": 3}
+GOLDEN_POLICY_SHA256 = {
+    "masked-q_learning": "5b2cbd179f2d830473388e3d355cb0236a499a566ac6cfe45f5dd7edaf4f0ee5",
+    "masked-sarsa": "4fa803c64303a3ddeac669ebc13a5e9228de141f1b83c4a7c920bc7c52b71e17",
+    "unmasked-q_learning": "22bed71634776b2535ee2ebb9be51f7d3d7b9a8fb1809b74702393ab5370e6df",
+    "unmasked-sarsa": "33625b1a9ebc0434811dc6ddb7d50654bb187fd51e974c7c297aea0d028e0f28",
+    "unmasked_history-q_learning": "f06c6ff2fd2d39d068f29ced0d56cec20c2859c9637a0e70815547e7e022db35",
+    "unmasked_history-sarsa": "73311458eff17774c8bf7423eacc59392f05b2ff0c59291b12ac5239fca569c1",
+}
+# The stage-1 checkpoint loaded and saved again with its own metadata, by the code at 409560e.
+STAGE1_RESAVED_SHA256 = "4bfa894322463c854c580fc203cfdac9a34b9e87812ecbe9929b5f475bce837b"
+WOOD_RESULT_FOLDERS = ("pc_resource_runs", "parallel_benchmark", "resource_smoke")
+
+
+def golden_agents():
+    """Deterministic wood agents for every condition and both learners; the Q values are arbitrary."""
+    for name, (mask, version) in CONDITIONS.items():
+        for algorithm in ("q_learning", "sarsa"):
+            agent = ResourceAgent(algorithm, alpha=0.3, gamma=0.9, seed=5, action_mask=mask, state_version=version,
+                                  initial_q=-0.5 if algorithm == "sarsa" else 0.0)
+            for k in range(3):
+                base = (k, 2 * k, min(2, k), k % 2, 0, 1, k % 2, 1, 2)
+                agent.q[encode_state(base, version, bool(k % 2))] = [
+                    round(0.1 * (k + 1) * (a - 3.5), 6) + 1 / 3 for a in range(N_ACTIONS)]
+            yield f"{name}-{algorithm}", agent
+
+
+def legacy_save(agent, path, metadata=None):
+    """ResourceAgent.save exactly as it was at 409560e, before stage specifications."""
+    fields, caps = STATE_VERSIONS[agent.state_version]
+    payload = {
+        "format_version": 1, "environment": agent.state_version,
+        "algorithm": agent.algorithm, "alpha": agent.alpha, "gamma": agent.gamma,
+        "initial_q": agent.initial_q,
+        "actions": list(ACTION_NAMES), "state_fields": list(fields),
+        "state_caps": list(caps), "action_mask": agent.action_mask,
+        "condition": agent.condition, "metadata": metadata or {},
+        "q": [{"state": list(s), "values": v} for s, v in sorted(agent.q.items())],
+    }
+    Path(path).write_text(json.dumps(payload, indent=2, allow_nan=False), encoding="utf-8")
+
+
+def text_sha256(path):
+    return hashlib.sha256(Path(path).read_text(encoding="utf-8").encode("utf-8")).hexdigest()
+
+
+class StageSpecificationTests(unittest.TestCase):
+    def test_the_wood_stage_is_the_default_and_wraps_the_existing_tables(self):
+        self.assertIs(ResourceAgent().stage, WOOD_STAGE)
+        self.assertEqual((WOOD_STAGE.name, WOOD_STAGE.actions, WOOD_STAGE.n_actions), ("wood", ACTION_NAMES, N_ACTIONS))
+        self.assertIs(WOOD_STAGE.state_versions, STATE_VERSIONS)
+        self.assertIs(WOOD_STAGE.conditions, CONDITIONS)
+        self.assertEqual(N_ACTIONS, 8)
+        defaults = ResourceAgent()
+        self.assertEqual((defaults.action_mask, defaults.state_version, defaults.condition),
+                         (MASKED, "resource_v1", "masked"))
+        self.assertEqual(ResourceAgent(action_mask=UNMASKED).condition, "unmasked")
+        self.assertEqual(ResourceAgent(action_mask=UNMASKED, state_version="resource_v2").condition, "unmasked_history")
+        self.assertEqual(ResourceAgent(action_mask=MASKED, state_version="resource_v1").condition, "masked")
+        self.assertEqual(ResourceAgent().allowed(S), allowed_actions(S))
+
+    def test_wood_policy_files_are_byte_identical_to_the_format_before_stages(self):
+        with tempfile.TemporaryDirectory() as directory:
+            new, old = Path(directory) / "new.json", Path(directory) / "old.json"
+            labels = []
+            for label, agent in golden_agents():
+                with self.subTest(policy=label):
+                    agent.save(new, GOLDEN_METADATA)
+                    legacy_save(agent, old, GOLDEN_METADATA)
+                    self.assertEqual(new.read_bytes(), old.read_bytes())
+                    self.assertEqual(text_sha256(new), GOLDEN_POLICY_SHA256[label])
+                    self.assertNotIn("stage", json.loads(new.read_text(encoding="utf-8")))
+                    loaded = ResourceAgent.load(new)
+                    self.assertEqual((loaded.q, loaded.condition, loaded.initial_q),
+                                     (agent.q, agent.condition, agent.initial_q))
+                    labels.append(label)
+            self.assertEqual(labels, list(GOLDEN_POLICY_SHA256))
+
+    def test_the_retained_stage1_checkpoint_loads_unchanged(self):
+        # Read only: the accepted stage-1 policy (design section 5); nothing under results/ is written.
+        digest = "7d0fcce8653df8d4afc0867b321fd9670a8c64ab6ef03a876c64b9cd1c9e0349"
+        self.assertEqual(hashlib.sha256(STAGE1_POLICY.read_bytes()).hexdigest(), digest)
+        agent = ResourceAgent.load(STAGE1_POLICY)
+        payload = json.loads(STAGE1_POLICY.read_text(encoding="utf-8"))
+        self.assertNotIn("initial_q", payload)
+        self.assertEqual((agent.condition, agent.algorithm, agent.state_version, agent.alpha, agent.gamma,
+                          agent.initial_q), ("unmasked", "q_learning", "resource_v1", 0.2, 0.97, 0.0))
+        self.assertEqual(len(agent.q), 180)
+        self.assertEqual(agent.q, {tuple(entry["state"]): entry["values"] for entry in payload["q"]})
+        with tempfile.TemporaryDirectory() as directory:
+            new, old = Path(directory) / "new.json", Path(directory) / "old.json"
+            agent.save(new, payload["metadata"])
+            legacy_save(agent, old, payload["metadata"])
+            self.assertEqual(new.read_bytes(), old.read_bytes())
+            self.assertEqual(text_sha256(new), STAGE1_RESAVED_SHA256)
+        self.assertEqual(hashlib.sha256(STAGE1_POLICY.read_bytes()).hexdigest(), digest)
+
+    def test_every_retained_wood_policy_still_loads(self):
+        paths = sorted(path for folder in WOOD_RESULT_FOLDERS for path in (ROOT / "results" / folder).rglob("*.json")
+                       if path.name in ("policy.json", "initial_policy.json"))
+        self.assertGreaterEqual(len(paths), 100)
+        versions = set()
+        for path in paths:
+            with self.subTest(policy=str(path.relative_to(ROOT))):
+                payload = json.loads(path.read_text(encoding="utf-8"))
+                agent = ResourceAgent.load(path)
+                versions.add((agent.state_version, agent.condition))
+                self.assertEqual(agent.q, {tuple(entry["state"]): entry["values"] for entry in payload["q"]})
+                self.assertEqual(agent.initial_q, payload.get("initial_q", 0.0))
+        self.assertEqual(versions, {("resource_v1", "masked"), ("resource_v1", "unmasked"),
+                                    ("resource_v2", "unmasked_history")})
+
+    def test_a_policy_saved_by_another_stage_is_refused_with_a_clear_error(self):
+        toy = StageSpec("toy", ("LEFT", "RIGHT"), {"toy_v1": (("x",), (1,))}, {"toy_free": (UNMASKED, "toy_v1")},
+                        lambda state, mask, version: (0, 1), "toy_free")
+        toy_agent = ResourceAgent(stage=toy)
+        toy_agent.update((0,), 1, 1.0, (1,), True)
+        wood_agent = ResourceAgent()
+        wood_agent.update(S, A.CHOP, 0.4, T, False)
+        with tempfile.TemporaryDirectory() as directory:
+            toy_path, wood_path = Path(directory) / "toy.json", Path(directory) / "wood.json"
+            toy_agent.save(toy_path)
+            wood_agent.save(wood_path)
+            self.assertEqual(json.loads(toy_path.read_text(encoding="utf-8"))["stage"], "toy")
+            self.assertEqual(ResourceAgent.load(toy_path, stage=toy).q, toy_agent.q)
+            with self.assertRaisesRegex(ValueError, "saved by the toy stage .*a wood-stage agent cannot load it"):
+                ResourceAgent.load(toy_path)
+            with self.assertRaisesRegex(ValueError, "saved by the wood stage .*a toy-stage agent cannot load it"):
+                ResourceAgent.load(wood_path, stage=toy)
+            payload = json.loads(wood_path.read_text(encoding="utf-8"))
+            payload["stage"] = "stone"
+            wood_path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "saved by the stone stage"):
+                ResourceAgent.load(wood_path)
+            # Naming the wood stage explicitly is the same as leaving the key out.
+            payload["stage"] = "wood"
+            wood_path.write_text(json.dumps(payload), encoding="utf-8")
+            self.assertEqual(ResourceAgent.load(wood_path).q, wood_agent.q)
+            for bad in ([], 7):
+                payload["environment"] = bad
+                wood_path.write_text(json.dumps(payload), encoding="utf-8")
+                with self.subTest(environment=bad), self.assertRaises(ValueError):
+                    ResourceAgent.load(wood_path)
 
 
 if __name__ == "__main__":

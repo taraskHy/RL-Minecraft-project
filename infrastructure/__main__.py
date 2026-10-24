@@ -93,8 +93,10 @@ def checks() -> int:
                 [sys.executable, "-m", "unittest", "discover", "-s", "minecraft_bridge", "-p", "test_live.py", "-v"]]
     node = runtime_paths().get("node")
     if node and Path(node).is_file():
-        commands += [[node, "--test", "minecraft_bridge/bridge.test.js", "minecraft_bridge/survival-probe.test.js", "minecraft_bridge/resource-bridge.test.js"],
+        commands += [[node, "--test", "minecraft_bridge/bridge.test.js", "minecraft_bridge/survival-probe.test.js", "minecraft_bridge/resource-bridge.test.js",
+                      "minecraft_bridge/stone-helpers.test.js", "minecraft_bridge/stone-mechanics.test.js"],
                      [node, "--check", "minecraft_bridge/resource-bridge.js"],
+                     [node, "--check", "minecraft_bridge/stone-helpers.js"],
                      [node, "--check", "minecraft_bridge/survival-probe.js"],
                      [node, "minecraft_bridge/runtime-smoke.js"]]
     else:
@@ -233,6 +235,10 @@ def resources(arguments: list[str], *, evaluate: bool = False) -> int:
                    help="Recorded number of live episodes running at once on this PC (resource-parallel sets it; "
                         "1 = alone). The report compares only runs with equal values")
     p.add_argument("--schedule-id", help="Set by resource-parallel: the schedule this run belongs to (recorded)")
+    p.add_argument("--stone-survey", action="store_true",
+                   help="In development (stone-tools step S2): once a wooden pickaxe is held, observations also record "
+                        "the stone stage's fields and a diagnostic_only survey record. Nothing the policy sees or does "
+                        "changes")
     if evaluate:
         p.add_argument("--random-baseline", action="store_true",
                        help="Evaluate the random baseline instead of a checkpoint: same helpers, uniformly random "
@@ -258,7 +264,7 @@ def resources(arguments: list[str], *, evaluate: bool = False) -> int:
                          pretrain=getattr(args, "pretrain", 0),
                          random_baseline=getattr(args, "random_baseline", False), condition=args.condition,
                          port=args.port, parallel_slots=args.parallel_slots, schedule_id=args.schedule_id,
-                         initial_q=getattr(args, "initial_q", None))
+                         initial_q=getattr(args, "initial_q", None), stone_survey=args.stone_survey)
 
 
 def resource_parallel(arguments: list[str]) -> int:

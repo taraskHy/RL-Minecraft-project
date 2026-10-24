@@ -9,8 +9,8 @@
   "packageManager": "pnpm@11.25.0",
   "scripts": {
     "start": "node bridge.js",
-    "test": "node --test bridge.test.js survival-probe.test.js resource-bridge.test.js",
-    "check": "node --check bridge.js && node --check resource-bridge.js",
+    "test": "node --test bridge.test.js survival-probe.test.js resource-bridge.test.js stone-helpers.test.js stone-mechanics.test.js",
+    "check": "node --check bridge.js && node --check resource-bridge.js && node --check stone-helpers.js",
     "smoke": "node runtime-smoke.js"
   },
   "dependencies": {
