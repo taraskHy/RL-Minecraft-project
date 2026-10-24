@@ -230,9 +230,51 @@ results as Minecraft results.
      player's view edge, so every dug cell reads light 0. **Decision 9 therefore
      took its declared fallback: the rule is off; stone in dark places counts as
      visible, and this is disclosed.**
-- **Fixes:** a fix round addressed all 37 confirmed findings; the branch's
-  latest commits and design section 9 say exactly what changed. **The fixes have
-  not been reviewed yet.**
+- **Fixes: commit `86c7738`** addressed all 37 confirmed findings. Its commit
+  message and design section 9 say exactly what changed. The main additions:
+  - `gravity_beside` and `stair_support` refusals in `digVerdict`;
+  - a staircase keeps its heading and never reverses;
+  - a bounded climb search with the real pathfinder (`climbSearch`, at most 400
+    nodes) replaces the one-step reversibility check, for stair steps and for
+    every reach candidate;
+  - the lit-face rule is off;
+  - `stone_targets` (seen targets) and `stone_reach_candidates` (reach list);
+  - the depth reference is the natural floor under the hand-off.
+
+  Tests at `86c7738`: 249 Python, 5 live-adapter and 81 Node, all passing.
+  `codex/pc-canopy-descent` at the reset: 161 Python, 5 and 31 Node. **The fixes
+  have not been reviewed yet.** The server-jar scans behind decision 9 are in
+  `docs/reviews/evidence/` on the stone branch (see `docs/reviews/README.md`).
+- **What S3 inherits** (from the fix agents; details in design section 9):
+  - **Integration.** MINE_STONE and DIG_DOWN must take their context from the
+    bridge's shared stone scene: the same climb search, own table, latched stage
+    start and `pickaxeType`. DIG_DOWN's live record is passed as `ctx.stair` to
+    both the observation and the actions, so `nearby_stone` and MINE_STONE agree.
+    DIG_DOWN's 12-block depth cap uses the stage-start reference, not the raw
+    hand-off y. Call `chooseStairHeading` only at a staircase's start, or with
+    `ctx.stair` set.
+  - **Fan against reach.** Fan targets (`stone_visible`, SEARCH_STONE) skip the
+    drop band and the climb check, and `nearby_stone` applies both. So stone over
+    a pit gives `stone_visible=1, nearby_stone=0`, and SEARCH_STONE can walk to a
+    target MINE_STONE refuses; `GoalMineStone` and `stone_path_blocked` must
+    handle it.
+  - **Cost.** The climb check adds about 0 to 2 ms on the surface and in the
+    worked staircase. It adds about 10 to 16 ms in a closed cave, and 55 to 100
+    ms in an open cave full of exposed stone with a narrow exit (offline
+    figures; measure live in S4).
+  - **Fail-closed.** Any unloaded read in a climb search refuses, so near an
+    unloaded chunk `nearby_stone` goes 0. With server view distance 8 this
+    should not happen live.
+  - **Not built yet:** the tick-12000 night flag of 4.10; `HOSTILE_STOP_RADIUS`
+    (6, exported, unused); the static digBlock count and the "DIG_DOWN never
+    digs stone" check; the stone disclosure text (4.12 item 7); digesting
+    `minecraft_rl/stone.py`.
+  - **Two traps for teammates.** The wood-equivalence test needs commit
+    `409560e` reachable, which only these two codex branches have, so a squash
+    merge or a main-only clone fails it, with instructions. The seed-registry
+    test is now strict: every `configs/**.json` must be registered or listed as
+    not holding world seeds; any seed field it cannot read fails; any frozen or
+    baseline evaluation on a training range fails.
 
 ## Open decisions for the user
 
@@ -246,11 +288,26 @@ results as Minecraft results.
    (recommended: after its second review and after the initial-Q run has ended),
    and whether to open pull request #2 into `main` for the 15+ commits since
    pull request #1.
-4. **Small open questions from the S1 builders** (the code has defaults):
-   whether the S2 survey should also simulate the pre-step moves (stepping off
-   the table, the canopy descent, centring); whether `--stone-survey` should be
-   refused for `resource-train`; whether the reserved but unused seeds 50010 to
-   50099 should be released.
+4. **Small open questions from the S1 builders and fixers** (the code has a
+   default for each):
+   - Should the S2 survey also simulate the pre-step moves (stepping off the
+     table, the canopy descent, centring)?
+   - Should `--stone-survey` be refused for `resource-train`?
+   - Should the reserved but unused seeds 50010 to 50099 be released?
+   - The climb check's goal is the stage-start height, a stand-in for the
+     table. Should it be the table's approach cells instead?
+   - Should the hand-off cell's floor be protected even when a staircase starts
+     elsewhere?
+   - After the wooden pickaxe breaks, both stone bits read 0. Is that the wanted
+     state for a `pickaxe_broken` episode?
+   - Should `depth_below_stage_start` be clamped at 0? Today it is -1 on a log
+     stump.
+   - Is 55 to 100 ms of climb check per observation acceptable in big open
+     caves?
+   - Keep or drop the per-step 8 s dig check? It can never fire with the
+     allowed dig classes.
+   - Should development stone runs be retained under `results/stone_runs/` or a
+     separate root? Either way, each must be registered in the seed registry.
 
 Already decided (do not reopen): the 12 stone recommendations; decision 9's
 fallback; the near-table rule is a first-step heading filter; `stone_targets`
