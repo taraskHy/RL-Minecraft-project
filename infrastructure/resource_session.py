@@ -118,6 +118,14 @@ def _save_policy(agent: ResourceAgent, path: Path, metadata: dict) -> None:
     # A complete checkpoint replaces the prior one only after its write finishes.
     temporary = path.with_suffix(".tmp")
     agent.save(temporary, metadata=metadata)
+    for _ in range(30):
+        try:
+            temporary.replace(path)
+            return
+        except PermissionError:
+            # Windows refuses the replace while another program (a virus scanner, the search indexer)
+            # holds policy.json open for a moment; at 87673b8 this once invalidated a training episode.
+            time.sleep(0.1)
     temporary.replace(path)
 
 

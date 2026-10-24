@@ -191,6 +191,28 @@ class ResourceSessionTests(unittest.TestCase):
                                                                        "direction": "+x", "escaped": True, "stopped": None}}),
                          "canopy_descent:layers=2,descent=2.0,damage=0,stopped=-,escape_blocks=2,escaped=True")
 
+    def test_a_policy_held_open_for_a_moment_is_still_replaced(self):
+        agent = MagicMock()
+        agent.save.side_effect = lambda path, metadata: Path(path).write_text("new", encoding="utf-8")
+        policy = self.root / "policy.json"
+        policy.write_text("old", encoding="utf-8")
+        real_replace, refusals = Path.replace, []
+
+        def replace(source, target):
+            if len(refusals) < 2:
+                refusals.append(1)
+                raise PermissionError(5, "Access is denied")
+            return real_replace(source, target)
+
+        with patch.object(Path, "replace", replace):
+            resource_session._save_policy(agent, policy, {})
+        self.assertEqual((policy.read_text(encoding="utf-8"), len(refusals)), ("new", 2))
+        self.assertFalse(policy.with_suffix(".tmp").exists())
+        # A file that stays locked still fails loudly instead of being skipped.
+        with patch.object(Path, "replace", side_effect=PermissionError(5, "Access is denied")):
+            with self.assertRaises(PermissionError):
+                resource_session._save_policy(agent, policy, {})
+
     def test_missing_or_failed_observation_is_invalid_without_invented_policy_result(self):
         following = deepcopy(self.start)
         following.update(nearby_log=True, event="found_log")
