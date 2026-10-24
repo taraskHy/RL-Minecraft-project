@@ -290,6 +290,15 @@ class ResourceReportTests(unittest.TestCase):
                                   extra={"initial_q": "low"})
         with self.assertRaisesRegex(ValueError, "initial_q"):
             load_run(bad)
+        # The history-bit test never pairs checkpoints trained from different initial values.
+        history = self._condition_run("h-low", "unmasked_history", "frozen_evaluation", "q_learning", [True],
+                                      checkpoint="b" * 64, extra={"initial_q": -1.0})
+        plain_zero = self._condition_run("p-zero", "unmasked", "frozen_evaluation", "q_learning", [True],
+                                         checkpoint="c" * 64)
+        self.assertEqual(summarize_runs([history, plain_zero])["history_comparisons"], [])
+        rows = summarize_runs([history, frozen])["history_comparisons"]
+        self.assertEqual([(r["initial_q"], r["seeds_compared"]) for r in rows], [(-1.0, 1)])
+        self.assertIn("| q_learning (initial Q -1) |", render_markdown(summarize_runs([history, frozen])))
 
     def test_conditions_are_never_pooled_and_legacy_runs_read_as_masked(self):
         legacy = self._condition_run("legacy", None, "frozen_evaluation", "random", [True, True], baseline="masked_random")

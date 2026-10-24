@@ -243,8 +243,9 @@ def resources(arguments: list[str], *, evaluate: bool = False) -> int:
         p.add_argument("--epsilon-end", type=float, default=.1)
         p.add_argument("--pretrain", type=int, default=0, help="Optional explicitly labeled simulator warm-up episodes; default learns from scratch")
         p.add_argument("--initial-q", type=float, default=None,
-                       help="Value of every action before its first update in a state (default 0). A value below the "
-                            "step cost makes untried actions look worse than tried ones. A --policy carries its own")
+                       help="Value of every action before its first update in a state (default 0). An action that "
+                            "fails in place converges to about -0.33 minus the state's shaping potential, so untried "
+                            "actions rank below it only where the value is lower than that. A --policy carries its own")
     args = p.parse_args(arguments)
     if evaluate and bool(args.policy) == bool(args.random_baseline):
         p.error("pass exactly one of --policy PATH or --random-baseline")

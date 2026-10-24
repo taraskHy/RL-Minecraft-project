@@ -378,6 +378,19 @@ class ResourceSessionTests(unittest.TestCase):
         self._train("pessimistic-same", None, 1, policy=output / "policy.json", initial_q=-1.0)
         default, _ = self._train("default-q", "unmasked", 1, algorithm="q_learning")
         self.assertEqual(json.loads((default / "metadata.json").read_text())["initial_q"], 0.0)
+        # A frozen evaluation records the evaluated policy's value, which the declared analysis checks;
+        # a random baseline has none.
+        frozen, _ = self._train("pessimistic-test", None, 1, evaluate=True, policy=output / "policy.json")
+        self.assertEqual(json.loads((frozen / "metadata.json").read_text())["initial_q"], -1.0)
+        baseline, _ = self._train("random-test", "unmasked", 1, evaluate=True, random_baseline=True)
+        self.assertIsNone(json.loads((baseline / "metadata.json").read_text())["initial_q"])
+        # Simulator pretraining keeps the value in the agent it hands to live training.
+        with patch.object(resource_session, "train_simulator", wraps=resource_session.train_simulator) as pretrain:
+            warmed, _ = self._train("pessimistic-pretrained", "unmasked", 1, algorithm="q_learning", initial_q=-1.0,
+                                    pretrain=3)
+        self.assertEqual(pretrain.call_args.kwargs["initial_q"], -1.0)
+        self.assertEqual((ResourceAgent.load(warmed / "initial_policy.json").initial_q,
+                          json.loads((warmed / "metadata.json").read_text())["initial_q"]), (-1.0, -1.0))
         policy = output / "policy.json"
         refused = ({"policy": policy, "initial_q": 0.0}, {"policy": policy, "initial_q": -1.0, "evaluate": True},
                    {"condition": "unmasked", "random_baseline": True, "evaluate": True, "initial_q": -1.0},

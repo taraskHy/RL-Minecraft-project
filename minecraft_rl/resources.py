@@ -233,10 +233,11 @@ class ResourceAgent:
     """Q-learning or SARSA with epsilon-greedy selection over a condition's allowed actions.
 
     ``initial_q`` is the value of every action in a state before its first
-    update. With the default 0 and a negative step cost, actions never tried
-    in a state look better than useful actions tried there; a value below
-    the step cost (pessimistic initialisation) makes untried actions look
-    worse instead.
+    update (default 0). With potential-based shaping, an action that fails in
+    place converges towards -0.01 / (1 - gamma) - Phi(s), about -0.33 - Phi(s),
+    so untried actions at ``initial_q`` look worse than a tried, failing one
+    only where ``initial_q`` is below that value: the effect depends on the
+    state's potential, not on the step cost alone.
     """
 
     def __init__(self, algorithm: str = "q_learning", alpha: float = 0.2,

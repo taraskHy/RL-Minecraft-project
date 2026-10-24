@@ -419,7 +419,7 @@ def compare_history(groups: list[dict]) -> list[dict]:
                     or plain["initial_q"] != history["initial_q"] or not _same_setup(history, plain)):
                 continue
             row = {"algorithm": history["algorithm"], "parallel_slots": history["parallel_slots"],
-                   "history_checkpoint": history["checkpoint_sha256"],
+                   "initial_q": history["initial_q"], "history_checkpoint": history["checkpoint_sha256"],
                    "unmasked_checkpoint": plain["checkpoint_sha256"], **_paired(history, plain)}
             if not row["seeds_compared"]:
                 row["verdict"] = "not compared: no seed was completed by both"
@@ -583,7 +583,8 @@ def render_markdown(summary: dict) -> str:
                   "| --- | --- | --- | --- | --- | --- | --- |"]
         for h in history:
             p = "n/a" if h["fisher_p"] is None else f"{h['fisher_p']:.3g}"
-            lines.append(f"| {h['algorithm']} | {h['parallel_slots']} | {h['seeds_compared']} | "
+            policy = h["algorithm"] + (f" (initial Q {h['initial_q']:g})" if h.get("initial_q") else "")
+            lines.append(f"| {policy} | {h['parallel_slots']} | {h['seeds_compared']} | "
                          f"{h['learned_successes']}/{h['learned_completed']} "
                          f"({_interval(h['learned_wilson_95'])}) | {h['baseline_successes']}/{h['baseline_completed']} "
                          f"({_interval(h['baseline_wilson_95'])}) | {p} | {h['verdict']} |")

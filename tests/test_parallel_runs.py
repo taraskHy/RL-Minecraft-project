@@ -4,6 +4,7 @@ import contextlib
 import io
 import json
 from pathlib import Path
+import re
 import signal
 import subprocess
 import tempfile
@@ -577,13 +578,27 @@ class ParallelRunTests(unittest.TestCase):
         # The benchmark runs can be reported together: no two share a folder name.
         # Three benchmark plans of four chunks, and the example's two training runs and three four-chunk tests.
         self.assertEqual(len(names), 3 * 4 + 2 + 3 * 4)
-        # The declared initial-Q experiment: 12 training runs from initial Q 0 and -1, then 13 tests.
+        # The declared initial-Q experiment: 12 training runs, 12 policy tests and the random baseline, every job's
+        # settings matching its name, then one filler run that is never analysed.
         plan, units = parse_plan((configs / "initial_q_plan.json").read_text(encoding="utf-8"))
-        train = [u for u in units if u.job["kind"] == "train"]
-        self.assertEqual((plan["slots"], len(units), len(train)), (2, 25, 12))
-        self.assertEqual(sorted({(u.job["initial_q"], u.agent_seed) for u in train}),
-                         [(-1.0, 0), (-1.0, 1), (-1.0, 2), (0.0, 0), (0.0, 1), (0.0, 2)])
-        self.assertEqual({u.first_world_seed for u in units if u.job["kind"] == "evaluate"}, {40000})
+        run = re.compile(r"^iq-(q|sarsa)-(zero|pess)-s(\d)-(train|test)$")
+        self.assertEqual((plan["slots"], len(units)), (2, 26))
+        named = [(u, run.match(u.name)) for u in units]
+        self.assertEqual(sum(1 for _, m in named if m), 24)
+        for unit, match in named:
+            if not match:
+                continue
+            short, arm, seed, kind = match.groups()
+            if kind == "train":
+                self.assertEqual((unit.job["algorithm"], unit.job["initial_q"], unit.agent_seed, unit.first_world_seed,
+                                  unit.episodes, unit.job["condition"]),
+                                 ({"q": "q_learning", "sarsa": "sarsa"}[short], {"zero": 0.0, "pess": -1.0}[arm],
+                                  int(seed), 100, 50, "unmasked"))
+            else:
+                self.assertEqual((unit.depends_on, unit.first_world_seed, unit.episodes),
+                                 (unit.name.replace("-test", "-train"), 40000, 20))
+        self.assertEqual([u.name for u in units[-2:]], ["iq-random-test", "iq-filler-random"])
+        self.assertEqual((units[-2].first_world_seed, units[-1].first_world_seed), (40000, 40100))
 
 
 if __name__ == "__main__":
