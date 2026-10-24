@@ -6,9 +6,14 @@ every result. For the full technical history read [HANDOFF_PC.md](HANDOFF_PC.md)
 for every measured number read
 [results/pc_resource_runs/README.md](results/pc_resource_runs/README.md).
 
-**Last updated:** 24 October 2026, 10:30 (branch `codex/pc-canopy-descent`,
-pull request [#1](https://github.com/taraskHy/RL-Minecraft-project/pull/1),
-not yet merged into `main`).
+**Last updated:** 24 October 2026, evening (branch `codex/pc-canopy-descent`;
+pull request [#1](https://github.com/taraskHy/RL-Minecraft-project/pull/1)
+was merged into `main` on 23 October, and the 15+ commits since then are not on
+`main` yet).
+
+**Right now:** nothing is running. The desktop PC is being reset, and the work
+continues on a new machine from [HANDOFF_PC.md](HANDOFF_PC.md). Every branch is
+pushed. The initial-Q experiment has **not** been run yet.
 
 ## Goal and where we are
 
@@ -112,12 +117,17 @@ failure.
 ## Planned next
 
 - **Initial-Q experiment, ready to launch (not started).** It runs overnight
-  on the desktop PC at 2 slots, for an estimated 10 to 12 hours, so start it
-  in the early evening:
+  at 2 slots, for an estimated 10 to 12 hours, so start it in the early
+  evening. Two slots were measured only on the old desktop PC: on a new
+  machine, rerun the contention benchmark first (see "Set up on your own
+  machine").
 
   ```powershell
   .\run.cmd resource-parallel configs\initial_q_plan.json
+  powershell -ExecutionPolicy Bypass -File scripts\watch_schedule.ps1 runs\iq-experiment
   ```
+
+  The second command follows every run's log while the schedule runs.
 
   - **What it compares.** Unmasked Q-learning and SARSA trained from an
     initial Q of 0 against -1, three agents each, 50 live episodes per agent.
@@ -132,20 +142,35 @@ failure.
     state's potential (about 1.9 there). Either way, three agents per arm
     measure how reliably learning succeeds.
   - **Keep the PC free while it runs.**
-- **Stone tools: the design is ready for review.**
-  [docs/stone_tools_design.md](docs/stone_tools_design.md) has the full
-  milestone: five new macro actions (including a safe dig-down staircase), a
-  48-state learner after the frozen wood policy, the simulator study, the
-  tests, a pre-registered experiment on new seeds 61000-64119, and a schedule
-  to the 19 November assessment. Its section 11 lists the decisions the team
-  needs to make. All stone code goes in a separate worktree, so tonight's run
-  is not disturbed.
-- **Use parallel live runs for the next experiment.** On the desktop PC, use
-  `.\run.cmd resource-parallel PLAN` with `"slots": 2` (see the next
-  section). Run every arm of one experiment in one schedule with the same
-  slot count, because task time is a measured outcome.
-- **GPUs.** The PC has an RTX 2000 Ada (16 GB), and an RTX 5080 machine is
-  coming. Today's work does not use a GPU: tabular Q-learning is a table
+- **Stone tools: design accepted, step S1 built offline, one review done.**
+  [docs/stone_tools_design.md](docs/stone_tools_design.md) has the milestone:
+  five new macro actions (including a safe dig-down staircase), a 48-state
+  learner after the frozen wood policy, the simulator study, a pre-registered
+  experiment on new seeds 61000-64119, and a schedule to the 19 November
+  assessment. Branch `codex/stone-tools` has step S1, all offline:
+  - the dig safety rules, the staircase planner and stone perception, tested
+    against the pinned game data;
+  - `--goal` and a `--stone-survey` option in the bridge, with the wood stage
+    unchanged by default;
+  - the Python stone state, its reward and a simulator;
+  - a seed registry whose test fails if two experiments share worlds without
+    declaring it.
+
+  A seven-part review confirmed 37 findings, and all were fixed. The three
+  serious ones: a dig could bring down unsupported sand or gravel; mining
+  could cut the bot's way back up its own staircase; and the "only lit stone
+  counts" rule would have hidden every stone the bot uncovers by digging,
+  because the server never sends light updates for the bot's own digs. That
+  rule is now off, as the design's fallback says. The fixes still need a
+  second review before the stone code is merged or used live. No stone episode
+  has been run.
+- **Use parallel live runs for the next experiment.** Use
+  `.\run.cmd resource-parallel PLAN` with `"slots": 2` once the benchmark
+  has confirmed 2 slots on your machine (see the next section). Run every arm
+  of one experiment in one schedule with the same slot count, because task
+  time is a measured outcome.
+- **GPUs.** The old PC had an RTX 2000 Ada (16 GB), and an RTX 5080 machine
+  is coming. Today's work does not use a GPU: tabular Q-learning is a table
   lookup, and the Minecraft server and the bot run on the CPU. The GPU becomes
   useful when a later stage needs a neural network (for example DQN, which the
   course allows only when justified) or many fast simulator rollouts.
@@ -153,7 +178,7 @@ failure.
 ## Set up on your own machine
 
 1. Install Python 3.12 or newer, clone the repository, and check out
-   `codex/pc-canopy-descent` (or `main` once pull request #1 is merged).
+   `codex/pc-canopy-descent` (`main` has only the work up to pull request #1).
 2. Double-click `setup.cmd`. It installs portable Java, Node and the pinned
    Minecraft 1.21.4 server inside the project folder.
 3. Run `.\run.cmd test` and check that everything passes.
@@ -164,6 +189,10 @@ failure.
    --condition unmasked --episodes 5`, then join `127.0.0.1:25567` in
    Minecraft Java 1.21.4. Your camera follows the bot, and chat shows rewards
    and Q-value updates.
+
+6. Before running live episodes in parallel on your machine, rerun the
+   contention benchmark (`configs/parallel_benchmark_1slot.json`, `_2slots`,
+   `_4slots`, with the rule in `configs/parallel_contention_benchmark.json`).
 
 The [Windows setup guide](docs/windows_setup.md) and
 [natural-resource training guide](docs/resource_training.md) have every
@@ -176,8 +205,10 @@ update log below when you start, so we do not duplicate work.
 
 1. **Stone tools, the next milestone.** The design is in
    [docs/stone_tools_design.md](docs/stone_tools_design.md) and was accepted
-   on 24 October; section 9 splits it into ordered steps. Step S1 is taken
-   (branch `codex/stone-tools`); later steps build on it.
+   on 24 October; section 9 splits it into ordered steps. Step S1 is built
+   on branch `codex/stone-tools` and needs a second review of its fixes;
+   S2 (a 25-minute passive survey of where stone is) and the later steps
+   build on it.
 2. **Sparse rewards.** The experiment uses potential-based shaping. A
    separate condition with only the step cost and the final +10/-10 would be
    the purest learning test; it needs more training episodes.
@@ -232,6 +263,12 @@ update log below when you start, so we do not duplicate work.
 
 ## Update log
 
+- **24 Oct 2026, evening:** stone step S1 built offline on
+  `codex/stone-tools` and reviewed once; all 37 confirmed findings fixed, and
+  a second review is still to do. The "lit stone only" rule was dropped (the
+  server sends no light updates for the bot's own digs). The desktop PC is
+  being reset; every branch is pushed, and the work continues on a new machine
+  from `HANDOFF_PC.md`. The initial-Q experiment has not been run.
 - **24 Oct 2026, afternoon:** the stone-tools design is accepted (all 12
   recommendations in its section 11). Offline step S1 has started on branch
   `codex/stone-tools`, in its own worktree, so this checkout's run code stays
