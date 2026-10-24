@@ -168,6 +168,20 @@ update log below when you start, so we do not duplicate work.
    masked negative result, the unmasked positive one, and the failure analysis
    are good material.
 7. **Presentation footage.** Record a `--viewer` run once the PC is free.
+8. **A recipe graph and replanning after the wooden pickaxe.** Build the item
+   dependency graph from `minecraft-data` (recipes, and which tool mines which
+   block). Add a small planning layer that picks the next sub-goal, so the
+   tabular learner works within one stage at a time. Plan4MC does this with a
+   skill graph that an LLM generated, which needed 6 corrections out of 55
+   skills; `minecraft-data` avoids that step. See the related-work notes in
+   [docs/report_plan.md](docs/report_plan.md).
+9. **A count-based exploration bonus instead of the scripted SEARCH.**
+   Plan4MC learns exploration with a state-count reward (+1 per unvisited grid
+   cell); without that skill its Mine-Stones success drops from 0.293 to
+   0.097. A tabular version: learn the SEARCH heading with a count-based bonus
+   over visited cells, and compare it with the scripted exploration rings on
+   the same seeds. Its success rates are not comparable with ours, since the
+   setups differ completely.
 
 ## Rules that keep our results honest
 
