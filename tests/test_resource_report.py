@@ -257,9 +257,9 @@ class ResourceReportTests(unittest.TestCase):
 
 
     def _condition_run(self, name, condition, mode, algorithm, outcomes, *, baseline=None, checkpoint=None,
-                       first_seed=20000, decisions=None):
+                       first_seed=20000, decisions=None, extra=None):
         metadata = {"evidence": EVIDENCE, "mode": mode, "algorithm": algorithm, "baseline": baseline,
-                    "initial_policy_sha256": checkpoint, "max_steps": 60}
+                    "initial_policy_sha256": checkpoint, "max_steps": 60, **(extra or {})}
         if condition is not None:
             metadata["condition"] = condition
         episodes = []
@@ -270,6 +270,26 @@ class ResourceReportTests(unittest.TestCase):
                                          "death": False, "truncated": not success, "steps": len(rows), "seconds": 10.0,
                                          "return": 1.0, "final_observation": observation(pickaxes=int(success))}})
         return write_run(self.root, name, metadata, episodes)
+
+    def test_learners_with_different_initial_q_are_never_pooled(self):
+        zero = self._condition_run("q-zero", "unmasked", "online_training", "q_learning", [True, False])
+        low = self._condition_run("q-low", "unmasked", "online_training", "q_learning", [True, True],
+                                  extra={"initial_q": -1.0})
+        summary = summarize_runs([zero, low])
+        self.assertEqual(sorted((g["initial_q"], g["successes"]) for g in summary["groups"]), [(-1.0, 2), (0.0, 1)])
+        self.assertIn("/ initial Q -1", render_markdown(summary))
+        frozen = self._condition_run("q-low-test", "unmasked", "frozen_evaluation", "q_learning", [True],
+                                     checkpoint="a" * 64, extra={"initial_q": -1.0})
+        baseline = self._condition_run("rnd", "unmasked", "frozen_evaluation", "random", [False],
+                                       baseline="uniform_random")
+        summary = summarize_runs([frozen, baseline])
+        self.assertEqual({g["algorithm"]: g["initial_q"] for g in summary["groups"]}, {"q_learning": -1.0, "random": None})
+        self.assertEqual(summary["comparisons"][0]["initial_q"], -1.0)
+        self.assertIn(f"q_learning {'a' * 12} (initial Q -1)", render_markdown(summary))
+        bad = self._condition_run("bad-q", "unmasked", "online_training", "q_learning", [True],
+                                  extra={"initial_q": "low"})
+        with self.assertRaisesRegex(ValueError, "initial_q"):
+            load_run(bad)
 
     def test_conditions_are_never_pooled_and_legacy_runs_read_as_masked(self):
         legacy = self._condition_run("legacy", None, "frozen_evaluation", "random", [True, True], baseline="masked_random")

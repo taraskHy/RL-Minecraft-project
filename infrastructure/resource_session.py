@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import threading
@@ -167,7 +168,8 @@ def _run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
                   max_steps: int = 80, epsilon: float = .6, epsilon_end: float = .1,
                   policy: Path | None = None, pretrain: int = 0, evaluate: bool = False,
                   pause: float = .5, random_baseline: bool = False, condition: str | None = None,
-                  port: int = PORT, parallel_slots: int = 1, schedule_id: str | None = None) -> int:
+                  port: int = PORT, parallel_slots: int = 1, schedule_id: str | None = None,
+                  initial_q: float | None = None) -> int:
     """Train from observed transitions, or explicitly evaluate a frozen policy.
 
     ``condition`` names the experiment condition (masked, unmasked, or
@@ -186,6 +188,10 @@ def _run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
     time and the helpers' wall-clock budgets depend on it. ``schedule_id``
     names the resource-parallel schedule a run belongs to; ``run_resources``
     checks it and holds the machine-wide live-run lock for runs started by hand.
+
+    ``initial_q`` sets the value of untried actions for a new learning agent
+    (default 0). A loaded policy carries its own, and a different explicit
+    value is refused; evaluation never takes one.
     """
     if condition is not None and condition not in CONDITIONS:
         raise ValueError(f"condition must be one of {', '.join(CONDITIONS)}")
@@ -213,6 +219,12 @@ def _run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
         raise ValueError("The masked random baseline is a frozen evaluation without a policy or simulator pretraining")
     if evaluate and (not (policy or random_baseline) or pretrain):
         raise ValueError("Frozen evaluation requires --policy or --random-baseline and forbids pretraining")
+    if initial_q is not None:
+        if evaluate:
+            raise ValueError("initial_q applies to training a learner; a frozen evaluation uses the policy's own")
+        if (isinstance(initial_q, bool) or not isinstance(initial_q, (int, float))
+                or not math.isfinite(initial_q) or not -100 <= initial_q <= 100):
+            raise ValueError("initial_q must be a finite number from -100 to 100")
     node = runtime_paths()["node"]
     if not node or not Path(node).is_file():
         raise RuntimeError("Run setup.cmd first")
@@ -223,6 +235,8 @@ def _run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
         agent = ResourceAgent.load(policy, seed=seed)
         if condition is not None and condition != agent.condition:
             raise ValueError(f"The policy was trained under condition {agent.condition}, not {condition}")
+        if initial_q is not None and float(initial_q) != agent.initial_q:
+            raise ValueError(f"The policy was trained with initial_q {agent.initial_q:g}, not {initial_q:g}")
         # Simulator pretraining behind a checkpoint stays visible in every later run.
         prior = json.loads(policy.read_text(encoding="utf-8")).get("metadata") or {}
         checkpoint_pretrain = sum(int(prior.get(key) or 0) for key in
@@ -231,7 +245,8 @@ def _run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
         checkpoint_pretrain = 0
         action_mask, state_version = CONDITIONS[condition or "masked"]
         agent = ResourceAgent(algorithm="random" if random_baseline else algorithm, seed=seed,
-                              action_mask=action_mask, state_version=state_version)
+                              action_mask=action_mask, state_version=state_version,
+                              initial_q=0.0 if initial_q is None else initial_q)
     if not evaluate and agent.algorithm == "random":
         raise ValueError("A random policy can be evaluated, but cannot be trained")
     output = prepare_output(output)
@@ -245,7 +260,8 @@ def _run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
                 "episodes_requested": episodes, "first_world_seed": world_seed,
                 "agent_seed": seed, "max_steps": max_steps, "epsilon_start": epsilon,
                 "epsilon_end": epsilon_end, "reward_mode": "shaped", "gamma": agent.gamma,
-                "alpha": agent.alpha, "pretrain_simulator_episodes": pretrain,
+                "alpha": agent.alpha, "initial_q": None if agent.algorithm == "random" else agent.initial_q,
+                "pretrain_simulator_episodes": pretrain,
                 "checkpoint_pretrain_simulator_episodes": checkpoint_pretrain,
                 "pause_between_decisions": pause,
                 "time_semantics": "seconds measures task time after viewer readiness; elapsed_wall_seconds also includes world startup and viewer join",
@@ -294,7 +310,8 @@ def _run_resources(*, output: Path, episodes: int = 5, world_seed: int = 0,
               "all eight actions, no learning.", flush=True)
     if pretrain:
         print(f"First: {pretrain} SIMULATOR episodes; these are not Minecraft training.", flush=True)
-        agent, records = train_simulator(pretrain, seed=seed, algorithm=algorithm, condition=agent.condition)
+        agent, records = train_simulator(pretrain, seed=seed, algorithm=algorithm, condition=agent.condition,
+                                         initial_q=agent.initial_q)
         write_csv(output / "simulator_training.csv", records)
     _save_policy(agent, output / "initial_policy.json", metadata)
     _save_policy(agent, output / "policy.json", metadata)

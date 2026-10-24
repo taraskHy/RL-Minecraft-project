@@ -1,8 +1,9 @@
 """Check learning/evaluation evidence with real agents and a simulated transport."""
 
-from contextlib import contextmanager, ExitStack, nullcontext
+from contextlib import contextmanager, ExitStack, nullcontext, redirect_stderr
 from copy import deepcopy
 import csv
+import io
 import json
 from pathlib import Path
 import sys
@@ -363,6 +364,42 @@ class ResourceSessionTests(unittest.TestCase):
                 resource_session.run_resources(output=output, episodes=1, max_steps=1, condition="masked",
                                                pause=0, **bad)
             self.assertFalse(output.exists())
+
+    def test_initial_q_is_set_recorded_and_carried_by_the_policy(self):
+        following = deepcopy(self.start)
+        following.update(nearby_log=True, event="log_reached")
+        self.bridge.step.return_value = following
+        output, _ = self._train("pessimistic", "unmasked", 1, algorithm="q_learning", initial_q=-1.0)
+        self.assertEqual(json.loads((output / "metadata.json").read_text())["initial_q"], -1.0)
+        self.assertEqual(ResourceAgent.load(output / "policy.json").initial_q, -1.0)
+        # A continuation inherits it from the policy; repeating the same value is allowed.
+        resumed, _ = self._train("pessimistic-resume", None, 1, policy=output / "policy.json")
+        self.assertEqual(json.loads((resumed / "metadata.json").read_text())["initial_q"], -1.0)
+        self._train("pessimistic-same", None, 1, policy=output / "policy.json", initial_q=-1.0)
+        default, _ = self._train("default-q", "unmasked", 1, algorithm="q_learning")
+        self.assertEqual(json.loads((default / "metadata.json").read_text())["initial_q"], 0.0)
+        policy = output / "policy.json"
+        refused = ({"policy": policy, "initial_q": 0.0}, {"policy": policy, "initial_q": -1.0, "evaluate": True},
+                   {"condition": "unmasked", "random_baseline": True, "evaluate": True, "initial_q": -1.0},
+                   {"condition": "unmasked", "initial_q": float("nan")}, {"condition": "unmasked", "initial_q": True},
+                   {"condition": "unmasked", "initial_q": -101})
+        for index, bad in enumerate(refused):
+            target = self.root / "runs" / f"refused-q-{index}"
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                resource_session.run_resources(output=target, episodes=1, max_steps=1, pause=0, **bad)
+            self.assertFalse(target.exists())
+
+    def test_command_line_passes_initial_q(self):
+        from infrastructure.__main__ import resources
+        with patch.object(resource_session, "run_resources", return_value=0) as run:
+            resources(["--initial-q", "-1.5", "--out", str(self.root / "runs" / "cli")])
+            self.assertEqual(run.call_args.kwargs["initial_q"], -1.5)
+            resources(["--out", str(self.root / "runs" / "cli2")])
+            self.assertIsNone(run.call_args.kwargs["initial_q"])
+            # Frozen evaluation takes the policy's own value and has no such option.
+            with self.assertRaises(SystemExit), redirect_stderr(io.StringIO()):
+                resources(["--initial-q", "-1", "--random-baseline", "--condition", "unmasked",
+                           "--out", str(self.root / "runs" / "cli3")], evaluate=True)
 
     def test_command_line_passes_port_and_parallel_slots(self):
         from infrastructure.__main__ import resources

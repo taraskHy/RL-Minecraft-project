@@ -114,6 +114,34 @@ class ResourceAgentTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     ResourceAgent.load(path)
 
+    def test_initial_q_sets_untried_values_and_survives_a_checkpoint(self):
+        agent = ResourceAgent(initial_q=-1)
+        self.assertEqual(agent.values(S), [-1.0] * N_ACTIONS)
+        agent.update(S, A.CHOP, 0.5, T, False)
+        # The new row starts from -1, and the target bootstraps on T's untried values, also -1.
+        self.assertAlmostEqual(agent.q[S][A.CHOP], -1 + 0.2 * (0.5 + 0.97 * -1 + 1))
+        self.assertEqual(agent.q[S][A.SEARCH], -1.0)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "pessimistic.json"
+            agent.save(path)
+            loaded = ResourceAgent.load(path)
+            self.assertEqual((loaded.initial_q, loaded.values(T)), (-1.0, [-1.0] * N_ACTIONS))
+            # A policy saved before initial_q was recorded started from 0.
+            payload = json.loads(path.read_text())
+            del payload["initial_q"]
+            path.write_text(json.dumps(payload))
+            self.assertEqual(ResourceAgent.load(path).initial_q, 0.0)
+            for bad in (True, "low", 101, float("nan")):
+                payload["initial_q"] = bad
+                path.write_text(json.dumps(payload))
+                with self.subTest(bad=bad), self.assertRaises(ValueError):
+                    ResourceAgent.load(path)
+        for bad in (True, float("nan"), float("inf"), -101, "0"):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                ResourceAgent(initial_q=bad)
+        trained, _ = train_simulator(2, condition="unmasked", schedule="linear", initial_q=-0.5)
+        self.assertEqual(trained.initial_q, -0.5)
+
     def test_reject_nonfinite_parameters_and_updates(self):
         for kwargs in ({"alpha": float("nan")}, {"gamma": float("inf")},
                        {"alpha": True}, {"gamma": 1}, {"seed": True}):

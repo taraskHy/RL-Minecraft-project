@@ -1,0 +1,58 @@
+{
+  "name": "initial_q_experiment",
+  "declared": "2026-10-24, committed before any live run of this experiment",
+  "question": "Without the feasibility mask, does a pessimistic initial Q value (-1) change what frozen tabular Q-learning and SARSA policies achieve on held-out worlds, compared with the default 0, and how much do three independently trained agents per arm differ?",
+  "evidence_label": "REAL MINECRAFT NATURAL RESOURCE TASK; NOT FULL SURVIVAL COMPLETION",
+  "motivation": "At 87673b8, 7 of 19 learned-policy test failures were frozen loops: actions never tried in the loop state kept their initial value 0, just above SEARCH and CHOP at about -0.014 (results/pc_resource_runs/README.md). Each condition there was trained once, with agent seed 0.",
+  "arms": {
+    "zero": {"initial_q": 0.0},
+    "pessimistic": {"initial_q": -1.0}
+  },
+  "pessimistic_value_basis": "results/initial_q_study and results/initial_q_study_harsh (SIMULATOR ONLY, regenerated at the committed code with provenance): with the live schedule and 50 training episodes, 20 agent seeds per cell, -1 was the most pessimistic value tried at which both algorithms kept mean frozen success 1.00 with no seed below 0.9, in both the default simulator and a harsher one (search 0.35, chop 0.6). Learning degraded from -1.5 on (Q-learning 0.95 default, 0.72 harsh) and collapsed by -2.5. The simulator never produced the live loops (0% untried choices at every value), so it shows only that -1 does not harm learning there, not that it fixes anything.",
+  "prediction_from_theory": "With potential-based shaping, an initial Q of 0 is effectively optimistic by the state's potential (Wiewiora 2003). A refused action repeated in place converges to -0.01/(1-gamma) - Phi(s) = -0.33 - Phi(s). An initial value of -1 therefore makes a tried, failing action look better than an untried one only in states with Phi(s) < 0.67, early in the chain. The 87673b8 loop states had a placed table and planks or sticks (Phi about 1.9), where -1 is predicted not to change the preference. A null result is therefore expected for those loops; the experiment tests it rather than assumes it.",
+  "condition": {"name": "unmasked", "action_mask": "none", "state_version": "resource_v1"},
+  "max_steps": 60,
+  "pause_between_decisions": 0,
+  "viewer": null,
+  "learners": {"algorithms": ["q_learning", "sarsa"], "alpha": 0.2, "gamma": 0.97, "agent_seeds": [0, 1, 2],
+               "epsilon": "0.6 to 0.1, linear over the 50 training episodes", "simulator_pretraining_episodes": 0},
+  "training": {
+    "world_seeds_from": 100,
+    "episodes": 50,
+    "runs": "12: two algorithms x two initial values x three agent seeds, every run on world seeds 100-149",
+    "note": "Only live episodes count. Training worlds repeat those of 87673b8 on purpose; spawn points are not deterministic, so they are not replays."
+  },
+  "test": {
+    "world_seeds": [40000, 40019],
+    "episodes_per_policy": 20,
+    "agent_seed": 0,
+    "policies": ["the 12 frozen final policies", "the uniform random baseline (one run)"],
+    "held_out": "Never used before this experiment and never used to choose code, parameters or the pessimistic value. Seeds 20000-20019 are not reused, because their failure analysis motivated this experiment.",
+    "epsilon": 0.0
+  },
+  "execution": {
+    "plan": "configs/initial_q_plan.json",
+    "command": "run.cmd resource-parallel configs/initial_q_plan.json",
+    "parallel_slots": 2,
+    "basis": "results/parallel_benchmark adopted 2 slots on the desktop PC. Every run of this experiment is in one schedule with interleave and evaluate_after_all_training, so all test arms run under the same load.",
+    "order": "Jobs are listed in pairs, the two initial values of one algorithm and agent seed, and start in that order, so the arms share the night's load evenly. Runs differ in length, so later pairs drift apart: this balances the load between arms, it does not match it run by run.",
+    "estimated_duration": "about 10 to 12 hours (estimate from 87673b8 episode times and the 2-slot speed-up of 1.57)"
+  },
+  "invalid_episodes": "The scheduler's declared rule: an invalid episode counts as attempted and is never replayed; the run continues in a -partN folder from the next world seed (training from its saved policy at the declared exploration rate for its next episode). Comparisons count the seeds both arms completed and add the conservative check of the report.",
+  "primary_rule": "For each algorithm, pool the three agents' test episodes per arm (60 per arm). An effect of the initial value is claimed only if the pooled Wilson 95% intervals do not overlap; overlapping intervals are reported as no effect shown. Pooling treats episodes as independent although they come from three agents; the per-agent results are reported beside it so that agent-to-agent variation stays visible.",
+  "secondary": [
+    "per agent: frozen success out of 20 with its Wilson interval, and its range across the three agents per arm",
+    "loop failures: failed test episodes whose last 20 decisions changed none of the nine resource_v1 fields",
+    "untried choices: frozen decisions whose chosen action still had exactly the initial value in that state",
+    "share of choices outside the disclosed mask, and no-progress decisions, per arm",
+    "each frozen policy against the uniform random baseline on the same worlds, by the report's Wilson rule",
+    "training successes per ten episodes per run"
+  ],
+  "analysis": "scripts/initial_q_analysis.py over the retained report-test folder and run folders, committed with this declaration",
+  "power": "With 60 episodes per pooled arm, non-overlapping Wilson intervals need roughly 0.95 against 0.70 or 0.70 against 0.40. Smaller differences read as no effect shown, which means not detectable here.",
+  "integrity": [
+    "All runs use one committed revision; the run code stays frozen while the schedule runs.",
+    "The pessimistic value was chosen in the simulator before any live run, by the rule stated above, and is not changed after.",
+    "If a code change is needed after a test-seed run starts, the results so far are retained and reported as they are, and a new held-out seed range is declared before testing again."
+  ]
+}

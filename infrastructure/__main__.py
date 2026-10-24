@@ -242,6 +242,9 @@ def resources(arguments: list[str], *, evaluate: bool = False) -> int:
         p.add_argument("--epsilon", type=float, default=.6, help="Initial exploration probability")
         p.add_argument("--epsilon-end", type=float, default=.1)
         p.add_argument("--pretrain", type=int, default=0, help="Optional explicitly labeled simulator warm-up episodes; default learns from scratch")
+        p.add_argument("--initial-q", type=float, default=None,
+                       help="Value of every action before its first update in a state (default 0). A value below the "
+                            "step cost makes untried actions look worse than tried ones. A --policy carries its own")
     args = p.parse_args(arguments)
     if evaluate and bool(args.policy) == bool(args.random_baseline):
         p.error("pass exactly one of --policy PATH or --random-baseline")
@@ -253,7 +256,8 @@ def resources(arguments: list[str], *, evaluate: bool = False) -> int:
                          epsilon=getattr(args, "epsilon", 0), epsilon_end=getattr(args, "epsilon_end", 0),
                          pretrain=getattr(args, "pretrain", 0),
                          random_baseline=getattr(args, "random_baseline", False), condition=args.condition,
-                         port=args.port, parallel_slots=args.parallel_slots, schedule_id=args.schedule_id)
+                         port=args.port, parallel_slots=args.parallel_slots, schedule_id=args.schedule_id,
+                         initial_q=getattr(args, "initial_q", None))
 
 
 def resource_parallel(arguments: list[str]) -> int:

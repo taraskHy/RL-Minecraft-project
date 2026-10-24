@@ -62,7 +62,7 @@ PLAN_KEYS = {"schema", "name", "description", "slots", "first_port", "max_contin
 SHARED_KEYS = {"agent_seed", "max_steps", "pause"}
 JOB_KEYS = {
     "train": {"name", "kind", "condition", "algorithm", "policy", "episodes", "first_world_seed",
-              "epsilon", "epsilon_end", "pretrain"} | SHARED_KEYS,
+              "epsilon", "epsilon_end", "pretrain", "initial_q"} | SHARED_KEYS,
     "evaluate": {"name", "kind", "condition", "policy", "policy_from", "random_baseline", "episodes",
                  "first_world_seed", "chunks"} | SHARED_KEYS,
 }
@@ -207,6 +207,10 @@ def parse_plan(text: str) -> tuple[dict, list[Unit]]:
             _number(job.get("epsilon_end"), f"{name}: epsilon_end", 0, start)
             if _integer(job.get("pretrain", 0), f"{name}: pretrain", 0, 100_000) and job.get("policy"):
                 raise ValueError(f"{name}: pretrain cannot be combined with a policy")
+            if "initial_q" in job:
+                _number(job["initial_q"], f"{name}: initial_q", -100, 100)
+                if job.get("policy"):
+                    raise ValueError(f"{name}: a policy carries its own initial_q; drop initial_q or the policy")
             per_job.append([Unit(name, job, episodes, job["first_world_seed"], job["agent_seed"])])
             trained.add(name)
             continue
@@ -291,6 +295,9 @@ def _command(unit: Unit, *, folder: Path, port: int, slots: int, done: int, poli
             arguments += ["--policy", str(policy)]
         if first and job.get("pretrain"):
             arguments += ["--pretrain", str(job["pretrain"])]
+        # A continuation resumes from a saved policy, which carries its own initial_q.
+        if first and "initial_q" in job:
+            arguments += ["--initial-q", repr(float(job["initial_q"]))]
         # A continuation resumes the declared schedule at its next episode.
         start = epsilon_at(job["epsilon"], job["epsilon_end"], done + 1, unit.episodes)
         arguments += ["--epsilon", repr(start), "--epsilon-end", repr(float(job["epsilon_end"]))]
@@ -425,7 +432,8 @@ def _write(path: Path, value: dict) -> None:
 def _describe(unit: Unit) -> str:
     job = unit.job
     if job["kind"] == "train":
-        return f"{job['algorithm']} training, condition {job.get('condition') or 'of the policy'}"
+        initial = f", initial Q {float(job['initial_q']):g}" if "initial_q" in job else ""
+        return f"{job['algorithm']} training, condition {job.get('condition') or 'of the policy'}{initial}"
     if job.get("random_baseline"):
         return f"random baseline, condition {job['condition']}"
     return f"final policy of {unit.depends_on}" if unit.depends_on else f"policy {job['policy']}"

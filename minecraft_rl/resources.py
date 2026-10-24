@@ -230,11 +230,18 @@ def reward_transition(previous_observation: dict, observation: dict, *,
 
 
 class ResourceAgent:
-    """Q-learning or SARSA with epsilon-greedy selection over a condition's allowed actions."""
+    """Q-learning or SARSA with epsilon-greedy selection over a condition's allowed actions.
+
+    ``initial_q`` is the value of every action in a state before its first
+    update. With the default 0 and a negative step cost, actions never tried
+    in a state look better than useful actions tried there; a value below
+    the step cost (pessimistic initialisation) makes untried actions look
+    worse instead.
+    """
 
     def __init__(self, algorithm: str = "q_learning", alpha: float = 0.2,
                  gamma: float = 0.97, seed: int = 0, *, action_mask: str = MASKED,
-                 state_version: str = POLICY_ENVIRONMENT):
+                 state_version: str = POLICY_ENVIRONMENT, initial_q: float = 0.0):
         if algorithm not in ("q_learning", "sarsa", "random"):
             raise ValueError("algorithm must be q_learning, sarsa, or random")
         _number(alpha, "alpha", 0, 1)
@@ -243,9 +250,11 @@ class ResourceAgent:
             raise ValueError("Require 0 < alpha <= 1 and 0 <= gamma < 1")
         if type(seed) is not int:
             raise ValueError("seed must be an integer")
+        _number(initial_q, "initial_q", -100, 100)
         self.condition = condition_name(action_mask, state_version)
         self.action_mask, self.state_version = action_mask, state_version
         self.algorithm, self.alpha, self.gamma = algorithm, alpha, gamma
+        self.initial_q = float(initial_q)
         self.rng = random.Random(seed)
         self.q: dict[State, list[float]] = {}
 
@@ -254,7 +263,7 @@ class ResourceAgent:
 
     def values(self, state: State) -> list[float]:
         _validate_state(state, self.state_version)
-        return self.q.get(state, [0.0] * N_ACTIONS)
+        return self.q.get(state, [self.initial_q] * N_ACTIONS)
 
     def act(self, state: State, epsilon: float = 0.0) -> int:
         _number(epsilon, "epsilon", 0, 1)
@@ -287,7 +296,7 @@ class ResourceAgent:
                     or next_action not in self.allowed(next_state)):
                 raise ValueError("SARSA needs the next sampled, allowed behavior action")
             bootstrap = self.values(next_state)[next_action]
-        row = self.q.setdefault(state, [0.0] * N_ACTIONS)
+        row = self.q.setdefault(state, [self.initial_q] * N_ACTIONS)
         td_error = reward + self.gamma * bootstrap - row[action]
         row[action] += self.alpha * td_error
         return td_error
@@ -297,6 +306,7 @@ class ResourceAgent:
         payload = {
             "format_version": 1, "environment": self.state_version,
             "algorithm": self.algorithm, "alpha": self.alpha, "gamma": self.gamma,
+            "initial_q": self.initial_q,
             "actions": list(ACTION_NAMES), "state_fields": list(fields),
             "state_caps": list(caps), "action_mask": self.action_mask,
             "condition": self.condition, "metadata": metadata or {},
@@ -317,8 +327,10 @@ class ResourceAgent:
                 or (payload.get("action_mask"), version) not in CONDITIONS.values()):
             raise ValueError("Incompatible resource policy, state encoding, action order, or condition")
         try:
+            # Policies saved before initial_q was recorded all started from 0.
             agent = cls(payload["algorithm"], payload["alpha"], payload["gamma"], seed,
-                        action_mask=payload["action_mask"], state_version=version)
+                        action_mask=payload["action_mask"], state_version=version,
+                        initial_q=payload.get("initial_q", 0.0))
             if not isinstance(payload["q"], list):
                 raise ValueError("Invalid Q table")
             for entry in payload["q"]:
@@ -471,7 +483,8 @@ def train_simulator(episodes: int, seed: int = 0, *, algorithm: str = "q_learnin
                     alpha: float = 0.2, gamma: float = 0.97,
                     epsilon_start: float = 1.0, epsilon_end: float = 0.05,
                     config: ResourceSimConfig | None = None, condition: str = "masked",
-                    schedule: str = "three_quarters") -> tuple[ResourceAgent, list[dict]]:
+                    schedule: str = "three_quarters",
+                    initial_q: float = 0.0) -> tuple[ResourceAgent, list[dict]]:
     """Optional, explicitly labeled simulation pretraining; never game evidence.
 
     ``schedule`` "three_quarters" decays epsilon over the first 75% of
@@ -491,7 +504,8 @@ def train_simulator(episodes: int, seed: int = 0, *, algorithm: str = "q_learnin
         raise ValueError("epsilon_end must not exceed epsilon_start")
     if algorithm not in ("q_learning", "sarsa"):
         raise ValueError("Training requires q_learning or sarsa")
-    agent = ResourceAgent(algorithm, alpha, gamma, seed, action_mask=action_mask, state_version=state_version)
+    agent = ResourceAgent(algorithm, alpha, gamma, seed, action_mask=action_mask, state_version=state_version,
+                          initial_q=initial_q)
     config = config or ResourceSimConfig(gamma=gamma, action_mask=action_mask)
     if config.gamma != gamma:
         raise ValueError("Learning and shaping discounts must match")

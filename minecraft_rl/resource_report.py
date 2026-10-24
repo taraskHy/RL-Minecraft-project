@@ -196,6 +196,11 @@ def load_run(run_directory: Path) -> dict:
     schedule_id = execution.get("schedule_id")
     if schedule_id is not None and not isinstance(schedule_id, str):
         raise ValueError(f"{run_directory} records an invalid schedule_id: {schedule_id!r}")
+    # Learners recorded before initial_q existed all started from 0; a random baseline has none.
+    initial_q = None if metadata.get("algorithm") == "random" else metadata.get("initial_q", 0.0)
+    if initial_q is not None and (isinstance(initial_q, bool) or not isinstance(initial_q, (int, float))
+                                  or not math.isfinite(initial_q)):
+        raise ValueError(f"{run_directory} records an invalid initial_q: {initial_q!r}")
     episodes = []
     for folder in sorted(run_directory.glob("episode-*")):
         outcome_path = folder / "outcome.json"
@@ -233,7 +238,7 @@ def load_run(run_directory: Path) -> dict:
             "baseline": metadata.get("baseline"),
             "checkpoint_sha256": metadata.get("initial_policy_sha256"), "max_steps": metadata.get("max_steps"),
             "pause": metadata.get("pause_between_decisions"), "parallel_slots": parallel_slots,
-            "schedule_id": schedule_id,
+            "schedule_id": schedule_id, "initial_q": None if initial_q is None else float(initial_q),
             # One short label for the exact helper and session sources the run started from.
             "source_revision": (hashlib.sha256(json.dumps(metadata["source_sha256"], sort_keys=True).encode()).hexdigest()[:12]
                                 if isinstance(metadata.get("source_sha256"), dict) else None),
@@ -263,12 +268,13 @@ def _group_key(episode: dict) -> tuple:
     # Conditions are never pooled. Training runs are pooled per algorithm; frozen
     # evaluations only per evaluated checkpoint. A different step limit is always
     # a different group, and so is a different number of parallel slots; parallel runs
-    # are also grouped by schedule, so two schedules never pool their loads.
+    # are also grouped by schedule, so two schedules never pool their loads. Learners
+    # started from different initial Q values are never pooled either.
     checkpoint = episode["checkpoint_sha256"] if episode["mode"] == "frozen_evaluation" else None
     schedule = (episode["schedule_id"] or "") if episode["parallel_slots"] > 1 else ""
     return (episode["condition"], episode["mode"], episode["algorithm"], episode["baseline"] or "",
             checkpoint or "", episode["max_steps"], int(episode["simulator_pretraining"] > 0),
-            episode["parallel_slots"], schedule)
+            episode["parallel_slots"], schedule, episode["initial_q"])
 
 
 def _fraction(part: int, whole: int) -> float | None:
@@ -276,7 +282,7 @@ def _fraction(part: int, whole: int) -> float | None:
 
 
 def _summarize_group(key: tuple, rows: list[dict]) -> dict:
-    condition, mode, algorithm, baseline, checkpoint, max_steps, pretrained, parallel_slots, _schedule = key
+    condition, mode, algorithm, baseline, checkpoint, max_steps, pretrained, parallel_slots, _schedule, initial_q = key
     completed = [r for r in rows if r["status"] == "completed"]
     successes = [r for r in completed if r["success"]]
     events: Counter[str] = Counter()
@@ -287,7 +293,7 @@ def _summarize_group(key: tuple, rows: list[dict]) -> dict:
         "condition": condition, "action_mask": CONDITIONS[condition][0], "state_version": CONDITIONS[condition][1],
         "mode": mode, "algorithm": algorithm, "baseline": baseline or None,
         "checkpoint_sha256": checkpoint or None, "max_steps": max_steps, "simulator_pretrained": bool(pretrained),
-        "parallel_slots": parallel_slots,
+        "parallel_slots": parallel_slots, "initial_q": initial_q,
         "schedules": sorted({r["schedule_id"] or "" for r in rows}),
         "pauses": sorted({r["pause"] for r in rows if r["pause"] is not None}),
         "source_revisions": sorted({r["source_revision"] for r in rows if r["source_revision"]}),
@@ -381,7 +387,7 @@ def compare_to_baselines(groups: list[dict]) -> list[dict]:
         entry = {"condition": group["condition"], "algorithm": group["algorithm"],
                  "checkpoint_sha256": group["checkpoint_sha256"], "max_steps": group["max_steps"],
                  "world_seeds": group["world_seeds"], "simulator_pretrained": group["simulator_pretrained"],
-                 "parallel_slots": group["parallel_slots"],
+                 "parallel_slots": group["parallel_slots"], "initial_q": group["initial_q"],
                  # Every row carries the same keys, so the CSV columns never depend on row order.
                  "baseline": None, "baseline_condition": None, **_EMPTY_PAIR}
         matches = [b for b in baselines if b["action_mask"] == group["action_mask"] and _same_setup(group, b)]
@@ -410,7 +416,7 @@ def compare_history(groups: list[dict]) -> list[dict]:
             continue
         for plain in groups:
             if ((plain["condition"], plain["mode"], plain["algorithm"]) != ("unmasked", "frozen_evaluation", history["algorithm"])
-                    or not _same_setup(history, plain)):
+                    or plain["initial_q"] != history["initial_q"] or not _same_setup(history, plain)):
                 continue
             row = {"algorithm": history["algorithm"], "parallel_slots": history["parallel_slots"],
                    "history_checkpoint": history["checkpoint_sha256"],
@@ -497,6 +503,8 @@ def _label(group: dict) -> str:
         label += f" / max_steps {group['max_steps']}"
     if group.get("simulator_pretrained"):
         label += " / simulator-pretrained"
+    if group.get("initial_q"):
+        label += f" / initial Q {group['initial_q']:g}"
     if group.get("parallel_slots", 1) > 1:
         label += f" / {group['parallel_slots']} parallel slots"
         schedules = [s for s in group.get("schedules", []) if s]
@@ -507,7 +515,8 @@ def _label(group: dict) -> str:
 
 def _policy_cell(comparison: dict) -> str:
     checkpoint = comparison.get("checkpoint_sha256")
-    return f"{comparison['algorithm']} {checkpoint[:12]}" if checkpoint else comparison["algorithm"]
+    cell = f"{comparison['algorithm']} {checkpoint[:12]}" if checkpoint else comparison["algorithm"]
+    return cell + (f" (initial Q {comparison['initial_q']:g})" if comparison.get("initial_q") else "")
 
 
 def render_markdown(summary: dict) -> str:

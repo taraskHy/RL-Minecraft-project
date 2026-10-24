@@ -12,6 +12,7 @@ from unittest.mock import call, patch
 
 from infrastructure import parallel_runs, resource_server, server
 from infrastructure.parallel_runs import START_PORTS, epsilon_at, parse_plan, run_schedule, schedule_run_folders
+from minecraft_rl.resources import ResourceAgent
 
 CLEAN = {"head": "abc123", "code_tree": "040000 tree t1\tinfrastructure", "uncommitted_code": [], "plan_committed": True}
 
@@ -540,6 +541,29 @@ class ParallelRunTests(unittest.TestCase):
         self.assertEqual(run.call_args.kwargs, {"dry_run": True})
         self.assertEqual(run.call_args.args[0], Path("configs/plan.json"))
 
+    def test_initial_q_reaches_the_first_training_part_only(self):
+        train, test = make_plan()["jobs"][:2]
+        plan = make_plan(jobs=[{**train, "initial_q": -1.0}, test])
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            run_schedule(self.write_plan(plan), dry_run=True, launcher=self.launcher)
+        self.assertIn("q_learning training, condition unmasked, initial Q -1", output.getvalue())
+        self.outcomes = {"px-q-train": ["completed", "invalid"]}
+        self.assertEqual(self.run_plan(plan), 0)
+        self.assertEqual(option(self.command_for("px-q-train"), "--initial-q"), "-1.0")
+        # The continuation resumes from the saved policy, which carries its own initial_q.
+        self.assertNotIn("--initial-q", self.command_for("px-q-train-part1"))
+        self.assertNotIn("--initial-q", self.command_for("px-q-test-c1"))
+        for bad in (True, "low", -101, float("inf")):
+            with self.subTest(bad=bad), self.assertRaisesRegex(ValueError, "initial_q"):
+                parse_plan(json.dumps(make_plan(jobs=[{**train, "initial_q": bad}])))
+        policy = self.root / "saved-policy.json"
+        ResourceAgent(action_mask="none", state_version="resource_v1").save(policy)
+        with self.assertRaisesRegex(ValueError, "carries its own initial_q"):
+            parse_plan(json.dumps(make_plan(jobs=[{**train, "policy": str(policy), "initial_q": -1.0}])))
+        with self.assertRaisesRegex(ValueError, "unknown keys"):
+            parse_plan(json.dumps(make_plan(jobs=[{**train}, {**test, "initial_q": -1.0}])))
+
     def test_committed_plans_parse(self):
         configs = Path(__file__).resolve().parents[1] / "configs"
         names = set()
@@ -553,6 +577,13 @@ class ParallelRunTests(unittest.TestCase):
         # The benchmark runs can be reported together: no two share a folder name.
         # Three benchmark plans of four chunks, and the example's two training runs and three four-chunk tests.
         self.assertEqual(len(names), 3 * 4 + 2 + 3 * 4)
+        # The declared initial-Q experiment: 12 training runs from initial Q 0 and -1, then 13 tests.
+        plan, units = parse_plan((configs / "initial_q_plan.json").read_text(encoding="utf-8"))
+        train = [u for u in units if u.job["kind"] == "train"]
+        self.assertEqual((plan["slots"], len(units), len(train)), (2, 25, 12))
+        self.assertEqual(sorted({(u.job["initial_q"], u.agent_seed) for u in train}),
+                         [(-1.0, 0), (-1.0, 1), (-1.0, 2), (0.0, 0), (0.0, 1), (0.0, 2)])
+        self.assertEqual({u.first_world_seed for u in units if u.job["kind"] == "evaluate"}, {40000})
 
 
 if __name__ == "__main__":
