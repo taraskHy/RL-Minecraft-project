@@ -1,0 +1,143 @@
+{
+ "mode": "offline (prismarine-physics, no server)",
+ "checkpoint": "C:\\Users\\ethan\\OneDrive\\Desktop\\etgar\\RL\\RL-Minecraft-parkour\\runs\\progress-demo\\checkpoints\\updates_00002.pt",
+ "courses": 7,
+ "wall_seconds": 0.2,
+ "success": 0.0,
+ "sim_success_same_courses": 0.0,
+ "outcome_agreement": 1.0,
+ "replay_max_pos_err": 0.0,
+ "replay_exact_episodes": 7,
+ "by_level": {
+  "0": {
+   "n": 2,
+   "success": 0.0,
+   "sim_success": 0.0
+  },
+  "1": {
+   "n": 1,
+   "success": 0.0,
+   "sim_success": 0.0
+  },
+  "2": {
+   "n": 1,
+   "success": 0.0,
+   "sim_success": 0.0
+  },
+  "3": {
+   "n": 1,
+   "success": 0.0,
+   "sim_success": 0.0
+  },
+  "4": {
+   "n": 1,
+   "success": 0.0,
+   "sim_success": 0.0
+  },
+  "5": {
+   "n": 1,
+   "success": 0.0,
+   "sim_success": 0.0
+  }
+ },
+ "episodes": [
+  {
+   "index": 0,
+   "name": "tour",
+   "level": 0,
+   "result": "fell",
+   "platform": 0,
+   "n": 13,
+   "ticks": 14,
+   "server_corrections": null,
+   "replay_max_pos_err": 0.0,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 14
+  },
+  {
+   "index": 1,
+   "name": "",
+   "level": 0,
+   "result": "truncated",
+   "platform": 0,
+   "n": 11,
+   "ticks": 200,
+   "server_corrections": null,
+   "replay_max_pos_err": 0.0,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 200
+  },
+  {
+   "index": 2,
+   "name": "",
+   "level": 1,
+   "result": "fell",
+   "platform": 0,
+   "n": 11,
+   "ticks": 15,
+   "server_corrections": null,
+   "replay_max_pos_err": 0.0,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 15
+  },
+  {
+   "index": 3,
+   "name": "",
+   "level": 2,
+   "result": "fell",
+   "platform": 0,
+   "n": 11,
+   "ticks": 18,
+   "server_corrections": null,
+   "replay_max_pos_err": 0.0,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 18
+  },
+  {
+   "index": 4,
+   "name": "",
+   "level": 3,
+   "result": "fell",
+   "platform": 0,
+   "n": 11,
+   "ticks": 17,
+   "server_corrections": null,
+   "replay_max_pos_err": 0.0,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 17
+  },
+  {
+   "index": 5,
+   "name": "",
+   "level": 4,
+   "result": "fell",
+   "platform": 0,
+   "n": 11,
+   "ticks": 19,
+   "server_corrections": null,
+   "replay_max_pos_err": 0.0,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 19
+  },
+  {
+   "index": 6,
+   "name": "",
+   "level": 5,
+   "result": "fell",
+   "platform": 0,
+   "n": 11,
+   "ticks": 20,
+   "server_corrections": null,
+   "replay_max_pos_err": 0.0,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 20
+  }
+ ]
+}

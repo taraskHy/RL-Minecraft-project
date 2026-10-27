@@ -1,0 +1,76 @@
+{
+ "mode": "offline (prismarine-physics, no server)",
+ "checkpoint": "results/final_policy.pt",
+ "courses": 4,
+ "wall_seconds": 0.2,
+ "success": 0.75,
+ "sim_success_same_courses": 0.75,
+ "outcome_agreement": 1.0,
+ "replay_max_pos_err": 1.7763568394002505e-15,
+ "replay_exact_episodes": 4,
+ "by_level": {
+  "0": {
+   "n": 4,
+   "success": 0.75,
+   "sim_success": 0.75
+  }
+ },
+ "episodes": [
+  {
+   "index": 0,
+   "name": "tour",
+   "level": 0,
+   "result": "success",
+   "platform": 12,
+   "n": 13,
+   "ticks": 145,
+   "server_corrections": null,
+   "replay_max_pos_err": 1.7763568394002505e-15,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 145
+  },
+  {
+   "index": 1,
+   "name": "stairs",
+   "level": 0,
+   "result": "success",
+   "platform": 11,
+   "n": 12,
+   "ticks": 120,
+   "server_corrections": null,
+   "replay_max_pos_err": 0.0,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 120
+  },
+  {
+   "index": 2,
+   "name": "sprint",
+   "level": 0,
+   "result": "success",
+   "platform": 9,
+   "n": 10,
+   "ticks": 114,
+   "server_corrections": null,
+   "replay_max_pos_err": 0.0,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 114
+  },
+  {
+   "index": 3,
+   "name": "neo",
+   "level": 0,
+   "result": "truncated",
+   "platform": 1,
+   "n": 12,
+   "ticks": 212,
+   "server_corrections": null,
+   "replay_max_pos_err": 0.0,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 212
+  }
+ ]
+}

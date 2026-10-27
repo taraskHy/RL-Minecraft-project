@@ -1,0 +1,72 @@
+{
+ "mode": "live (Minecraft 1.21.4 server)",
+ "checkpoint": "C:\\Users\\ethan\\OneDrive\\Desktop\\etgar\\RL\\RL-Minecraft-parkour\\runs\\progress-demo\\checkpoints\\updates_00050.pt",
+ "courses": 3,
+ "wall_seconds": 37.6,
+ "success": 1.0,
+ "sim_success_same_courses": 1.0,
+ "outcome_agreement": 1.0,
+ "replay_max_pos_err": 2.1316282072803006e-14,
+ "replay_exact_episodes": 3,
+ "by_level": {
+  "0": {
+   "n": 1,
+   "success": 1.0,
+   "sim_success": 1.0
+  },
+  "2": {
+   "n": 1,
+   "success": 1.0,
+   "sim_success": 1.0
+  },
+  "4": {
+   "n": 1,
+   "success": 1.0,
+   "sim_success": 1.0
+  }
+ },
+ "episodes": [
+  {
+   "index": 0,
+   "name": "tour",
+   "level": 0,
+   "result": "success",
+   "platform": 12,
+   "n": 13,
+   "ticks": 177,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 177
+  },
+  {
+   "index": 1,
+   "name": "",
+   "level": 2,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 154,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 154
+  },
+  {
+   "index": 2,
+   "name": "",
+   "level": 4,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 159,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.9539925233402755e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 159
+  }
+ ]
+}

@@ -54,8 +54,8 @@ reference is the `full` arm (defaults), mean over its seeds. All runs see 0.52 B
 | Run | Iteration | Validation success | Test success | L4 | L5 |
 | --- | --- | --- | --- | --- | --- |
 | defaults (`full`, 3 seeds) | 999 | - | 93.3 | 94.7 | 72.0 |
-| `hp-ent0.001` | 949 of 1000 (running) | 93.3 | 92.9 | 95.5 | 65.5 |
-| `hp-ent0.02` | 949 of 1000 (running) | 90.0 | 90.8 | 92.5 | 62.5 |
+| `hp-ent0.001` | 999 | 94.3 | 94.1 | 97.0 | 70.5 |
+| `hp-ent0.02` | 999 | 91.0 | 91.5 | 94.0 | 64.0 |
 
 ## Course styles outside the training distribution
 
@@ -135,7 +135,7 @@ Replaying the recorded actions in the simulator: largest position difference 1.7
 
 ### Real Minecraft 1.21.4 server (final policy: obstacles-ft)
 
-Mineflayer bot on a local void-world server; every episode played in real time. Server corrections (position resets): 0 in all 123 episodes.
+Mineflayer bot with vanilla's 1e-7 collision tolerance (bridge/physics_patch.js) on a local void-world server; every episode played in real time. Server corrections (position resets): 0 in all 124 episodes. The neo course in the showcase is new and this policy never trained on neos (it stalls at the first one).
 
 
 Checkpoint `results/final_policy.pt`, 60 courses (held-out, 10 jumps each).
@@ -168,14 +168,14 @@ Overall: 97% here, 97% in the simulator; outcomes agree on 100% of courses.
 Replaying the recorded actions in the simulator: largest position difference 2.13e-14 blocks; 60 of 60 episodes within 1e-6 blocks on every tick.
 
 
-Checkpoint `results/final_policy.pt`, 3 courses (from configs/showcase_courses.json).
+Checkpoint `results/final_policy.pt`, 4 courses (from configs/showcase_courses.json).
 
 | Level | Courses | Success here | Success in simulator (same courses) |
 | --- | --- | --- | --- |
-| 0 | 3 | 100% | 100% |
+| 0 | 4 | 75% | 75% |
 
-Overall: 100% here, 100% in the simulator; outcomes agree on 100% of courses.
-Replaying the recorded actions in the simulator: largest position difference 2.13e-14 blocks; 3 of 3 episodes within 1e-6 blocks on every tick.
+Overall: 75% here, 75% in the simulator; outcomes agree on 100% of courses.
+Replaying the recorded actions in the simulator: largest position difference 2.13e-14 blocks; 4 of 4 episodes within 1e-6 blocks on every tick.
 
 
 
