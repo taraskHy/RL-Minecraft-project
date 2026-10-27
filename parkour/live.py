@@ -103,6 +103,11 @@ def main(argv=None):
     ap.add_argument("--viewer", default="")
     ap.add_argument("--port", type=int, default=25570)
     ap.add_argument("--stall", type=int, default=200)
+    ap.add_argument("--style", default="stone", choices=("stone", "rainbow"),
+                    help="block looks in real Minecraft (rainbow: coloured full cubes, same physics)")
+    ap.add_argument("--web-viewer", type=int, default=0, help="serve a textured 3D view of the bot on this port")
+    ap.add_argument("--hold", type=int, default=0, help="extra milliseconds on the start block before each course")
+    ap.add_argument("--first-person", action="store_true", help="web viewer from the bot's eyes")
     a = ap.parse_args(argv)
 
     out = Path(a.out).resolve()
@@ -128,7 +133,8 @@ def main(argv=None):
             cmd = [str(NODE), str(BRIDGE / "parkour_bot.js"), "--policy", str(out / "policy.json"),
                    "--courses", str(out / "courses.json"), "--out", str(episodes_path), "--port", str(a.port),
                    "--origin", ",".join(map(str, COURSE_ORIGIN)), "--pad", ",".join(map(str, SPAWN_PAD)),
-                   "--stall", str(a.stall)]
+                   "--stall", str(a.stall), "--style", a.style, "--web-viewer", str(a.web_viewer), "--hold", str(a.hold),
+                   "--first-person", "true" if a.first_person else "false"]
             if a.viewer:
                 cmd += ["--viewer", a.viewer]
                 print(f"Join 127.0.0.1:{a.port} in Minecraft Java 1.21.4 as {a.viewer} to watch.", flush=True)

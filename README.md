@@ -28,7 +28,9 @@ real Minecraft server, on new courses.
 
 Details, figures, the reward ablation and the other experiments:
 [results/README.md](results/README.md). 3D replays of the real-game runs: open
-`results/replay_viewer.html` in a browser. Final policy in Git:
+`results/replay_viewer.html` in a browser. Ghost races of ten training stages on the same
+unseen course: `results/theatre.html` (Overview camera), rendered to 1080p MP4 in
+`results/videos/` by `scripts/render_videos.py`. Final policy in Git:
 `results/final_policy.pt` (weights, for `run.cmd offline` / `run.cmd live --checkpoint`) and
 `results/final_policy.json` (the exported network the bot loads).
 

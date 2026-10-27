@@ -65,6 +65,17 @@ label.meta, .meta { font-family: var(--font-mono); font-size: 12px; color: var(-
 .notes { color: var(--muted); font-size: 13px; max-width: 90ch; margin: 0; }
 .notes code { font-family: var(--font-mono); font-size: 12px; }
 @media (max-width: 960px) { .main { grid-template-columns: minmax(0, 1fr); } .side { max-height: 320px; } }
+/* Video render mode (local only): the stage fills the window, with a legend of runners. */
+body.render .wrap { padding: 0; max-width: none; display: block; }
+body.render header, body.render .side, body.render .controls, body.render .notes { display: none; }
+body.render .main { display: block; }
+body.render .stage { border: 0; border-radius: 0; }
+body.render .box { position: fixed; inset: 0; aspect-ratio: auto; }
+.legend { position: absolute; right: 14px; top: 14px; display: grid; gap: 3px; font: 600 15px var(--font-body); color: #fff; background: rgba(10, 16, 22, 0.55); border-radius: 8px; padding: 10px 14px; }
+.legend div { display: grid; grid-template-columns: 14px 120px auto; gap: 8px; align-items: center; }
+.legend i { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+.legend span:last-child { font: 400 13px var(--font-mono); color: #dfe7ee; }
+.caption { position: absolute; left: 14px; bottom: 14px; color: #fff; font: 400 17px var(--font-body); background: rgba(10, 16, 22, 0.55); border-radius: 8px; padding: 8px 14px; max-width: 70ch; }
 </style>
 
 <div class="wrap">
@@ -81,6 +92,8 @@ label.meta, .meta { font-family: var(--font-mono); font-size: 12px; color: var(-
         <canvas id="c"></canvas>
         <div class="hud" id="hud"></div>
         <div class="banner" id="banner" hidden></div>
+        <div class="legend" id="legend" hidden></div>
+        <div class="caption" id="caption" hidden></div>
       </div>
       <div class="controls">
         <button class="btn primary" id="play" type="button">Pause</button>
@@ -89,7 +102,7 @@ label.meta, .meta { font-family: var(--font-mono); font-size: 12px; color: var(-
         <label class="meta" for="speed">Speed</label>
         <select id="speed"><option value="0.25">0.25x</option><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option></select>
         <label class="meta" for="cam">Camera</label>
-        <select id="cam"><option value="follow" selected>Chase</option><option value="cinematic">Cinematic</option><option value="orbit">Free orbit</option></select>
+        <select id="cam"><option value="overview">Overview</option><option value="follow" selected>Chase</option><option value="cinematic">Cinematic</option><option value="orbit">Free orbit</option></select>
         <select id="race" aria-label="Course" hidden></select>
         <label class="meta" id="namesBox"><input type="checkbox" id="names"> Names</label>
       </div>
@@ -349,7 +362,11 @@ function pose (snap) {
     r.model.position.set(s.x, s.y, s.z); r.model.rotation.y = s.yaw
     const onGround = r.run.ground ? r.run.ground[s.tick] === 1 : Math.abs(s.y - Math.round(s.y)) < 1e-3
     animate(r.model, sp, onGround)
-    if (r.label) r.label.position.set(s.x, s.y + 2.3 + (r.lane % 5) * 0.62, s.z) // staggered so labels never overlap
+    if (r.label) {
+      const k = r.label.userData.k || 1
+      r.label.position.set(s.x, s.y + 2.3 + (r.lane % 5) * 0.62 * k, s.z) // staggered so tags rarely overlap
+      r.label.visible = r.visible && $('names').checked && !s.done // a finished run's tag goes; the legend keeps its result
+    }
     r.trail.geometry.setDrawRange(0, s.tick + 1)
     r.last = s
   }
@@ -367,7 +384,20 @@ function pose (snap) {
   }
   if (mode === 'race') $('banner').hidden = true
   const cm = $('cam').value
-  if (cm === 'follow') {
+  setFov(cm === 'overview' ? OVERVIEW_FOV : 60)
+  if (cm === 'overview') {
+    // The whole course and every runner in view, seen from the side of its long axis.
+    const o = overviewCamera(course)
+    camera.position.copy(o.pos); camera.lookAt(o.look)
+    // Name tags grow with distance so they stay readable from far away.
+    const k = Math.min(1.7, Math.max(1, o.pos.distanceTo(o.look) / 26))
+    for (const r of runners) if (r.label) { r.label.scale.set(2.4 * k, 0.6 * k, 1); r.label.userData.k = k }
+  } else {
+    for (const r of runners) if (r.label) { r.label.scale.set(2.4, 0.6, 1); r.label.userData.k = 1 }
+  }
+  if (cm === 'overview') {
+    // positioned above
+  } else if (cm === 'follow') {
     const fx = -Math.sin(lead.yaw); const fz = -Math.cos(lead.yaw)
     const want = new THREE.Vector3(lead.x - fx * 6, lead.y + 3.6, lead.z - fz * 6); const look = new THREE.Vector3(lead.x + fx * 3, lead.y + 0.8, lead.z + fz * 3)
     if (snap) { camPos.copy(want); camLook.copy(look) } else { camPos.lerp(want, 0.06); camLook.lerp(look, 0.1) }
@@ -378,6 +408,30 @@ function pose (snap) {
     if (snap) { camPos.copy(want); camLook.copy(look) } else { camPos.lerp(want, 0.05); camLook.lerp(look, 0.1) }
     camera.position.copy(camPos); camera.lookAt(camLook)
   }
+}
+const OVERVIEW_FOV = 30
+function setFov (f) { if (camera.fov !== f) { camera.fov = f; camera.updateProjectionMatrix() } }
+function overviewCamera (c) {
+  let x0 = Infinity; let x1 = -Infinity; let y0 = Infinity; let y1 = -Infinity; let z0 = Infinity; let z1 = -Infinity
+  for (const p of c.platforms) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[1] + 1); z0 = Math.min(z0, p[2]); z1 = Math.max(z1, p[3] + 1); y0 = Math.min(y0, p[4]); y1 = Math.max(y1, p[4] + 3) }
+  const look = new THREE.Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)
+  // Fit the course's bounding sphere in the narrow overview lens (little perspective distortion).
+  const r = 0.5 * Math.hypot(x1 - x0, y1 - y0 + 2, z1 - z0)
+  const dist = r / Math.sin(OVERVIEW_FOV * Math.PI / 360) * 0.76
+  // Look across the longer horizontal axis so the course spreads over the frame.
+  const side = (x1 - x0) >= (z1 - z0) ? new THREE.Vector3(0.22, 0.5, 1) : new THREE.Vector3(1, 0.5, 0.22)
+  side.normalize()
+  return { pos: look.clone().add(side.multiplyScalar(dist)), look }
+}
+function renderLegend () {
+  if (mode !== 'race') return
+  const tick = Math.floor(t)
+  $('legend').innerHTML = runners.map((r, i) => {
+    const n = r.run.yaw.length - 1
+    const k = r.run.cpAt[Math.min(tick, n)]
+    const status = tick >= n ? RESULT[r.run.result] : `platform ${k}/${r.run.n - 1}`
+    return `<div><i style="background:${RACE_COLORS[i % RACE_COLORS.length]}"></i><span>${r.run.label}</span><span>${status}</span></div>`
+  }).join('')
 }
 function resize () { const b = $('box'); renderer.setSize(b.clientWidth, b.clientHeight, false); camera.aspect = b.clientWidth / b.clientHeight; camera.updateProjectionMatrix() }
 function frame (now) {
@@ -401,5 +455,21 @@ document.addEventListener('keydown', e => {
 })
 if (DATA.races) DATA.races.forEach((r, i) => { const o = document.createElement('option'); o.value = String(i); o.textContent = r.name; $('race').appendChild(o) })
 new ResizeObserver(resize).observe($('box'))
-renderTabs(); start(); resize(); requestAnimationFrame(frame)
+// Local video rendering: ?render=1&race=K steps the race frame by frame for a capture tool.
+const Q = new URLSearchParams(location.search)
+if (Q.get('render')) {
+  document.body.classList.add('render')
+  mode = 'race'; raceIdx = Number(Q.get('race') || 0)
+  $('cam').value = Q.get('cam') || 'overview'
+  $('names').checked = Q.get('names') !== '0'
+  $('legend').hidden = false
+  if (Q.get('caption')) { $('caption').hidden = false; $('caption').textContent = Q.get('caption') }
+  start(); resize()
+  playing = false
+  window.renderInfo = () => ({ maxTicks, race: DATA.races[raceIdx].name, runners: runners.length })
+  window.renderAt = tick => { t = Math.min(maxTicks, tick); pose(true); renderLegend(); renderer.render(scene, camera); return true }
+  window.renderReady = true
+} else {
+  renderTabs(); start(); resize(); requestAnimationFrame(frame)
+}
 </script>

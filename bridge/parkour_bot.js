@@ -18,7 +18,7 @@ const { Vec3 } = require('vec3')
 const P = require('./policy')
 
 function parseArgs (argv) {
-  const a = { port: 25570, host: '127.0.0.1', origin: '0,80,0', pad: '-20,100,-20', stall: 200, maxTicks: 3000, username: 'ParkourBot', viewer: '' }
+  const a = { port: 25570, host: '127.0.0.1', origin: '0,80,0', pad: '-20,100,-20', stall: 200, maxTicks: 3000, username: 'ParkourBot', viewer: '', style: 'stone', webViewer: 0, hold: 0 }
   for (let i = 2; i < argv.length; i += 2) {
     const k = argv[i].replace(/^--/, '').replace(/-([a-z])/g, (_, c) => c.toUpperCase())
     a[k] = argv[i + 1]
@@ -26,6 +26,8 @@ function parseArgs (argv) {
   a.port = Number(a.port)
   a.stall = Number(a.stall)
   a.maxTicks = Number(a.maxTicks)
+  a.webViewer = Number(a.webViewer)
+  a.hold = Number(a.hold)
   a.origin = a.origin.split(',').map(Number)
   a.pad = a.pad.split(',').map(Number)
   return a
@@ -37,6 +39,18 @@ const courses = JSON.parse(fs.readFileSync(args.courses, 'utf8')).courses
 const out = fs.createWriteStream(args.out, { flags: 'a' })
 const [OX, OY, OZ] = args.origin
 const GRID = [64, 32, 64]
+
+// Block looks. Every choice is a full cube with Minecraft's default friction (no ice,
+// slime, soul sand or honey), so the bot moves exactly as it does on stone.
+const RAINBOW = ['white_concrete', 'orange_concrete', 'magenta_concrete', 'light_blue_concrete', 'yellow_concrete',
+  'lime_concrete', 'pink_concrete', 'cyan_concrete', 'purple_concrete', 'blue_concrete', 'red_concrete', 'green_concrete']
+function blockFor (k, n) {
+  if (args.style !== 'rainbow') return 'minecraft:stone'
+  if (k === 0) return 'minecraft:emerald_block'
+  if (k === n - 1) return 'minecraft:gold_block'
+  return 'minecraft:' + RAINBOW[(k - 1) % RAINBOW.length]
+}
+const OBSTACLE_BLOCK = () => args.style === 'rainbow' ? 'minecraft:quartz_block' : 'minecraft:stone'
 
 const bot = mineflayer.createBot({ host: args.host, port: args.port, username: args.username, version: '1.21.4', auth: 'offline' })
 
@@ -89,6 +103,9 @@ function isSolid (x, y, z) {
 function applyAction (a) {
   const c = P.controls(a)
   bot.entity.yaw = P.wrapYaw(bot.entity.yaw + c.yawStep)
+  // When filming from the bot's eyes, look a little down so the next platforms are in view.
+  // Pitch does not enter the movement physics (only elytra flight uses it).
+  if (args.webViewer && args.firstPerson === 'true') bot.entity.pitch = -0.42
   for (const k of ['forward', 'back', 'left', 'right', 'jump', 'sprint']) bot.setControlState(k, c[k])
 }
 
@@ -138,11 +155,29 @@ async function runCourse (c, index) {
   for (let k = 0; k < GRID[1]; k += 8) {
     await chatCommand(`/fill ${OX} ${OY + k} ${OZ} ${OX + GRID[0] - 1} ${OY + k + 7} ${OZ + GRID[2] - 1} minecraft:air`)
   }
-  for (const [x0, x1, z0, z1, y] of c.platforms) {
-    await chatCommand(`/fill ${x0 + OX} ${y + OY} ${z0 + OZ} ${x1 + OX} ${y + OY} ${z1 + OZ} minecraft:stone`)
+  if (args.style === 'rainbow') {
+    // Remove the previous course's beacon (it stands below the course area).
+    await chatCommand(`/fill ${OX - 4} ${OY - 7} ${OZ - 4} ${OX + GRID[0] + 3} ${OY - 6} ${OZ + GRID[2] + 3} minecraft:air`)
+  }
+  for (const [k, [x0, x1, z0, z1, y]] of c.platforms.entries()) {
+    await chatCommand(`/fill ${x0 + OX} ${y + OY} ${z0 + OZ} ${x1 + OX} ${y + OY} ${z1 + OZ} ${blockFor(k, c.platforms.length)}`)
   }
   const extra = c.extra || []
-  for (const [x, y, z] of extra) await chatCommand(`/setblock ${x + OX} ${y + OY} ${z + OZ} minecraft:stone`)
+  for (const [x, y, z] of extra) await chatCommand(`/setblock ${x + OX} ${y + OY} ${z + OZ} ${OBSTACLE_BLOCK()}`)
+  if (args.style === 'rainbow') {
+    // A beacon beam rising beside the goal, from a beacon far below the course (beams have no collision).
+    const used = new Set()
+    for (const [x0, x1, z0, z1] of c.platforms) for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) used.add(`${x},${z}`)
+    for (const [x, , z] of extra) used.add(`${x},${z}`)
+    const g = c.platforms[c.platforms.length - 1]
+    const cx = Math.floor((g[0] + g[1]) / 2); const cz = Math.floor((g[2] + g[3]) / 2)
+    const spot = [[g[1] + 2, cz], [g[0] - 2, cz], [cx, g[3] + 2], [cx, g[2] - 2]].find(([x, z]) => !used.has(`${x},${z}`))
+    if (spot) {
+      const bx = spot[0] + OX; const bz = spot[1] + OZ; const by = OY - 6
+      await chatCommand(`/fill ${bx - 1} ${by - 1} ${bz - 1} ${bx + 1} ${by - 1} ${bz + 1} minecraft:iron_block`)
+      await chatCommand(`/setblock ${bx} ${by} ${bz} minecraft:beacon`)
+    }
+  }
   const [sx, sy, sz] = c.spawn
   // Always send decimals: Minecraft centres whole-number /tp coordinates on the block (12 -> 12.5).
   const coord = v => v.toFixed(6)
@@ -160,7 +195,7 @@ async function runCourse (c, index) {
   const stale = previous.filter(k => !wanted.has(k.join(',')))
   await waitFor(() => stale.every(([x, y, z]) => !isSolid(x, y, z)), 10000, 'previous course cleared')
   previous = cells
-  await sleep(500) // a few ticks to settle on the start block
+  await sleep(500 + args.hold) // a few ticks to settle on the start block (longer when filming)
   bot.entity.yaw = c.spawn_yaw
   corrections = 0
   const t0 = Date.now()
@@ -177,6 +212,17 @@ bot.once('spawn', async () => {
   try {
     log(`connected; ${courses.length} courses; origin ${args.origin}`)
     await sleep(1500)
+    if (args.webViewer) {
+      // Optional: prismarine-viewer renders the bot's real world with Minecraft's textures at
+      // http://localhost:PORT (third-person, following the bot). Display only.
+      const Module = require('module')
+      const resolve = Module._resolveFilename
+      Module._resolveFilename = function (request, ...rest) {
+        return request === 'canvas' ? require.resolve('./canvas_stub') : resolve.call(this, request, ...rest)
+      }
+      require('prismarine-viewer/lib/mineflayer')(bot, { port: args.webViewer, firstPerson: args.firstPerson === 'true', viewDistance: 4 })
+      log(`web viewer on http://localhost:${args.webViewer}`)
+    }
     if (args.viewer) {
       log(`waiting for viewer ${args.viewer} to join 127.0.0.1:${args.port} ...`)
       await waitFor(() => bot.players[args.viewer] && bot.players[args.viewer].entity !== undefined, 15 * 60 * 1000, 'viewer')
