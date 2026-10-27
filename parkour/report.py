@@ -26,6 +26,7 @@ ARMS = {
     "nolanding": ("no landing bonus", ["nolanding-s0", "nolanding-s1", "nolanding-s2"]),
     "nofall": ("no fall penalty", ["nofall-s0", "nofall-s1", "nofall-s2"]),
     "uniform": ("no curriculum (levels uniform)", ["uniform-s0", "uniform-s1", "uniform-s2"]),
+    "noroute": ("platform positions hidden: block scan + goal only", ["noroute-s0", "noroute-s1", "noroute-s2"]),
 }
 # Reference categorical palette (dataviz skill), fixed order.
 SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]

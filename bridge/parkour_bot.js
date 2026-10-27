@@ -42,6 +42,7 @@ const bot = mineflayer.createBot({ host: args.host, port: args.port, username: a
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 let episode = null
 let finish = null
+let previous = [] // platforms of the last course, to confirm they were cleared
 let attributeNote = null
 let corrections = 0
 
@@ -141,6 +142,12 @@ async function runCourse (c, index) {
     return Math.abs(p.x - (sx + OX)) < 1e-6 && Math.abs(p.z - (sz + OZ)) < 1e-6 && Math.abs(p.y - (sy + OY)) < 1e-6
   }, 10000, 'teleport')
   await waitFor(() => c.platforms.every(([x0, x1, z0, z1, y]) => isSolid(x0, y, z0) && isSolid(x1, y, z1)), 10000, 'course blocks')
+  const wanted = new Set()
+  for (const [x0, x1, z0, z1, y] of c.platforms) for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) wanted.add(`${x},${y},${z}`)
+  const stale = []
+  for (const [x0, x1, z0, z1, y] of previous) for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) if (!wanted.has(`${x},${y},${z}`)) stale.push([x, y, z])
+  await waitFor(() => stale.every(([x, y, z]) => !isSolid(x, y, z)), 10000, 'previous course cleared')
+  previous = c.platforms
   await sleep(500) // a few ticks to settle on the start block
   bot.entity.yaw = c.spawn_yaw
   corrections = 0

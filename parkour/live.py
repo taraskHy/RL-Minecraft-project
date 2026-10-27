@@ -50,7 +50,8 @@ def pick_courses(per_level: int, n_jumps: int = 10, pool_per_level: int = 200) -
 def load_model(checkpoint: Path, device) -> ActorCritic:
     ck = torch.load(checkpoint, map_location=device, weights_only=False)
     hidden = tuple(ck["config"].get("hidden", (512, 256, 128)))
-    model = ActorCritic(hidden=hidden).to(device)
+    parts = tuple(p for p in ck["config"].get("hide", "").split(",") if p)
+    model = ActorCritic(hidden=hidden, hidden_parts=parts).to(device)
     model.load_state_dict(ck["model"])
     model.eval()
     return model

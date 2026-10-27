@@ -1,0 +1,9 @@
+{
+  "description": "Does the agent need to be told the route? The platform slots (corners of the next platforms) are hidden; the policy keeps its own state, the 98-point block scan around it and the goal direction. Same 1000 iterations and seeds as the ablation sweep, so it compares with the full arm.",
+  "common": ["--iterations", "1000", "--hide", "platforms"],
+  "runs": [
+    {"run": "noroute-s0", "args": ["--seed", "0"]},
+    {"run": "noroute-s1", "args": ["--seed", "1"]},
+    {"run": "noroute-s2", "args": ["--seed", "2"]}
+  ]
+}

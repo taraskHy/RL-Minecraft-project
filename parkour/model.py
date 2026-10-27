@@ -15,7 +15,7 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 
-from .env import ACTION_DIMS, OBS_DIM
+from .env import ACTION_DIMS, OBS_DIM, OBS_LAYOUT
 
 
 class RunningNorm(nn.Module):
@@ -24,6 +24,9 @@ class RunningNorm(nn.Module):
         self.register_buffer("mean", torch.zeros(dim, dtype=torch.float64))
         self.register_buffer("var", torch.ones(dim, dtype=torch.float64))
         self.register_buffer("count", torch.tensor(eps, dtype=torch.float64))
+        # Observation columns the policy may use (1) or must not see (0); not saved
+        # in checkpoints, rebuilt from the run's config.
+        self.register_buffer("mask", torch.ones(dim), persistent=False)
         self.clip = clip
 
     @torch.no_grad()
@@ -39,7 +42,7 @@ class RunningNorm(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         std = torch.sqrt(self.var + 1e-8).to(x.dtype)
-        return ((x - self.mean.to(x.dtype)) / std).clamp(-self.clip, self.clip)
+        return ((x - self.mean.to(x.dtype)) / std).clamp(-self.clip, self.clip) * self.mask.to(x.dtype)
 
 
 def mlp(sizes, act=nn.ELU, out_gain=1.0):
@@ -56,12 +59,20 @@ def mlp(sizes, act=nn.ELU, out_gain=1.0):
 
 
 class ActorCritic(nn.Module):
-    def __init__(self, obs_dim: int = OBS_DIM, hidden=(512, 256, 128), action_dims=ACTION_DIMS):
+    def __init__(self, obs_dim: int = OBS_DIM, hidden=(512, 256, 128), action_dims=ACTION_DIMS,
+                 hidden_parts: tuple = ()):
         super().__init__()
         self.obs_dim = obs_dim
         self.hidden = tuple(hidden)
         self.action_dims = tuple(action_dims)
         self.norm = RunningNorm(obs_dim)
+        self.hidden_parts = tuple(hidden_parts)
+        for name in hidden_parts:
+            start = 0
+            for part, size in OBS_LAYOUT:
+                if part == name:
+                    self.norm.mask[start:start + size] = 0
+                start += size
         self.actor = mlp((obs_dim, *hidden, sum(action_dims)), out_gain=0.01)
         self.critic = mlp((obs_dim, *hidden, 1), out_gain=1.0)
 
@@ -101,6 +112,7 @@ class ActorCritic(nn.Module):
             "format": "parkour-policy-v1", "obs_dim": self.obs_dim, "action_dims": list(self.action_dims),
             "activation": "elu", "norm_mean": self.norm.mean.cpu().tolist(),
             "norm_std": torch.sqrt(self.norm.var + 1e-8).cpu().tolist(), "norm_clip": self.norm.clip,
+            "obs_mask": self.norm.mask.cpu().tolist(), "hidden_parts": list(self.hidden_parts),
             "layers": layers, "meta": meta or {},
         }
         Path(path).write_text(json.dumps(data))

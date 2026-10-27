@@ -64,6 +64,7 @@ class TrainConfig:
     stall_ticks: int = 200
     reward: RewardConfig = field(default_factory=RewardConfig)
     init_from: str = ""
+    hide: str = ""  # comma-separated observation parts the policy must not see, e.g. "platforms"
 
 
 def course_hash(c: C.Course) -> str:
@@ -188,7 +189,7 @@ def train(cfg: TrainConfig) -> Path:
     env = ParkourEnv(pool, EnvConfig(num_envs=cfg.num_envs, stall_ticks=cfg.stall_ticks, reward=cfg.reward),
                      sampler=sampler, seed=cfg.seed)
 
-    model = ActorCritic(hidden=cfg.hidden).to(dev)
+    model = ActorCritic(hidden=cfg.hidden, hidden_parts=tuple(p for p in cfg.hide.split(",") if p)).to(dev)
     opt = torch.optim.Adam(model.parameters(), lr=cfg.lr, eps=1e-5)
     start_it = 0
     if cfg.init_from:

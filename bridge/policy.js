@@ -126,6 +126,7 @@ class Policy {
     this.mean = data.norm_mean
     this.std = data.norm_std
     this.clip = data.norm_clip
+    this.mask = data.obs_mask || null
     this.layers = data.layers
     this.actionDims = data.action_dims
     this.meta = data.meta
@@ -135,7 +136,10 @@ class Policy {
 
   logits (obs) {
     let x = new Float64Array(obs.length)
-    for (let i = 0; i < obs.length; i++) x[i] = clamp((obs[i] - this.mean[i]) / this.std[i], -this.clip, this.clip)
+    for (let i = 0; i < obs.length; i++) {
+      x[i] = clamp((obs[i] - this.mean[i]) / this.std[i], -this.clip, this.clip)
+      if (this.mask) x[i] *= this.mask[i]
+    }
     for (let l = 0; l < this.layers.length; l++) {
       const { w, b } = this.layers[l]
       const y = new Float64Array(b.length)
