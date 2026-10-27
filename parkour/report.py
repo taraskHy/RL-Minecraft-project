@@ -239,6 +239,26 @@ def main(argv=None):
             lines.append(f"| {k} | {v['specs']} | {pct(v['mean_policy_success'])} | {v['specs_policy_never']} |")
         lines.append("")
 
+    hp_runs = sorted(d.name for d in RUNS.iterdir() if d.is_dir() and d.name.startswith("hp-"))
+    if hp_runs:
+        lines += ["## Hyperparameters (one at a time around the defaults, seed 0)", "",
+                  "Selection uses the validation courses (seed family 2); the test score is reported alongside. The",
+                  "reference is the `full` arm (defaults), mean over its seeds. All runs see 0.52 B game ticks.", "",
+                  "| Run | Validation success | Test success | L4 | L5 |", "| --- | --- | --- | --- | --- |"]
+        ref = curves.get("full") or []
+        if ref:
+            lines.append(f"| defaults (`full`, {len(ref)} seeds) | - | {pct(np.mean([e['success'][-1] for e in ref]))} | "
+                         f"{pct(np.mean([e['success_L4'][-1] for e in ref]))} | {pct(np.mean([e['success_L5'][-1] for e in ref]))} |")
+        for r in hp_runs:
+            e = read_eval(r)
+            vp = RUNS / r / "eval_val_log.csv"
+            v = list(csv.DictReader(vp.open())) if vp.exists() else []
+            if e is None:
+                continue
+            lines.append(f"| `{r}` | {pct(float(v[-1]['success'])) if v else '-'} | {pct(e['success'][-1])} | "
+                         f"{pct(e['success_L4'][-1])} | {pct(e['success_L5'][-1])} |")
+        lines.append("")
+
     spath = out / "stress.json"
     if spath.exists():
         st = json.loads(spath.read_text())

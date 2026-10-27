@@ -32,6 +32,8 @@ from .paths import RUNS
 
 TEST_SEED_FAMILY = 1  # numpy SeedSequence entropy [2026, family, ...]; training uses family 0
 OBSTACLE_TEST_FAMILY = 4  # held-out courses with obstacles
+VALIDATION_FAMILY = 2  # model selection (best.pt); the test families are only reported
+OBSTACLE_VALIDATION_FAMILY = 5
 
 
 @dataclass
@@ -67,6 +69,7 @@ class TrainConfig:
     curriculum: str = "adaptive"  # adaptive | uniform
     eval_every: int = 50
     eval_per_level: int = 200
+    val_per_level: int = 100
     eval_jumps: int = 10
     stall_ticks: int = 200
     reward: RewardConfig = field(default_factory=RewardConfig)
@@ -192,10 +195,17 @@ def train(cfg: TrainConfig) -> Path:
     test_hashes = {course_hash(c) for c in tests}
     obstacle_tests = obstacle_courses(levels, cfg.eval_per_level, cfg.eval_jumps) if cfg.obstacle_prob > 0 else []
     test_hashes |= {course_hash(c) for c in obstacle_tests}
+    vals = held_out_courses(levels, cfg.val_per_level, cfg.eval_jumps, family=VALIDATION_FAMILY)
+    if cfg.obstacle_prob > 0:
+        vals += held_out_courses(levels, cfg.val_per_level, cfg.eval_jumps, obstacle_prob=0.5,
+                                 family=OBSTACLE_VALIDATION_FAMILY)
+    test_hashes |= {course_hash(c) for c in vals}
     factory = CourseFactory(cfg, levels, test_hashes)
     pool = CoursePool(factory.make(cfg.pool_size), dev, C.GRID)
     test_pool = CoursePool(tests, dev, C.GRID)
     obstacle_pool = CoursePool(obstacle_tests, dev, C.GRID) if obstacle_tests else None
+    val_pool = CoursePool(vals, dev, C.GRID)
+    best_info = {}
 
     if cfg.curriculum == "adaptive":
         sampler = LevelSampler(n_levels)
@@ -394,7 +404,17 @@ def train(cfg: TrainConfig) -> Path:
                             + [round(pl[L]["fell"], 4) for L in range(n_levels)])
             eval_f.flush()
             print(json.dumps({"eval_iteration": it, **ev}), flush=True)
-            score = ev["success"]
+            # Model selection uses the validation courses only.
+            evv = evaluate(model, val_pool, dev, cfg.stall_ticks)
+            score = evv["success"]
+            vpath = out / "eval_val_log.csv"
+            new_file = not vpath.exists()
+            with open(vpath, "a", newline="") as fv:
+                wv = csv.writer(fv)
+                if new_file:
+                    wv.writerow(["iteration", "env_steps", "success"])
+                wv.writerow([it, total_steps, round(score, 4)])
+            ev["validation_success"] = score
             if obstacle_pool is not None:
                 evo = evaluate(model, obstacle_pool, dev, cfg.stall_ticks)
                 po = evo["per_level"]
@@ -407,15 +427,15 @@ def train(cfg: TrainConfig) -> Path:
                     wo.writerow([it, total_steps, round(evo["success"], 4)] + [round(po[L]["success"], 4) for L in range(n_levels)])
                 print(json.dumps({"eval_obstacles_iteration": it, "success": evo["success"]}), flush=True)
                 ev["obstacles"] = evo
-                score = (ev["success"] + evo["success"]) / 2
             ck = {"model": model.state_dict(), "optimizer": opt.state_dict(), "iteration": it,
                   "sampler": sampler.state_dict(), "config": cfg_dict, "eval": ev}
             _save(ck, out / "checkpoints" / "latest.pt")
             if score > best:
                 best = score
+                best_info = {"iteration": it, "validation_success": score, "test_success": ev["success"]}
                 _save(ck, out / "checkpoints" / "best.pt")
                 model.export(out / "policy_best.json", {"run": cfg.run, "iteration": it, "eval": ev})
-            (out / "summary.json").write_text(json.dumps({"best_test_success": best, "last_eval": ev,
+            (out / "summary.json").write_text(json.dumps({"best": best_info, "last_eval": ev,
                                                           "iteration": it, "env_steps": total_steps}, indent=1))
     log_f.close()
     eval_f.close()

@@ -1,0 +1,15 @@
+{
+  "description": "One-at-a-time hyperparameter study around the default PPO settings (seed 0, same 0.52 B game ticks as the ablation arms; the 4096-environment run takes 4000 smaller iterations to see the same number of ticks). Compare with the full arm by the validation score; the test set is only reported.",
+  "common": [],
+  "runs": [
+    {"run": "hp-ent0.001", "args": ["--iterations", "1000", "--ent-coef", "0.001"]},
+    {"run": "hp-ent0.02", "args": ["--iterations", "1000", "--ent-coef", "0.02"]},
+    {"run": "hp-gamma0.98", "args": ["--iterations", "1000", "--gamma", "0.98"]},
+    {"run": "hp-gamma0.995", "args": ["--iterations", "1000", "--gamma", "0.995"]},
+    {"run": "hp-net-small", "args": ["--iterations", "1000", "--hidden", "256,128"]},
+    {"run": "hp-net-large", "args": ["--iterations", "1000", "--hidden", "1024,512,256"]},
+    {"run": "hp-kl0.005", "args": ["--iterations", "1000", "--target-kl", "0.005"]},
+    {"run": "hp-kl0.02", "args": ["--iterations", "1000", "--target-kl", "0.02"]},
+    {"run": "hp-envs4096", "args": ["--iterations", "4000", "--num-envs", "4096", "--eval-every", "200", "--pool-refresh-every", "80"]}
+  ]
+}
