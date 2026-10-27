@@ -12,6 +12,7 @@
 // replay it in the simulator.
 
 const fs = require('fs')
+require('./physics_patch') // vanilla collision tolerance, as in the simulator
 const mineflayer = require('mineflayer')
 const { Vec3 } = require('vec3')
 const P = require('./policy')

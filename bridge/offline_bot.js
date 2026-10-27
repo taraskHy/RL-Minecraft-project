@@ -6,6 +6,7 @@
 //   node offline_bot.js --policy P.json --courses C.json --out episodes.jsonl [--settle 10]
 
 const fs = require('fs')
+require('./physics_patch') // vanilla collision tolerance, as in the simulator
 const { Vec3 } = require('vec3')
 const { Physics } = require('prismarine-physics')
 const mcData = require('minecraft-data')('1.21.4')

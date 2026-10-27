@@ -1,7 +1,7 @@
 {
  "method": "as jump_feasibility.json, with a beam across the gap 3 blocks above the takeoff surface",
  "beam_height": 3,
- "seconds": 12.8,
+ "seconds": 6.8,
  "specs": [
   {
    "key": "g1_dy-3_l0_s1x1",

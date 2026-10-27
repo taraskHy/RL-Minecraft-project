@@ -225,6 +225,13 @@ def _place(platforms: list, extras: list, heading: int, spec: JumpSpec, grid=GRI
     """Platforms and wall cells for ``spec`` after ``platforms[-1]``, or None if it does not fit."""
     prev = platforms[-1]
     added = []
+    if spec.neo:
+        # A neo takes off from a block one wide across the jump, as in the feasibility study:
+        # from a wider platform the wall would span it all and the curve around it would grow.
+        hx, _ = HEADINGS[heading]
+        across = (prev[3] - prev[2] + 1) if hx != 0 else (prev[1] - prev[0] + 1)
+        if across != 1:
+            return None
     if spec.runway:
         run = _platform_after(prev, heading, JumpSpec(1, 0, 0, (spec.runway, 1)))
         if not _fits(run, platforms, grid, extras=extras):

@@ -11,6 +11,12 @@ Every expression keeps the operand order of the JavaScript source, in float64,
 so trajectories match the original to rounding error (see
 tests/test_physics_parity.py, which runs the real engine through Node).
 
+One deliberate change, made identically in the bot (bridge/physics_patch.js):
+block collisions use vanilla Minecraft's 1e-7 tolerance (VoxelShape.collide).
+Without it, a player resting exactly against a block face can read as
+overlapping it after rounding (32.3 - 0.3 = 31.999999999999996), the engine
+then stops blocking that block, and the player slips into its corner.
+
 Coordinates follow Mineflayer: yaw 0 faces north (-Z), yaw increases
 counter-clockwise seen from above (pi/2 faces west, -X). The forward vector is
 (-sin yaw, 0, -cos yaw) and the right vector is (cos yaw, 0, -sin yaw).
@@ -43,6 +49,9 @@ SPRINT_ACCELERATION = (0.1 + 0.1 * 0.3) * (0.1627714 / _INERTIA_CUBED)
 # Collision window in cells. It covers any query box whose horizontal moves
 # stay below 2.4 blocks per tick and vertical moves below 3.2 blocks per tick.
 WINDOW = (4, 7, 4)
+
+# Vanilla's collision tolerance: faces closer than this count as touching, not overlapping.
+COLLISION_EPSILON = 1e-7
 
 # Control channels, in this order, in every controls tensor.
 FORWARD, BACK, LEFT, RIGHT, JUMP, SPRINT = range(6)
@@ -152,14 +161,15 @@ class _Cells:
         self.cz = iz.to(torch.float64)
 
     def offset(self, bb: torch.Tensor, d: torch.Tensor, axis: int) -> torch.Tensor:
-        """Sequential AABB.computeOffset{X,Y,Z} over all cells, as a reduction."""
+        """Sequential AABB.computeOffset{X,Y,Z} over all cells, as a reduction, with vanilla's tolerance."""
+        eps = COLLISION_EPSILON
         coords = (self.cx, self.cy, self.cz)
         overlaps = []
         for other in range(3):
             if other == axis:
                 continue
             c = coords[other]
-            overlaps.append((other, (bb[:, other + 3, None] > c) & (bb[:, other, None] < c + 1)))
+            overlaps.append((other, (bb[:, other + 3, None] > c + eps) & (bb[:, other, None] < c + 1 - eps)))
         mask = self.solid
         for other, ov in overlaps:
             shape = [-1, 1, 1, 1]
@@ -171,9 +181,12 @@ class _Cells:
         lo = bb[:, axis, None]
         hi = bb[:, axis + 3, None]
         inf = torch.full_like(c, math.inf)
-        up = torch.where(line & (hi <= c), c - hi, inf).amin(dim=1)
-        down = torch.where(line & (lo >= c + 1), (c + 1) - lo, -inf).amax(dim=1)
-        return torch.where(d > 0, torch.minimum(d, up), torch.where(d < 0, torch.maximum(d, down), d))
+        up = torch.where(line & (hi <= c + eps), (c - hi).clamp(min=0.0), inf).amin(dim=1)
+        down = torch.where(line & (lo >= c + 1 - eps), ((c + 1) - lo).clamp(max=0.0), -inf).amax(dim=1)
+        # A block that limits the move to under the tolerance stops it entirely.
+        up = torch.where(up < eps, torch.zeros_like(up), up)
+        down = torch.where(down > -eps, torch.zeros_like(down), down)
+        return torch.where(d > 0, torch.where(up < d, up, d), torch.where(d < 0, torch.where(down > d, down, d), d))
 
 
 def _move(world: World, course: torch.Tensor, pos: torch.Tensor, vel: torch.Tensor,

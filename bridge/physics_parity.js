@@ -9,6 +9,7 @@
 // Output (stdout, JSON): { "cases": [ [ {pos, vel, onGround, jumpTicks, collH, collV}, ... ], ... ] }
 
 const fs = require('fs')
+require('./physics_patch') // vanilla collision tolerance, as in the simulator
 const { Vec3 } = require('vec3')
 const { Physics } = require('prismarine-physics')
 const mcData = require('minecraft-data')('1.21.4')

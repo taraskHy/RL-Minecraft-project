@@ -84,6 +84,24 @@ class Courses(unittest.TestCase):
             plat = {tuple(x) for x in C.Course(c.platforms, c.spawn, c.spawn_yaw).blocks()}
             self.assertFalse(plat & {tuple(x) for x in c.extra})
 
+    def test_neos_take_off_from_one_wide_blocks(self):
+        levels = C.load_levels(advanced=True)
+        rng = np.random.default_rng(12)
+        seen = 0
+        for i in range(120):
+            c = C.generate(rng, levels, 6 + i % (len(levels) - 6), 10)
+            k = 0  # platform index of each spec's takeoff
+            for spec in c.specs:
+                if spec.neo:
+                    p = c.platforms[k]
+                    nxt = c.platforms[k + 1]
+                    along_x = nxt[0] > p[1] or nxt[1] < p[0]
+                    across = (p[3] - p[2] + 1) if along_x else (p[1] - p[0] + 1)
+                    self.assertEqual(across, 1, spec.key())
+                    seen += 1
+                k += 1
+        self.assertGreater(seen, 20)
+
     def test_seeded_generation_is_reproducible(self):
         a = C.generate(np.random.default_rng([1, 2]), self.levels, 3, 10)
         b = C.generate(np.random.default_rng([1, 2]), self.levels, 3, 10)
