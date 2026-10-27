@@ -303,3 +303,24 @@ def forward_vector(yaw: torch.Tensor) -> torch.Tensor:
 
 def right_vector(yaw: torch.Tensor) -> torch.Tensor:
     return torch.stack((torch.cos(yaw), torch.zeros_like(yaw), -torch.sin(yaw)), -1)
+
+
+def inside_solid(world: World, course: torch.Tensor, pos: torch.Tensor, eps: float = 1e-7) -> torch.Tensor:
+    """(N,) bool: the player's box overlaps a solid cell by more than ``eps`` on every axis.
+
+    The collision code only stops movement into blocks; a player that starts
+    inside one can walk out through it, as in Minecraft. Searches that choose
+    start positions use this to reject them.
+    """
+    w = HALF_WIDTH
+    x, y, z = pos.unbind(-1)
+    bx = torch.floor(x - w).to(torch.int64)[:, None] + torch.arange(2, device=pos.device)
+    by = torch.floor(y).to(torch.int64)[:, None] + torch.arange(3, device=pos.device)
+    bz = torch.floor(z - w).to(torch.int64)[:, None] + torch.arange(2, device=pos.device)
+    solid = world.lookup(course.view(-1, 1, 1, 1), bx[:, :, None, None], by[:, None, :, None], bz[:, None, None, :])
+    fx, fy, fz = bx.to(pos.dtype), by.to(pos.dtype), bz.to(pos.dtype)
+    ox = ((x[:, None] + w) > fx + eps) & ((x[:, None] - w) < fx + 1 - eps)
+    oy = ((y[:, None] + PLAYER_HEIGHT) > fy + eps) & (y[:, None] < fy + 1 - eps)
+    oz = ((z[:, None] + w) > fz + eps) & ((z[:, None] - w) < fz + 1 - eps)
+    hit = solid & ox[:, :, None, None] & oy[:, None, :, None] & oz[:, None, None, :]
+    return hit.flatten(1).any(dim=1)

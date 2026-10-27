@@ -95,7 +95,7 @@ def _evaluate_chunk(specs, device, beam=False):
     yaw = torch.atan2(-d[:, 0], -d[:, 2])
     s = physics.PlayerState.at(start, yaw)
     landed = torch.zeros(n, dtype=torch.bool, device=device)
-    alive = torch.ones(n, dtype=torch.bool, device=device)
+    alive = ~physics.inside_solid(pool.world, course, s.pos)  # never start inside a block
     low = torch.minimum(pool.top[course, 0], pool.top[course, 1])
     for t in range(HORIZON):
         c = torch.zeros(n, 6, dtype=torch.bool, device=device)
@@ -147,7 +147,7 @@ def _evaluate_neo_chunk(specs, device):
     yaw = -math.pi / 2 - side * angle
     s = physics.PlayerState.at(start, yaw)
     landed = torch.zeros(n, dtype=torch.bool, device=device)
-    alive = torch.ones(n, dtype=torch.bool, device=device)
+    alive = ~physics.inside_solid(pool.world, course, s.pos)  # never start inside a block
     low = torch.minimum(pool.top[course, 0], pool.top[course, 1])
     for t in range(HORIZON):
         steer = t >= jtick + delay

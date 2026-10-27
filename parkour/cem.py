@@ -63,7 +63,8 @@ def search(spec: JumpSpec, device="cuda", iterations: int = 40, seed: int = 0) -
         yaw = base_yaw + st[:, 2]
         s = physics.PlayerState.at(pos, yaw)
         landed = torch.zeros(n, dtype=torch.bool, device=device)
-        alive = torch.ones(n, dtype=torch.bool, device=device)
+        # A start overlapping a block (the wall) could walk through it: such samples never count.
+        alive = ~physics.inside_solid(pool.world, course, pos)
         closest = torch.full((n,), 1e9, device=device, dtype=torch.float64)
         for t in range(T):
             yaw = yaw + dyaw[:, t]
@@ -183,7 +184,7 @@ def demo(spec: JumpSpec, device="cuda", iterations: int = 40, seed: int = 0) -> 
         traj_pos, traj_yaw = [s.pos.clone()], [yaw.clone()]
         landed = torch.zeros(n, dtype=torch.bool, device=device)
         land_tick = torch.full((n,), T, dtype=torch.int64, device=device)
-        alive = torch.ones(n, dtype=torch.bool, device=device)
+        alive = ~physics.inside_solid(pool.world, course, pos)
         closest = torch.full((n,), 1e9, device=device, dtype=torch.float64)
         for t in range(T):
             yaw = yaw + dyaw[:, t]
