@@ -1,54 +1,71 @@
 # Handoff for the next assistant session
 
-Read this, then [TEAM_STATUS.md](TEAM_STATUS.md) and [docs/design.md](docs/design.md).
+Read this, then [TEAM_STATUS.md](TEAM_STATUS.md), [docs/design.md](docs/design.md)
+and [results/DATA.md](results/DATA.md).
 
 ## Goal and how the user works
 
 - Goal (since 27 Oct 2026): RL bot that completes **unseen** Minecraft
-  parkour courses and reaches the target. The earlier survival project is
-  archived (`archive/survival` tag = old `codex/pc-canopy-descent` head;
-  `codex/*` branches untouched).
+  parkour courses and reaches the target. Requested on 27 Oct: harder jumps
+  (neo, double neo, 4-block jumps). The earlier survival project is archived
+  (`archive/survival` tag; `codex/*` branches untouched).
 - The user manages at a high level and wants as few questions as possible.
-  Do routine work autonomously; ask only about direction or anything that is
-  the user's own decision (e.g. the Minecraft EULA).
-- Team of three students; course-level methods (PPO, actor-critic and GAE are
-  in the course material).
+  Ask only about direction or the user's own decisions.
+- **One session changes the project.** On 28 Oct the user decided that only
+  the main session edits files, commits and starts or stops runs; other
+  sessions are for questions only. A side chat once committed and restarted a
+  run in parallel; check `git log` and running processes before acting.
+- Team of three students; course-level methods (PPO, actor-critic, GAE are
+  in the course material). They need data for a presentation: keep
+  `results/` complete (`python -m parkour.report` refreshes it).
 - Repository: <https://github.com/taraskHy/RL-Minecraft-project>, branch
-  `main`. Never force-push. Push and update TEAM_STATUS after each result.
+  `main`; pushing works (the user signed in on this PC). Never force-push.
+  Push and update TEAM_STATUS after each result.
 
 ## Machine
 
 Intel Core Ultra 7 270K Plus (24 cores), 128 GB RAM, RTX 5080 16 GB,
-Windows 11. Checkout: `C:\Users\ethan\OneDrive\Desktop\etgar\RL\RL-Minecraft-parkour`
-(OneDrive folder; checkpoint saves retry on file locks). Python 3.12 venv in
-`.venv` (torch 2.11.0+cu128). Portable Node 24.22.1, Java 21 and the 1.21.4
-server jar in `.local` (ignored by Git).
+Windows 11, clock in JST. Checkout:
+`C:\Users\ethan\OneDrive\Desktop\etgar\RL\RL-Minecraft-parkour` (OneDrive
+folder). Python 3.12 venv in `.venv` (torch 2.11.0+cu128). Portable Node,
+Java and the 1.21.4 server jar in `.local` (ignored by Git). The Minecraft
+EULA was accepted by the user on 27 Oct 2026
+(`.local/minecraft-eula-consent.json`).
 
-## Minecraft EULA
-
-Not recorded for this project. A consent file from 23 Oct 2026 exists in the
-old folder `RL-Minecraft-project/.local`, but the agreed rule is to ask the
-user on every machine. Live runs need `run.cmd accept-eula --agree` from the
-user first.
+**GPU memory is the limit:** about three training processes fit; a fourth
+(or a large `parkour.cem` search beside three) spills into system RAM and
+everything slows 5-10 times. Windows sleeps after 15 idle minutes:
+`scripts/keep_awake.py` holds it awake while training runs.
 
 ## Key facts learned
 
-- prismarine-physics 1.11.1 ported exactly (float64, same operand order);
-  parity tests pass to 1e-14 on CPU and CUDA.
-- The env step is synchronisation-free; the simulator is kernel-launch bound
-  on Windows (~850 launches per tick), so more environments per process is
-  almost free: 16,384 envs give ~1M ticks/s; 3 training processes can share
-  the GPU.
-- 1.21 servers send a sprinting modifier with a different id from
-  prismarine's, so the bot deletes the movement-speed attribute each tick
-  (see `bridge/parkour_bot.js`). Verify in the first live run: the bot logs
-  the attribute it removed.
-- `bot.look` quantises yaw; the bot sets `bot.entity.yaw` directly instead.
+- Physics: prismarine-physics 1.11.1 ported exactly, **plus vanilla's 1e-7
+  collision tolerance** in both the simulator (`COLLISION_EPSILON`) and the
+  bot (`bridge/physics_patch.js`). Without it a player resting against a face
+  can slip into a block corner through rounding. Parity with the patched
+  engine: 1.4e-14 blocks.
+- Searches must never start the player inside a block
+  (`physics.inside_solid`): the engine lets a player walk out of a block it
+  already overlaps (this faked three "double neo proofs" once).
+- Live bot: `/tp` coordinates must be decimals (whole numbers are centred);
+  the bot deletes the server's movement-speed attribute each tick; it sets
+  `bot.entity.yaw` directly.
+- PPO needed safeguards (KL stop, dual clip, KL-adaptive LR); the first runs
+  collapsed (`runs/_v1_unstable`). One short dip remains at the 1e-3 LR cap.
+- Checkpoint selection uses the validation family (2); test families 1
+  (standard) and 4 (obstacles) are only reported.
+- Neos: a single neo (wall flush with a 1-wide takeoff) is possible in all
+  18 layouts tried; double and triple neos were not found possible from a
+  standing start (`configs/jump_cem.json`) nor, so far, with a 3-4 block
+  run-up (`scripts/cem_momentum_neo.py`). In courses a neo must take off
+  from a 1-wide block. Standing on any obstacle ends an episode as a fall.
 
 ## Where things are
 
-- Runs: `runs/<name>/` (`config.json`, `train_log.csv`, `eval_log.csv`,
-  `checkpoints/best.pt`, `policy_best.json`, `summary.json`). `runs/` is
-  ignored by Git; copy what the report needs into `results/`.
-- Sweep runner: `scripts/sweep.py configs/sweep_ablation.json --slots 2`.
-- Offline end-to-end check: `run.cmd offline --checkpoint ... --out ...`.
+- Final policy (obstacles): `results/final_policy.pt` / `.json`.
+- Runs: `runs/<name>/` (ignored by Git; logs copied to `results/runs/`).
+- Neo training: `runs/advanced-ft3` (levels 0-8, from `advanced-ft2`).
+- Sweeps: `scripts/sweep.py configs/<sweep>.json --slots N` (skips
+  finished runs).
+- Pages: `results/replay_viewer.html`, `results/progress.html`,
+  `results/neo_preview.html` (published as private artifacts).
