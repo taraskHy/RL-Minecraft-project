@@ -58,25 +58,37 @@ def episodes_from(run: Path) -> list[dict]:
 
 def main():
     out = Path(sys.argv[1])
-    runs = [Path(p) for p in sys.argv[2:]]
+    args = sys.argv[2:]
+    title = subtitle = None
+    if args and args[0] == "--title":
+        title, subtitle, args = args[1], args[2], args[3:]
+    runs = [Path(p) for p in args]
     eps = []
     for r in runs:
-        eps.extend(episodes_from(r))
+        # A .json file holds ready-made viewer episodes (for example optimizer proofs).
+        eps.extend(json.loads(r.read_text()) if r.suffix == ".json" else episodes_from(r))
     ok = sum(e["result"] == "success" for e in eps)
     modes = sorted({e["mode"] for e in eps if e["mode"]})
     data = {
         "subtitle": "A PPO policy plays Minecraft parkour courses it never saw in training. Pick a course to watch it, tick by tick.",
         "meta": f"{ok}/{len(eps)} courses completed · " + "; ".join(modes),
-        "notes": (("Trajectories were recorded in real Minecraft 1.21.4: a Mineflayer bot driven by the trained network on "
+        "notes": (("Optimizer proofs are open-loop action sequences found by parkour.cem in the simulator; they show "
+                   "a jump is possible, not what the bot learned. " if any("optimizer" in m for m in modes) else "") +
+                  ("Trajectories were recorded in real Minecraft 1.21.4: a Mineflayer bot driven by the trained network on "
                    "a local server (<code>run.cmd live</code>). " if any("live" in m for m in modes) else
                    "Trajectories come from the bot's JavaScript stack running on prismarine-physics, the engine a "
                    "Mineflayer bot moves with in real Minecraft (<code>run.cmd offline</code>). ") +
                   "Start block in green, goal in gold, "
-                  "obstacles (head-hitter beams and decoy pillars) in dark stone. "
+                  "obstacles and neo walls in dark stone. "
                   "Space plays or pauses; the arrow keys step one game tick."),
         "episodes": eps,
     }
+    if subtitle:
+        data["subtitle"] = subtitle
     html = (ROOT / "scripts" / "replay_template.html").read_text(encoding="utf-8")
+    if title:
+        html = html.replace("<title>Parkour Agent Replays</title>", f"<title>{title}</title>")
+        html = html.replace("<h1>Parkour agent replays</h1>", f"<h1>{title}</h1>")
     html = html.replace("/*DATA*/", json.dumps(data, separators=(",", ":")))
     out.write_text(html, encoding="utf-8")
     print("wrote", out, f"{len(eps)} episodes, {out.stat().st_size / 1e6:.2f} MB")

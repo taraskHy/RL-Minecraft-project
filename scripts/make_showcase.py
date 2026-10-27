@@ -35,6 +35,14 @@ SPRINT = [  # long flat gaps that need momentum
 ]
 
 
+NEO = [  # neos left and right, then a run-up and a 4-block gap ("5 block jump")
+    (J(1, 0, 0, (2, 2)), ON), (J(1, 0, 0, (1, 1), neo=1, side=1), ON), (J(2, 0, 0, (1, 1)), ON),
+    (J(1, 0, 0, (1, 1), neo=1, side=-1), ON), (J(1, 0, 0, (1, 1)), RIGHT),
+    (J(2, -1, 0, (1, 1), neo=1, side=1, wall_at=2), ON), (J(2, 0, 0, (1, 1)), ON),
+    (J(2, 0, 0, (1, 1), neo=1, side=-1), ON), (J(4, -1, 0, (2, 2), runway=3), ON), (J(1, 0, 0, (3, 3)), ON),
+]
+
+
 def check(c):
     b = c.blocks()
     assert (b >= 0).all() and (b < GRID).all(), "course leaves the grid"
@@ -44,7 +52,7 @@ def check(c):
 def main():
     courses = []
     for name, steps, start, heading in (("tour", TOUR, (4, 14, 8), 0), ("stairs", STAIRS, (6, 6, 40), 0),
-                                        ("sprint", SPRINT, (4, 16, 30), 0)):
+                                        ("sprint", SPRINT, (4, 16, 30), 0), ("neo", NEO, (4, 18, 20), 0)):
         c = from_specs(steps, start=start, heading=heading, name=name)
         check(c)
         courses.append(c.to_json())

@@ -419,10 +419,19 @@ def from_specs(steps: list, start=(4, 12, 30), start_size: int = 3, heading: int
     """
     x, y, z = start
     platforms = [np.array([x, x + start_size - 1, z, z + start_size - 1, y], dtype=np.int64)]
+    extras: list = []
     for spec, turn in steps:
         heading = (heading + turn) % 4
-        platforms.append(_platform_after(platforms[-1], heading, spec))
-    c = Course(np.stack(platforms), np.zeros(3), 0.0, level=0, specs=[s for s, _ in steps], name=name)
+        if spec.neo or spec.runway:
+            placed = _place(platforms, extras, heading, spec)
+            if placed is None:
+                raise ValueError(f"{spec.key()} does not fit after platform {len(platforms) - 1}")
+            platforms.extend(placed[0])
+            extras.extend(placed[1])
+        else:
+            platforms.append(_platform_after(platforms[-1], heading, spec))
+    c = Course(np.stack(platforms), np.zeros(3), 0.0, level=0, specs=[s for s, _ in steps], name=name,
+               extra=np.array(extras, dtype=np.int64).reshape(-1, 3))
     centres = c.centers()
     c.spawn = centres[0].copy()
     d = centres[1] - centres[0]

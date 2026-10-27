@@ -150,3 +150,71 @@ def merge_into_levels() -> None:
     data["cem"] = "neo specs proven possible by parkour.cem were added"
     path.write_text(json.dumps(data, indent=1))
     print(f"added {added} neo specs proven by the search")
+
+
+def demo(spec: JumpSpec, device="cuda", iterations: int = 40, seed: int = 0) -> dict | None:
+    """Search like ``search`` and return the first landing sequence as a replayable trajectory."""
+    gen = torch.Generator(device=device).manual_seed(seed)
+    c = single_jump(spec)
+    pool = CoursePool([c], device, grid=(24, 16, 24))
+    n, T = SAMPLES, HORIZON
+    course = torch.zeros(n, dtype=torch.int64, device=device)
+    target = pool.centre[0, 1]
+    low = min(float(pool.top[0, 0]), float(pool.top[0, 1]))
+    yaw_mu = torch.zeros(T, device=device, dtype=torch.float64)
+    yaw_sd = torch.full((T,), math.radians(25), device=device, dtype=torch.float64)
+    probs = {k: torch.full((T,), v, device=device) for k, v in (("fwd", 0.8), ("jump", 0.3), ("sprint", 0.8))}
+    p_strafe = torch.full((T, 3), 1 / 3, device=device)
+    start_mu = torch.zeros(3, device=device, dtype=torch.float64)
+    start_sd = torch.tensor([0.2, 0.2, math.radians(40)], device=device, dtype=torch.float64)
+    for it in range(iterations):
+        dyaw = yaw_mu + yaw_sd * torch.randn(n, T, device=device, dtype=torch.float64, generator=gen)
+        fwd = torch.rand(n, T, device=device, generator=gen) < probs["fwd"]
+        jump = torch.rand(n, T, device=device, generator=gen) < probs["jump"]
+        sprint = torch.rand(n, T, device=device, generator=gen) < probs["sprint"]
+        strafe = torch.multinomial(p_strafe, n, replacement=True, generator=gen).T
+        st = start_mu + start_sd * torch.randn(n, 3, device=device, dtype=torch.float64, generator=gen)
+        st[:, :2] = st[:, :2].clamp(-0.29, 0.29)
+        pos = pool.spawn[course].clone()
+        pos[:, 0] += st[:, 0]
+        pos[:, 2] += st[:, 1]
+        yaw = c.spawn_yaw + st[:, 2]
+        s = physics.PlayerState.at(pos, yaw)
+        traj_pos, traj_yaw = [s.pos.clone()], [yaw.clone()]
+        landed = torch.zeros(n, dtype=torch.bool, device=device)
+        land_tick = torch.full((n,), T, dtype=torch.int64, device=device)
+        alive = torch.ones(n, dtype=torch.bool, device=device)
+        closest = torch.full((n,), 1e9, device=device, dtype=torch.float64)
+        for t in range(T):
+            yaw = yaw + dyaw[:, t]
+            ctrl = torch.stack((fwd[:, t], torch.zeros_like(fwd[:, t]), strafe[:, t] == 0, strafe[:, t] == 2,
+                                jump[:, t], sprint[:, t]), -1)
+            s.yaw = yaw
+            s = physics.simulate(pool.world, course, s, ctrl)
+            traj_pos.append(s.pos.clone())
+            traj_yaw.append(yaw.clone())
+            now = standing_on(pool, s, course)[:, 1] & alive & ~landed
+            land_tick = torch.where(now, torch.full_like(land_tick, t + 1), land_tick)
+            landed |= now
+            alive &= s.pos[:, 1] > low - 1.0
+            closest = torch.where(alive & ~landed, torch.minimum(closest, torch.linalg.norm(s.pos - target, dim=-1)),
+                                  closest)
+        if bool(landed.any()):
+            i = int(torch.nonzero(landed)[0])
+            k = int(land_tick[i])
+            P = torch.stack(traj_pos)[: k + 1, i].cpu().tolist()
+            Y = torch.stack(traj_yaw)[: k + 1, i].cpu().tolist()
+            return {"course": c, "pos": P, "yaw": Y, "iteration": it}
+        score = -closest
+        top = torch.topk(score, int(n * ELITE)).indices
+        a = 0.7
+        yaw_mu = a * dyaw[top].mean(0) + (1 - a) * yaw_mu
+        yaw_sd = (a * dyaw[top].std(0) + (1 - a) * yaw_sd).clamp(min=math.radians(0.5))
+        for key, arr in (("fwd", fwd), ("jump", jump), ("sprint", sprint)):
+            probs[key] = a * arr[top].float().mean(0) + (1 - a) * probs[key]
+        onehot = torch.nn.functional.one_hot(strafe[top], 3).float().mean(0)
+        p_strafe = (a * onehot + (1 - a) * p_strafe).clamp(min=0.02)
+        p_strafe = p_strafe / p_strafe.sum(-1, keepdim=True)
+        start_mu = a * st[top].mean(0) + (1 - a) * start_mu
+        start_sd = (a * st[top].std(0) + (1 - a) * start_sd).clamp(min=0.01)
+    return None
