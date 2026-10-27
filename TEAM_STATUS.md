@@ -63,8 +63,12 @@ largest difference 1.4e-14 blocks over 99,000 ticks. `run.cmd test` runs this.
    (prismarine-physics has them) and new course pieces.
 2. Hand-built maps: extract the platform chain from a region of a real map.
 3. Presentation footage: record a `run.cmd live --viewer` session.
-4. The report: `docs/report_draft.md` has sections 1 to 6; section 7 comes
-   from `results/README.md`.
+4. The report: `docs/report_draft.md` is complete except the hyperparameter
+   and real-Minecraft results (7.3, 7.9), the discussion and the conclusion.
+
+**Try the final policy without training:** `results/final_policy.pt` (weights)
+and `results/final_policy.json` (what the bot loads), for example
+`run.cmd offline --checkpoint resultsinal_policy.pt --out runs\my-check`.
 
 ## Update log
 

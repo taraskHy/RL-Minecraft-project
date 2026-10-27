@@ -28,8 +28,9 @@ real Minecraft server, on new courses.
 
 Details, figures, the reward ablation and the other experiments:
 [results/README.md](results/README.md). 3D replays: open
-`results/replay_viewer.html` in a browser. Final policy:
-`runs/obstacles-ft/checkpoints/best.pt` (not in Git; `results/runs` has its logs).
+`results/replay_viewer.html` in a browser. Final policy in Git:
+`results/final_policy.pt` (weights, for `run.cmd offline` / `run.cmd live --checkpoint`) and
+`results/final_policy.json` (the exported network the bot loads).
 
 ## How it works
 
