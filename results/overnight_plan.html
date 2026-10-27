@@ -1,0 +1,94 @@
+<title>Overnight Decision Tree</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+/* Layout: one column; the flowchart in a scrollable card, the rules below it. */
+:root {
+  --bg: #eef1f4; --panel: #ffffff; --fg: #1a2027; --muted: #56616c; --line: #d3d9df; --accent: #2e7a4c;
+  --font-display: "Silkscreen", "Courier New", monospace;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #0f1418; --panel: #161d23; --fg: #e4e9ee; --muted: #93a0ac; --line: #26313a; --accent: #5cbf85; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #0f1418; --panel: #161d23; --fg: #e4e9ee; --muted: #93a0ac; --line: #26313a; --accent: #5cbf85; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.55; }
+.wrap { max-width: 1100px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 40px; display: grid; gap: 18px; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: 24px; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); margin: 4px 0 0; max-width: 70ch; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; min-width: 0; }
+.chart { overflow-x: auto; }
+h2 { font-size: 16px; margin: 0 0 8px; }
+ul { margin: 0; padding-left: 20px; max-width: 75ch; }
+li { margin: 4px 0; }
+.times { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.time { border-left: 3px solid var(--accent); padding: 2px 10px; }
+.time b { display: block; }
+.time span { color: var(--muted); font-size: 13px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Overnight decision tree</h1>
+    <p class="sub">What happens to the parkour bot while you sleep (28 October 2026). Each branch is chosen by what the runs show; every outcome lands in TEAM_STATUS.md and on GitHub.</p>
+  </header>
+
+  <section class="card">
+    <h2>Expected timeline</h2>
+    <div class="times">
+      <div class="time"><b>~01:30</b><span>Double-neo search with set-back walls ends</span></div>
+      <div class="time"><b>~02:30</b><span>Neo training ends, then tests in simulator, offline and real Minecraft</span></div>
+      <div class="time"><b>~05:30</b><span>Hyperparameter study ends</span></div>
+      <div class="time"><b>All night</b><span>Visuals: Minecraft-style viewer, ghost race, colourful showcase course</span></div>
+    </div>
+  </section>
+
+  <section class="card chart">
+<pre class="mermaid">
+flowchart TD
+    S[01:15 runs in progress] --> A[Neo training ends ~02:30]
+    S --> B[Double-neo search ends ~01:30]
+    S --> V[Visuals, all night]
+    A --> A0{Level 6 at least 85% and level 7 at least 50%?}
+    A0 -- yes --> A1[Test on unseen neo courses: simulator, offline bot, real Minecraft]
+    A0 -- no, still improving --> A2[1500 more iterations, learning-rate cap 3e-4]
+    A0 -- no, collapsed or flat --> A3[Restart from best checkpoint, cap 3e-4, more exploration]
+    A2 --> A0b{Better now?}
+    A3 --> A0b
+    A0b -- yes --> A1
+    A0b -- no --> A4[Keep the best neo policy, report the level reached]
+    A1 --> A5{Normal and obstacle courses within 2 points of the final policy?}
+    A5 -- yes --> A6[Promote it: one final policy]
+    A5 -- no --> A7[Keep two policies: final and neo]
+    B --> B0{Any double neo landed?}
+    B0 -- yes --> B1[Add to levels 7-8, fine-tune, test]
+    B0 -- no --> B2[Report double and triple neos as impossible, long single neos stay]
+    A6 --> C[Hyperparameter study, 3 runs at a time]
+    A7 --> C
+    A4 --> C
+    C --> C0{A setting beats the defaults by more than 3 points?}
+    C0 -- yes, time left --> C1[Train a final run with it, keep only if the test confirms]
+    C0 -- no --> C2[Report the table, defaults stay]
+    V --> V1[Minecraft-style 3D viewer]
+    V --> V2[Ghost race of all training stages]
+    V --> V3[Colourful real-Minecraft showcase course]
+    V --> V4[Presentation dashboard]
+    C1 --> M[Morning: results, status, report draft, all pushed]
+    C2 --> M
+    B1 --> M
+    B2 --> M
+    V4 --> M
+</pre>
+  </section>
+
+  <section class="card">
+    <h2>Rules for the night</h2>
+    <ul>
+      <li>At most three training processes on the GPU at once; more spills into system memory and slows everything 5 to 10 times.</li>
+      <li>Every number says where it was measured: simulator, offline bot (Mineflayer's physics without a server) or real Minecraft.</li>
+      <li>Visuals never change the physics or the policy. Colourful blocks in Minecraft are full cubes with normal friction only (concrete, quartz, gold, emerald), so the bot moves exactly as on stone.</li>
+      <li>The current final policy stays available whatever happens.</li>
+    </ul>
+  </section>
+</div>
