@@ -1,0 +1,20 @@
+{
+  "description": "Reward and curriculum ablation, 1000 PPO iterations (524M env steps) per run, 3 seeds per arm. The full arm's seed 0 is the first 1000 iterations of main-s0 (identical settings; constant learning rate).",
+  "common": ["--iterations", "1000"],
+  "runs": [
+    {"run": "full-s1", "args": ["--seed", "1"]},
+    {"run": "sparse-s0", "args": ["--seed", "0", "--reward-progress", "0"]},
+    {"run": "uniform-s0", "args": ["--seed", "0", "--curriculum", "uniform"]},
+    {"run": "nolanding-s0", "args": ["--seed", "0", "--reward-landing", "0"]},
+    {"run": "nofall-s0", "args": ["--seed", "0", "--reward-fall", "0"]},
+    {"run": "full-s2", "args": ["--seed", "2"]},
+    {"run": "sparse-s1", "args": ["--seed", "1", "--reward-progress", "0"]},
+    {"run": "uniform-s1", "args": ["--seed", "1", "--curriculum", "uniform"]},
+    {"run": "nolanding-s1", "args": ["--seed", "1", "--reward-landing", "0"]},
+    {"run": "nofall-s1", "args": ["--seed", "1", "--reward-fall", "0"]},
+    {"run": "sparse-s2", "args": ["--seed", "2", "--reward-progress", "0"]},
+    {"run": "uniform-s2", "args": ["--seed", "2", "--curriculum", "uniform"]},
+    {"run": "nolanding-s2", "args": ["--seed", "2", "--reward-landing", "0"]},
+    {"run": "nofall-s2", "args": ["--seed", "2", "--reward-fall", "0"]}
+  ]
+}

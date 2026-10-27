@@ -1,9 +1,0 @@
-{
-  "source_run": "runs\\verified_baseline",
-  "retained_policy": "SARSA sparse, validation-selected alpha=0.1, first prespecified training seed=0; not selected by test score",
-  "total_training_seconds": 72.63176940032281,
-  "total_training_transitions": 5620324,
-  "trained_agents": 24,
-  "raw_episode_count": 3000,
-  "notes": "Policy paths in original summaries are relative to source_run. Full logs/checkpoints remain there; rerun configs/smoke.json to regenerate."
-}

@@ -1,105 +1,67 @@
-# Minecraft reinforcement learning course project
+# Minecraft parkour with reinforcement learning
 
-**Goal: start in a fresh Minecraft Java Survival world and defeat the Ender Dragon.**
+A bot that learns to run **parkour courses it has never seen** in Minecraft
+Java 1.21.4, and reach the goal.
 
-**Current status: working first-milestone RL foundation. Full Survival and the dragon fight are not implemented or demonstrated.** This repository is the start of the project, not a completed Minecraft-beating model. Development arenas and simulated results do not satisfy the final goal.
+The agent is trained with PPO in a GPU simulator that reproduces Mineflayer's
+own physics engine to within 1e-14 blocks, on endlessly generated courses of
+increasing difficulty. The trained network then drives a Mineflayer bot on a
+real Minecraft server, on new courses.
 
-The design follows the supplied course material: MDPs, epsilon-greedy exploration, tabular Q-learning, SARSA, reward design, tuning, and evaluation. Start with these understandable methods. A neural network is a later option if measured state-space or generalization problems justify it.
+> The earlier course project (wood and stone tools in Survival) is archived
+> on the `archive/survival` tag and the `codex/*` branches.
 
-## Windows launcher
+**Status:** see [TEAM_STATUS.md](TEAM_STATUS.md) (one page, always current).
+**Design and method:** [docs/design.md](docs/design.md).
+**Assistant handoff:** [HANDOFF.md](HANDOFF.md).
 
-Double-click **`setup.cmd`**, then **`run.cmd`**. Setup installs portable Java/Node and the pinned Minecraft server inside this folder. The menu offers simulator training, experiment comparisons, a real Minecraft development-arena run, a separate Survival connection check, and diagnostics. Python 3.12 or newer is the only prerequisite. Read the [Windows setup guide](docs/windows_setup.md) for commands, world locations, and joining with your Minecraft client.
-
-The Minecraft server requires your explicit EULA decision through `run.cmd accept-eula`. Simulator training works without it. The Survival profile provides an ordinary world for development; a full Survival policy still needs to be built.
-
-To watch the current crafting bot, use `run.cmd watch --dev-arena --viewer YourMinecraftName`, then join **127.0.0.1:25565** in Minecraft Java 1.21.4. It waits for you, puts your camera in spectator mode, and offers a replay after the episode. See [watch instructions](docs/windows_setup.md#watch-the-crafting-bot).
-
-To watch **actual Q-learning/SARSA updates in fresh natural worlds**, run `run.cmd resource-train --viewer YourMinecraftName --episodes 5` and join **127.0.0.1:25567** when prompted. The bot learns resource/crafting decisions from game observations; chat shows rewards and changing Q-values. Each episode saves its world and starts a new one. Read [natural-resource training](docs/resource_training.md) for controls, saved evidence, scripted helpers, and limitations.
-
-**Team members:** start with [TEAM_STATUS.md](TEAM_STATUS.md), the always-current one-page status: what works, what is running, how to set up, and open problems to pick up.
-
-**PC continuation:** read [HANDOFF_PC.md](HANDOFF_PC.md). The natural-resource prototype has verified online updates. On 23 October 2026 the complete wood/table/pickaxe chain **completed live on the PC** in fresh Survival worlds. After two rounds of fixes found by those runs, 43 of 45 headless episodes succeeded at commit `5bb7b25` with no deaths or invalid episodes. The masked random baseline did as well as the learned Q-learning and SARSA policies, so the helpers, not learning, carry this milestone so far; see [results/pc_resource_runs](results/pc_resource_runs/README.md) for every revision, failure, and limit. This is the first milestone only: no stone tools, food, Nether, or dragon work exists yet.
-
-## Run the first experiment
-
-From this folder in PowerShell, using Python 3.12 or newer:
-
-```powershell
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
-.\.venv\Scripts\python.exe -m minecraft_rl train --episodes 15000 --out runs/my_first_training
-.\.venv\Scripts\python.exe -m minecraft_rl demo --policy runs/my_first_training/policy.json
-```
-
-The Python core uses only the standard library. It needs no GPU, Minecraft installation, downloaded training data, or Python packages. A local `.venv` has already been created during project setup; recreating it is unnecessary on this machine. Optional installation as a command is `python -m pip install -e .`.
-
-Training saves a readable JSON Q table, CSV episode records, validation metrics, configuration/provenance, and an SVG learning curve. Choose a new output directory for each run; existing results are never silently overwritten. `demo` prints the state/action trace of the **simulator**.
-
-Compare algorithms, rewards, and two learning rates across three independent training seeds:
-
-```powershell
-.\.venv\Scripts\python.exe -m minecraft_rl experiment --config configs/smoke.json --out runs/my_comparison
-```
-
-The larger planned sweep is:
-
-```powershell
-.\.venv\Scripts\python.exe -m minecraft_rl experiment --config configs/course_experiment.json --out runs/course_experiment
-```
-
-It varies learning rate, discount, and exploration decay across five training seeds. The smaller run establishes that the pipeline works; it does not by itself fulfill the entire course's experimental requirement. See [the experiment protocol](docs/experiment_protocol.md) before interpreting results or changing test seeds.
-
-The [first measured comparison](results/baseline/README.md) is included: SARSA achieved 99.83% simulator task success across 600 evaluation episodes, versus 0.17% for random actions. All four learned conditions and their training-seed variation are retained. Try the included simulator policy immediately:
-
-```powershell
-.\.venv\Scripts\python.exe -m minecraft_rl demo --policy results/baseline/demo_policy.json
-```
-
-## What is implemented
-
-| Component | Current behavior |
-| --- | --- |
-| Crafting simulator | A 5x5 grid with two collectible logs, a lava hazard, a supplied workbench, randomized safe starts, and stochastic movement |
-| Learned decisions | Four movement choices, chopping, crafting planks, crafting sticks, and crafting a wooden pickaxe; no hardcoded solution path or action mask |
-| RL algorithms | Q-learning and SARSA implemented directly, with readable one-step updates and random tie-breaking |
-| Comparisons | Random baseline, sparse task reward versus potential-based shaping, validation selection, held-out episode seeds, multiple training seeds |
-| Tests | Resource accounting, transition rules, reward shaping, TD targets, reproducibility, frozen evaluation, and serialization |
-| Optional game bridge | Mineflayer development-arena adapter with a verified live wooden-pickaxe run, managed local servers, and a working Survival connection probe |
-| Full Survival system | Planned; natural-world resource discovery, workbench creation, equipment/survival, Nether progression, stronghold search, and dragon combat remain to build |
-
-The optional adapter is a **development tool**. It builds/resets an arena using server commands and a provided crafting table. Those conveniences must not appear in the final fresh-world Survival run. See [Minecraft bridge setup](minecraft_bridge/README.md). Runtime installation and live-game verification are separate: setup downloads the server but never accepts its EULA or configures your game account.
-
-[Real-game integration evidence](results/game_smoke/README.md) is now retained: a 15-decision wooden-pickaxe run, a successful repeat with a 2 GB server heap, blocked-movement/lava/reset checks, and an ordinary Survival connection. These are milestone checks, not full Survival or Ender Dragon results.
-
-## Read and learn in this order
-
-1. [Course requirements and schedule](docs/course_requirements.md): the rubric, every supplied source, and the plan through **31 December 2026**.
-2. [Learning guide](docs/learning_guide.md): the concepts, worked updates, lecture pages, and exercises for everyone in the group.
-3. [Environment specification](docs/environment.md): exactly what the first agent sees, chooses, and earns.
-4. [Full Survival development plan](docs/full_survival_plan.md): the remaining engineering, learned/scripted boundaries, and evidence required for the final demo.
-5. [Report and presentation plan](docs/report_plan.md): how to turn actual results into the required submissions.
-
-The course requires an **8–20 page report** (Arial 12, 1.5 spacing, one-inch margins; references excluded), a **15-minute presentation**, and contributions from every team member. The user supplied the 90% project / 10% presentation grade split.
-
-## Code map
+## How it works
 
 ```text
-minecraft_rl/
-  environment.py    State, actions, recipes, transitions, reward
-  agents.py         Q-learning / SARSA update and policy files
-  training.py       Exploration, training, frozen evaluation, metrics
-  experiments.py    Validation-based configuration selection and testing
-  artifacts.py      CSV, JSON, provenance, and learning curves
-  live.py           Optional Python-to-Minecraft adapter
-  __main__.py       Commands
-minecraft_bridge/   Node/Mineflayer bridge, setup, protocol checks
-infrastructure/     Portable runtime setup, local server lifecycle, PC launcher
-setup.cmd / run.cmd Windows setup and menu / command launchers
-configs/            Small and larger experiment specifications
-tests/              Automated checks
-docs/               Requirements, learning material, plan, and methods
-results/            Small retained baseline summaries and example policy
-runs/               Local generated runs (ignored by Git)
+parkour/physics.py      batched port of prismarine-physics (the engine Mineflayer moves bots with)
+parkour/courses.py      procedural courses: chains of platforms with gaps, height changes, turns
+parkour/feasibility.py  which jumps are possible, and how forgiving each one is -> 6 difficulty levels
+parkour/env.py          batched GPU environment: observation, reward, termination, curriculum
+parkour/model.py        actor-critic network, exported to JSON for the bot
+parkour/train.py        PPO training and held-out evaluation
+parkour/live.py         run a policy in real Minecraft (or offline on Mineflayer's physics) and compare
+parkour/server.py       local void-world Minecraft server
+bridge/policy.js        the bot's observation, rules and network (mirrors the Python code)
+bridge/parkour_bot.js   the live Mineflayer bot
+bridge/offline_bot.js   the same bot loop on prismarine-physics without a server
+tests/                  physics parity with the real engine, JS/Python parity, env and course checks
 ```
 
-The project intentionally keeps the starting algorithm small. Development currently runs on a laptop; the user plans to move to a 64 GB desktop and later an RTX 5080 machine. These resources do not remove Minecraft's exploration and integration challenges. The team should verify the code, explain the learning updates, keep real contribution records, and disclose AI assistance according to its course's policy. Original course PDFs/DOCX and temporary extractions are not copied into version control.
+## Quick start (Windows)
+
+```bat
+setup.cmd                 :: Python packages, portable Node/Java, the Minecraft 1.21.4 server jar
+run.cmd test              :: all checks, including physics parity against the real engine
+run.cmd train --run my-first-run --iterations 300
+```
+
+A 300-iteration run (157 million game ticks) takes about 6 minutes on an RTX
+5080 and already solves most easy and medium unseen courses. Results go to
+`runs/my-first-run/` (`train_log.csv`, `eval_log.csv`, checkpoints and the
+exported `policy_best.json`).
+
+Play held-out courses with the trained policy:
+
+```bat
+run.cmd offline --checkpoint runs\my-first-run\checkpoints\best.pt --out runs\offline-check
+run.cmd accept-eula --agree    :: once per PC, only if you accept https://aka.ms/MinecraftEULA
+run.cmd live --checkpoint runs\my-first-run\checkpoints\best.pt --out runs\live-check --viewer YourMinecraftName
+```
+
+With `--viewer`, join `127.0.0.1:25570` in Minecraft Java 1.21.4 and your
+camera follows the bot through every course.
+
+## Rules that keep the results honest
+
+- Every reported number comes from files under `runs/` or `results/`, and
+  says whether it is the simulator, the offline JavaScript bot, or real
+  Minecraft.
+- Test courses come from a separate seed family and never appear in training.
+- Course building and the start teleport use server commands (the
+  environment's reset); during an episode the bot only uses movement
+  controls.

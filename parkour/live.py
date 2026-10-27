@@ -1,0 +1,175 @@
+"""Run a trained policy on held-out courses outside the simulator, and compare.
+
+    python -m parkour.live --checkpoint runs/NAME/checkpoints/best.pt --out runs/live-NAME
+                           [--per-level 5] [--offline] [--viewer YourMinecraftName]
+
+Live mode starts the local void-world server (parkour.server), and the
+Mineflayer bot (bridge/parkour_bot.js) plays every course in real Minecraft.
+Offline mode runs the same JavaScript episode loop on prismarine-physics
+without a server (bridge/offline_bot.js).
+
+Afterwards, every episode is checked two ways:
+* replay: the recorded actions are re-simulated in the Python simulator from
+  the recorded start state, and the positions are compared tick by tick;
+* policy: the same network plays the same course in the simulator, and the
+  outcomes are compared.
+Results: OUT/episodes.jsonl (every tick), OUT/summary.json, OUT/summary.md.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import numpy as np
+import torch
+
+from . import courses as C
+from . import physics
+from .env import YAW_STEPS_DEG, CoursePool, action_to_controls
+from .model import ActorCritic
+from .paths import BRIDGE, NODE
+from .train import evaluate, held_out_courses
+
+SETTLE_TICKS = 10
+
+
+def pick_courses(per_level: int, n_jumps: int = 10, pool_per_level: int = 200) -> list[C.Course]:
+    levels = C.load_levels()
+    allc = held_out_courses(levels, pool_per_level, n_jumps)
+    out = []
+    for L in range(len(levels)):
+        out.extend([c for c in allc if c.level == L][:per_level])
+    return out
+
+
+def load_model(checkpoint: Path, device) -> ActorCritic:
+    ck = torch.load(checkpoint, map_location=device, weights_only=False)
+    hidden = tuple(ck["config"].get("hidden", (512, 256, 128)))
+    model = ActorCritic(hidden=hidden).to(device)
+    model.load_state_dict(ck["model"])
+    model.eval()
+    return model
+
+
+def replay(courses: list[C.Course], episodes: list[dict]) -> list[dict]:
+    """Re-simulate recorded actions from each recorded start state."""
+    out = []
+    pool = CoursePool(courses, "cpu", C.GRID)
+    steps = torch.tensor(YAW_STEPS_DEG, dtype=torch.float64) * (math.pi / 180)
+    for ep in episodes:
+        if not ep["actions"]:
+            out.append({"max_pos_err": None, "ticks": 0})
+            continue
+        i = ep["index"]
+        init = ep["init"]
+        s = physics.PlayerState.at(torch.tensor([init["pos"]], dtype=torch.float64), torch.tensor([init["yaw"]], dtype=torch.float64))
+        s.vel = torch.tensor([init["vel"]], dtype=torch.float64)
+        s.on_ground = torch.tensor([bool(init["onGround"])])
+        s.jump_ticks = torch.tensor([int(init["jumpTicks"])])
+        s.collided_h = torch.tensor([bool(init["collidedH"])])
+        course = torch.tensor([i])
+        traj = np.array(ep["traj"])
+        err = []
+        for t, a in enumerate(ep["actions"]):
+            if t >= len(traj):
+                break
+            a = torch.tensor([a])
+            s.yaw = torch.remainder(s.yaw + steps[a[:, 4]] + math.pi, 2 * math.pi) - math.pi
+            s = physics.simulate(pool.world, course, s, action_to_controls(a))
+            err.append(float(np.abs(s.pos[0].numpy() - traj[t, :3]).max()))
+        err = np.array(err)
+        first = int(np.argmax(err > 1e-6)) if (err > 1e-6).any() else None
+        out.append({"max_pos_err": float(err.max()), "first_divergence_tick": first, "ticks": len(err)})
+    return out
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--checkpoint", required=True)
+    ap.add_argument("--out", required=True)
+    ap.add_argument("--per-level", type=int, default=5)
+    ap.add_argument("--offline", action="store_true")
+    ap.add_argument("--viewer", default="")
+    ap.add_argument("--port", type=int, default=25570)
+    ap.add_argument("--stall", type=int, default=200)
+    a = ap.parse_args(argv)
+
+    out = Path(a.out).resolve()
+    out.mkdir(parents=True, exist_ok=False)
+    courses = pick_courses(a.per_level)
+    (out / "courses.json").write_text(json.dumps({"courses": [c.to_json() for c in courses]}))
+    dev = "cuda" if torch.cuda.is_available() else "cpu"
+    model = load_model(Path(a.checkpoint).resolve(), dev)
+    model.export(out / "policy.json", {"checkpoint": str(a.checkpoint)})
+    episodes_path = out / "episodes.jsonl"
+
+    t0 = time.time()
+    if a.offline:
+        subprocess.run([str(NODE), str(BRIDGE / "offline_bot.js"), "--policy", str(out / "policy.json"),
+                        "--courses", str(out / "courses.json"), "--out", str(episodes_path),
+                        "--settle", str(SETTLE_TICKS), "--stall", str(a.stall)], check=True, cwd=str(BRIDGE))
+    else:
+        from .server import COURSE_ORIGIN, SPAWN_PAD, Server
+        with open(out / "server.log", "w") as slog, Server(a.port, log=slog):
+            cmd = [str(NODE), str(BRIDGE / "parkour_bot.js"), "--policy", str(out / "policy.json"),
+                   "--courses", str(out / "courses.json"), "--out", str(episodes_path), "--port", str(a.port),
+                   "--origin", ",".join(map(str, COURSE_ORIGIN)), "--pad", ",".join(map(str, SPAWN_PAD)),
+                   "--stall", str(a.stall)]
+            if a.viewer:
+                cmd += ["--viewer", a.viewer]
+                print(f"Join 127.0.0.1:{a.port} in Minecraft Java 1.21.4 as {a.viewer} to watch.", flush=True)
+            subprocess.run(cmd, check=True, cwd=str(BRIDGE))
+    wall = time.time() - t0
+
+    episodes = [json.loads(line) for line in episodes_path.read_text().splitlines() if line.strip()]
+    rep = replay(courses, episodes)
+    pool = CoursePool(courses, dev, C.GRID)
+    sim = evaluate(model, pool, dev, a.stall, deterministic=True, settle=SETTLE_TICKS, per_course=True)["per_course"]
+
+    rows = []
+    for ep, r in zip(episodes, rep):
+        i = ep["index"]
+        rows.append({"index": i, "level": ep["level"], "result": ep["result"], "platform": ep["cp"], "n": ep["n"],
+                     "ticks": ep["ticks"], "server_corrections": ep.get("server_corrections"),
+                     "replay_max_pos_err": r["max_pos_err"], "replay_first_divergence": r.get("first_divergence_tick"),
+                     "sim_success": bool(sim["success"][i]), "sim_ticks": int(sim["ticks"][i])})
+    n_levels = max(c.level for c in courses) + 1
+    by_level = {}
+    for L in range(n_levels):
+        rl = [r for r in rows if r["level"] == L]
+        if rl:
+            by_level[L] = {"n": len(rl), "success": sum(r["result"] == "success" for r in rl) / len(rl),
+                           "sim_success": sum(r["sim_success"] for r in rl) / len(rl)}
+    errs = [r["replay_max_pos_err"] for r in rows if r["replay_max_pos_err"] is not None]
+    summary = {
+        "mode": "offline (prismarine-physics, no server)" if a.offline else "live (Minecraft 1.21.4 server)",
+        "checkpoint": str(a.checkpoint), "courses": len(rows), "wall_seconds": round(wall, 1),
+        "success": sum(r["result"] == "success" for r in rows) / max(len(rows), 1),
+        "sim_success_same_courses": sum(r["sim_success"] for r in rows) / max(len(rows), 1),
+        "outcome_agreement": sum((r["result"] == "success") == r["sim_success"] for r in rows) / max(len(rows), 1),
+        "replay_max_pos_err": max(errs) if errs else None,
+        "replay_exact_episodes": sum(e is not None and e < 1e-6 for e in errs),
+        "by_level": by_level, "episodes": rows,
+    }
+    (out / "summary.json").write_text(json.dumps(summary, indent=1))
+    lines = [f"# {summary['mode']}", "", f"Checkpoint `{a.checkpoint}`, {len(rows)} held-out courses (10 jumps each).", "",
+             "| Level | Courses | Success here | Success in simulator (same courses) |", "| --- | --- | --- | --- |"]
+    for L, v in by_level.items():
+        lines.append(f"| {L} | {v['n']} | {v['success']:.0%} | {v['sim_success']:.0%} |")
+    lines += ["", f"Overall: {summary['success']:.0%} here, {summary['sim_success_same_courses']:.0%} in the simulator; "
+              f"outcomes agree on {summary['outcome_agreement']:.0%} of courses.",
+              f"Replaying the recorded actions in the simulator: largest position difference "
+              f"{summary['replay_max_pos_err']:.2e} blocks; {summary['replay_exact_episodes']} of {len(errs)} episodes "
+              f"within 1e-6 blocks on every tick."]
+    (out / "summary.md").write_text("\n".join(lines) + "\n")
+    print("\n".join(lines))
+    return summary
+
+
+if __name__ == "__main__":
+    sys.exit(0 if main() else 1)

@@ -1,0 +1,305 @@
+"""Batched Minecraft player physics, ported from prismarine-physics 1.11.1.
+
+prismarine-physics is the movement engine that Mineflayer runs on the client
+side. A Mineflayer bot moves exactly as that engine computes and the server
+accepts the result, so a faithful port of it is a faithful simulator of the
+bot in real Minecraft. This port covers what parkour courses use: air and full
+solid cubes with default slipperiness. Water, lava, ladders, slabs, ice, soul
+sand, cobwebs, sneaking, effects and elytra are not ported.
+
+Every expression keeps the operand order of the JavaScript source, in float64,
+so trajectories match the original to rounding error (see
+tests/test_physics_parity.py, which runs the real engine through Node).
+
+Coordinates follow Mineflayer: yaw 0 faces north (-Z), yaw increases
+counter-clockwise seen from above (pi/2 faces west, -X). The forward vector is
+(-sin yaw, 0, -cos yaw) and the right vector is (cos yaw, 0, -sin yaw).
+"""
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass
+
+import torch
+
+# Constants as prismarine-physics evaluates them (JavaScript doubles).
+GRAVITY = 0.08
+AIRDRAG = 0.9800000190734863  # Math.fround(1 - 0.02)
+JUMP_VELOCITY = 0.41999998688697815  # Math.fround(0.42)
+SPRINT_JUMP_BOOST = 0.2
+STEP_HEIGHT = 0.6
+NEGLIGIBLE_VELOCITY = 0.003
+HALF_WIDTH = 0.3
+PLAYER_HEIGHT = 1.8
+AIRBORNE_INERTIA = 0.91
+AIRBORNE_ACCELERATION = 0.02
+AIR_SPRINT_ACCELERATION = AIRBORNE_ACCELERATION + AIRBORNE_ACCELERATION * 0.3
+AUTOJUMP_COOLDOWN = 10
+GROUND_INERTIA = 0.6 * 0.91  # default slipperiness * 0.91
+_INERTIA_CUBED = GROUND_INERTIA * GROUND_INERTIA * GROUND_INERTIA
+WALK_ACCELERATION = 0.1 * (0.1627714 / _INERTIA_CUBED)
+SPRINT_ACCELERATION = (0.1 + 0.1 * 0.3) * (0.1627714 / _INERTIA_CUBED)
+
+# Collision window in cells. It covers any query box whose horizontal moves
+# stay below 2.4 blocks per tick and vertical moves below 3.2 blocks per tick.
+WINDOW = (4, 7, 4)
+
+# Control channels, in this order, in every controls tensor.
+FORWARD, BACK, LEFT, RIGHT, JUMP, SPRINT = range(6)
+N_CONTROLS = 6
+
+
+class World:
+    """Solid-cube occupancy for a pool of courses on one device.
+
+    ``solid`` has shape (P, GX, GY, GZ). Cell (i, j, k) of course p is the
+    block occupying [i, i+1) x [j, j+1) x [k, k+1). Everything outside the grid
+    is air.
+    """
+
+    def __init__(self, solid: torch.Tensor):
+        if solid.dim() != 4:
+            raise ValueError("solid must have shape (P, GX, GY, GZ)")
+        self.solid = solid.to(torch.bool).contiguous()
+        self.shape = tuple(solid.shape[1:])
+        self.flat = self.solid.view(-1)
+        self.device = solid.device
+
+    def lookup(self, course, ix, iy, iz):
+        """Solid flags for integer cells; arguments broadcast together."""
+        gx, gy, gz = self.shape
+        inside = (ix >= 0) & (ix < gx) & (iy >= 0) & (iy < gy) & (iz >= 0) & (iz < gz)
+        index = ((course * gx + ix.clamp(0, gx - 1)) * gy + iy.clamp(0, gy - 1)) * gz + iz.clamp(0, gz - 1)
+        return self.flat[index] & inside
+
+
+@dataclass
+class PlayerState:
+    pos: torch.Tensor  # (N, 3) float64, feet centre
+    vel: torch.Tensor  # (N, 3) float64, blocks per tick
+    yaw: torch.Tensor  # (N,) float64, radians
+    on_ground: torch.Tensor  # (N,) bool
+    jump_ticks: torch.Tensor  # (N,) int64
+    collided_h: torch.Tensor  # (N,) bool
+    collided_v: torch.Tensor  # (N,) bool
+
+    @classmethod
+    def at(cls, pos: torch.Tensor, yaw: torch.Tensor) -> "PlayerState":
+        n = pos.shape[0]
+        dev = pos.device
+        return cls(
+            pos=pos.to(torch.float64).clone(),
+            vel=torch.zeros(n, 3, dtype=torch.float64, device=dev),
+            yaw=yaw.to(torch.float64).clone(),
+            on_ground=torch.zeros(n, dtype=torch.bool, device=dev),
+            jump_ticks=torch.zeros(n, dtype=torch.int64, device=dev),
+            collided_h=torch.zeros(n, dtype=torch.bool, device=dev),
+            collided_v=torch.zeros(n, dtype=torch.bool, device=dev),
+        )
+
+    def clone(self) -> "PlayerState":
+        return PlayerState(*(t.clone() for t in (self.pos, self.vel, self.yaw, self.on_ground,
+                                                  self.jump_ticks, self.collided_h, self.collided_v)))
+
+    def assign(self, mask: torch.Tensor, other: "PlayerState") -> None:
+        """Copy ``other`` into the rows selected by the boolean ``mask``."""
+        for name in ("pos", "vel", "yaw", "on_ground", "jump_ticks", "collided_h", "collided_v"):
+            mine = getattr(self, name)
+            theirs = getattr(other, name)
+            m = mask.view(-1, *([1] * (mine.dim() - 1)))
+            setattr(self, name, torch.where(m, theirs, mine))
+
+
+def player_bb(pos: torch.Tensor) -> torch.Tensor:
+    """AABB(-w, 0, -w, w, h, w).offset(pos): columns minX minY minZ maxX maxY maxZ."""
+    x, y, z = pos.unbind(-1)
+    w = HALF_WIDTH
+    return torch.stack(((-w) + x, 0.0 + y, (-w) + z, w + x, PLAYER_HEIGHT + y, w + z), dim=-1)
+
+
+def _extend(bb: torch.Tensor, d: torch.Tensor) -> torch.Tensor:
+    neg = d < 0
+    zero = torch.zeros_like(d)
+    return torch.cat((bb[:, :3] + torch.where(neg, d, zero), bb[:, 3:] + torch.where(neg, zero, d)), dim=-1)
+
+
+def _offset_axis(bb: torch.Tensor, axis: int, d: torch.Tensor) -> torch.Tensor:
+    out = bb.clone()
+    out[:, axis] = bb[:, axis] + d
+    out[:, axis + 3] = bb[:, axis + 3] + d
+    return out
+
+
+class _Cells:
+    """Solid cells that getSurroundingBBs would return for a query box."""
+
+    def __init__(self, world: World, course: torch.Tensor, query: torch.Tensor):
+        wx, wy, wz = WINDOW
+        dev = query.device
+        base = torch.floor(query[:, :3]).to(torch.int64)
+        base[:, 1] -= 1
+        top = torch.floor(query[:, 3:]).to(torch.int64)
+        ix = base[:, 0:1] + torch.arange(wx, device=dev)
+        iy = base[:, 1:2] + torch.arange(wy, device=dev)
+        iz = base[:, 2:3] + torch.arange(wz, device=dev)
+        solid = world.lookup(course.view(-1, 1, 1, 1), ix[:, :, None, None], iy[:, None, :, None], iz[:, None, None, :])
+        valid = ((ix <= top[:, 0:1])[:, :, None, None] & (iy <= top[:, 1:2])[:, None, :, None]
+                 & (iz <= top[:, 2:3])[:, None, None, :])
+        self.solid = solid & valid
+        self.overflow = (top - base + 1 > torch.tensor(WINDOW, device=dev)).any(dim=-1)
+        self.cx = ix.to(torch.float64)
+        self.cy = iy.to(torch.float64)
+        self.cz = iz.to(torch.float64)
+
+    def offset(self, bb: torch.Tensor, d: torch.Tensor, axis: int) -> torch.Tensor:
+        """Sequential AABB.computeOffset{X,Y,Z} over all cells, as a reduction."""
+        coords = (self.cx, self.cy, self.cz)
+        overlaps = []
+        for other in range(3):
+            if other == axis:
+                continue
+            c = coords[other]
+            overlaps.append((other, (bb[:, other + 3, None] > c) & (bb[:, other, None] < c + 1)))
+        mask = self.solid
+        for other, ov in overlaps:
+            shape = [-1, 1, 1, 1]
+            shape[1 + other] = ov.shape[1]
+            mask = mask & ov.view(shape)
+        dims = tuple(i for i in (1, 2, 3) if i != 1 + axis)
+        line = mask.any(dim=dims)  # (N, window along axis)
+        c = coords[axis]
+        lo = bb[:, axis, None]
+        hi = bb[:, axis + 3, None]
+        inf = torch.full_like(c, math.inf)
+        up = torch.where(line & (hi <= c), c - hi, inf).amin(dim=1)
+        down = torch.where(line & (lo >= c + 1), (c + 1) - lo, -inf).amax(dim=1)
+        return torch.where(d > 0, torch.minimum(d, up), torch.where(d < 0, torch.maximum(d, down), d))
+
+
+def _move(world: World, course: torch.Tensor, pos: torch.Tensor, vel: torch.Tensor,
+          on_ground: torch.Tensor, check: bool):
+    """moveEntity without webs, sneaking or special blocks."""
+    dx, dy, dz = vel.unbind(-1)
+    bb0 = player_bb(pos)
+    cells = _Cells(world, course, _extend(bb0, vel))
+    cy = cells.offset(bb0, dy, 1)
+    bb = _offset_axis(bb0, 1, cy)
+    cx = cells.offset(bb, dx, 0)
+    bb = _offset_axis(bb, 0, cx)
+    cz = cells.offset(bb, dz, 2)
+    bb = _offset_axis(bb, 2, cz)
+
+    # Step-up attempt (stepHeight 0.6), computed for every row and then selected.
+    step_y = torch.full_like(dy, STEP_HEIGHT)
+    zero = torch.zeros_like(dy)
+    try_step = (on_ground | ((cy != dy) & (dy < 0))) & ((cx != dx) | (cz != dz))
+    cells2 = _Cells(world, course, _extend(bb0, torch.stack((dx, step_y, dz), -1)))
+    bb_xz = _extend(bb0, torch.stack((cx, zero, cz), -1))
+    sy1 = cells2.offset(bb_xz, step_y, 1)
+    sy2 = cells2.offset(bb0, step_y, 1)
+    b1 = _offset_axis(bb0, 1, sy1)
+    b2 = _offset_axis(bb0, 1, sy2)
+    sx1 = cells2.offset(b1, dx, 0)
+    sx2 = cells2.offset(b2, dx, 0)
+    b1 = _offset_axis(b1, 0, sx1)
+    b2 = _offset_axis(b2, 0, sx2)
+    sz1 = cells2.offset(b1, dz, 2)
+    sz2 = cells2.offset(b2, dz, 2)
+    b1 = _offset_axis(b1, 2, sz1)
+    b2 = _offset_axis(b2, 2, sz2)
+    pick1 = (sx1 * sx1 + sz1 * sz1) > (sx2 * sx2 + sz2 * sz2)
+    sx = torch.where(pick1, sx1, sx2)
+    sy = torch.where(pick1, -sy1, -sy2)
+    sz = torch.where(pick1, sz1, sz2)
+    sbb = torch.where(pick1[:, None], b1, b2)
+    sy = cells2.offset(sbb, sy, 1)
+    sbb = _offset_axis(sbb, 1, sy)
+    keep = (cx * cx + cz * cz) >= (sx * sx + sz * sz)
+    use_step = try_step & ~keep
+
+    fx = torch.where(use_step, sx, cx)
+    fy = torch.where(use_step, sy, cy)
+    fz = torch.where(use_step, sz, cz)
+    fbb = torch.where(use_step[:, None], sbb, bb)
+
+    if check:
+        bad = cells.overflow | (cells2.overflow & try_step)
+        if bool(bad.any()):
+            raise RuntimeError("collision window too small for this move")
+
+    new_pos = torch.stack((fbb[:, 0] + HALF_WIDTH, fbb[:, 1], fbb[:, 2] + HALF_WIDTH), dim=-1)
+    hit_x = fx != dx
+    hit_y = fy != dy
+    hit_z = fz != dz
+    collided_h = hit_x | hit_z
+    collided_v = hit_y
+    new_on_ground = collided_v & (dy < 0)
+    new_vel = torch.stack((torch.where(hit_x, zero, dx), torch.where(hit_y, zero, dy),
+                           torch.where(hit_z, zero, dz)), dim=-1)
+    return new_pos, new_vel, new_on_ground, collided_h, collided_v
+
+
+def simulate(world: World, course: torch.Tensor, state: PlayerState, controls: torch.Tensor,
+             check: bool = False) -> PlayerState:
+    """One 50 ms tick of physics.simulatePlayer for every row.
+
+    ``controls`` is a bool tensor (N, 6) in the order FORWARD, BACK, LEFT,
+    RIGHT, JUMP, SPRINT. The yaw in ``state`` is the yaw for this tick.
+    Returns a new state; the input is not modified.
+    """
+    vel = state.vel
+    vel = torch.where(vel.abs() < NEGLIGIBLE_VELOCITY, torch.zeros_like(vel), vel)
+    forward_c, back_c, left_c, right_c, jump, sprint = controls.unbind(-1)
+
+    jt = state.jump_ticks
+    jt = torch.where(jump & (jt > 0), jt - 1, jt)
+    do_jump = jump & state.on_ground & (jt == 0)
+    yaw2 = math.pi - state.yaw
+    sin2 = torch.sin(yaw2)
+    cos2 = torch.cos(yaw2)
+    vx, vy, vz = vel.unbind(-1)
+    vy = torch.where(do_jump, torch.full_like(vy, JUMP_VELOCITY), vy)
+    boost = do_jump & sprint
+    vx = torch.where(boost, vx - sin2 * SPRINT_JUMP_BOOST, vx)
+    vz = torch.where(boost, vz + cos2 * SPRINT_JUMP_BOOST, vz)
+    jt = torch.where(do_jump, torch.full_like(jt, AUTOJUMP_COOLDOWN), jt)
+    jt = torch.where(jump, jt, torch.zeros_like(jt))
+
+    strafe = (right_c.to(torch.float64) - left_c.to(torch.float64)) * 0.98
+    forward = (forward_c.to(torch.float64) - back_c.to(torch.float64)) * 0.98
+
+    ground = state.on_ground
+
+    def const(value):
+        return torch.full_like(vx, value)
+
+    accel = torch.where(ground,
+                        torch.where(sprint, const(SPRINT_ACCELERATION), const(WALK_ACCELERATION)),
+                        torch.where(sprint, const(AIR_SPRINT_ACCELERATION), const(AIRBORNE_ACCELERATION)))
+    inertia = torch.where(ground, const(GROUND_INERTIA), const(AIRBORNE_INERTIA))
+
+    speed = torch.sqrt(strafe * strafe + forward * forward)
+    k = accel / torch.clamp(speed, min=1.0)
+    st = strafe * k
+    fw = forward * k
+    heading = speed >= 0.01
+    vx = torch.where(heading, vx - (st * cos2 + fw * sin2), vx)
+    vz = torch.where(heading, vz + (fw * cos2 - st * sin2), vz)
+
+    pos, mvel, on_ground, collided_h, collided_v = _move(
+        world, course, state.pos, torch.stack((vx, vy, vz), -1), state.on_ground, check)
+
+    mx, my, mz = mvel.unbind(-1)
+    my = (my - GRAVITY) * AIRDRAG
+    mx = mx * inertia
+    mz = mz * inertia
+    return PlayerState(pos=pos, vel=torch.stack((mx, my, mz), -1), yaw=state.yaw.clone(),
+                       on_ground=on_ground, jump_ticks=jt, collided_h=collided_h, collided_v=collided_v)
+
+
+def forward_vector(yaw: torch.Tensor) -> torch.Tensor:
+    return torch.stack((-torch.sin(yaw), torch.zeros_like(yaw), -torch.cos(yaw)), -1)
+
+
+def right_vector(yaw: torch.Tensor) -> torch.Tensor:
+    return torch.stack((torch.cos(yaw), torch.zeros_like(yaw), -torch.sin(yaw)), -1)

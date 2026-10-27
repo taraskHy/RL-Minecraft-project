@@ -1,0 +1,253 @@
+'use strict'
+// Observation builder, episode rules and policy forward pass for the live bot.
+// Mirrors parkour/env.py (Observer, standing_on, the fall and stall rules) and
+// parkour/model.py (RunningNorm, actor MLP). tests/test_bridge_parity.py
+// checks both against the Python code.
+
+const fs = require('fs')
+
+const SCAN_FORWARD = Array.from({ length: 14 }, (_, i) => -1.0 + 0.5 * i)
+const SCAN_LATERAL = Array.from({ length: 7 }, (_, i) => -1.5 + 0.5 * i)
+const SCAN_FLOOR_LEVELS = [1, 0, -1, -2, -3, -4]
+const SCAN_CEILING_LEVELS = [2, 3]
+const NO_FLOOR = -5.0
+const PLATFORM_SLOTS = 4
+const STAND_EPS = 1e-6
+const FALL_MARGIN = 1.0
+const HALF_WIDTH = 0.3
+const YAW_STEPS_DEG = [-20.0, -6.0, -1.5, 0.0, 1.5, 6.0, 20.0]
+const ACTION_DIMS = [3, 3, 2, 2, 7]
+const OBS_DIM = 6 + 5 + PLATFORM_SLOTS * 11 + SCAN_FORWARD.length * SCAN_LATERAL.length * 2 + 4
+const NO_ACTION = [1, 1, 0, 0, 3]
+
+function clamp (x, lo, hi) { return Math.min(hi, Math.max(lo, x)) }
+
+function centre (p) { return [(p[0] + p[1] + 1) / 2, p[4] + 1, (p[2] + p[3] + 1) / 2] }
+
+// s: {pos:[x,y,z], vel:[x,y,z], yaw, onGround, jumpTicks, collidedH}
+// platforms: [[x0,x1,z0,z1,y], ...] in the same coordinates as s.pos
+// isSolid(x, y, z): integer cell -> boolean
+function observe (s, lastAction, platforms, cp, isSolid) {
+  const out = new Float64Array(OBS_DIM)
+  let o = 0
+  const [px, py, pz] = s.pos
+  const sy = Math.sin(s.yaw)
+  const cy = Math.cos(s.yaw)
+  const fx = -sy; const fz = -cy
+  const rx = cy; const rz = -sy
+  const relF = (x, z) => (x - px) * fx + (z - pz) * fz
+  const relR = (x, z) => (x - px) * rx + (z - pz) * rz
+  const v = s.vel
+
+  out[o++] = (v[0] * fx + v[2] * fz) / 0.4
+  out[o++] = (v[0] * rx + v[2] * rz) / 0.4
+  out[o++] = v[1] / 0.5
+  out[o++] = s.onGround ? 1 : 0
+  out[o++] = s.jumpTicks / 10
+  out[o++] = s.collidedH ? 1 : 0
+
+  out[o++] = lastAction[0] - 1
+  out[o++] = lastAction[1] - 1
+  out[o++] = lastAction[2]
+  out[o++] = lastAction[3]
+  out[o++] = YAW_STEPS_DEG[lastAction[4]] / 20
+
+  const n = platforms.length
+  for (let k = 0; k < PLATFORM_SLOTS; k++) {
+    const j = cp + k
+    if (j >= n) { o += 11; continue }
+    const p = platforms[j]
+    const x0 = p[0]; const x1 = p[1] + 1; const z0 = p[2]; const z1 = p[3] + 1
+    out[o++] = 1
+    out[o++] = j === n - 1 ? 1 : 0
+    const cxs = [x0, x1, x1, x0]
+    const czs = [z0, z0, z1, z1]
+    for (let c = 0; c < 4; c++) {
+      out[o++] = clamp(relF(cxs[c], czs[c]) / 4.0, -10, 10)
+      out[o++] = clamp(relR(cxs[c], czs[c]) / 4.0, -10, 10)
+    }
+    out[o++] = ((p[4] + 1) - py) / 2.0
+  }
+
+  const fy = Math.floor(py + STAND_EPS)
+  for (const a of SCAN_FORWARD) {
+    for (const b of SCAN_LATERAL) {
+      const sx = px + a * fx + b * rx
+      const sz = pz + a * fz + b * rz
+      const ix = Math.floor(sx)
+      const iz = Math.floor(sz)
+      let h = NO_FLOOR
+      for (const lv of SCAN_FLOOR_LEVELS) {
+        if (isSolid(ix, fy + lv, iz)) { h = (fy + lv + 1) - py; break }
+      }
+      let ceiling = 0
+      for (const lv of SCAN_CEILING_LEVELS) {
+        if (isSolid(ix, fy + lv, iz)) { ceiling = 1; break }
+      }
+      out[o++] = h / 3.0
+      out[o++] = ceiling
+    }
+  }
+
+  const g = centre(platforms[n - 1])
+  out[o++] = relF(g[0], g[2]) / 20
+  out[o++] = relR(g[0], g[2]) / 20
+  out[o++] = (g[1] - py) / 10
+  out[o++] = cp / Math.max(n - 1, 1)
+  return out
+}
+
+// Highest platform index the player stands on, or -1.
+function standingOn (s, platforms) {
+  if (!s.onGround) return -1
+  const [x, y, z] = s.pos
+  let best = -1
+  for (let k = 0; k < platforms.length; k++) {
+    const p = platforms[k]
+    const over = x + HALF_WIDTH > p[0] && x - HALF_WIDTH < p[1] + 1 && z + HALF_WIDTH > p[2] && z - HALF_WIDTH < p[3] + 1
+    if (over && Math.abs(y - (p[4] + 1)) < STAND_EPS) best = k
+  }
+  return best
+}
+
+function fellBelow (s, platforms, cp) {
+  const last = platforms.length - 1
+  let lo = Infinity
+  for (let j = cp - 1; j <= cp + 2; j++) {
+    if (j >= 0 && j <= last) lo = Math.min(lo, platforms[j][4] + 1)
+  }
+  return s.pos[1] < lo - FALL_MARGIN
+}
+
+class Policy {
+  constructor (data) {
+    if (data.format !== 'parkour-policy-v1') throw new Error('unknown policy format ' + data.format)
+    if (data.obs_dim !== OBS_DIM) throw new Error(`policy expects ${data.obs_dim} observations, bridge builds ${OBS_DIM}`)
+    this.mean = data.norm_mean
+    this.std = data.norm_std
+    this.clip = data.norm_clip
+    this.layers = data.layers
+    this.actionDims = data.action_dims
+    this.meta = data.meta
+  }
+
+  static load (path) { return new Policy(JSON.parse(fs.readFileSync(path, 'utf8'))) }
+
+  logits (obs) {
+    let x = new Float64Array(obs.length)
+    for (let i = 0; i < obs.length; i++) x[i] = clamp((obs[i] - this.mean[i]) / this.std[i], -this.clip, this.clip)
+    for (let l = 0; l < this.layers.length; l++) {
+      const { w, b } = this.layers[l]
+      const y = new Float64Array(b.length)
+      for (let r = 0; r < b.length; r++) {
+        const row = w[r]
+        let acc = b[r]
+        for (let c = 0; c < x.length; c++) acc += row[c] * x[c]
+        y[r] = l < this.layers.length - 1 ? (acc > 0 ? acc : Math.expm1(acc)) : acc
+      }
+      x = y
+    }
+    return x
+  }
+
+  // Deterministic action: argmax per component (what evaluation uses).
+  act (obs) {
+    const lg = this.logits(obs)
+    const action = []
+    let o = 0
+    for (const d of this.actionDims) {
+      let best = 0
+      for (let i = 1; i < d; i++) if (lg[o + i] > lg[o + best]) best = i
+      action.push(best)
+      o += d
+    }
+    return action
+  }
+}
+
+// Action -> Mineflayer control states and the yaw step in radians.
+function controls (action) {
+  return {
+    forward: action[0] === 2,
+    back: action[0] === 0,
+    left: action[1] === 0,
+    right: action[1] === 2,
+    jump: action[2] === 1,
+    sprint: action[3] === 1,
+    yawStep: YAW_STEPS_DEG[action[4]] * Math.PI / 180
+  }
+}
+
+function wrapYaw (yaw) {
+  // Same as torch.remainder(yaw + pi, 2 pi) - pi.
+  const t = 2 * Math.PI
+  let r = (yaw + Math.PI) % t
+  if (r < 0) r += t
+  return r - Math.PI
+}
+
+// One episode on one course, fed the player state after every game tick.
+// step(s) returns the action for the next tick, or null once the episode has
+// ended (this.result is then 'success', 'fell' or 'truncated'). The rules are
+// those of ParkourEnv.step.
+class Episode {
+  constructor (policy, platforms, isSolid, { stall = 200, maxTicks = 3000 } = {}) {
+    this.policy = policy
+    this.platforms = platforms
+    this.isSolid = isSolid
+    this.stallLimit = stall
+    this.maxTicks = maxTicks
+    this.cp = 0
+    this.stall = 0
+    this.ticks = 0
+    this.started = false
+    this.result = null
+    this.lastAction = NO_ACTION.slice()
+    this.actions = []
+    this.traj = []
+    this.init = null
+  }
+
+  step (s) {
+    if (this.result) return null
+    if (this.started) {
+      this.ticks++
+      this.traj.push([s.pos[0], s.pos[1], s.pos[2], s.vel[0], s.vel[1], s.vel[2], s.onGround ? 1 : 0, s.jumpTicks])
+      const k = standingOn(s, this.platforms)
+      if (k > this.cp) { this.cp = k; this.stall = 0 } else this.stall++
+      const success = this.cp >= this.platforms.length - 1
+      const fell = !success && fellBelow(s, this.platforms, this.cp)
+      const truncated = !success && !fell && (this.stall >= this.stallLimit || this.ticks >= this.maxTicks)
+      if (success || fell || truncated) {
+        this.result = success ? 'success' : fell ? 'fell' : 'truncated'
+        return null
+      }
+    } else {
+      this.started = true
+      this.init = s
+    }
+    const a = this.policy.act(observe(s, this.lastAction, this.platforms, this.cp, this.isSolid))
+    this.actions.push(a)
+    this.lastAction = a
+    return a
+  }
+
+  record (extra) {
+    return {
+      ...extra,
+      n: this.platforms.length,
+      result: this.result,
+      success: this.result === 'success',
+      cp: this.cp,
+      ticks: this.ticks,
+      init: this.init,
+      actions: this.actions,
+      traj: this.traj
+    }
+  }
+}
+
+module.exports = {
+  observe, standingOn, fellBelow, Policy, Episode, controls, wrapYaw, centre,
+  OBS_DIM, ACTION_DIMS, NO_ACTION, YAW_STEPS_DEG
+}

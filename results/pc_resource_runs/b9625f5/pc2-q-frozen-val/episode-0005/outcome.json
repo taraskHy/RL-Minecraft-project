@@ -1,8 +1,0 @@
-{
-  "status": "invalid",
-  "success": null,
-  "death": null,
-  "recorded_steps": 36,
-  "error": "RuntimeError: Natural-resource game error: Bot left the 64-block starting radius; episode invalid",
-  "note": "Not counted as a measured policy success or failure"
-}

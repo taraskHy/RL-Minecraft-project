@@ -1,5 +1,0 @@
-step,action,reward,td_error,q_before,q_after,event,success,death
-1,SEARCH,-0.01,-0.01,0.0,-0.002,log_path_blocked,False,False
-2,SEARCH,-0.01,-0.00994,-0.002,-0.003988,exploration_blocked,False,False
-3,SEARCH,-0.01,-0.00988036,-0.003988,-0.005964072000000001,exploration_blocked,False,False
-4,SEARCH,-0.01,-0.009821077840000001,-0.005964072000000001,-0.007928287568,explored,False,False

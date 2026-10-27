@@ -1,0 +1,19 @@
+{
+  "name": "minecraft-parkour-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mineflayer bridge for the parkour RL project: physics parity harness and live policy runner",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "test": "node --test policy.test.js"
+  },
+  "dependencies": {
+    "minecraft-data": "3.117.0",
+    "mineflayer": "4.39.0",
+    "prismarine-physics": "1.11.1",
+    "vec3": "0.1.10"
+  }
+}

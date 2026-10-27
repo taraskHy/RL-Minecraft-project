@@ -1,8 +1,4 @@
-# Keep source text consistent and Windows launchers native.
-* text=auto eol=lf
+* text=auto
 *.cmd text eol=crlf
 *.ps1 text eol=crlf
-
-# Retained measurements include byte checksums; preserve their original bytes.
-# Generated SVG path formatting is intentionally kept as produced by plotting.
-results/** -text -whitespace
+*.pt binary
