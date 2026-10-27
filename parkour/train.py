@@ -77,6 +77,7 @@ class TrainConfig:
     hide: str = ""  # comma-separated observation parts the policy must not see, e.g. "platforms"
     obstacle_prob: float = 0.0  # chance per jump of a head-hitter beam or a decoy pillar
     advanced: bool = False  # add levels 6-8: neos, double neos, momentum and wide jumps
+    save_at: str = ""  # comma-separated update counts at which to keep a snapshot (0 = untrained)
 
 
 def course_hash(c: C.Course) -> str:
@@ -233,6 +234,15 @@ def train(cfg: TrainConfig) -> Path:
     shadow = RunningNorm(model.obs_dim).to(dev)
     shadow.load_state_dict(model.norm.state_dict())
 
+    snapshots = {int(v) for v in cfg.save_at.split(",") if v.strip()}
+
+    def snapshot(updates: int) -> None:
+        """Weights only (no optimizer), to replay the policy as it was after ``updates`` iterations."""
+        _save({"model": model.state_dict(), "config": cfg_dict, "iteration": updates - 1, "updates": updates,
+               "env_steps": updates * cfg.rollout * cfg.num_envs}, out / "checkpoints" / f"updates_{updates:05d}.pt")
+
+    if 0 in snapshots and start_it == 0:
+        snapshot(0)
     T, N = cfg.rollout, cfg.num_envs
     obs_buf = torch.zeros(T, N, model.obs_dim, device=dev)
     act_buf = torch.zeros(T, N, 5, dtype=torch.int64, device=dev)
@@ -358,6 +368,8 @@ def train(cfg: TrainConfig) -> Path:
         stats["stopped"] = int(stopped)
 
         total_steps += T * N
+        if it + 1 in snapshots:
+            snapshot(it + 1)
         dt = time.time() - t0
         eps = st[0].sum()
         frac = (lambda i: round(float(st[i].sum() / eps), 4) if eps else None)

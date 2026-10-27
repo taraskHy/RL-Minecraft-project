@@ -1,0 +1,62 @@
+{
+ "mode": "offline (prismarine-physics, no server)",
+ "checkpoint": "runs/main-s0/checkpoints/best.pt",
+ "courses": 3,
+ "wall_seconds": 0.2,
+ "success": 1.0,
+ "sim_success_same_courses": 1.0,
+ "outcome_agreement": 1.0,
+ "replay_max_pos_err": 0.0,
+ "replay_exact_episodes": 3,
+ "by_level": {
+  "0": {
+   "n": 3,
+   "success": 1.0,
+   "sim_success": 1.0
+  }
+ },
+ "episodes": [
+  {
+   "index": 0,
+   "name": "tour",
+   "level": 0,
+   "result": "success",
+   "platform": 12,
+   "n": 13,
+   "ticks": 162,
+   "server_corrections": null,
+   "replay_max_pos_err": 0.0,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 162
+  },
+  {
+   "index": 1,
+   "name": "stairs",
+   "level": 0,
+   "result": "success",
+   "platform": 11,
+   "n": 12,
+   "ticks": 123,
+   "server_corrections": null,
+   "replay_max_pos_err": 0.0,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 123
+  },
+  {
+   "index": 2,
+   "name": "sprint",
+   "level": 0,
+   "result": "success",
+   "platform": 9,
+   "n": 10,
+   "ticks": 118,
+   "server_corrections": null,
+   "replay_max_pos_err": 0.0,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 118
+  }
+ ]
+}

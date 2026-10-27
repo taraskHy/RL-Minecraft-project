@@ -54,8 +54,8 @@ reference is the `full` arm (defaults), mean over its seeds. All runs see 0.52 B
 | Run | Iteration | Validation success | Test success | L4 | L5 |
 | --- | --- | --- | --- | --- | --- |
 | defaults (`full`, 3 seeds) | 999 | - | 93.3 | 94.7 | 72.0 |
-| `hp-ent0.001` | 799 of 1000 (running) | 91.0 | 92.2 | 93.5 | 62.5 |
-| `hp-ent0.02` | 799 of 1000 (running) | 89.2 | 90.0 | 91.5 | 58.0 |
+| `hp-ent0.001` | 949 of 1000 (running) | 93.3 | 92.9 | 95.5 | 65.5 |
+| `hp-ent0.02` | 949 of 1000 (running) | 90.0 | 90.8 | 92.5 | 62.5 |
 
 ## Course styles outside the training distribution
 

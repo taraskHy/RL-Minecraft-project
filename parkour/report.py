@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import gzip
 import json
 import shutil
 from pathlib import Path
@@ -153,6 +154,109 @@ def fig_jumps(jump: dict, path: Path):
     plt.close(fig)
 
 
+def read_train(run: str) -> dict | None:
+    p = RUNS / run / "train_log.csv"
+    if not p.exists():
+        return None
+    rows = list(csv.DictReader(p.open()))
+    out = {}
+    for c in rows[0]:
+        out[c] = np.array([float(r[c]) if r[c] not in ("", None) else np.nan for r in rows])
+    return out
+
+
+def _smooth(y: np.ndarray, k: int = 25) -> np.ndarray:
+    out = np.full_like(y, np.nan)
+    for i in range(len(y)):
+        w = y[max(0, i - k + 1): i + 1]
+        w = w[~np.isnan(w)]
+        out[i] = w.mean() if len(w) else np.nan
+    return out
+
+
+def fig_training(run: str, path: Path, title: str) -> bool:
+    """Ten panels from one run's per-iteration log: what training did, iteration by iteration."""
+    import matplotlib.pyplot as plt
+    tr = read_train(run)
+    if tr is None:
+        return False
+    ev = read_eval(run)
+    x = tr["env_steps"] / 1e9
+    panels = [
+        ("Success (% of finished episodes)", [("training episodes", tr["success"] * 100, True)]),
+        ("Mean episode return (reward)", [("return", tr["ep_return"], True)]),
+        ("Falls (% of finished episodes)", [("fell", tr["fell"] * 100, True)]),
+        ("Episode length (ticks)", [("length", tr["ep_len"], True)]),
+        ("Curriculum frontier (level)", [("frontier", tr["frontier"], False)]),
+        ("Policy entropy", [("entropy", tr["entropy"], True)]),
+        ("Policy loss (PPO clipped objective)", [("policy loss", tr["pi_loss"], True)]),
+        ("Value loss", [("value loss", tr["v_loss"], True)]),
+        ("Approximate KL per update", [("KL", tr["kl"], True)]),
+        ("Learning rate (KL-adaptive)" if "lr" in tr else "Learning rate (fixed, before the PPO fixes)",
+         [("lr", tr.get("lr", np.full_like(x, 3e-4)), "log")]),
+    ]
+    fig, axes = plt.subplots(2, 5, figsize=(18, 6.4), facecolor=SURFACE)
+    for ax, (name, series) in zip(axes.flat, panels):
+        _style(ax)
+        for label, y, smooth in series:
+            if smooth == "log":  # geometric mean of a quantity that jumps by factors of 1.5
+                ax.plot(x, y, color=SERIES[0], linewidth=0.6, alpha=0.2)
+                ax.plot(x, 10 ** _smooth(np.log10(y)), color=SERIES[0], linewidth=2, label=label)
+            elif smooth:
+                ax.plot(x, y, color=SERIES[0], linewidth=0.6, alpha=0.25)
+                ax.plot(x, _smooth(y), color=SERIES[0], linewidth=2, label=label + " (25-iteration mean)")
+            else:
+                ax.plot(x, y, color=SERIES[0], linewidth=1.5, label=label)
+        if name.startswith("Success") and ev is not None:
+            ax.plot(ev["env_steps"] / 1e9, ev["success"] * 100, color=SERIES[1], linewidth=2, marker="o",
+                    markersize=3, label="held-out test courses")
+            ax.legend(frameon=False, fontsize=7, labelcolor=INK2, loc="lower right")
+        if name.startswith("Learning rate"):
+            ax.set_yscale("log")
+        ax.set_title(name, color=INK, fontsize=9.5, loc="left")
+        ax.set_xlabel("game ticks (billions)", color=INK2, fontsize=8)
+    fig.suptitle(title, color=INK, fontsize=12, x=0.01, ha="left")
+    fig.tight_layout()
+    fig.savefig(path, dpi=130, facecolor=SURFACE)
+    plt.close(fig)
+    return True
+
+
+RUN_FILES = ("config.json", "train_log.csv", "eval_log.csv", "eval_val_log.csv", "eval_obstacles_log.csv",
+             "summary.json")
+GAME_FILES = ("courses.json", "summary.json", "summary.md")
+
+
+def archive(out: Path) -> None:
+    """Copy every run's records into ``out`` (checkpoints stay in runs/, they are large).
+
+    out/runs/NAME              training runs: config, per-iteration log, evaluation logs
+    out/runs/_v1_unstable/NAME the first runs, discarded after PPO collapsed (kept as evidence)
+    out/games/NAME             bot runs (live, offline): courses, every tick (episodes.jsonl.gz),
+                               summaries, and the server log of live runs
+    """
+    sources = [(d, out / "runs" / d.name) for d in sorted(RUNS.iterdir())]
+    if (RUNS / "_v1_unstable").is_dir():
+        sources += [(d, out / "runs" / "_v1_unstable" / d.name) for d in sorted((RUNS / "_v1_unstable").iterdir())]
+    for d, dst in sources:
+        if d.is_dir() and (d / "train_log.csv").exists():
+            dst.mkdir(parents=True, exist_ok=True)
+            for f in RUN_FILES:
+                if (d / f).exists():
+                    shutil.copy2(d / f, dst / f)
+    for d in sorted(RUNS.rglob("episodes.jsonl")):
+        run = d.parent
+        dst = out / "games" / run.relative_to(RUNS).as_posix().replace("/", "__")
+        dst.mkdir(parents=True, exist_ok=True)
+        for f in GAME_FILES:
+            if (run / f).exists():
+                shutil.copy2(run / f, dst / f)
+        for f in ("episodes.jsonl", "server.log"):
+            if (run / f).exists():
+                with open(run / f, "rb") as src, gzip.open(dst / (f + ".gz"), "wb", compresslevel=9) as gz:
+                    shutil.copyfileobj(src, gz)
+
+
 def pct(v):
     return "-" if v is None or (isinstance(v, float) and np.isnan(v)) else f"{v * 100:.1f}"
 
@@ -165,14 +269,7 @@ def main(argv=None):
     out = Path(a.out)
     (out / "figures").mkdir(parents=True, exist_ok=True)
 
-    # Copy small per-run records.
-    for d in sorted(RUNS.iterdir()):
-        if d.is_dir() and (d / "eval_log.csv").exists():
-            dst = out / "runs" / d.name
-            dst.mkdir(parents=True, exist_ok=True)
-            for f in ("config.json", "eval_log.csv", "train_log.csv", "summary.json"):
-                if (d / f).exists():
-                    shutil.copy2(d / f, dst / f)
+    archive(out)
 
     lines = ["# Results", "", "Generated by `python -m parkour.report`. Unless a section says otherwise, numbers are",
              "**simulator** results on the fixed held-out test set: 200 courses per difficulty level, 10 jumps each,",
