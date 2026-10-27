@@ -174,24 +174,94 @@ the simulator and compares outcomes.
 
 ## 7. Results
 
-*To be filled from `results/README.md`.* Planned subsections:
+All numbers below are copied from `results/README.md`, which
+`python -m parkour.report` generates from the run files. Simulator results
+are on the held-out test set (200 courses per level, 10 jumps each) with the
+deterministic policy unless stated otherwise.
 
-1. Main run: held-out success by level over training.
-2. Reward and curriculum ablation (3 seeds per arm): full, sparse (no
-   distance term), no landing bonus, no fall penalty, uniform levels.
-3. Hyperparameters (entropy, discount, network size, KL target, number of
-   environments), selected on validation.
-4. Every jump type: learned policy against the scripted strategies.
-5. Course styles outside training: long courses, zigzags, straight lines,
-   any start direction, single blocks.
-6. Route information hidden (`noroute`).
-7. Obstacles: zero-shot, then fine-tuned.
-8. Real Minecraft: success on held-out and hand-designed courses, replay and
-   policy checks.
+### 7.1 Main run
+
+After 3,000 iterations (1.57 billion game ticks, 2.6 hours on one RTX 5080
+shared with two other runs) the last checkpoint completes **95.5%** of the
+1,200 test courses: 100, 97, 98, 100 and 98% at levels 0 to 4 and 80% at level
+5. Levels 0 to 3 are above 96% at the first evaluation (26 million ticks) and
+level 4 passes 90% at 0.08 billion; level 5 rises from 2% to 78% by 0.55
+billion ticks and stays between 64 and 92% afterwards, apart from the one dip at 1.0 billion (figure
+`main_learning_curve`).
+The safeguards held the run stable except for one short dip (section 5).
+
+### 7.2 Reward and curriculum ablation (3 seeds per arm, 0.52 B ticks each)
+
+| Arm | Final success | Level 5 | Ticks to 80% |
+| --- | --- | --- | --- |
+| full | 93.3% (91.9-94.2) | 72.0% (69.0-76.5) | 0.05 B |
+| no distance shaping | 93.6% (91.5-95.1) | 74.8% (70.0-79.5) | 0.14 B |
+| no landing bonus | 91.8% (90.0-94.2) | 59.5% (47.0-74.5) | 0.05 B |
+| no fall penalty | 90.9% (90.5-91.2) | 55.2% (54.0-57.0) | 0.05 B |
+| no curriculum | 94.0% (93.0-95.0) | 72.0% (67.0-76.0) | 0.08 B |
+
+- The **fall penalty** (the height idea) matters most: without it the final
+  success and the level-5 success fall below every seed of the full arm.
+- **Distance shaping** does not change the final success but makes learning
+  about three times faster.
+- The **landing bonus** lowers level-5 success on average without it, but the
+  seeds overlap, so this run count shows no reliable effect.
+- The **curriculum** shows no benefit at this budget; uniform sampling learns
+  slightly more slowly (0.08 against 0.05 B ticks to 80%) and ends equal.
+
+### 7.3 Hyperparameters
+
+*To be filled when `configs/sweep_hparams.json` finishes.*
+
+### 7.4 Every jump type
+
+From a standing start on a 1x1 block at 16 start angles, the final policy
+makes every jump type of levels 0 to 4 every time and the level-5 types 99.6%
+of the time. Of the 49 types that none of the 4,032 scripted strategies
+lands, it makes 4 at least once, including a diagonal 4-block gap onto a 3x3
+platform at every start angle (figure `jumps`).
+
+### 7.5 Course styles outside training (final policy, 100 courses per level)
+
+Standard 97.5%, 15-jump courses 95.2%, straight lines 98.5%, any start
+direction 96.7%, obstacles 95.3%, single blocks only 91.2%, a turn at every
+jump 90.3%. The weakest cases are level-5 jumps right after a turn (68%) and
+level-0 courses made of single blocks (87%), where stepping down onto a lone
+block tends to overshoot.
+
+### 7.6 Is the route needed?
+
+With the platform corners hidden (only its own state, the 98-point block
+scan and the goal direction), the agent still completes 83.4% of test courses
+(2 of 3 seeds so far; level 5: 45%), against 93.3% with the route at the same
+budget. It needs about seven times as many ticks to reach 80%. The scan sees
+5.5 blocks ahead and 1.5 to each side, so after a turn the next platform is
+often outside it.
+
+### 7.7 Obstacles
+
+The main policy completed 46.8% of courses with head-hitter beams and decoy
+pillars. Fine-tuned for 1,000 iterations with an obstacle on 30% of jumps, it
+completes 93.6% of the held-out obstacle courses and 97.1% of the standard
+test set (level 5: 90.5%); it improved on both. This fine-tuned policy is the
+final policy.
+
+### 7.8 The bot's own code
+
+The bot's JavaScript (observation, network, episode rules) driving
+prismarine-physics without a server completed 59 of 60 standard and 58 of 60
+obstacle test courses and all 3 hand-designed courses: exactly the courses
+the simulator completed, with the same tick counts. Replaying the recorded
+actions in the simulator reproduced every trajectory to within 7e-15 blocks.
+
+### 7.9 Real Minecraft
+
+*To be filled after the live run (`run.cmd live`), which needs the Minecraft
+EULA accepted on the machine.*
 
 ## 8. Discussion and limitations
 
-*To be completed with the results.* Points to cover:
+Points to develop:
 
 - Physics scope: full cubes and air only; slabs, ladders, ice, water and
   fences are not ported (prismarine-physics has them).

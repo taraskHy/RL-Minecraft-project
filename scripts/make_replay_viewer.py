@@ -45,11 +45,12 @@ def episodes_from(run: Path) -> list[dict]:
                     if k > cp and abs(y - (py + 1)) < 1e-6 and x + 0.3 > x0 and x - 0.3 < x1 + 1 and z + 0.3 > z0 and z - 0.3 < z1 + 1:
                         cp = k
             cp_at.append(cp)
-        name = c.get("name") or f"Level {c['level']} course {c['seed']}"
-        group = c.get("name") and "hand-designed" or f"L{c['level']}"
+        has_obstacles = bool(c.get("extra"))
+        name = c.get("name") or f"Level {c['level']} course {c['seed']}" + (" (obstacles)" if has_obstacles else "")
+        group = "hand-designed" if c.get("name") else ("obstacles" if has_obstacles else f"L{c['level']}")
         out.append({
             "title": name.capitalize() if c.get("name") else name, "group": group, "result": e["result"], "cp": e["cp"],
-            "n": e["n"], "ticks": e["ticks"], "platforms": plats, "mode": mode,
+            "n": e["n"], "ticks": e["ticks"], "platforms": plats, "extra": c.get("extra", []), "mode": mode,
             "pos": [round(v, 3) for p in pos for v in p], "yaw": [round(v, 4) for v in yaw], "cpAt": cp_at,
         })
     return out
@@ -67,7 +68,8 @@ def main():
         "subtitle": "A PPO policy plays Minecraft parkour courses it never saw in training. Pick a course to watch it, tick by tick.",
         "meta": f"{ok}/{len(eps)} courses completed · " + "; ".join(modes),
         "notes": ("Trajectories come from the bot's JavaScript stack running on prismarine-physics, the engine a Mineflayer bot "
-                  "moves with in real Minecraft (<code>run.cmd offline</code>). Start block in green, goal in gold. "
+                  "moves with in real Minecraft (<code>run.cmd offline</code>). Start block in green, goal in gold, "
+                  "obstacles (head-hitter beams and decoy pillars) in dark stone. "
                   "Space plays or pauses; the arrow keys step one game tick."),
         "episodes": eps,
     }

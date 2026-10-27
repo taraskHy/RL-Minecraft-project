@@ -20,18 +20,18 @@ seed 0 is the first 1000 iterations of the main run (identical settings).
 
 ![ablation](figures/ablation_curves.png)
 
-| Arm | What changes | Seeds | Final success, mean (min-max) | L4 | L5 | Mean over training | Ticks to 80% (B) |
+| Arm | What changes | Seeds | Final success, mean (min-max) | L4 | L5, mean (min-max) | Mean over training | Ticks to 80% (B) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| full | progress + landing + goal + fall, adaptive curriculum | 2 | 94.0 (93.8-94.2) | 94.2 | 73.5 | 89.4 | 0.05 |
-| sparse | no progress (distance) shaping | 1 | 95.1 (95.1-95.1) | 96.0 | 79.5 | 82.8 | 0.13 |
-| nolanding | no landing bonus | 1 | 90.0 (90.0-90.0) | 96.0 | 47.0 | 88.3 | 0.05 |
-| nofall | no fall penalty | 0 | not finished | | | | |
-| uniform | no curriculum (levels uniform) | 1 | 95.0 (95.0-95.0) | 97.0 | 76.0 | 88.9 | 0.08 |
-| noroute | platform positions hidden: block scan + goal only | 0 | not finished | | | | |
+| full | progress + landing + goal + fall, adaptive curriculum | 3 | 93.3 (91.9-94.2) | 94.7 | 72.0 (69.0-76.5) | 89.5 | 0.05 |
+| sparse | no progress (distance) shaping | 3 | 93.6 (91.5-95.1) | 95.8 | 74.8 (70.0-79.5) | 82.3 | 0.14 |
+| nolanding | no landing bonus | 3 | 91.8 (90.0-94.2) | 95.0 | 59.5 (47.0-74.5) | 89.0 | 0.05 |
+| nofall | no fall penalty | 3 | 90.9 (90.5-91.2) | 94.5 | 55.2 (54.0-57.0) | 88.9 | 0.05 |
+| uniform | no curriculum (levels uniform) | 3 | 94.0 (93.0-95.0) | 97.0 | 72.0 (67.0-76.0) | 88.2 | 0.08 |
+| noroute | platform positions hidden: block scan + goal only | 2 | 83.4 (83.2-83.6) | 88.8 | 45.0 (42.5-47.5) | 74.1 | 0.35 |
 
 ## Every jump type
 
-Checkpoint `runs/main-s0/checkpoints/latest.pt`. Each jump type starts from rest on a 1x1
+Checkpoint `runs/obstacles-ft/checkpoints/best.pt`. Each jump type starts from rest on a 1x1
 block, with 16 start angles from -60 to +60 degrees off the target.
 
 ![jumps](figures/jumps.png)
@@ -40,43 +40,72 @@ block, with 16 start angles from -60 to +60 degrees off the target.
 | --- | --- | --- | --- |
 | 0 | 56 | 100.0 | 0 |
 | 1 | 41 | 100.0 | 0 |
-| 2 | 34 | 99.8 | 0 |
+| 2 | 34 | 100.0 | 0 |
 | 3 | 22 | 100.0 | 0 |
 | 4 | 27 | 100.0 | 0 |
-| 5 | 14 | 100.0 | 0 |
-| impossible | 49 | 1.7 | 46 |
+| 5 | 14 | 99.6 | 0 |
+| impossible | 49 | 2.7 | 45 |
+
+## Hyperparameters (one at a time around the defaults, seed 0)
+
+Selection uses the validation courses (seed family 2); the test score is reported alongside. The
+reference is the `full` arm (defaults), mean over its seeds. All runs see 0.52 B game ticks.
+
+| Run | Iteration | Validation success | Test success | L4 | L5 |
+| --- | --- | --- | --- | --- | --- |
+| defaults (`full`, 3 seeds) | 999 | - | 93.3 | 94.7 | 72.0 |
+| `hp-ent0.001` | 99 of 1000 (running) | 83.0 | 84.0 | 89.0 | 20.0 |
+| `hp-ent0.02` | 99 of 1000 (running) | 72.7 | 82.6 | 88.0 | 19.0 |
 
 ## Course styles outside the training distribution
 
-Checkpoint `runs/main-s0/checkpoints/latest.pt`, 100 new courses per level and condition (`python -m parkour.stress`).
+Checkpoint `runs/obstacles-ft/checkpoints/best.pt`, 100 new courses per level and condition (`python -m parkour.stress`).
 
 | Condition | All levels | L0 | L1 | L2 | L3 | L4 | L5 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| standard | 96.7 | 97.0 | 99.0 | 99.0 | 98.0 | 95.0 | 92.0 |
-| long | 93.5 | 96.0 | 99.0 | 99.0 | 98.0 | 91.0 | 78.0 |
-| zigzag | 85.3 | 92.0 | 92.0 | 92.0 | 90.0 | 85.0 | 61.0 |
-| straight | 97.2 | 98.0 | 98.0 | 100.0 | 99.0 | 99.0 | 89.0 |
-| any_start_yaw | 95.2 | 98.0 | 97.0 | 98.0 | 100.0 | 96.0 | 82.0 |
-| single_blocks | 89.3 | 86.0 | 89.0 | 91.0 | 98.0 | 96.0 | 76.0 |
-| obstacles | 46.8 | 79.0 | 56.0 | 47.0 | 25.0 | 37.0 | 37.0 |
+| standard | 97.5 | 99.0 | 100.0 | 100.0 | 100.0 | 95.0 | 91.0 |
+| long | 95.2 | 99.0 | 99.0 | 100.0 | 98.0 | 97.0 | 78.0 |
+| zigzag | 90.3 | 93.0 | 96.0 | 94.0 | 97.0 | 94.0 | 68.0 |
+| straight | 98.5 | 99.0 | 100.0 | 100.0 | 100.0 | 100.0 | 92.0 |
+| any_start_yaw | 96.7 | 100.0 | 99.0 | 98.0 | 98.0 | 99.0 | 86.0 |
+| single_blocks | 91.2 | 87.0 | 97.0 | 95.0 | 98.0 | 97.0 | 73.0 |
+| obstacles | 95.3 | 99.0 | 98.0 | 94.0 | 97.0 | 99.0 | 85.0 |
 
 ## Obstacles (head-hitter beams and decoy pillars)
 
 `obstacles-ft` starts from the main policy and trains with an obstacle on 30% of jumps. Both test
 sets are held out; the obstacle set puts an obstacle on 50% of jumps.
+Before fine-tuning, the main policy completed 46.8% of new obstacle courses
+(stress test, 100 per level), against 96.7% of standard ones.
 
 | Evaluation | Test set | All levels | L0 | L1 | L2 | L3 | L4 | L5 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | first (iteration 49) | standard | 95.2 | 99.0 | 97.0 | 99.5 | 99.0 | 95.0 | 82.0 |
 | first (iteration 49) | obstacles | 89.7 | 98.5 | 95.5 | 93.5 | 97.0 | 94.0 | 59.5 |
-| last (iteration 49) | standard | 95.2 | 99.0 | 97.0 | 99.5 | 99.0 | 95.0 | 82.0 |
-| last (iteration 49) | obstacles | 89.7 | 98.5 | 95.5 | 93.5 | 97.0 | 94.0 | 59.5 |
+| last (iteration 999) | standard | 97.1 | 99.0 | 97.5 | 98.5 | 100.0 | 97.0 | 90.5 |
+| last (iteration 999) | obstacles | 93.6 | 97.5 | 97.5 | 96.0 | 97.5 | 97.5 | 75.5 |
 
 ## Offline check
 
-### offline (prismarine-physics, no server)
+### Offline JavaScript bot on prismarine-physics (final policy: obstacles-ft)
 
-Checkpoint `runs/main-s0/checkpoints/latest.pt`, 60 courses (held-out, 10 jumps each).
+
+Checkpoint `runs/obstacles-ft/checkpoints/best.pt`, 60 courses (held-out, 10 jumps each).
+
+| Level | Courses | Success here | Success in simulator (same courses) |
+| --- | --- | --- | --- |
+| 0 | 10 | 90% | 90% |
+| 1 | 10 | 100% | 100% |
+| 2 | 10 | 100% | 100% |
+| 3 | 10 | 100% | 100% |
+| 4 | 10 | 100% | 100% |
+| 5 | 10 | 100% | 100% |
+
+Overall: 98% here, 98% in the simulator; outcomes agree on 100% of courses.
+Replaying the recorded actions in the simulator: largest position difference 7.11e-15 blocks; 60 of 60 episodes within 1e-6 blocks on every tick.
+
+
+Checkpoint `runs/obstacles-ft/checkpoints/best.pt`, 60 courses (held-out with obstacles, 10 jumps each).
 
 | Level | Courses | Success here | Success in simulator (same courses) |
 | --- | --- | --- | --- |
@@ -88,6 +117,17 @@ Checkpoint `runs/main-s0/checkpoints/latest.pt`, 60 courses (held-out, 10 jumps 
 | 5 | 10 | 80% | 80% |
 
 Overall: 97% here, 97% in the simulator; outcomes agree on 100% of courses.
-Replaying the recorded actions in the simulator: largest position difference 8.88e-16 blocks; 60 of 60 episodes within 1e-6 blocks on every tick.
+Replaying the recorded actions in the simulator: largest position difference 7.11e-15 blocks; 60 of 60 episodes within 1e-6 blocks on every tick.
+
+
+Checkpoint `runs/obstacles-ft/checkpoints/best.pt`, 3 courses (from configs/showcase_courses.json).
+
+| Level | Courses | Success here | Success in simulator (same courses) |
+| --- | --- | --- | --- |
+| 0 | 3 | 100% | 100% |
+
+Overall: 100% here, 100% in the simulator; outcomes agree on 100% of courses.
+Replaying the recorded actions in the simulator: largest position difference 1.78e-15 blocks; 3 of 3 episodes within 1e-6 blocks on every tick.
+
 
 

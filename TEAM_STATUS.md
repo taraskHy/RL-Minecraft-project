@@ -4,7 +4,7 @@ One page for everyone on the team: what works, what is running, what is open.
 Updated and pushed after every result. Every number is in
 [results/README.md](results/README.md) (generated from the run files).
 
-**Last updated:** 27 October 2026, evening.
+**Last updated:** 27 October 2026, 23:00.
 
 ## The project now
 
@@ -13,26 +13,30 @@ Minecraft parkour and completes courses it has never seen.** The survival
 work (wooden pickaxe, stone design) is archived on the `archive/survival` tag
 and the `codex/*` branches.
 
-## Headline results
+## Headline results (simulator unless stated)
 
-- **95.5% of 1,200 unseen test courses** (10 jumps each, 6 difficulty levels)
-  after 1.57 billion game ticks of PPO training, about 2.6 hours on the RTX
-  5080: levels 0 to 4 at 97 to 100%, the hardest level at 80%. *Simulator,
-  last checkpoint, no checkpoint picking.*
-- **Every possible jump type** at levels 0 to 5 is made from a standing start
-  at all 16 tested start angles (one type at 94%), and 3 jump types that none
-  of 4,032 scripted strategies could make are made sometimes.
-- **The bot's real code agrees with the simulator.** The JavaScript bot,
-  running on Mineflayer's own physics engine without a server, finished 58 of
-  60 held-out courses, the same courses as the simulator, with trajectories
-  equal to 9e-16 blocks. All three hand-designed demo courses
-  (`configs/showcase_courses.json`) are completed.
-- **Generalisation beyond training** (100 new courses per level each):
-  15-jump courses 93.5%, any start direction 95%, single-block courses 89%,
-  constant zigzags 85%. Courses with obstacles (head-hitter beams, decoy
-  pillars) drop it to 47%, so an obstacle fine-tune is running.
-- **3D replays** of the bot on unseen and hand-designed courses:
-  `results/replay_viewer.html` (open in a browser).
+- **Final policy** (`runs/obstacles-ft`, main policy fine-tuned with
+  obstacles): **97.1% of 1,200 unseen test courses** (level 5: 90.5%) and
+  **93.6% of unseen courses with obstacles** (head-hitter beams, decoy pillars).
+- **Main run** (no obstacles, 1.57 billion ticks, 2.6 hours): 95.5% of the
+  test courses at its last checkpoint.
+- **Every possible jump type** is made from a standing start at all 16 start
+  angles (level 5: 99.6%); 4 types that no scripted strategy makes are made
+  sometimes, one of them every time.
+- **New course styles:** 15-jump courses 95%, any start direction 97%,
+  single-block courses 91%, a turn at every jump 90%.
+- **The bot's real code agrees with the simulator:** the JavaScript bot on
+  Mineflayer's physics engine (no server) completed 59/60 standard, 58/60
+  obstacle and 3/3 hand-designed courses, exactly the simulator's results,
+  trajectories equal to 7e-15 blocks.
+- **Your reward ideas, tested** (3 seeds each): the *fall penalty* (height)
+  matters most (without it the hardest level drops to 54-57% from 69-77%);
+  *distance shaping* makes learning about 3 times faster but does not change
+  the final score; the *landing bonus* and the *curriculum* show no reliable
+  effect at this budget.
+- **Without being told the route** (only the blocks around it and the goal
+  direction) the agent still completes 83% of test courses.
+- **3D replays:** open `results/replay_viewer.html` in a browser (123 courses).
 
 ## How we know the simulator is right
 
@@ -40,22 +44,12 @@ Mineflayer bots move with a physics library called prismarine-physics. We
 ported it to the GPU and check it against the real library on random worlds:
 largest difference 1.4e-14 blocks over 99,000 ticks. `run.cmd test` runs this.
 
-## Running now (overnight)
+## Running now
 
-1. Reward and curriculum ablation, 3 seeds per arm (`configs/sweep_ablation.json`):
-   - `full`: all reward terms (main settings);
-   - `sparse`: no distance shaping, landings and goal only ("count the jumps");
-   - `nolanding`: no landing bonus ("distance only");
-   - `nofall`: no fall penalty ("no height term");
-   - `uniform`: no curriculum.
-   First seeds: distance shaping makes learning about 2.5 times faster but is
-   not needed for the final score; the landing bonus matters most for the
-   hardest level (47% without it against 74 to 80%). Waiting for all seeds.
-2. `obstacles-ft`: the main policy fine-tuned with obstacles.
-3. `noroute`: the bot is not told where the platforms are; it sees only the
-   blocks around it and the goal direction.
-4. A hyperparameter study (`configs/sweep_hparams.json`), compared on a
-   separate validation set.
+- The hyperparameter study (`configs/sweep_hparams.json`): entropy, discount,
+  network size, KL target and number of environments, one at a time, compared
+  on the validation set. Results appear in `results/README.md`.
+- The third no-route seed.
 
 ## Waiting on the PC owner
 
@@ -73,6 +67,10 @@ largest difference 1.4e-14 blocks over 99,000 ticks. `run.cmd test` runs this.
    from `results/README.md`.
 
 ## Update log
+
+- **27 Oct 2026, 23:00:** ablation (15 runs), obstacle fine-tune and no-route
+  runs finished; the obstacle-trained policy is the final policy (97.1% /
+  93.6%). Report draft section 7 filled in. Hyperparameter study running.
 
 - **27 Oct 2026, evening:** main run finished (95.5% held-out). Analyses,
   replay viewer and offline bot check done. PPO stabilised after early

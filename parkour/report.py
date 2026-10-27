@@ -223,7 +223,7 @@ def main(argv=None):
                   f"Each arm trains {ABLATION_ITERATIONS} PPO iterations (0.52 B game ticks) per seed; the `full` arm's",
                   "seed 0 is the first 1000 iterations of the main run (identical settings).", "",
                   "![ablation](figures/ablation_curves.png)", "",
-                  "| Arm | What changes | Seeds | Final success, mean (min-max) | L4 | L5 | Mean over training | Ticks to 80% (B) |",
+                  "| Arm | What changes | Seeds | Final success, mean (min-max) | L4 | L5, mean (min-max) | Mean over training | Ticks to 80% (B) |",
                   "| --- | --- | --- | --- | --- | --- | --- | --- |"]
         for arm, desc, n, final, per_level, auc, reach in table:
             if not n:
@@ -231,7 +231,7 @@ def main(argv=None):
                 continue
             r = reach[~np.isnan(reach)]
             lines.append(f"| {arm} | {desc} | {n} | {pct(final.mean())} ({pct(final.min())}-{pct(final.max())}) | "
-                         f"{pct(per_level[:, 4].mean())} | {pct(per_level[:, 5].mean())} | {pct(auc.mean())} | "
+                         f"{pct(per_level[:, 4].mean())} | {pct(per_level[:, 5].mean())} ({pct(per_level[:, 5].min())}-{pct(per_level[:, 5].max())}) | {pct(auc.mean())} | "
                          f"{'%.2f' % r.mean() if len(r) else 'never'}{'' if len(r) == n else f' ({len(r)}/{n} seeds)'} |")
         lines.append("")
 
@@ -252,10 +252,10 @@ def main(argv=None):
         lines += ["## Hyperparameters (one at a time around the defaults, seed 0)", "",
                   "Selection uses the validation courses (seed family 2); the test score is reported alongside. The",
                   "reference is the `full` arm (defaults), mean over its seeds. All runs see 0.52 B game ticks.", "",
-                  "| Run | Validation success | Test success | L4 | L5 |", "| --- | --- | --- | --- | --- |"]
+                  "| Run | Iteration | Validation success | Test success | L4 | L5 |", "| --- | --- | --- | --- | --- | --- |"]
         ref = curves.get("full") or []
         if ref:
-            lines.append(f"| defaults (`full`, {len(ref)} seeds) | - | {pct(np.mean([e['success'][-1] for e in ref]))} | "
+            lines.append(f"| defaults (`full`, {len(ref)} seeds) | 999 | - | {pct(np.mean([e['success'][-1] for e in ref]))} | "
                          f"{pct(np.mean([e['success_L4'][-1] for e in ref]))} | {pct(np.mean([e['success_L5'][-1] for e in ref]))} |")
         for r in hp_runs:
             e = read_eval(r)
@@ -263,7 +263,10 @@ def main(argv=None):
             v = list(csv.DictReader(vp.open())) if vp.exists() else []
             if e is None:
                 continue
-            lines.append(f"| `{r}` | {pct(float(v[-1]['success'])) if v else '-'} | {pct(e['success'][-1])} | "
+            its = json.loads((RUNS / r / "config.json").read_text())["iterations"]
+            it = int(e["iteration"][-1])
+            state = str(it) if it >= its - 1 else f"{it} of {its} (running)"
+            lines.append(f"| `{r}` | {state} | {pct(float(v[-1]['success'])) if v else '-'} | {pct(e['success'][-1])} | "
                          f"{pct(e['success_L4'][-1])} | {pct(e['success_L5'][-1])} |")
         lines.append("")
 
@@ -291,7 +294,14 @@ def main(argv=None):
         lv = levels_in(obs_ev)
         lines += ["## Obstacles (head-hitter beams and decoy pillars)", "",
                   "`obstacles-ft` starts from the main policy and trains with an obstacle on 30% of jumps. Both test",
-                  "sets are held out; the obstacle set puts an obstacle on 50% of jumps.", "",
+                  "sets are held out; the obstacle set puts an obstacle on 50% of jumps."]
+        zs = out / "stress_main.json"
+        if zs.exists():
+            z = json.loads(zs.read_text())["conditions"].get("obstacles")
+            if z:
+                lines += [f"Before fine-tuning, the main policy completed {pct(z['success'])}% of new obstacle courses",
+                          "(stress test, 100 per level), against 96.7% of standard ones."]
+        lines += ["",
                   "| Evaluation | Test set | All levels | " + " | ".join(f"L{L}" for L in lv) + " |",
                   "| --- | --- | --- | " + " | ".join("---" for _ in lv) + " |"]
         for name, i in (("first", 0), ("last", -1)):

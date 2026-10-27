@@ -33,14 +33,17 @@ from . import physics
 from .env import YAW_STEPS_DEG, CoursePool, action_to_controls
 from .model import ActorCritic
 from .paths import BRIDGE, NODE
-from .train import evaluate, held_out_courses
+from .train import evaluate, held_out_courses, obstacle_courses
 
 SETTLE_TICKS = 10
 
 
-def pick_courses(per_level: int, n_jumps: int = 10, pool_per_level: int = 200) -> list[C.Course]:
+def pick_courses(per_level: int, n_jumps: int = 10, pool_per_level: int = 200, obstacles: bool = False) -> list[C.Course]:
     levels = C.load_levels()
-    allc = held_out_courses(levels, pool_per_level, n_jumps)
+    if obstacles:
+        allc = obstacle_courses(levels, pool_per_level, n_jumps)
+    else:
+        allc = held_out_courses(levels, pool_per_level, n_jumps)
     out = []
     for L in range(len(levels)):
         out.extend([c for c in allc if c.level == L][:per_level])
@@ -94,6 +97,7 @@ def main(argv=None):
     ap.add_argument("--checkpoint", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--per-level", type=int, default=5)
+    ap.add_argument("--obstacles", action="store_true", help="play held-out obstacle courses")
     ap.add_argument("--courses-file", default="", help="JSON {\"courses\": [...]} to play instead of held-out courses")
     ap.add_argument("--offline", action="store_true")
     ap.add_argument("--viewer", default="")
@@ -106,7 +110,7 @@ def main(argv=None):
     if a.courses_file:
         courses = [C.Course.from_json(d) for d in json.loads(Path(a.courses_file).read_text())["courses"]]
     else:
-        courses = pick_courses(a.per_level)
+        courses = pick_courses(a.per_level, obstacles=a.obstacles)
     (out / "courses.json").write_text(json.dumps({"courses": [c.to_json() for c in courses]}))
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     model = load_model(Path(a.checkpoint).resolve(), dev)
@@ -163,7 +167,7 @@ def main(argv=None):
     }
     (out / "summary.json").write_text(json.dumps(summary, indent=1))
     lines = [f"# {summary['mode']}", "", f"Checkpoint `{a.checkpoint}`, {len(rows)} courses "
-             f"({'from ' + a.courses_file if a.courses_file else 'held-out, 10 jumps each'}).", "",
+             f"({'from ' + a.courses_file if a.courses_file else 'held-out' + (' with obstacles' if a.obstacles else '') + ', 10 jumps each'}).", "",
              "| Level | Courses | Success here | Success in simulator (same courses) |", "| --- | --- | --- | --- |"]
     for L, v in by_level.items():
         lines.append(f"| {L} | {v['n']} | {v['success']:.0%} | {v['sim_success']:.0%} |")

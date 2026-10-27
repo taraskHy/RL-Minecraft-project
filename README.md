@@ -19,14 +19,17 @@ real Minecraft server, on new courses.
 
 | What | Result | Where measured |
 | --- | --- | --- |
-| Unseen 10-jump courses, all 6 levels (1,200) | 95.5% (levels 0-4: 97-100%, level 5: 80%) | simulator |
-| Every possible jump type from a standing start | all made; 3 that no scripted strategy makes, sometimes | simulator |
-| Same policy as the bot's JavaScript on Mineflayer's physics | 58/60 courses, identical outcomes and trajectories | prismarine-physics, no server |
+| Unseen 10-jump courses, all 6 levels (1,200) | 97.1% (hardest level 90.5%) | simulator |
+| Unseen courses with obstacles (1,200) | 93.6% | simulator |
+| Every possible jump type from a standing start | all made (hardest level 99.6%) | simulator |
+| The bot's JavaScript on Mineflayer's physics engine | 59/60 standard, 58/60 obstacle, 3/3 hand-designed; identical to the simulator | prismarine-physics, no server |
 | Physics port against the real library | 1.4e-14 blocks over 99,000 ticks | Node + prismarine-physics |
 | Real Minecraft server | ready, waiting for the EULA on this PC | - |
 
-Details, figures and the ablations: [results/README.md](results/README.md).
-3D replays: open `results/replay_viewer.html` in a browser.
+Details, figures, the reward ablation and the other experiments:
+[results/README.md](results/README.md). 3D replays: open
+`results/replay_viewer.html` in a browser. Final policy:
+`runs/obstacles-ft/checkpoints/best.pt` (not in Git; `results/runs` has its logs).
 
 ## How it works
 

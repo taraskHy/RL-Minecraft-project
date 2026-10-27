@@ -17,6 +17,7 @@
   --stone-edge: #5f666e;
   --start: #6f9c78;
   --goal: #d4a21c;
+  --obstacle: #4a5058;
   --player: #2f63c9;
   --trail: #2f63c9;
   --good: #1f7a45;
@@ -30,14 +31,14 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0f1418; --panel: #161d23; --fg: #e4e9ee; --muted: #93a0ac; --line: #26313a; --accent: #5cbf85;
-    --accent-ink: #0b1a11; --stone: #7a828b; --stone-edge: #3c434a; --start: #5f8f69; --goal: #e3b63a;
+    --accent-ink: #0b1a11; --stone: #7a828b; --stone-edge: #3c434a; --start: #5f8f69; --goal: #e3b63a; --obstacle: #a7aeb6;
     --player: #6f9dff; --trail: #6f9dff; --good: #57c486; --bad: #f07a72; --warn: #e0b04a; --stage: #12181d;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0f1418; --panel: #161d23; --fg: #e4e9ee; --muted: #93a0ac; --line: #26313a; --accent: #5cbf85;
-  --accent-ink: #0b1a11; --stone: #7a828b; --stone-edge: #3c434a; --start: #5f8f69; --goal: #e3b63a;
+  --accent-ink: #0b1a11; --stone: #7a828b; --stone-edge: #3c434a; --start: #5f8f69; --goal: #e3b63a; --obstacle: #a7aeb6;
   --player: #6f9dff; --trail: #6f9dff; --good: #57c486; --bad: #f07a72; --warn: #e0b04a; --stage: #12181d;
   color-scheme: dark;
 }
@@ -208,7 +209,8 @@ function buildCourse (e) {
   const mats = {
     stone: new THREE.MeshLambertMaterial({ color: new THREE.Color(css('--stone')) }),
     start: new THREE.MeshLambertMaterial({ color: new THREE.Color(css('--start')) }),
-    goal: new THREE.MeshLambertMaterial({ color: new THREE.Color(css('--goal')) })
+    goal: new THREE.MeshLambertMaterial({ color: new THREE.Color(css('--goal')) }),
+    obstacle: new THREE.MeshLambertMaterial({ color: new THREE.Color(css('--obstacle')) })
   };
   e.platforms.forEach((p, k) => {
     const mat = k === 0 ? mats.start : k === e.platforms.length - 1 ? mats.goal : mats.stone;
@@ -222,6 +224,13 @@ function buildCourse (e) {
       }
     }
   });
+  for (const [x, y, z] of e.extra || []) {
+    const m = new THREE.Mesh(geo, mats.obstacle);
+    m.position.set(x + 0.5, y + 0.5, z + 0.5);
+    const l = new THREE.LineSegments(edges, edgeMat);
+    l.position.copy(m.position);
+    courseGroup.add(m, l);
+  }
   scene.add(courseGroup);
 }
 

@@ -1,5 +1,5 @@
 {
- "checkpoint": "runs/main-s0/checkpoints/latest.pt",
+ "checkpoint": "runs/obstacles-ft/checkpoints/best.pt",
  "yaw_errors_deg": [
   -60.0,
   -52.0,
@@ -31,7 +31,7 @@
   },
   "2": {
    "specs": 34,
-   "mean_policy_success": 0.9982,
+   "mean_policy_success": 1.0,
    "specs_policy_never": 0
   },
   "3": {
@@ -46,13 +46,13 @@
   },
   "5": {
    "specs": 14,
-   "mean_policy_success": 1.0,
+   "mean_policy_success": 0.9955,
    "specs_policy_never": 0
   },
   "impossible": {
    "specs": 49,
-   "mean_policy_success": 0.0166,
-   "specs_policy_never": 46
+   "mean_policy_success": 0.0268,
+   "specs_policy_never": 45
   }
  },
  "specs": [
@@ -102,7 +102,7 @@
    ],
    "forgiveness": 0.08929,
    "level": 2,
-   "policy_success": 0.9375
+   "policy_success": 1.0
   },
   {
    "gap": 0,
@@ -1830,7 +1830,7 @@
    ],
    "forgiveness": 0.01488,
    "level": 5,
-   "policy_success": 1.0
+   "policy_success": 0.9375
   },
   {
    "gap": 3,
@@ -2310,7 +2310,7 @@
    ],
    "forgiveness": 0.0,
    "level": null,
-   "policy_success": 0.0
+   "policy_success": 0.125
   },
   {
    "gap": 4,
@@ -2322,7 +2322,7 @@
    ],
    "forgiveness": 0.0,
    "level": null,
-   "policy_success": 0.625
+   "policy_success": 1.0
   },
   {
    "gap": 4,
