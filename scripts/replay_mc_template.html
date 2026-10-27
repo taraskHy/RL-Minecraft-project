@@ -1,0 +1,405 @@
+<meta charset="utf-8">
+<title>Parkour Bot Theatre</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a wide 3D stage first; a side list of replays or ghost-race runners beside it; controls under the stage. */
+:root {
+  --bg: #e8edf2;
+  --panel: #f9fbfc;
+  --fg: #172029;
+  --muted: #55616d;
+  --line: #d2d9e0;
+  --accent: #3b8c3a;
+  --accent-ink: #ffffff;
+  --good: #22783f;
+  --bad: #b3352f;
+  --warn: #946700;
+  --font-display: "Silkscreen", "Courier New", monospace;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #0e1317; --panel: #151c22; --fg: #e5eaef; --muted: #94a1ad; --line: #263039; --accent: #6cc46a; --accent-ink: #0c1a0c; --good: #5ac487; --bad: #f07a72; --warn: #e0b04a; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #0e1317; --panel: #151c22; --fg: #e5eaef; --muted: #94a1ad; --line: #263039; --accent: #6cc46a; --accent-ink: #0c1a0c; --good: #5ac487; --bad: #f07a72; --warn: #e0b04a; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 14px; line-height: 1.5; }
+.wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 18px 28px; max-width: 1500px; margin: 0 auto; display: grid; gap: 14px; }
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 8px 18px; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: 24px; margin: 0; letter-spacing: 0.02em; text-wrap: balance; }
+.sub { color: var(--muted); margin: 2px 0 0; max-width: 78ch; }
+.tabs { display: flex; gap: 6px; }
+.tab { font: 600 13px var(--font-body); border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+.tab[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px; align-items: start; }
+.stage { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; min-width: 0; }
+.box { position: relative; aspect-ratio: 16 / 9; max-width: 100%; background: #9cc4ec; }
+canvas { display: block; width: 100%; height: 100%; }
+.hud { position: absolute; left: 12px; top: 12px; font-family: var(--font-mono); font-size: 12px; color: #f4f7fa; text-shadow: 0 1px 2px rgba(0,0,0,.7); display: grid; gap: 2px; pointer-events: none; }
+.hud b { font-family: var(--font-display); font-weight: 400; font-size: 15px; }
+.banner { position: absolute; right: 12px; top: 12px; font: 600 13px var(--font-body); color: #fff; padding: 4px 12px; border-radius: 999px; background: rgba(0,0,0,.45); }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 12px; border-top: 1px solid var(--line); }
+.btn { font: 600 13px var(--font-body); border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 4px; padding: 5px 12px; cursor: pointer; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); min-width: 72px; }
+.btn:focus-visible, .tab:focus-visible, .row:focus-visible, input:focus-visible, select:focus-visible, .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input[type="range"] { flex: 1 1 200px; accent-color: var(--accent); min-width: 120px; }
+select { font: inherit; border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 4px; padding: 4px 6px; }
+label.meta, .meta { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.side { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; display: grid; grid-template-rows: auto minmax(0, 1fr); max-height: 720px; min-width: 0; }
+.side h2 { font-size: 13px; margin: 0; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.list { overflow-y: auto; }
+.row { width: 100%; display: grid; grid-template-columns: 14px 1fr auto; gap: 2px 8px; align-items: center; text-align: left; padding: 8px 12px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--fg); font: inherit; cursor: pointer; }
+.row:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.row[aria-current="true"] { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.row .sw { width: 12px; height: 12px; border-radius: 3px; }
+.row .name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .info { grid-column: 2 / -1; color: var(--muted); font-family: var(--font-mono); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.row[aria-pressed="false"] { opacity: 0.45; }
+.pill { font: 600 11px var(--font-body); padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.pill.success { color: var(--good); }
+.pill.fell { color: var(--bad); }
+.pill.truncated { color: var(--warn); }
+.notes { color: var(--muted); font-size: 13px; max-width: 90ch; margin: 0; }
+.notes code { font-family: var(--font-mono); font-size: 12px; }
+@media (max-width: 960px) { .main { grid-template-columns: minmax(0, 1fr); } .side { max-height: 320px; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1 id="title">Parkour bot theatre</h1>
+      <p class="sub" id="sub"></p>
+    </div>
+    <div class="tabs" role="group" aria-label="Mode" id="tabs"></div>
+  </header>
+  <div class="main">
+    <section class="stage" aria-label="3D view">
+      <div class="box" id="box">
+        <canvas id="c"></canvas>
+        <div class="hud" id="hud"></div>
+        <div class="banner" id="banner" hidden></div>
+      </div>
+      <div class="controls">
+        <button class="btn primary" id="play" type="button">Pause</button>
+        <button class="btn" id="restart" type="button">Restart</button>
+        <input type="range" id="scrub" min="0" max="1" step="1" value="0" aria-label="Tick">
+        <label class="meta" for="speed">Speed</label>
+        <select id="speed"><option value="0.25">0.25x</option><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option></select>
+        <label class="meta" for="cam">Camera</label>
+        <select id="cam"><option value="follow" selected>Chase</option><option value="cinematic">Cinematic</option><option value="orbit">Free orbit</option></select>
+        <select id="race" aria-label="Course" hidden></select>
+        <label class="meta" id="namesBox"><input type="checkbox" id="names"> Names</label>
+      </div>
+    </section>
+    <aside class="side">
+      <h2 id="sideTitle">Replays</h2>
+      <div class="list" id="list"></div>
+    </aside>
+  </div>
+  <p class="notes" id="notes"></p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const DATA = /*DATA*/;
+const $ = id => document.getElementById(id);
+const RESULT = { success: 'made it', fell: 'fell', truncated: 'stalled' };
+$('title').textContent = DATA.title;
+$('sub').textContent = DATA.subtitle;
+$('notes').innerHTML = DATA.notes;
+
+// ---------- pixel textures (16x16, nearest filtering) ----------
+function rng (seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296) }
+function pixelTexture (base, vary, seed, pattern) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 16
+  const g = cv.getContext('2d'); const r = rng(seed); const c = new THREE.Color(base)
+  for (let y = 0; y < 16; y++) {
+    for (let x = 0; x < 16; x++) {
+      let k = 1 + (r() - 0.5) * vary
+      if (pattern === 'ore' && r() < 0.06) k *= 1.35
+      if (pattern === 'quartz' && (y % 8 === 0)) k *= 0.93
+      if (pattern === 'gold' && (x + y) % 7 === 0) k *= 1.18
+      if (pattern === 'edge' && (x === 0 || y === 0 || x === 15 || y === 15)) k *= 0.82
+      g.fillStyle = `rgb(${Math.min(255, c.r * 255 * k)},${Math.min(255, c.g * 255 * k)},${Math.min(255, c.b * 255 * k)})`
+      g.fillRect(x, y, 1, 1)
+    }
+  }
+  const t = new THREE.CanvasTexture(cv); t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter
+  return t
+}
+// Course colours: a rainbow of concrete from start to goal; start emerald, goal gold, obstacles quartz.
+const CONCRETE = ['#e3e3e3', '#f9801d', '#c74ebd', '#3ab3da', '#fed83d', '#80c71f', '#f38baa', '#169c9c', '#8932b8', '#3c44aa', '#835432', '#5e7c16', '#b02e26']
+const MATS = {}
+function mat (key) {
+  if (MATS[key]) return MATS[key]
+  let m
+  if (key === 'start') m = new THREE.MeshLambertMaterial({ map: pixelTexture('#17b44a', 0.25, 7, 'ore') })
+  else if (key === 'goal') m = new THREE.MeshLambertMaterial({ map: pixelTexture('#f5c518', 0.22, 11, 'gold'), emissive: new THREE.Color('#5a4300') })
+  else if (key === 'obstacle') m = new THREE.MeshLambertMaterial({ map: pixelTexture('#e9e3da', 0.08, 13, 'quartz') })
+  else m = new THREE.MeshLambertMaterial({ map: pixelTexture(CONCRETE[key % CONCRETE.length], 0.07, 17 + key, 'edge') })
+  MATS[key] = m
+  return m
+}
+
+// ---------- scene ----------
+const canvas = $('c')
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+renderer.shadowMap.enabled = true
+renderer.shadowMap.type = THREE.PCFSoftShadowMap
+const scene = new THREE.Scene()
+// Sky: Minecraft-like blue fading to a pale horizon, with distance fog.
+const skyCv = document.createElement('canvas'); skyCv.width = 2; skyCv.height = 256
+const sg = skyCv.getContext('2d'); const grad = sg.createLinearGradient(0, 0, 0, 256)
+grad.addColorStop(0, '#5f97e8'); grad.addColorStop(0.65, '#9cc4ec'); grad.addColorStop(1, '#d9ecfb')
+sg.fillStyle = grad; sg.fillRect(0, 0, 2, 256)
+scene.background = new THREE.CanvasTexture(skyCv)
+scene.fog = new THREE.Fog('#c9e0f6', 40, 140)
+const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.1, 500)
+const controls = new THREE.OrbitControls(camera, canvas)
+controls.enableDamping = true
+scene.add(new THREE.HemisphereLight('#ffffff', '#6b7a5a', 0.75))
+const sun = new THREE.DirectionalLight('#fff4dd', 0.9)
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048)
+sun.shadow.camera.left = -40; sun.shadow.camera.right = 40; sun.shadow.camera.top = 40; sun.shadow.camera.bottom = -40
+sun.shadow.camera.near = 1; sun.shadow.camera.far = 160
+scene.add(sun); scene.add(sun.target)
+
+let courseGroup = new THREE.Group(); scene.add(courseGroup)
+let solid = new Set()
+function buildCourse (c) {
+  scene.remove(courseGroup); courseGroup = new THREE.Group()
+  solid = new Set()
+  const geo = new THREE.BoxGeometry(1, 1, 1)
+  const add = (x, y, z, m) => { const b = new THREE.Mesh(geo, m); b.position.set(x + 0.5, y + 0.5, z + 0.5); b.castShadow = true; b.receiveShadow = true; courseGroup.add(b); solid.add(`${x},${y},${z}`) }
+  c.platforms.forEach((p, k) => {
+    const m = k === 0 ? mat('start') : k === c.platforms.length - 1 ? mat('goal') : mat(k)
+    for (let x = p[0]; x <= p[1]; x++) for (let z = p[2]; z <= p[3]; z++) add(x, p[4], z, m)
+  })
+  for (const [x, y, z] of c.extra || []) add(x, y, z, mat('obstacle'))
+  // A beacon-like light shaft above the goal.
+  const g = c.platforms[c.platforms.length - 1]
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 30, 8, 1, true), new THREE.MeshBasicMaterial({ color: '#fff3a8', transparent: true, opacity: 0.35, side: THREE.DoubleSide }))
+  beam.position.set((g[0] + g[1] + 1) / 2, g[4] + 16, (g[2] + g[3] + 1) / 2)
+  courseGroup.add(beam)
+  scene.add(courseGroup)
+  // Keep the sun's shadow box on the course.
+  const ctr = centre(c)
+  sun.position.set(ctr.x + 25, ctr.y + 45, ctr.z + 15); sun.target.position.copy(ctr)
+}
+function centre (c) {
+  const v = new THREE.Vector3()
+  c.platforms.forEach(p => v.add(new THREE.Vector3((p[0] + p[1] + 1) / 2, p[4] + 1, (p[2] + p[3] + 1) / 2)))
+  return v.multiplyScalar(1 / c.platforms.length)
+}
+
+// ---------- blocky player (fits inside Minecraft's 0.6 x 1.8 hitbox at every yaw) ----------
+function makePlayer (shirt, ghost) {
+  const opt = c => ghost ? new THREE.MeshLambertMaterial({ color: c, transparent: true, opacity: 0.62 }) : new THREE.MeshLambertMaterial({ color: c })
+  const skin = opt('#c99b77'); const hair = opt('#3b2716'); const top = opt(shirt); const pants = opt('#3d4aa6'); const shoe = opt('#555555')
+  const s = 0.52 // overall width of the model
+  const P = new THREE.Group()
+  const part = (w, h, d, m, x, y, z) => { const g = new THREE.Group(); const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.y = -h / 2; b.castShadow = true; g.add(b); g.position.set(x, y, z); P.add(g); return g }
+  const legL = part(s / 4, 0.68, s / 4, pants, -s / 8, 0.68, 0)
+  const legR = part(s / 4, 0.68, s / 4, pants, s / 8, 0.68, 0)
+  for (const leg of [legL, legR]) { const f = new THREE.Mesh(new THREE.BoxGeometry(s / 4 + 0.01, 0.1, s / 4 + 0.01), shoe); f.position.y = -0.63; leg.add(f) }
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(s / 2, 0.68, s / 4), top); torso.position.y = 1.02; torso.castShadow = true; P.add(torso)
+  const armL = part(s / 4, 0.66, s / 4, top, -3 * s / 8, 1.36, 0)
+  const armR = part(s / 4, 0.66, s / 4, top, 3 * s / 8, 1.36, 0)
+  for (const arm of [armL, armR]) { const h = new THREE.Mesh(new THREE.BoxGeometry(s / 4 + 0.005, 0.18, s / 4 + 0.005), skin); h.position.y = -0.57; arm.add(h) }
+  const head = new THREE.Group(); head.position.y = 1.36
+  const face = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.42), skin); face.position.y = 0.21; face.castShadow = true; head.add(face)
+  const cap = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.12, 0.44), hair); cap.position.y = 0.38; head.add(cap)
+  const eyes = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, 0.01), opt('#2a3b8f')); eyes.position.set(0, 0.24, -0.215); head.add(eyes)
+  P.add(head)
+  P.userData = { legL, legR, armL, armR, phase: 0 }
+  return P
+}
+function animate (P, speed, onGround) {
+  const u = P.userData
+  u.phase += speed * 2.6
+  const swing = onGround ? Math.sin(u.phase) * Math.min(1, speed * 3.5) * 0.9 : 0.45
+  u.legL.rotation.x = swing; u.legR.rotation.x = onGround ? -swing : -0.25
+  u.armL.rotation.x = -swing * 0.8; u.armR.rotation.x = onGround ? swing * 0.8 : -1.1
+}
+function labelSprite (text, color) {
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64
+  const g = cv.getContext('2d'); g.font = '600 26px IBM Plex Sans, Segoe UI, sans-serif'
+  const w = g.measureText(text).width + 24
+  g.fillStyle = 'rgba(0,0,0,0.5)'; g.fillRect((256 - w) / 2, 10, w, 42)
+  g.fillStyle = color; g.fillRect((256 - w) / 2, 10, 6, 42)
+  g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 128 + 3, 32)
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false }))
+  sp.scale.set(2.4, 0.6, 1)
+  return sp
+}
+
+// ---------- runners ----------
+let runners = [] // {run, model, label, trail, visible}
+function clearRunners () { for (const r of runners) { scene.remove(r.model); if (r.label) scene.remove(r.label); if (r.trail) scene.remove(r.trail) } runners = [] }
+function addRunner (run, color, ghost, withLabel) {
+  const model = makePlayer(color, ghost); scene.add(model)
+  const pts = []; for (let k = 0; k < run.pos.length; k += 3) pts.push(new THREE.Vector3(run.pos[k], run.pos[k + 1] + 0.04, run.pos[k + 2]))
+  const trail = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color, transparent: true, opacity: ghost ? 0.5 : 0.9 }))
+  scene.add(trail)
+  let label = null
+  if (withLabel) { label = labelSprite(run.label, color); label.visible = $('names').checked; scene.add(label) }
+  runners.push({ run, model, label, trail, visible: true, last: null, lane: runners.length })
+}
+function insideBlock (x, y, z) {
+  const e = 1e-3
+  for (let bx = Math.floor(x - 0.3); bx <= Math.floor(x + 0.3); bx++) for (let by = Math.floor(y); by <= Math.floor(y + 1.8); by++) for (let bz = Math.floor(z - 0.3); bz <= Math.floor(z + 0.3); bz++) {
+    if (solid.has(`${bx},${by},${bz}`) && x + 0.3 > bx + e && x - 0.3 < bx + 1 - e && y + 1.8 > by + e && y < by + 1 - e && z + 0.3 > bz + e && z - 0.3 < bz + 1 - e) return true
+  }
+  return false
+}
+// Between ticks: straight line unless it would cut a block corner; then Minecraft's axis order (Y, X, Z).
+function between (run, i, j, f) {
+  const a = [run.pos[3 * i], run.pos[3 * i + 1], run.pos[3 * i + 2]]; const b = [run.pos[3 * j], run.pos[3 * j + 1], run.pos[3 * j + 2]]
+  const line = a.map((v, k) => v + (b[k] - v) * f)
+  if (!insideBlock(...line)) return line
+  const g = f * 3; const s = [Math.min(1, g), Math.min(1, Math.max(0, g - 1)), Math.min(1, Math.max(0, g - 2))]
+  const axis = [a[0] + (b[0] - a[0]) * s[1], a[1] + (b[1] - a[1]) * s[0], a[2] + (b[2] - a[2]) * s[2]]
+  if (!insideBlock(...axis)) return axis
+  return f < 0.5 ? a : b
+}
+function stateOf (run, tt) {
+  const n = run.yaw.length; const i = Math.max(0, Math.min(n - 1, Math.floor(tt))); const j = Math.min(n - 1, i + 1)
+  const f = tt >= n - 1 ? 0 : Math.min(1, Math.max(0, tt - i))
+  const p = between(run, i, j, f)
+  let dy = run.yaw[j] - run.yaw[i]; if (dy > Math.PI) dy -= 2 * Math.PI; if (dy < -Math.PI) dy += 2 * Math.PI
+  return { x: p[0], y: p[1], z: p[2], yaw: run.yaw[i] + dy * f, tick: i, done: tt >= n - 1 }
+}
+
+// ---------- modes ----------
+const RACE_COLORS = ['#d63b3b', '#ef7f22', '#e6c229', '#93c83e', '#2fae58', '#20a7a1', '#2d8fd6', '#4b5fd8', '#8a4fd1', '#c94aa8', '#6b6b6b']
+let mode = (location.hash === '#replays' && DATA.replays && DATA.replays.length) ? 'replays' : (DATA.races && DATA.races.length ? 'race' : 'replays')
+let current = 0; let raceIdx = 0; let t = 0; let playing = true; let lastTime = null; let maxTicks = 1; let course = null
+const camPos = new THREE.Vector3(); const camLook = new THREE.Vector3()
+
+function renderTabs () {
+  const box = $('tabs'); box.innerHTML = ''
+  const modes = []
+  if (DATA.races && DATA.races.length) modes.push(['race', 'Ghost race'])
+  if (DATA.replays && DATA.replays.length) modes.push(['replays', 'Replays'])
+  if (modes.length < 2) return
+  for (const [k, name] of modes) {
+    const b = document.createElement('button'); b.className = 'tab'; b.type = 'button'; b.textContent = name
+    b.setAttribute('aria-pressed', String(mode === k)); b.onclick = () => { mode = k; renderTabs(); start() }; box.appendChild(b)
+  }
+}
+function renderList () {
+  const box = $('list'); box.innerHTML = ''
+  if (mode === 'race') {
+    $('sideTitle').textContent = 'Runners (click to hide or show)'
+    runners.forEach((r, i) => {
+      const b = document.createElement('button'); b.className = 'row'; b.type = 'button'; b.setAttribute('aria-pressed', String(r.visible))
+      b.innerHTML = `<span class="sw" style="background:${RACE_COLORS[i % RACE_COLORS.length]}"></span><span class="name"></span><span class="pill ${r.run.result}">${RESULT[r.run.result]}</span><span class="info"></span>`
+      b.querySelector('.name').textContent = r.run.label
+      b.querySelector('.info').textContent = `platform ${r.run.cp}/${r.run.n - 1} · ${r.run.ticks} ticks`
+      b.onclick = () => { r.visible = !r.visible; r.model.visible = r.trail.visible = r.visible; if (r.label) r.label.visible = r.visible && $('names').checked; b.setAttribute('aria-pressed', String(r.visible)) }
+      box.appendChild(b)
+    })
+  } else {
+    $('sideTitle').textContent = 'Replays'
+    DATA.replays.forEach((run, i) => {
+      const b = document.createElement('button'); b.className = 'row'; b.type = 'button'; b.setAttribute('aria-current', String(i === current))
+      b.innerHTML = `<span class="sw" style="background:${run.real ? '#2fae58' : '#2d8fd6'}" title="${run.real ? 'real Minecraft' : 'offline'}"></span><span class="name"></span><span class="pill ${run.result}">${RESULT[run.result]}</span><span class="info"></span>`
+      b.querySelector('.name').textContent = run.label
+      b.querySelector('.info').textContent = `${run.real ? 'real game' : 'offline'} · ${run.cp}/${run.n - 1} platforms · ${(run.ticks / 20).toFixed(1)} s`
+      b.onclick = () => { current = i; start() }
+      box.appendChild(b)
+    })
+  }
+}
+function start () {
+  clearRunners()
+  $('race').hidden = mode !== 'race'
+  $('namesBox').hidden = mode !== 'race'
+  if (mode === 'race') {
+    const race = DATA.races[raceIdx]
+    course = DATA.courses[race.course]
+    race.runs.forEach((ri, k) => addRunner(DATA.runs[ri], RACE_COLORS[k % RACE_COLORS.length], true, true))
+  } else {
+    const run = DATA.replays[current]
+    course = DATA.courses[run.course]
+    addRunner(run, '#2ca6a4', false, false)
+  }
+  buildCourse(course)
+  maxTicks = Math.max(...runners.map(r => r.run.yaw.length - 1))
+  $('scrub').max = String(maxTicks)
+  t = 0; playing = true; $('play').textContent = 'Pause'
+  const c = centre(course); controls.target.copy(c); camera.position.set(c.x + 16, c.y + 14, c.z + 16)
+  pose(true); renderList()
+}
+function leader () {
+  let best = null; let bestScore = -1
+  for (const r of runners) { if (!r.visible) continue; const s = stateOf(r.run, t); const cp = r.run.cpAt[s.tick]; const score = cp * 1000 + (r.run.result === 'success' ? 1 : 0); if (score > bestScore) { bestScore = score; best = s } }
+  return best || stateOf(runners[0].run, t)
+}
+function pose (snap) {
+  for (const r of runners) {
+    const s = stateOf(r.run, t)
+    const prev = r.last || s
+    const sp = Math.hypot(s.x - prev.x, s.z - prev.z)
+    r.model.position.set(s.x, s.y, s.z); r.model.rotation.y = s.yaw
+    const onGround = r.run.ground ? r.run.ground[s.tick] === 1 : Math.abs(s.y - Math.round(s.y)) < 1e-3
+    animate(r.model, sp, onGround)
+    if (r.label) r.label.position.set(s.x, s.y + 2.3 + (r.lane % 5) * 0.62, s.z) // staggered so labels never overlap
+    r.trail.geometry.setDrawRange(0, s.tick + 1)
+    r.last = s
+  }
+  const lead = leader()
+  $('scrub').value = String(Math.floor(t))
+  const tick = Math.floor(t)
+  if (mode === 'race') {
+    const made = runners.filter(r => r.visible && r.run.result === 'success' && tick >= r.run.yaw.length - 1).length
+    $('hud').innerHTML = `<b>${DATA.races[raceIdx].name}</b><span>tick ${tick} · ${(tick / 20).toFixed(2)} s</span><span>${made} of ${runners.filter(r => r.visible).length} runners at the goal</span>`
+  } else {
+    const run = DATA.replays[current]; const s = stateOf(run, t)
+    $('hud').innerHTML = `<b>${run.label}</b><span>${run.real ? 'real Minecraft' : 'offline (Mineflayer physics)'}</span><span>tick ${s.tick} / ${run.yaw.length - 1} · ${(s.tick / 20).toFixed(2)} s</span><span>platform ${run.cpAt[s.tick]} / ${run.n - 1}</span>`
+    const done = s.tick >= run.yaw.length - 1
+    $('banner').hidden = !done; if (done) $('banner').textContent = RESULT[run.result]
+  }
+  if (mode === 'race') $('banner').hidden = true
+  const cm = $('cam').value
+  if (cm === 'follow') {
+    const fx = -Math.sin(lead.yaw); const fz = -Math.cos(lead.yaw)
+    const want = new THREE.Vector3(lead.x - fx * 6, lead.y + 3.6, lead.z - fz * 6); const look = new THREE.Vector3(lead.x + fx * 3, lead.y + 0.8, lead.z + fz * 3)
+    if (snap) { camPos.copy(want); camLook.copy(look) } else { camPos.lerp(want, 0.06); camLook.lerp(look, 0.1) }
+    camera.position.copy(camPos); camera.lookAt(camLook)
+  } else if (cm === 'cinematic') {
+    const a = performance.now() / 9000
+    const want = new THREE.Vector3(lead.x + Math.cos(a) * 9, lead.y + 5, lead.z + Math.sin(a) * 9); const look = new THREE.Vector3(lead.x, lead.y + 1, lead.z)
+    if (snap) { camPos.copy(want); camLook.copy(look) } else { camPos.lerp(want, 0.05); camLook.lerp(look, 0.1) }
+    camera.position.copy(camPos); camera.lookAt(camLook)
+  }
+}
+function resize () { const b = $('box'); renderer.setSize(b.clientWidth, b.clientHeight, false); camera.aspect = b.clientWidth / b.clientHeight; camera.updateProjectionMatrix() }
+function frame (now) {
+  requestAnimationFrame(frame)
+  if (lastTime === null) lastTime = now
+  const dt = Math.min(0.1, (now - lastTime) / 1000); lastTime = now
+  if (playing) { t = Math.min(maxTicks, t + dt * 20 * Number($('speed').value)); if (t >= maxTicks) { playing = false; $('play').textContent = 'Play' } }
+  pose(false)
+  controls.enabled = $('cam').value === 'orbit'; if (controls.enabled) controls.update()
+  renderer.render(scene, camera)
+}
+$('play').onclick = () => { if (t >= maxTicks) t = 0; playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play' }
+$('restart').onclick = () => { t = 0; playing = true; $('play').textContent = 'Pause'; for (const r of runners) r.last = null; pose(true) }
+$('scrub').oninput = e => { t = Number(e.target.value); playing = false; $('play').textContent = 'Play'; pose(true) }
+$('cam').onchange = () => pose(true)
+$('race').onchange = e => { raceIdx = Number(e.target.value); start() }
+$('names').onchange = () => { for (const r of runners) if (r.label) r.label.visible = r.visible && $('names').checked }
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return
+  if (e.code === 'Space') { e.preventDefault(); $('play').click() }
+})
+if (DATA.races) DATA.races.forEach((r, i) => { const o = document.createElement('option'); o.value = String(i); o.textContent = r.name; $('race').appendChild(o) })
+new ResizeObserver(resize).observe($('box'))
+renderTabs(); start(); resize(); requestAnimationFrame(frame)
+</script>

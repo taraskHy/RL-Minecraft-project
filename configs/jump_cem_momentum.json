@@ -1,0 +1,182 @@
+{
+ "method": "Are double (and triple) neos possible with a run-up?",
+ "seconds": 372.8,
+ "specs": [
+  {
+   "key": "g1_dy-1_l0_s1x1_neo2R_run3",
+   "gap": 1,
+   "dy": -1,
+   "neo": 2,
+   "runway": 3,
+   "landed": false,
+   "score": -1.975109099410462,
+   "iteration": 0,
+   "landed_fraction": 0.0
+  },
+  {
+   "key": "g1_dy0_l0_s1x1_neo2R_run3",
+   "gap": 1,
+   "dy": 0,
+   "neo": 2,
+   "runway": 3,
+   "landed": false,
+   "score": -1.8000000000000003,
+   "iteration": 38,
+   "landed_fraction": 0.0
+  },
+  {
+   "key": "g2_dy-1_l0_s1x1_neo2R_run3",
+   "gap": 2,
+   "dy": -1,
+   "neo": 2,
+   "runway": 3,
+   "landed": false,
+   "score": -2.7023677085405255,
+   "iteration": 4,
+   "landed_fraction": 0.0
+  },
+  {
+   "key": "g2_dy0_l0_s1x1_neo2R_run3",
+   "gap": 2,
+   "dy": 0,
+   "neo": 2,
+   "runway": 3,
+   "landed": false,
+   "score": -2.8000000000000003,
+   "iteration": 26,
+   "landed_fraction": 0.0
+  },
+  {
+   "key": "g1_dy-1_l0_s1x1_neo2R_run4",
+   "gap": 1,
+   "dy": -1,
+   "neo": 2,
+   "runway": 4,
+   "landed": false,
+   "score": -1.975109099410462,
+   "iteration": 0,
+   "landed_fraction": 0.0
+  },
+  {
+   "key": "g1_dy0_l0_s1x1_neo2R_run4",
+   "gap": 1,
+   "dy": 0,
+   "neo": 2,
+   "runway": 4,
+   "landed": false,
+   "score": -1.7999999999999998,
+   "iteration": 10,
+   "landed_fraction": 0.0
+  },
+  {
+   "key": "g2_dy-1_l0_s1x1_neo2R_run4",
+   "gap": 2,
+   "dy": -1,
+   "neo": 2,
+   "runway": 4,
+   "landed": false,
+   "score": -2.7281953821854423,
+   "iteration": 8,
+   "landed_fraction": 0.0
+  },
+  {
+   "key": "g2_dy0_l0_s1x1_neo2R_run4",
+   "gap": 2,
+   "dy": 0,
+   "neo": 2,
+   "runway": 4,
+   "landed": false,
+   "score": -2.8000000000000003,
+   "iteration": 39,
+   "landed_fraction": 0.0
+  },
+  {
+   "key": "g1_dy-1_l0_s1x1_neo3R_run3",
+   "gap": 1,
+   "dy": -1,
+   "neo": 3,
+   "runway": 3,
+   "landed": false,
+   "score": -1.975109099410462,
+   "iteration": 0,
+   "landed_fraction": 0.0
+  },
+  {
+   "key": "g1_dy0_l0_s1x1_neo3R_run3",
+   "gap": 1,
+   "dy": 0,
+   "neo": 3,
+   "runway": 3,
+   "landed": false,
+   "score": -1.8000000000000003,
+   "iteration": 38,
+   "landed_fraction": 0.0
+  },
+  {
+   "key": "g2_dy-1_l0_s1x1_neo3R_run3",
+   "gap": 2,
+   "dy": -1,
+   "neo": 3,
+   "runway": 3,
+   "landed": false,
+   "score": -2.9156570365140695,
+   "iteration": 0,
+   "landed_fraction": 0.0
+  },
+  {
+   "key": "g2_dy0_l0_s1x1_neo3R_run3",
+   "gap": 2,
+   "dy": 0,
+   "neo": 3,
+   "runway": 3,
+   "landed": false,
+   "score": -2.8000000000000003,
+   "iteration": 26,
+   "landed_fraction": 0.0
+  },
+  {
+   "key": "g1_dy-1_l0_s1x1_neo3R_run4",
+   "gap": 1,
+   "dy": -1,
+   "neo": 3,
+   "runway": 4,
+   "landed": false,
+   "score": -1.975109099410462,
+   "iteration": 0,
+   "landed_fraction": 0.0
+  },
+  {
+   "key": "g1_dy0_l0_s1x1_neo3R_run4",
+   "gap": 1,
+   "dy": 0,
+   "neo": 3,
+   "runway": 4,
+   "landed": false,
+   "score": -1.7999999999999998,
+   "iteration": 10,
+   "landed_fraction": 0.0
+  },
+  {
+   "key": "g2_dy-1_l0_s1x1_neo3R_run4",
+   "gap": 2,
+   "dy": -1,
+   "neo": 3,
+   "runway": 4,
+   "landed": false,
+   "score": -2.9156570365140695,
+   "iteration": 0,
+   "landed_fraction": 0.0
+  },
+  {
+   "key": "g2_dy0_l0_s1x1_neo3R_run4",
+   "gap": 2,
+   "dy": 0,
+   "neo": 3,
+   "runway": 4,
+   "landed": false,
+   "score": -2.8000000000000003,
+   "iteration": 39,
+   "landed_fraction": 0.0
+  }
+ ]
+}
