@@ -1,0 +1,1918 @@
+{
+ "source": "parkour.feasibility --advanced",
+ "levels": [
+  {
+   "level": 6,
+   "specs": [
+    {
+     "gap": 1,
+     "dy": -1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": -1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 1,
+     "side": -1
+    },
+    {
+     "gap": 1,
+     "dy": 0,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": 0,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 1,
+     "side": -1
+    },
+    {
+     "gap": 2,
+     "dy": -1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": -1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 1,
+     "side": -1
+    },
+    {
+     "gap": 2,
+     "dy": 0,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": 0,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 1,
+     "side": -1
+    },
+    {
+     "gap": 2,
+     "dy": -1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 2,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": -1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 2,
+     "side": -1
+    },
+    {
+     "gap": 2,
+     "dy": 0,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 2,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": 0,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 2,
+     "side": -1
+    },
+    {
+     "gap": 3,
+     "dy": -1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 2,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": -1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 2,
+     "side": -1
+    },
+    {
+     "gap": 3,
+     "dy": -1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 3,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": -1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 3,
+     "side": -1
+    },
+    {
+     "gap": 4,
+     "dy": -1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 2,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": -1,
+     "lateral": 0,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 2,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": -1,
+     "lateral": 1,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 2,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": -1,
+     "lateral": -1,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 2,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": -1,
+     "lateral": 1,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 2,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": -1,
+     "lateral": -1,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 2,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": -1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 3,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": -1,
+     "lateral": 0,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 3,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": -1,
+     "lateral": 1,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 3,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": -1,
+     "lateral": -1,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 3,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": -1,
+     "lateral": 1,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 3,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": -1,
+     "lateral": -1,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 3,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": -2,
+     "lateral": 3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": -2,
+     "lateral": -3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": -2,
+     "lateral": 3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": -2,
+     "lateral": -3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": -2,
+     "lateral": 3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": -2,
+     "lateral": -3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": -1,
+     "lateral": 3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": -1,
+     "lateral": -3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": -1,
+     "lateral": 3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": -1,
+     "lateral": -3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": -1,
+     "lateral": 3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": -1,
+     "lateral": -3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": 0,
+     "lateral": 3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": 0,
+     "lateral": -3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": 0,
+     "lateral": 3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": 0,
+     "lateral": -3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": 0,
+     "lateral": 3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": 0,
+     "lateral": -3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": 1,
+     "lateral": 3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": 1,
+     "lateral": -3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": 1,
+     "lateral": 3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": 1,
+     "lateral": -3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": 1,
+     "lateral": 3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 0,
+     "dy": 1,
+     "lateral": -3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": -2,
+     "lateral": 3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": -2,
+     "lateral": -3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": -2,
+     "lateral": 3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": -2,
+     "lateral": -3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": -2,
+     "lateral": 3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": -2,
+     "lateral": -3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": -1,
+     "lateral": 3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": -1,
+     "lateral": -3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": -1,
+     "lateral": 3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": -1,
+     "lateral": -3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": -1,
+     "lateral": 3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": -1,
+     "lateral": -3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": 0,
+     "lateral": 3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": 0,
+     "lateral": -3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": 0,
+     "lateral": 3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": 0,
+     "lateral": -3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": 0,
+     "lateral": 3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": 0,
+     "lateral": -3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": 1,
+     "lateral": 3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": 1,
+     "lateral": -3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": 1,
+     "lateral": 3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": 1,
+     "lateral": -3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": 1,
+     "lateral": 3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": 1,
+     "lateral": -3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": -2,
+     "lateral": 3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": -2,
+     "lateral": -3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": -2,
+     "lateral": 3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": -2,
+     "lateral": -3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": -2,
+     "lateral": 3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": -2,
+     "lateral": -3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": -1,
+     "lateral": 3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": -1,
+     "lateral": -3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": -1,
+     "lateral": 3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": -1,
+     "lateral": -3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": -1,
+     "lateral": 3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": -1,
+     "lateral": -3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": 0,
+     "lateral": 3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": 0,
+     "lateral": -3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": 0,
+     "lateral": 3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": 0,
+     "lateral": -3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": 0,
+     "lateral": 3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": 0,
+     "lateral": -3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": 1,
+     "lateral": 3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": 1,
+     "lateral": -3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": 1,
+     "lateral": 3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": 1,
+     "lateral": -3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": 1,
+     "lateral": 3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": 1,
+     "lateral": -3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": -2,
+     "lateral": 3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": -2,
+     "lateral": -3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": -2,
+     "lateral": 3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": -2,
+     "lateral": -3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": -2,
+     "lateral": 3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": -2,
+     "lateral": -3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": -1,
+     "lateral": 3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": -1,
+     "lateral": -3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": -1,
+     "lateral": 3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": -1,
+     "lateral": -3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": -1,
+     "lateral": 3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": -1,
+     "lateral": -3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": 0,
+     "lateral": 3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": 0,
+     "lateral": -3,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": 0,
+     "lateral": 3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": 0,
+     "lateral": -3,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": 0,
+     "lateral": 3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": 0,
+     "lateral": -3,
+     "size": [
+      3,
+      3
+     ],
+     "neo": 0,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    }
+   ]
+  },
+  {
+   "level": 7,
+   "specs": [
+    {
+     "gap": 1,
+     "dy": 1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": 1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 1,
+     "side": -1
+    },
+    {
+     "gap": 2,
+     "dy": 1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 2,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": 1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 2,
+     "side": -1
+    },
+    {
+     "gap": 3,
+     "dy": -1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": -1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 1,
+     "side": -1
+    },
+    {
+     "gap": 3,
+     "dy": 0,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 2,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": 0,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 2,
+     "side": -1
+    },
+    {
+     "gap": 3,
+     "dy": 0,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 3,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": 0,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 3,
+     "side": -1
+    },
+    {
+     "gap": 4,
+     "dy": 0,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 2,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": 0,
+     "lateral": 0,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 2,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": 0,
+     "lateral": 1,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 2,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": 0,
+     "lateral": -1,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 2,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": 0,
+     "lateral": 1,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 2,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": 0,
+     "lateral": -1,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 2,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": 0,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 3,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": 0,
+     "lateral": 0,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 3,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": -1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 4,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": -1,
+     "lateral": 0,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 4,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": -1,
+     "lateral": 1,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 4,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": -1,
+     "lateral": -1,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 4,
+     "wall_at": 1,
+     "side": 1
+    }
+   ]
+  },
+  {
+   "level": 8,
+   "specs": [
+    {
+     "gap": 4,
+     "dy": 0,
+     "lateral": 1,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 3,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": 0,
+     "lateral": -1,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 0,
+     "runway": 3,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": 0,
+     "lateral": 1,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 3,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": 0,
+     "lateral": -1,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 3,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": -1,
+     "lateral": 1,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 4,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 4,
+     "dy": -1,
+     "lateral": -1,
+     "size": [
+      2,
+      2
+     ],
+     "neo": 0,
+     "runway": 4,
+     "wall_at": 1,
+     "side": 1
+    }
+   ]
+  }
+ ]
+}

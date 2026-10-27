@@ -61,7 +61,7 @@ PROPERTIES = {
 STARTUP_COMMANDS = [
     "gamerule doDaylightCycle false", "time set noon", "gamerule doWeatherCycle false", "weather clear",
     "gamerule fallDamage false", "gamerule doImmediateRespawn true", "gamerule spawnRadius 0",
-    "gamerule announceAdvancements false", "gamerule sendCommandFeedback false", "gamerule logAdminCommands false",
+    "gamerule announceAdvancements false", "gamerule sendCommandFeedback true", "gamerule logAdminCommands true",
     "gamerule commandBlockOutput false", "gamerule doMobSpawning false",
     "fill {x0} {y} {z0} {x1} {y} {z1} minecraft:stone".format(x0=SPAWN_PAD[0] - 2, x1=SPAWN_PAD[0] + 2, y=SPAWN_PAD[1] - 1,
                                                              z0=SPAWN_PAD[2] - 2, z1=SPAWN_PAD[2] + 2),

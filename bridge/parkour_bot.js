@@ -117,7 +117,12 @@ async function chatCommand (cmd) {
 async function waitFor (cond, ms, what) {
   const t0 = Date.now()
   while (!cond()) {
-    if (Date.now() - t0 > ms) throw new Error('timed out waiting for ' + what)
+    if (Date.now() - t0 > ms) {
+      const e = bot.entity
+      const below = bot.blockAt(e.position.offset(0, -0.5, 0), false)
+      throw new Error(`timed out waiting for ${what}; bot at ${e.position} vel ${e.velocity} onGround ${e.onGround} ` +
+        `block below ${below ? below.name : 'unloaded'}`)
+    }
     await sleep(50)
   }
 }
@@ -138,7 +143,9 @@ async function runCourse (c, index) {
   const extra = c.extra || []
   for (const [x, y, z] of extra) await chatCommand(`/setblock ${x + OX} ${y + OY} ${z + OZ} minecraft:stone`)
   const [sx, sy, sz] = c.spawn
-  await chatCommand(`/tp ${args.username} ${sx + OX} ${sy + OY} ${sz + OZ} ${toNotchianYawDeg(c.spawn_yaw).toFixed(4)} 0`)
+  // Always send decimals: Minecraft centres whole-number /tp coordinates on the block (12 -> 12.5).
+  const coord = v => v.toFixed(6)
+  await chatCommand(`/tp ${args.username} ${coord(sx + OX)} ${coord(sy + OY)} ${coord(sz + OZ)} ${toNotchianYawDeg(c.spawn_yaw).toFixed(4)} 0`)
   await waitFor(() => {
     const p = bot.entity.position
     return Math.abs(p.x - (sx + OX)) < 1e-6 && Math.abs(p.z - (sz + OZ)) < 1e-6 && Math.abs(p.y - (sy + OY)) < 1e-6

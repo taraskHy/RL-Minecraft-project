@@ -20,6 +20,17 @@ are not platforms: a *beam* across the gap three blocks above the takeoff
 surface, which the player's head hits at the top of a jump (a "head hitter";
 placed only on jump types that stay possible with it, see
 ``configs/jump_beam.json``), and decoy *pillars* beside a landing platform.
+
+Advanced jumps (levels 6 and up, ``configs/jump_levels_advanced.json``):
+
+* *neo*: a 2-high wall fills the first gap cell, so the player must curve
+  around its edge in the air. ``neo`` = 1 is a wall flush with the platforms'
+  edge on the open side ``side`` (a neo), 2 sticks out one more block (a double
+  neo), 3 two more (a triple neo). On the other side the wall runs 3 blocks
+  past the platforms.
+* *momentum*: ``runway`` > 0 first places a runway (``runway`` long, 1 wide)
+  one block ahead, so the jump itself starts with speed (e.g. a 4-block gap,
+  a "5 block jump").
 """
 from __future__ import annotations
 
@@ -44,9 +55,25 @@ class JumpSpec:
     dy: int
     lateral: int
     size: tuple = (1, 1)
+    neo: int = 0  # 0: no wall; 1 neo, 2 double neo, 3 triple neo
+    side: int = 1  # neo: +1 go around on the right of the heading, -1 on the left
+    runway: int = 0  # momentum: length of a runway placed before the jump
+    wall_at: int = 1  # neo: which gap cell (1 = right after the takeoff) holds the wall
 
     def key(self) -> str:
-        return f"g{self.gap}_dy{self.dy}_l{self.lateral}_s{self.size[0]}x{self.size[1]}"
+        k = f"g{self.gap}_dy{self.dy}_l{self.lateral}_s{self.size[0]}x{self.size[1]}"
+        if self.neo:
+            k += f"_neo{self.neo}{'R' if self.side > 0 else 'L'}"
+            if self.wall_at != 1:
+                k += f"w{self.wall_at}"
+        if self.runway:
+            k += f"_run{self.runway}"
+        return k
+
+
+def _spec_from(d: dict) -> "JumpSpec":
+    return JumpSpec(d["gap"], d["dy"], d["lateral"], tuple(d["size"]), d.get("neo", 0), d.get("side", 1),
+                    d.get("runway", 0), d.get("wall_at", 1))
 
 
 @dataclass
@@ -89,12 +116,19 @@ class Course:
                    extra=np.array(d.get("extra", []), dtype=np.int64).reshape(-1, 3))
 
 
-def load_levels(path: Path | None = None) -> list[list[JumpSpec]]:
-    """Jump specs per difficulty level, from the feasibility study."""
+def load_levels(path: Path | None = None, advanced: bool = False) -> list[list[JumpSpec]]:
+    """Jump specs per difficulty level, from the feasibility study.
+
+    With ``advanced``, the neo and momentum levels from
+    ``configs/jump_levels_advanced.json`` follow the six basic levels.
+    """
     path = path or CONFIGS / "jump_levels.json"
     data = json.loads(Path(path).read_text())
-    return [[JumpSpec(s["gap"], s["dy"], s["lateral"], tuple(s["size"])) for s in level["specs"]]
-            for level in data["levels"]]
+    levels = [[_spec_from(s) for s in level["specs"]] for level in data["levels"]]
+    if advanced:
+        adv = json.loads((CONFIGS / "jump_levels_advanced.json").read_text())
+        levels += [[_spec_from(s) for s in level["specs"]] for level in adv["levels"]]
+    return levels
 
 
 def _platform_after(prev: np.ndarray, heading: int, spec: JumpSpec) -> np.ndarray:
@@ -162,6 +196,59 @@ def _fits(new: np.ndarray, platforms: list, grid=GRID, margin: int = 2, extras=(
         if _boxes_overlap(grown, cell) or _boxes_overlap(corridor, cell):
             return False
     return True
+
+
+def _corridor(a: np.ndarray, b: np.ndarray) -> tuple:
+    return (min(a[0], b[0]), max(a[1], b[1]), min(a[4], b[4]) - 1, max(a[4], b[4]) + HEADROOM,
+            min(a[2], b[2]), max(a[3], b[3]))
+
+
+def _neo_wall(prev: np.ndarray, new: np.ndarray, heading: int, spec: JumpSpec, reach: int = 3) -> list:
+    """Cells of a neo wall: gap cell ``spec.wall_at``, 2 high above the takeoff surface."""
+    hx, hz = HEADINGS[heading]
+    over = spec.neo - 1  # blocks the wall sticks out past the platforms on the open side
+    ys = (int(prev[4]) + 1, int(prev[4]) + 2)
+    if hx != 0:
+        along = prev[1] + spec.wall_at if hx > 0 else prev[0] - spec.wall_at
+        lo, hi = min(prev[2], new[2]), max(prev[3], new[3])
+        open_dir = spec.side * hx  # right of +X is +Z
+        z0, z1 = (lo - reach, hi + over) if open_dir > 0 else (lo - over, hi + reach)
+        return [(int(along), y, int(z)) for z in range(z0, z1 + 1) for y in ys]
+    along = prev[3] + spec.wall_at if hz > 0 else prev[2] - spec.wall_at
+    lo, hi = min(prev[0], new[0]), max(prev[1], new[1])
+    open_dir = -spec.side * hz  # right of +Z is -X
+    x0, x1 = (lo - reach, hi + over) if open_dir > 0 else (lo - over, hi + reach)
+    return [(int(x), y, int(along)) for x in range(x0, x1 + 1) for y in ys]
+
+
+def _place(platforms: list, extras: list, heading: int, spec: JumpSpec, grid=GRID):
+    """Platforms and wall cells for ``spec`` after ``platforms[-1]``, or None if it does not fit."""
+    prev = platforms[-1]
+    added = []
+    if spec.runway:
+        run = _platform_after(prev, heading, JumpSpec(1, 0, 0, (spec.runway, 1)))
+        if not _fits(run, platforms, grid, extras=extras):
+            return None
+        added.append(run)
+        prev = run
+    base = JumpSpec(spec.gap, spec.dy, spec.lateral, spec.size)
+    new = _platform_after(prev, heading, base)
+    if not _fits(new, platforms + added, grid, extras=extras):
+        return None
+    added.append(new)
+    cells = []
+    if spec.neo:
+        cells = _neo_wall(prev, new, heading, spec)
+        allp = platforms + added
+        k = len(allp) - 1
+        if not _clear_of(cells, allp, (k - 1, k), grid):
+            return None
+        if len(platforms) >= 2:
+            # The wall must not stand in the way of the jump onto the takeoff platform.
+            arrive = _corridor(platforms[-2], platforms[-1])
+            if any(_boxes_overlap(arrive, (x, x, y, y, z, z)) for x, y, z in cells):
+                return None
+    return added, cells
 
 
 def _beam(prev: np.ndarray, new: np.ndarray, heading: int, height: int = 3) -> list:
@@ -247,6 +334,8 @@ def generate(rng: np.random.Generator, levels: list[list[JumpSpec]], level: int,
     if obstacle_prob > 0 and beam_ok is None:
         beam_ok = load_beam_ok()
     for _ in range(n_jumps):
+        if len(platforms) >= MAX_PLATFORMS:  # runways add platforms; only reachable with momentum specs
+            break
         placed = False
         for attempt in range(30):
             lv = level if (rng.random() < 0.5 or level == 0) else int(rng.integers(0, level))
@@ -254,6 +343,21 @@ def generate(rng: np.random.Generator, levels: list[list[JumpSpec]], level: int,
             h = heading
             if rng.random() < turn_prob or attempt >= 15:
                 h = (heading + int(rng.choice([1, 3]))) % 4
+            if spec.neo or spec.runway:
+                if len(platforms) + 1 + (1 if spec.runway else 0) > MAX_PLATFORMS:
+                    continue
+                placed_parts = _place(platforms, extras, h, spec, grid)
+                if placed_parts is None:
+                    continue
+                new_platforms, wall = placed_parts
+                if spec.runway:
+                    specs.append(JumpSpec(1, 0, 0, (spec.runway, 1)))
+                platforms.extend(new_platforms)
+                extras.extend(wall)
+                specs.append(spec)
+                heading = h
+                placed = True
+                break
             new = _platform_after(platforms[-1], h, spec)
             if _fits(new, platforms, grid, extras=extras):
                 platforms.append(new)
@@ -286,16 +390,21 @@ def generate(rng: np.random.Generator, levels: list[list[JumpSpec]], level: int,
 
 
 def single_jump(spec: JumpSpec, takeoff: tuple = (1, 1), grid=(24, 16, 24), heading: int = 0) -> Course:
-    """A two-platform course for one jump, used by the feasibility study."""
+    """A two-platform course for one jump, used by the feasibility study.
+
+    A momentum spec takes off from its runway (``spec.runway`` x 1); a neo spec
+    gets its wall.
+    """
     gx, gy, gz = grid
     hx, hz = HEADINGS[heading]
-    a, b = takeoff
+    a, b = (spec.runway, 1) if spec.runway else takeoff
     y0 = 8
     x0, z0 = 4, gz // 2 - b // 2
     prev = np.array([x0, x0 + a - 1, z0, z0 + b - 1, y0], dtype=np.int64)
-    new = _platform_after(prev, heading, spec)
+    new = _platform_after(prev, heading, JumpSpec(spec.gap, spec.dy, spec.lateral, spec.size))
     plats = np.stack([prev, new])
-    c = Course(plats, np.zeros(3), 0.0, specs=[spec])
+    extra = _neo_wall(prev, new, heading, spec) if spec.neo else []
+    c = Course(plats, np.zeros(3), 0.0, specs=[spec], extra=np.array(extra, dtype=np.int64).reshape(-1, 3))
     centres = c.centers()
     c.spawn = centres[0].copy()
     d = centres[1] - centres[0]

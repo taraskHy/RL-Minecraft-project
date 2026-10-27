@@ -51,6 +51,39 @@ class Courses(unittest.TestCase):
             np.testing.assert_array_equal(d.extra, c.extra)
         self.assertGreater(n_extra, 0)
 
+    def test_neo_wall_blocks_the_straight_line_but_not_the_platforms(self):
+        for side in (1, -1):
+            for heading in range(4):
+                spec = C.JumpSpec(2, 0, 0, (1, 1), neo=2, side=side, wall_at=1)
+                prev = np.array([30, 30, 30, 30, 10], dtype=np.int64)
+                new = C._platform_after(prev, heading, spec)
+                wall = C._neo_wall(prev, new, heading, spec)
+                cells = {tuple(c) for c in wall}
+                hx, hz = C.HEADINGS[heading]
+                # The cell straight ahead of the takeoff, at feet and head height, is wall.
+                ahead = (30 + hx, 11, 30 + hz)
+                self.assertIn(ahead, cells)
+                self.assertIn((ahead[0], 12, ahead[2]), cells)
+                # It sticks out one block (double neo) past the platforms on the open side and no
+                # further, and three blocks on the other side.
+                rx, rz = (-hz, 0) if hx == 0 else (0, hx)  # right of the heading
+                ox, oz = rx * side, rz * side
+                self.assertIn((ahead[0] + ox, 11, ahead[2] + oz), cells)
+                self.assertNotIn((ahead[0] + 2 * ox, 11, ahead[2] + 2 * oz), cells)
+                self.assertIn((ahead[0] - 3 * ox, 11, ahead[2] - 3 * oz), cells)
+                platform_cells = {tuple(x) for x in C.Course(np.stack([prev, new]), np.zeros(3), 0.0).blocks()}
+                self.assertFalse(cells & platform_cells)
+
+    def test_advanced_courses(self):
+        levels = C.load_levels(advanced=True)
+        self.assertGreaterEqual(len(levels), 8)
+        rng = np.random.default_rng(11)
+        for i in range(60):
+            c = C.generate(rng, levels, 6 + i % (len(levels) - 6), 10)
+            self.assertLessEqual(c.n, C.MAX_PLATFORMS)
+            plat = {tuple(x) for x in C.Course(c.platforms, c.spawn, c.spawn_yaw).blocks()}
+            self.assertFalse(plat & {tuple(x) for x in c.extra})
+
     def test_seeded_generation_is_reproducible(self):
         a = C.generate(np.random.default_rng([1, 2]), self.levels, 3, 10)
         b = C.generate(np.random.default_rng([1, 2]), self.levels, 3, 10)

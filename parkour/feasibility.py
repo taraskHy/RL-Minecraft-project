@@ -16,6 +16,10 @@ configs/jump_levels.json)
      same study with a head-hitter beam across the gap, 3 blocks above the
      takeoff surface; a jump type may carry a beam in obstacle courses only if
      its forgiveness with the beam stays within its own level)
+     python -m parkour.feasibility --advanced  (writes
+     configs/jump_feasibility_advanced.json and configs/jump_levels_advanced.json:
+     neo, double and triple neo jumps with a curved strategy family, momentum
+     jumps from a runway, and sideways offsets of 3)
 """
 from __future__ import annotations
 
@@ -73,6 +77,9 @@ def _evaluate_chunk(specs, device, beam=False):
 
     course = torch.arange(ns, device=device).repeat_interleave(nk)
     back, aim_lat, aim_along = (col(i, torch.float64) for i in range(3))
+    # Momentum specs start at the back of their runway instead of the centre of a 1x1 block.
+    back = back + torch.tensor([(sp.runway - 1) / 2 if sp.runway else 0.0 for sp in specs], dtype=torch.float64,
+                               device=device).repeat_interleave(nk)
     jtick = col(3, torch.int64)
     sprint = col(4, torch.bool)
     release = jtick + col(5, torch.int64)
@@ -104,6 +111,137 @@ def _evaluate_chunk(specs, device, beam=False):
     return landed.view(ns, nk).float().mean(dim=1).cpu().numpy()
 
 
+NEO_BACK = (0.29, 0.0)
+NEO_SHIFT = (0.0, 0.29)  # start shifted sideways toward the open side
+NEO_ANGLE = (15.0, 30.0, 45.0, 60.0, 75.0, 90.0)  # takeoff yaw, degrees off the jump direction toward the open side
+NEO_JUMP = range(0, 12)
+NEO_DELAY = (0, 2, 4, 6, 9)  # ticks after the jump before turning back toward the target
+NEO_TURN = (5.0, 10.0, 20.0, 40.0)  # degrees per tick
+NEO_STRAFE = (False, True)
+
+
+def _evaluate_neo_chunk(specs, device):
+    """Curved strategies: face past the wall's edge, jump, then turn (and strafe) toward the target."""
+    courses = [single_jump(s) for s in specs]
+    pool = CoursePool(courses, device, grid=(24, 16, 24))
+    strategies = list(itertools.product(NEO_BACK, NEO_ANGLE, NEO_JUMP, NEO_DELAY, NEO_TURN, NEO_STRAFE, NEO_SHIFT))
+    ns, nk = len(specs), len(strategies)
+    n = ns * nk
+
+    def col(i, dtype):
+        return torch.tensor([st[i] for st in strategies], dtype=dtype, device=device).repeat(ns)
+
+    course = torch.arange(ns, device=device).repeat_interleave(nk)
+    back, angle = col(0, torch.float64), col(1, torch.float64) * (math.pi / 180)
+    jtick, delay = col(2, torch.int64), col(3, torch.int64)
+    turn = col(4, torch.float64) * (math.pi / 180)
+    strafe = col(5, torch.bool)
+    shift = col(6, torch.float64)
+    target = pool.centre[course, 1]
+    start = pool.centre[course, 0].clone()
+    start[:, 0] -= back
+    start[:, 2] += torch.tensor([float(sp.side) for sp in specs], dtype=torch.float64,
+                                device=device).repeat_interleave(nk) * shift
+    # Heading +X has yaw -pi/2; turning toward +Z (right of +X) lowers the yaw.
+    side = torch.tensor([float(sp.side) for sp in specs], dtype=torch.float64, device=device).repeat_interleave(nk)
+    yaw = -math.pi / 2 - side * angle
+    s = physics.PlayerState.at(start, yaw)
+    landed = torch.zeros(n, dtype=torch.bool, device=device)
+    alive = torch.ones(n, dtype=torch.bool, device=device)
+    low = torch.minimum(pool.top[course, 0], pool.top[course, 1])
+    for t in range(HORIZON):
+        steer = t >= jtick + delay
+        to = target - s.pos
+        want = torch.atan2(-to[:, 0], -to[:, 2])
+        diff = torch.remainder(want - yaw + math.pi, 2 * math.pi) - math.pi
+        yaw = torch.where(steer, yaw + torch.clamp(diff, -turn, turn), yaw)
+        right = to[:, 0] * torch.cos(yaw) - to[:, 2] * torch.sin(yaw)  # target's offset along the right vector
+        c = torch.zeros(n, 6, dtype=torch.bool, device=device)
+        c[:, physics.FORWARD] = True
+        c[:, physics.SPRINT] = True
+        c[:, physics.JUMP] = jtick == t
+        c[:, physics.RIGHT] = steer & strafe & (right > 0.05)
+        c[:, physics.LEFT] = steer & strafe & (right < -0.05)
+        s.yaw = yaw
+        s = physics.simulate(pool.world, course, s, c)
+        landed |= standing_on(pool, s, course)[:, 1] & alive
+        alive &= s.pos[:, 1] > low - 1.0
+    return landed.view(ns, nk).float().mean(dim=1).cpu().numpy()
+
+
+def evaluate_neo(specs, device="cuda"):
+    out = []
+    for i in range(0, len(specs), 8):
+        out.append(_evaluate_neo_chunk(specs[i:i + 8], device))
+    return np.concatenate(out)
+
+
+def advanced_specs():
+    neo = [JumpSpec(g, dy, 0, (1, 1), neo=k, side=1, wall_at=w)
+           for k in (1, 2, 3) for g in (1, 2, 3) for w in range(1, g + 1) for dy in (-1, 0, 1)]
+    momentum = [JumpSpec(g, dy, lat, size, runway=r)
+                for r in (2, 3, 4) for g in (4, 5, 6) for dy in (-1, 0, 1) for lat in (0, 1) for size in ((1, 1), (2, 2))]
+    wide = [JumpSpec(g, dy, 3, size) for g in (0, 1, 2, 3) for dy in (-2, -1, 0, 1) for size in ((1, 1), (2, 2), (3, 3))]
+    return neo, momentum, wide
+
+
+def advanced_study(device):
+    neo, momentum, wide = advanced_specs()
+    t0 = time.time()
+    f_neo = evaluate_neo(neo, device)
+    f_mom = evaluate(momentum, device)
+    f_wide = evaluate(wide, device)
+    rows = []
+    for kind, specs, frac in (("neo", neo, f_neo), ("momentum", momentum, f_mom), ("wide", wide, f_wide)):
+        for sp, f in zip(specs, frac):
+            rows.append({"kind": kind, "gap": sp.gap, "dy": sp.dy, "lateral": sp.lateral, "size": list(sp.size),
+                         "neo": sp.neo, "wall_at": sp.wall_at, "runway": sp.runway, "forgiveness": round(float(f), 5)})
+
+    def level_of(r):
+        f = r["forgiveness"]
+        if f <= 0:
+            return None
+        if r["kind"] == "neo":
+            # Level by the wall: neo 6, double neo 7, triple neo 8; very tight ones one level up.
+            return min(8, 5 + r["neo"] + (1 if f < 0.002 else 0))
+        if r["kind"] == "momentum":
+            return 8 if (r["gap"] >= 6 or f < 0.005) else (7 if (r["gap"] == 5 or r["dy"] > 0 or f < 0.02) else 6)
+        return 7 if f < 0.02 else 6
+
+    for r in rows:
+        r["level"] = level_of(r)
+    out = {"method": "single jumps from rest; straight strategies for momentum and wide jumps, curved ones for neos",
+           "strategies": {"neo": len(NEO_BACK) * len(NEO_ANGLE) * len(NEO_JUMP) * len(NEO_DELAY) * len(NEO_TURN)
+                          * len(NEO_STRAFE) * len(NEO_SHIFT),
+                          "straight": len(START_BACK) * len(AIM_LATERAL) * len(AIM_ALONG) * len(JUMP_TICKS)
+                          * len(SPRINT) * len(RELEASE_AFTER)},
+           "seconds": round(time.time() - t0, 1), "specs": rows}
+    (CONFIGS / "jump_feasibility_advanced.json").write_text(json.dumps(out, indent=1))
+    levels = []
+    for L in (6, 7, 8):
+        members = []
+        for r in rows:
+            if r["level"] != L:
+                continue
+            base = {k: r[k] for k in ("gap", "dy", "lateral", "size", "neo", "runway", "wall_at")}
+            if r["kind"] == "neo":
+                members += [{**base, "side": 1}, {**base, "side": -1}]
+            else:
+                members.append({**base, "side": 1})
+                if r["lateral"]:
+                    members.append({**base, "lateral": -r["lateral"], "side": 1})
+        if members:
+            levels.append({"level": L, "specs": members})
+    (CONFIGS / "jump_levels_advanced.json").write_text(json.dumps({"source": "parkour.feasibility --advanced",
+                                                                   "levels": levels}, indent=1))
+    for kind in ("neo", "momentum", "wide"):
+        rk = [r for r in rows if r["kind"] == kind]
+        print(kind, f"{sum(r['level'] is not None for r in rk)}/{len(rk)} possible")
+    for L in levels:
+        print("level", L["level"], len(L["specs"]), "specs")
+    return out
+
+
 def evaluate(specs, device="cuda", beam=False):
     out = []
     for i in range(0, len(specs), CHUNK):
@@ -124,7 +262,10 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--beam", action="store_true", help="study jumps under a head-hitter beam")
+    ap.add_argument("--advanced", action="store_true", help="study neo, momentum and wide jumps")
     args = ap.parse_args(argv)
+    if args.advanced:
+        return advanced_study(args.device)
     if args.beam:
         return beam_study(args.device)
     specs = list(candidate_specs())

@@ -76,6 +76,7 @@ class TrainConfig:
     init_from: str = ""
     hide: str = ""  # comma-separated observation parts the policy must not see, e.g. "platforms"
     obstacle_prob: float = 0.0  # chance per jump of a head-hitter beam or a decoy pillar
+    advanced: bool = False  # add levels 6-8: neos, double neos, momentum and wide jumps
 
 
 def course_hash(c: C.Course) -> str:
@@ -189,7 +190,7 @@ def train(cfg: TrainConfig) -> Path:
     cfg_dict = dataclasses.asdict(cfg)
     (out / "config.json").write_text(json.dumps(cfg_dict, indent=1))
 
-    levels = C.load_levels()
+    levels = C.load_levels(advanced=cfg.advanced)
     n_levels = len(levels)
     tests = held_out_courses(levels, cfg.eval_per_level, cfg.eval_jumps)
     test_hashes = {course_hash(c) for c in tests}
@@ -448,6 +449,9 @@ def parse_args(argv=None) -> TrainConfig:
     base = TrainConfig()
     for f in dataclasses.fields(TrainConfig):
         if f.name in ("reward", "hidden"):
+            continue
+        if isinstance(getattr(base, f.name), bool):
+            ap.add_argument("--" + f.name.replace("_", "-"), action="store_true")
             continue
         ap.add_argument("--" + f.name.replace("_", "-"), type=type(getattr(base, f.name)), default=getattr(base, f.name))
     for f in dataclasses.fields(RewardConfig):
