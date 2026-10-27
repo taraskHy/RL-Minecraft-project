@@ -199,12 +199,15 @@ async function runCourse (c, index) {
   bot.entity.yaw = c.spawn_yaw
   corrections = 0
   const t0 = Date.now()
+  if (args.webViewer) log(`film: start ${index} ${t0}`) // wall-clock marks for cutting a video
   const ep = new P.Episode(policy, c.platforms, isSolid, { stall: args.stall, maxTicks: args.maxTicks, extra: c.extra || [] })
   await new Promise(resolve => { finish = resolve; episode = ep })
   episode = null
+  if (args.webViewer) log(`film: end ${index} ${Date.now()}`)
   const rec = ep.record({ index, level: c.level, seed: c.seed, wall_seconds: (Date.now() - t0) / 1000, server_corrections: corrections, mode: 'live' })
   out.write(JSON.stringify(rec) + '\n')
   log(`course ${index} (level ${c.level}): ${ep.result}, platform ${ep.cp}/${c.platforms.length - 1}, ${ep.ticks} ticks, corrections ${corrections}`)
+  if (args.webViewer) await sleep(3000) // stay on the last platform for the camera
   return rec
 }
 

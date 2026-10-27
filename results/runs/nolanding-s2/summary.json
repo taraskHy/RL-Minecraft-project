@@ -1,0 +1,57 @@
+{
+ "best": {
+  "iteration": 849,
+  "validation_success": 0.925,
+  "test_success": 0.9041666666666667
+ },
+ "last_eval": {
+  "success": 0.91,
+  "per_level": {
+   "0": {
+    "success": 0.995,
+    "fell": 0.005,
+    "progress": 0.9975,
+    "ticks_success": 130.7035175879397,
+    "n": 200
+   },
+   "1": {
+    "success": 0.985,
+    "fell": 0.015,
+    "progress": 0.9904999999999999,
+    "ticks_success": 130.23857868020303,
+    "n": 200
+   },
+   "2": {
+    "success": 0.985,
+    "fell": 0.015,
+    "progress": 0.991,
+    "ticks_success": 138.497461928934,
+    "n": 200
+   },
+   "3": {
+    "success": 0.99,
+    "fell": 0.01,
+    "progress": 0.996,
+    "ticks_success": 150.24747474747474,
+    "n": 200
+   },
+   "4": {
+    "success": 0.935,
+    "fell": 0.065,
+    "progress": 0.9690000000000001,
+    "ticks_success": 161.70053475935828,
+    "n": 200
+   },
+   "5": {
+    "success": 0.57,
+    "fell": 0.43,
+    "progress": 0.7520555555555555,
+    "ticks_success": 173.359649122807,
+    "n": 200
+   }
+  },
+  "validation_success": 0.9083333333333333
+ },
+ "iteration": 999,
+ "env_steps": 524288000
+}

@@ -57,6 +57,10 @@ class RewardConfig:
     goal: float = 10.0
     fall: float = 5.0
     time: float = 0.01
+    # Penalty for stalling (no new platform for stall_ticks). When set, a stall ends the
+    # episode as a failure instead of a bootstrapped time limit, so refusing a hard jump
+    # is no better than trying it and falling. 0 keeps the original behaviour.
+    stall: float = 0.0
 
 
 @dataclass
@@ -444,9 +448,10 @@ class ParkourEnv:
 
         self.stall = torch.where(gained > 0, torch.zeros_like(self.stall), self.stall + 1)
         truncated = ((self.stall >= self.cfg.stall_ticks) | (self.ticks >= self.cfg.max_ticks)) & ~success & ~fell
-        terminal = success | fell
+        stalled = truncated & (self.stall >= self.cfg.stall_ticks) & (cfg.stall > 0)
+        terminal = success | fell | stalled
         reward = (cfg.progress * progress + cfg.landing * gained + cfg.goal * success.to(torch.float64)
-                  - cfg.fall * fell.to(torch.float64) - cfg.time)
+                  - cfg.fall * fell.to(torch.float64) - cfg.stall * stalled.to(torch.float64) - cfg.time)
         self.cp = new_cp
         self.dist = dist
         self.ep_return = self.ep_return + reward
@@ -464,4 +469,4 @@ class ParkourEnv:
                 "course": self.course}
         self._apply_reset(done, self._sample_courses(self.n))
         obs = self.observe()
-        return obs, reward.to(torch.float32), terminal, truncated, final_obs, info
+        return obs, reward.to(torch.float32), terminal, truncated & ~stalled, final_obs, info

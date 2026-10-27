@@ -45,6 +45,18 @@ class Env(unittest.TestCase):
         self.assertFalse(bool(term[0]))
         self.assertAlmostEqual(total, -0.01 * 30, places=6)
 
+    def test_stall_penalty_ends_the_episode_as_a_failure(self):
+        env = make_env(straight_course(), stall=5.0)
+        env.cfg.stall_ticks = 30
+        total = 0.0
+        for t in range(30):
+            _, r, term, trunc, _, info = env.step(act())
+            total += float(r)
+        self.assertTrue(bool(term[0]))
+        self.assertFalse(bool(trunc[0]))
+        self.assertFalse(bool(info["fell"][0]))
+        self.assertAlmostEqual(total, -0.01 * 30 - 5.0, places=5)
+
     def test_walking_off_the_side_is_a_fall(self):
         env = make_env(straight_course())
         fell = False

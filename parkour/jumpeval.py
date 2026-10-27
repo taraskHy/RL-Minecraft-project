@@ -1,6 +1,7 @@
 """Success of a trained policy on every single jump type.
 
     python -m parkour.jumpeval --checkpoint runs/NAME/checkpoints/best.pt --out results/NAME/jump_eval.json
+    python -m parkour.jumpeval --advanced ...   (neo and run-up jumps, levels 6-8)
 
 Each test course is a 1x1 takeoff block, the jump under test, and one easy
 3x3 platform after it (so the target is not the goal, as in a real course).
@@ -35,7 +36,7 @@ def jump_course(spec: C.JumpSpec, yaw_error: float) -> C.Course:
     base = C.single_jump(spec, takeoff=(1, 1), grid=GRID)
     after = C._platform_after(base.platforms[1], 0, C.JumpSpec(1, 0, 0, (3, 3)))
     plats = np.concatenate([base.platforms, after[None, :]])
-    c = C.Course(plats, base.spawn.copy(), base.spawn_yaw + yaw_error, specs=[spec])
+    c = C.Course(plats, base.spawn.copy(), base.spawn_yaw + yaw_error, specs=[spec], extra=base.extra)
     return c
 
 
@@ -43,18 +44,24 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--checkpoint", required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--advanced", action="store_true", help="neo and run-up jump types (levels 6-8)")
     a = ap.parse_args(argv)
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     model = load_model(Path(a.checkpoint), dev)
-    feas = json.loads((CONFIGS / "jump_feasibility.json").read_text())["specs"]
-    specs = [C.JumpSpec(r["gap"], r["dy"], r["lateral"], tuple(r["size"])) for r in feas]
+    name = "jump_feasibility_advanced.json" if a.advanced else "jump_feasibility.json"
+    feas = json.loads((CONFIGS / name).read_text())["specs"]
+    specs = [C._spec_from(r) for r in feas]
     courses = [jump_course(s, e) for s in specs for e in YAW_ERRORS]
     pool = CoursePool(courses, dev, GRID)
     ev = evaluate(model, pool, dev, stall_ticks=200, deterministic=True, per_course=True)
-    made = (np.array(ev["per_course"]["progress"]) >= 0.5 - 1e-9).reshape(len(specs), len(YAW_ERRORS))
+    shape = (len(specs), len(YAW_ERRORS))
+    made = (np.array(ev["per_course"]["progress"]) >= 0.5 - 1e-9).reshape(shape)
+    fell = np.array(ev["per_course"]["fell"]).reshape(shape)
     rows = []
-    for r, m in zip(feas, made):
-        rows.append({**r, "policy_success": round(float(m.mean()), 4)})
+    for r, m, f in zip(feas, made, fell):
+        # A missed jump either fell or stalled (never jumped within the stall limit).
+        rows.append({**r, "policy_success": round(float(m.mean()), 4),
+                     "policy_fell": round(float((f & ~m).mean()), 4), "policy_stalled": round(float((~f & ~m).mean()), 4)})
     by_level = {}
     for L in sorted({r["level"] for r in rows}, key=lambda v: (v is None, v)):
         rl = [r for r in rows if r["level"] == L]
