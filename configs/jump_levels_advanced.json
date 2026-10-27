@@ -1537,6 +1537,84 @@
      "runway": 0,
      "wall_at": 1,
      "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": 1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": 1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 1,
+     "side": -1
+    },
+    {
+     "gap": 3,
+     "dy": 0,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 1,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": 0,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 1,
+     "side": -1
+    },
+    {
+     "gap": 3,
+     "dy": 1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 2,
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": 1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "neo": 1,
+     "runway": 0,
+     "wall_at": 2,
+     "side": -1
     }
    ]
   },
@@ -1914,5 +1992,6 @@
     }
    ]
   }
- ]
+ ],
+ "cem": "neo specs proven possible by parkour.cem were added"
 }

@@ -38,6 +38,7 @@ def search(spec: JumpSpec, device="cuda", iterations: int = 40, seed: int = 0) -
     n, T = SAMPLES, HORIZON
     course = torch.zeros(n, dtype=torch.int64, device=device)
     target = pool.centre[0, 1]
+    reach_x = (c.platforms[0][1] - c.platforms[0][0] + 1) / 2 - 0.21
     low = min(float(pool.top[0, 0]), float(pool.top[0, 1]))
     base_yaw = c.spawn_yaw
     yaw_mu = torch.zeros(T, device=device, dtype=torch.float64)
@@ -47,7 +48,7 @@ def search(spec: JumpSpec, device="cuda", iterations: int = 40, seed: int = 0) -
     p_sprint = torch.full((T,), 0.8, device=device)
     p_strafe = torch.full((T, 3), 1 / 3, device=device)  # left, none, right
     start_mu = torch.zeros(3, device=device, dtype=torch.float64)  # start offset x, z and initial yaw
-    start_sd = torch.tensor([0.2, 0.2, math.radians(40)], device=device, dtype=torch.float64)
+    start_sd = torch.tensor([0.2 + 0.4 * (reach_x - 0.29), 0.2, math.radians(40)], device=device, dtype=torch.float64)
     best = {"landed": False, "score": -1e9}
     for it in range(iterations):
         dyaw = yaw_mu + yaw_sd * torch.randn(n, T, device=device, dtype=torch.float64, generator=gen)
@@ -56,7 +57,8 @@ def search(spec: JumpSpec, device="cuda", iterations: int = 40, seed: int = 0) -
         sprint = torch.rand(n, T, device=device, generator=gen) < p_sprint
         strafe = torch.multinomial(p_strafe, n, replacement=True, generator=gen).T  # (n, T)
         st = start_mu + start_sd * torch.randn(n, 3, device=device, dtype=torch.float64, generator=gen)
-        st[:, :2] = st[:, :2].clamp(-0.29, 0.29)
+        st[:, 0] = st[:, 0].clamp(-reach_x, reach_x)  # anywhere on the takeoff (a runway is longer)
+        st[:, 1] = st[:, 1].clamp(-0.29, 0.29)
         pos = pool.spawn[course].clone()
         pos[:, 0] += st[:, 0]
         pos[:, 2] += st[:, 1]
@@ -161,13 +163,14 @@ def demo(spec: JumpSpec, device="cuda", iterations: int = 40, seed: int = 0) -> 
     n, T = SAMPLES, HORIZON
     course = torch.zeros(n, dtype=torch.int64, device=device)
     target = pool.centre[0, 1]
+    reach_x = (c.platforms[0][1] - c.platforms[0][0] + 1) / 2 - 0.21
     low = min(float(pool.top[0, 0]), float(pool.top[0, 1]))
     yaw_mu = torch.zeros(T, device=device, dtype=torch.float64)
     yaw_sd = torch.full((T,), math.radians(25), device=device, dtype=torch.float64)
     probs = {k: torch.full((T,), v, device=device) for k, v in (("fwd", 0.8), ("jump", 0.3), ("sprint", 0.8))}
     p_strafe = torch.full((T, 3), 1 / 3, device=device)
     start_mu = torch.zeros(3, device=device, dtype=torch.float64)
-    start_sd = torch.tensor([0.2, 0.2, math.radians(40)], device=device, dtype=torch.float64)
+    start_sd = torch.tensor([0.2 + 0.4 * (reach_x - 0.29), 0.2, math.radians(40)], device=device, dtype=torch.float64)
     for it in range(iterations):
         dyaw = yaw_mu + yaw_sd * torch.randn(n, T, device=device, dtype=torch.float64, generator=gen)
         fwd = torch.rand(n, T, device=device, generator=gen) < probs["fwd"]
@@ -175,7 +178,8 @@ def demo(spec: JumpSpec, device="cuda", iterations: int = 40, seed: int = 0) -> 
         sprint = torch.rand(n, T, device=device, generator=gen) < probs["sprint"]
         strafe = torch.multinomial(p_strafe, n, replacement=True, generator=gen).T
         st = start_mu + start_sd * torch.randn(n, 3, device=device, dtype=torch.float64, generator=gen)
-        st[:, :2] = st[:, :2].clamp(-0.29, 0.29)
+        st[:, 0] = st[:, 0].clamp(-reach_x, reach_x)  # anywhere on the takeoff (a runway is longer)
+        st[:, 1] = st[:, 1].clamp(-0.29, 0.29)
         pos = pool.spawn[course].clone()
         pos[:, 0] += st[:, 0]
         pos[:, 2] += st[:, 1]
