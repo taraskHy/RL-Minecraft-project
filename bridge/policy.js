@@ -194,8 +194,19 @@ function wrapYaw (yaw) {
 // step(s) returns the action for the next tick, or null once the episode has
 // ended (this.result is then 'success', 'fell' or 'truncated'). The rules are
 // those of ParkourEnv.step.
+// True when standing on top of an obstacle cell (wall, beam, pillar): ends the episode like a fall.
+function onObstacle (s, extra) {
+  if (!s.onGround || !extra) return false
+  const [x, y, z] = s.pos
+  for (const [bx, by, bz] of extra) {
+    if (Math.abs(y - (by + 1)) < STAND_EPS && x + HALF_WIDTH > bx && x - HALF_WIDTH < bx + 1 && z + HALF_WIDTH > bz && z - HALF_WIDTH < bz + 1) return true
+  }
+  return false
+}
+
 class Episode {
-  constructor (policy, platforms, isSolid, { stall = 200, maxTicks = 3000 } = {}) {
+  constructor (policy, platforms, isSolid, { stall = 200, maxTicks = 3000, extra = null } = {}) {
+    this.extra = extra
     this.policy = policy
     this.platforms = platforms
     this.isSolid = isSolid
@@ -220,7 +231,7 @@ class Episode {
       const k = standingOn(s, this.platforms)
       if (k > this.cp) { this.cp = k; this.stall = 0 } else this.stall++
       const success = this.cp >= this.platforms.length - 1
-      const fell = !success && fellBelow(s, this.platforms, this.cp)
+      const fell = !success && (fellBelow(s, this.platforms, this.cp) || onObstacle(s, this.extra))
       const truncated = !success && !fell && (this.stall >= this.stallLimit || this.ticks >= this.maxTicks)
       if (success || fell || truncated) {
         this.result = success ? 'success' : fell ? 'fell' : 'truncated'
@@ -252,6 +263,6 @@ class Episode {
 }
 
 module.exports = {
-  observe, standingOn, fellBelow, Policy, Episode, controls, wrapYaw, centre,
+  observe, standingOn, fellBelow, onObstacle, Policy, Episode, controls, wrapYaw, centre,
   OBS_DIM, ACTION_DIMS, NO_ACTION, YAW_STEPS_DEG
 }

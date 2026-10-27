@@ -203,11 +203,16 @@ def _corridor(a: np.ndarray, b: np.ndarray) -> tuple:
             min(a[2], b[2]), max(a[3], b[3]))
 
 
-def _neo_wall(prev: np.ndarray, new: np.ndarray, heading: int, spec: JumpSpec, reach: int = 3) -> list:
-    """Cells of a neo wall: gap cell ``spec.wall_at``, 2 high above the takeoff surface."""
+def _neo_wall(prev: np.ndarray, new: np.ndarray, heading: int, spec: JumpSpec, reach: int = 3,
+              top: int | None = None) -> list:
+    """Cells of a neo wall: gap cell ``spec.wall_at``, from the takeoff surface up.
+
+    It is 2 high above the takeoff surface, or reaches 2 above block row ``top``
+    if that is higher, so no nearby platform lets the player land on its top.
+    """
     hx, hz = HEADINGS[heading]
     over = spec.neo - 1  # blocks the wall sticks out past the platforms on the open side
-    ys = (int(prev[4]) + 1, int(prev[4]) + 2)
+    ys = tuple(range(int(prev[4]) + 1, max(int(prev[4]), int(top if top is not None else prev[4])) + 3))
     if hx != 0:
         along = prev[1] + spec.wall_at if hx > 0 else prev[0] - spec.wall_at
         lo, hi = min(prev[2], new[2]), max(prev[3], new[3])
@@ -245,7 +250,9 @@ def _place(platforms: list, extras: list, heading: int, spec: JumpSpec, grid=GRI
     added.append(new)
     cells = []
     if spec.neo:
-        cells = _neo_wall(prev, new, heading, spec)
+        # Taller than every platform from two before the takeoff to the target: none can reach its top.
+        top = max(int(p[4]) for p in (platforms[-3:] + added))
+        cells = _neo_wall(prev, new, heading, spec, top=top)
         allp = platforms + added
         k = len(allp) - 1
         if not _clear_of(cells, allp, (k - 1, k), grid):

@@ -55,7 +55,7 @@ courses.forEach((c, index) => {
   const physics = Physics(mcData, world)
   const e = entityAt(c.spawn, c.spawn_yaw)
   for (let t = 0; t < Number(args.settle); t++) physics.simulatePlayer(e, world)
-  const ep = new P.Episode(policy, c.platforms, isSolid, { stall: Number(args.stall), maxTicks: Number(args.maxTicks) })
+  const ep = new P.Episode(policy, c.platforms, isSolid, { stall: Number(args.stall), maxTicks: Number(args.maxTicks), extra: c.extra || [] })
   for (;;) {
     const s = { pos: [e.pos.x, e.pos.y, e.pos.z], vel: [e.vel.x, e.vel.y, e.vel.z], yaw: e.yaw, onGround: e.onGround, jumpTicks: e.jumpTicks, collidedH: e.isCollidedHorizontally }
     const a = ep.step(s)

@@ -67,6 +67,9 @@ class EnvConfig:
     reward: RewardConfig = field(default_factory=RewardConfig)
 
 
+MAX_EXTRA = 256
+
+
 class CoursePool:
     """Courses packed into tensors on one device."""
 
@@ -103,7 +106,19 @@ class CoursePool:
         self.centre = torch.stack(((pf[..., 0] + pf[..., 1] + 1) / 2, pf[..., 4] + 1, (pf[..., 2] + pf[..., 3] + 1) / 2), -1)
         self.top = pf[..., 4] + 1
         self.size = p
+        # Obstacle cells (walls, beams, pillars) per course, padded; standing on one ends the episode.
+        self.extra = torch.full((p, MAX_EXTRA, 3), -10_000, dtype=torch.int64, device=device)
+        for i, c in enumerate(courses):
+            self._set_extra(i, c)
         self.version = 0  # bumped whenever a course is replaced
+
+    def _set_extra(self, index: int, course: Course) -> None:
+        e = np.asarray(course.extra, dtype=np.int64).reshape(-1, 3)
+        if len(e) > MAX_EXTRA:
+            raise ValueError(f"course has {len(e)} obstacle cells; MAX_EXTRA is {MAX_EXTRA}")
+        self.extra[index] = -10_000
+        if len(e):
+            self.extra[index, :len(e)] = torch.as_tensor(e, device=self.device)
 
     def replace(self, index: int, course: Course) -> None:
         """Swap one course in place (pool refresh)."""
@@ -124,6 +139,7 @@ class CoursePool:
         pf = self.plat[index].to(torch.float64)
         self.centre[index] = torch.stack(((pf[:, 0] + pf[:, 1] + 1) / 2, pf[:, 4] + 1, (pf[:, 2] + pf[:, 3] + 1) / 2), -1)
         self.top[index] = pf[:, 4] + 1
+        self._set_extra(index, course)
         self.version += 1
 
 
@@ -141,6 +157,16 @@ def standing_on(pool: CoursePool, s: physics.PlayerState, course: torch.Tensor) 
     level = (y - (p[..., 4] + 1)).abs() < STAND_EPS
     k = torch.arange(MAX_PLATFORMS, device=s.pos.device)[None, :]
     return over & level & s.on_ground[:, None] & (k < pool.n[course][:, None])
+
+
+def on_obstacle(pool: CoursePool, s: physics.PlayerState, course: torch.Tensor) -> torch.Tensor:
+    """(N,) bool: on the ground with the feet on top of an obstacle cell."""
+    e = pool.extra[course].to(torch.float64)  # (N, E, 3)
+    x, y, z = s.pos[:, 0:1], s.pos[:, 1:2], s.pos[:, 2:3]
+    w = physics.HALF_WIDTH
+    over = (x + w > e[..., 0]) & (x - w < e[..., 0] + 1) & (z + w > e[..., 2]) & (z - w < e[..., 2] + 1)
+    level = (y - (e[..., 1] + 1)).abs() < STAND_EPS
+    return s.on_ground & (over & level).any(dim=1)
 
 
 class Observer:
@@ -413,6 +439,8 @@ class ParkourEnv:
         tops = self.pool.top[self.course[:, None], j.clamp(0, MAX_PLATFORMS - 1)]
         tops = torch.where(jv, tops, torch.full_like(tops, math.inf))
         fell = (new.pos[:, 1] < tops.amin(dim=1) - FALL_MARGIN) & ~success
+        # Standing on an obstacle (wall, beam, pillar) is not parkour: it ends the episode like a fall.
+        fell = fell | (on_obstacle(self.pool, new, self.course) & ~success)
 
         self.stall = torch.where(gained > 0, torch.zeros_like(self.stall), self.stall + 1)
         truncated = ((self.stall >= self.cfg.stall_ticks) | (self.ticks >= self.cfg.max_ticks)) & ~success & ~fell

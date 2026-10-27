@@ -164,7 +164,7 @@ async function runCourse (c, index) {
   bot.entity.yaw = c.spawn_yaw
   corrections = 0
   const t0 = Date.now()
-  const ep = new P.Episode(policy, c.platforms, isSolid, { stall: args.stall, maxTicks: args.maxTicks })
+  const ep = new P.Episode(policy, c.platforms, isSolid, { stall: args.stall, maxTicks: args.maxTicks, extra: c.extra || [] })
   await new Promise(resolve => { finish = resolve; episode = ep })
   episode = null
   const rec = ep.record({ index, level: c.level, seed: c.seed, wall_seconds: (Date.now() - t0) / 1000, server_corrections: corrections, mode: 'live' })

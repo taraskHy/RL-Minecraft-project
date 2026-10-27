@@ -30,5 +30,18 @@ class InsideBlock(unittest.TestCase):
         self.assertFalse(bool(inside.any()))
 
 
+
+class StandingOnObstacles(unittest.TestCase):
+    def test_standing_on_a_wall_counts_as_a_fall(self):
+        from parkour.env import on_obstacle
+        c = C.single_jump(C.JumpSpec(1, 0, 0, (1, 1), neo=1, side=1))
+        pool = CoursePool([c], "cpu", (24, 16, 24))
+        wx, wy, wz = (int(v) for v in max(c.extra, key=lambda e: e[1]))
+        s = physics.PlayerState.at(torch.tensor([[wx + 0.5, wy + 1.0, wz + 0.5], list(c.spawn)], dtype=torch.float64),
+                                   torch.zeros(2, dtype=torch.float64))
+        s.on_ground = torch.tensor([True, True])
+        self.assertEqual(on_obstacle(pool, s, torch.zeros(2, dtype=torch.long)).tolist(), [True, False])
+
+
 if __name__ == "__main__":
     unittest.main()
