@@ -68,7 +68,7 @@ largest difference 1.4e-14 blocks over 99,000 ticks. `run.cmd test` runs this.
 
 **Try the final policy without training:** `results/final_policy.pt` (weights)
 and `results/final_policy.json` (what the bot loads), for example
-`run.cmd offline --checkpoint resultsinal_policy.pt --out runs\my-check`.
+`run.cmd offline --checkpoint results\final_policy.pt --out runs\my-check`.inal_policy.pt --out runs\my-check`.
 
 ## Update log
 
