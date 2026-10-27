@@ -93,6 +93,7 @@ def main(argv=None):
     ap.add_argument("--checkpoint", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--per-level", type=int, default=5)
+    ap.add_argument("--courses-file", default="", help="JSON {\"courses\": [...]} to play instead of held-out courses")
     ap.add_argument("--offline", action="store_true")
     ap.add_argument("--viewer", default="")
     ap.add_argument("--port", type=int, default=25570)
@@ -101,7 +102,10 @@ def main(argv=None):
 
     out = Path(a.out).resolve()
     out.mkdir(parents=True, exist_ok=False)
-    courses = pick_courses(a.per_level)
+    if a.courses_file:
+        courses = [C.Course.from_json(d) for d in json.loads(Path(a.courses_file).read_text())["courses"]]
+    else:
+        courses = pick_courses(a.per_level)
     (out / "courses.json").write_text(json.dumps({"courses": [c.to_json() for c in courses]}))
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     model = load_model(Path(a.checkpoint).resolve(), dev)
@@ -134,7 +138,7 @@ def main(argv=None):
     rows = []
     for ep, r in zip(episodes, rep):
         i = ep["index"]
-        rows.append({"index": i, "level": ep["level"], "result": ep["result"], "platform": ep["cp"], "n": ep["n"],
+        rows.append({"index": i, "name": courses[i].name, "level": ep["level"], "result": ep["result"], "platform": ep["cp"], "n": ep["n"],
                      "ticks": ep["ticks"], "server_corrections": ep.get("server_corrections"),
                      "replay_max_pos_err": r["max_pos_err"], "replay_first_divergence": r.get("first_divergence_tick"),
                      "sim_success": bool(sim["success"][i]), "sim_ticks": int(sim["ticks"][i])})
@@ -157,7 +161,8 @@ def main(argv=None):
         "by_level": by_level, "episodes": rows,
     }
     (out / "summary.json").write_text(json.dumps(summary, indent=1))
-    lines = [f"# {summary['mode']}", "", f"Checkpoint `{a.checkpoint}`, {len(rows)} held-out courses (10 jumps each).", "",
+    lines = [f"# {summary['mode']}", "", f"Checkpoint `{a.checkpoint}`, {len(rows)} courses "
+             f"({'from ' + a.courses_file if a.courses_file else 'held-out, 10 jumps each'}).", "",
              "| Level | Courses | Success here | Success in simulator (same courses) |", "| --- | --- | --- | --- |"]
     for L, v in by_level.items():
         lines.append(f"| {L} | {v['n']} | {v['success']:.0%} | {v['sim_success']:.0%} |")

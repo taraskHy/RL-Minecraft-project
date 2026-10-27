@@ -66,6 +66,7 @@ STARTUP_COMMANDS = [
     "fill {x0} {y} {z0} {x1} {y} {z1} minecraft:stone".format(x0=SPAWN_PAD[0] - 2, x1=SPAWN_PAD[0] + 2, y=SPAWN_PAD[1] - 1,
                                                              z0=SPAWN_PAD[2] - 2, z1=SPAWN_PAD[2] + 2),
     "setworldspawn {} {} {}".format(*SPAWN_PAD),
+    "op " + BOT_NAME,  # ops.json already lists it; this also covers a UUID mismatch
 ]
 
 

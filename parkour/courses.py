@@ -51,6 +51,7 @@ class Course:
     level: int = 0
     seed: int = 0
     specs: list = field(default_factory=list)
+    name: str = ""
 
     @property
     def n(self) -> int:
@@ -69,12 +70,12 @@ class Course:
 
     def to_json(self) -> dict:
         return {"platforms": self.platforms.tolist(), "spawn": self.spawn.tolist(), "spawn_yaw": self.spawn_yaw,
-                "level": self.level, "seed": self.seed, "specs": [s.key() for s in self.specs]}
+                "level": self.level, "seed": self.seed, "specs": [s.key() for s in self.specs], "name": self.name}
 
     @classmethod
     def from_json(cls, d: dict) -> "Course":
         return cls(np.array(d["platforms"], dtype=np.int64), np.array(d["spawn"], dtype=np.float64),
-                   float(d["spawn_yaw"]), int(d.get("level", 0)), int(d.get("seed", 0)))
+                   float(d["spawn_yaw"]), int(d.get("level", 0)), int(d.get("seed", 0)), name=d.get("name", ""))
 
 
 def load_levels(path: Path | None = None) -> list[list[JumpSpec]]:
@@ -213,6 +214,24 @@ def single_jump(spec: JumpSpec, takeoff: tuple = (1, 1), grid=(24, 16, 24), head
     new = _platform_after(prev, heading, spec)
     plats = np.stack([prev, new])
     c = Course(plats, np.zeros(3), 0.0, specs=[spec])
+    centres = c.centers()
+    c.spawn = centres[0].copy()
+    d = centres[1] - centres[0]
+    c.spawn_yaw = float(math.atan2(-d[0], -d[2]))
+    return c
+
+
+def from_specs(steps: list, start=(4, 12, 30), start_size: int = 3, heading: int = 0, name: str = "") -> Course:
+    """A hand-designed course: ``steps`` is a list of (JumpSpec, turn) with turn -1, 0 or +1.
+
+    Its level is 0 (levels index generated difficulty); ``name`` identifies it.
+    """
+    x, y, z = start
+    platforms = [np.array([x, x + start_size - 1, z, z + start_size - 1, y], dtype=np.int64)]
+    for spec, turn in steps:
+        heading = (heading + turn) % 4
+        platforms.append(_platform_after(platforms[-1], heading, spec))
+    c = Course(np.stack(platforms), np.zeros(3), 0.0, level=0, specs=[s for s, _ in steps], name=name)
     centres = c.centers()
     c.spawn = centres[0].copy()
     d = centres[1] - centres[0]
