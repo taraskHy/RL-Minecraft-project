@@ -127,7 +127,13 @@ safeguards: the log-ratio is clamped to +-20; dual clipping bounds the
 objective at 3A for negative advantages A (Ye et al., 2020); an update stops
 as soon as a minibatch's KL exceeds 0.05; and the learning rate adapts
 between 1e-5 and 1e-3 to keep the per-minibatch KL near 0.01 (the schedule
-of rsl_rl / legged_gym). All reported runs use this trainer.
+of rsl_rl / legged_gym). All reported runs use this trainer. In the 3,000-
+iteration main run the update stop fired 45 times; once (iteration 1898) the
+two or three steps taken before it fired, at the learning-rate ceiling of
+1e-3, still caused a short dip (training success 94% to 70%, recovered within
+about 5 iterations, against about 50 before the safeguards). A lower ceiling
+(3e-4) is the next step for final-model training; the ablation runs keep 1e-3
+so that their arms stay comparable.
 
 The GPU is used for both the simulator and the network. The step makes no
 host synchronisation, which gives about 1 million environment ticks per

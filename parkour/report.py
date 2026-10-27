@@ -50,13 +50,13 @@ def levels_in(ev: dict) -> list[int]:
     return sorted(int(c.split("L")[1]) for c in ev if c.startswith("success_L"))
 
 
-def _end_labels(ax, ends, gap=4.5):
-    """Direct labels at line ends, nudged apart so they never overlap."""
-    ends = sorted(ends, key=lambda e: e[2])
+def _end_labels(ax, ends, gap=4.5, top=100.0):
+    """Direct labels at line ends, spread downward from the top so they never overlap."""
     placed = []
-    for x, text, y in ends:
-        if placed and y - placed[-1] < gap:
-            y = placed[-1] + gap
+    for x, text, y in sorted(ends, key=lambda e: -e[2]):
+        y = min(y, top)
+        if placed and placed[-1] - y < gap:
+            y = placed[-1] - gap
         placed.append(y)
         ax.annotate(text, (x, y), xytext=(5, 0), textcoords="offset points", color=INK2, fontsize=8, va="center",
                     annotation_clip=False)
@@ -188,7 +188,15 @@ def main(argv=None):
                   f"![learning curve](figures/main_learning_curve.png)", "",
                   "| Evaluation | Game ticks | All levels | " + " | ".join(f"L{L}" for L in lv) + " |",
                   "| --- | --- | --- | " + " | ".join("---" for _ in lv) + " |"]
-        for name, i in (("best", best), ("last", len(main_ev["success"]) - 1)):
+        last = len(main_ev["success"]) - 1
+        has_val = (RUNS / a.main / "eval_val_log.csv").exists()
+        if has_val:
+            v = list(csv.DictReader((RUNS / a.main / "eval_val_log.csv").open()))
+            best = int(np.argmax([float(r["success"]) for r in v]))
+            best_name = "best on validation"
+        else:
+            best_name = "highest test score (picked on the test set itself, so optimistic)"
+        for name, i in (("last checkpoint (headline)", last), (best_name, best)):
             lines.append(f"| {name} (iteration {int(main_ev['iteration'][i])}) | {main_ev['env_steps'][i] / 1e9:.2f} B | "
                          f"{pct(main_ev['success'][i])} | " + " | ".join(pct(main_ev[f'success_L{L}'][i]) for L in lv) + " |")
         lines.append("")
