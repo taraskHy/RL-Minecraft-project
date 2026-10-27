@@ -111,10 +111,23 @@ Every training run is evaluated on the same set with the deterministic
 PPO (course material: policy gradients, actor-critic, GAE) with separate
 actor and critic MLPs (512-256-128, ELU), observation standardisation, 16,384
 parallel environments, 32-tick rollouts (524,288 samples per update),
-4 epochs of 8 minibatches, learning rate 3e-4, clip 0.2, entropy 0.005,
+4 epochs of 8 minibatches, learning rate starting at 3e-4 (adaptive, below), clip 0.2, entropy 0.005,
 discount 0.99, GAE 0.95. A tabular method cannot generalise to unseen
 courses: the state is continuous and the course geometry changes every
 episode, so function approximation is required.
+
+**Stability.** The first runs (kept in `runs/_v1_unstable`, not used for
+results) twice made a catastrophic update: the approximate KL between the old
+and new policy jumped from about 0.004 to 1.3 (and once overflowed), success
+fell from about 80% to 15% within one iteration, and the run needed about 50
+iterations to recover. This is the known PPO failure where actions the old
+policy rarely chose get huge probability ratios: with a negative advantage the
+clipped objective does not bound them. The trainer now uses four standard
+safeguards: the log-ratio is clamped to +-20; dual clipping bounds the
+objective at 3A for negative advantages A (Ye et al., 2020); an update stops
+as soon as a minibatch's KL exceeds 0.05; and the learning rate adapts
+between 1e-5 and 1e-3 to keep the per-minibatch KL near 0.01 (the schedule
+of rsl_rl / legged_gym). All reported runs use this trainer.
 
 The GPU is used for both the simulator and the network. The step makes no
 host synchronisation, which gives about 1 million environment ticks per

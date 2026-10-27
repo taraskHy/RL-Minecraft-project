@@ -50,6 +50,12 @@ class TrainConfig:
     ent_coef: float = 0.005
     vf_coef: float = 1.0
     max_grad_norm: float = 1.0
+    # Stability (added after two catastrophic updates in the first runs; see docs/design.md):
+    dual_clip: float = 3.0  # bound the objective at dual_clip * A for negative advantages
+    target_kl: float = 0.01  # learning rate adapts to keep the per-minibatch KL near this
+    kl_stop: float = 0.05  # skip the rest of an update once a minibatch's KL exceeds this
+    lr_min: float = 1e-5
+    lr_max: float = 1e-3
     hidden: tuple = (512, 256, 128)
     pool_size: int = 8192
     pool_refresh_every: int = 20
@@ -191,6 +197,7 @@ def train(cfg: TrainConfig) -> Path:
 
     model = ActorCritic(hidden=cfg.hidden, hidden_parts=tuple(p for p in cfg.hide.split(",") if p)).to(dev)
     opt = torch.optim.Adam(model.parameters(), lr=cfg.lr, eps=1e-5)
+    lr = cfg.lr
     start_it = 0
     if cfg.init_from:
         ck = torch.load(cfg.init_from, map_location=dev, weights_only=False)
@@ -279,32 +286,54 @@ def train(cfg: TrainConfig) -> Path:
         b_adv = (b_adv - b_adv.mean()) / (b_adv.std() + 1e-8)
         mb = T * N // cfg.minibatches
         stats = {"pi_loss": 0.0, "v_loss": 0.0, "entropy": 0.0, "kl": 0.0, "clipfrac": 0.0}
-        nupd = 0
+        nupd, stopped = 0, False
         for _ in range(cfg.epochs):
             perm = torch.randperm(T * N, device=dev)
             for k in range(cfg.minibatches):
                 idx = perm[k * mb:(k + 1) * mb]
                 logp, ent, v = model.evaluate(b_obs[idx], b_act[idx])
-                ratio = torch.exp(logp - b_logp[idx])
+                log_ratio = (logp - b_logp[idx]).clamp(-20.0, 20.0)
+                ratio = torch.exp(log_ratio)
+                kl = ((ratio - 1) - log_ratio).mean().item()  # policy change so far, on this minibatch
+                if kl > cfg.kl_stop or not math.isfinite(kl):
+                    stopped = True
+                    break
                 a = b_adv[idx]
-                pl = -torch.min(ratio * a, ratio.clamp(1 - cfg.clip, 1 + cfg.clip) * a).mean()
+                surr = torch.min(ratio * a, ratio.clamp(1 - cfg.clip, 1 + cfg.clip) * a)
+                surr = torch.where(a < 0, torch.maximum(surr, cfg.dual_clip * a), surr)
+                pl = -surr.mean()
                 vc = b_val[idx] + (v - b_val[idx]).clamp(-cfg.clip, cfg.clip)
                 vl = 0.5 * torch.max((v - b_ret[idx]).pow(2), (vc - b_ret[idx]).pow(2)).mean()
                 el = ent.mean()
                 loss = pl + cfg.vf_coef * vl - cfg.ent_coef * el
+                if not torch.isfinite(loss):
+                    stopped = True
+                    break
                 opt.zero_grad(set_to_none=True)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.max_grad_norm)
                 opt.step()
+                # KL-adaptive learning rate (as in rsl_rl / legged_gym).
+                if kl > 2.0 * cfg.target_kl:
+                    lr = max(cfg.lr_min, lr / 1.5)
+                elif kl < 0.5 * cfg.target_kl:
+                    lr = min(cfg.lr_max, lr * 1.5)
+                for g in opt.param_groups:
+                    g["lr"] = lr
                 with torch.no_grad():
                     stats["pi_loss"] += pl.item()
                     stats["v_loss"] += vl.item()
                     stats["entropy"] += el.item()
-                    stats["kl"] += ((ratio - 1) - torch.log(ratio)).mean().item()
+                    stats["kl"] += kl
                     stats["clipfrac"] += ((ratio - 1).abs() > cfg.clip).float().mean().item()
                 nupd += 1
+            if stopped:
+                break
         for k in stats:
-            stats[k] /= nupd
+            stats[k] /= max(nupd, 1)
+        stats["lr"] = lr
+        stats["updates"] = nupd
+        stats["stopped"] = int(stopped)
 
         total_steps += T * N
         dt = time.time() - t0
@@ -316,7 +345,7 @@ def train(cfg: TrainConfig) -> Path:
             "success": frac(1), "fell": frac(2), "truncated": frac(3), "ep_len": frac(4), "ep_return": frac(5),
             "progress": frac(6),
             "reward_per_tick": round(rew_buf.mean().item(), 4), "frontier": sampler.frontier,
-            **{k: round(v, 5) for k, v in stats.items()},
+            **{k: (round(v, 7) if isinstance(v, float) else v) for k, v in stats.items()},
         }
         rates = sampler.success_rates()
         for L in range(n_levels):
