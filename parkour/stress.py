@@ -12,6 +12,7 @@ deterministic policy in the simulator:
   straight        no turns at all
   any_start_yaw   start facing any direction (training: within 60 degrees)
   single_blocks   every platform a single 1x1 block, as in classic parkour maps
+  obstacles       head-hitter beams over gaps and decoy pillars (50% of jumps)
 """
 from __future__ import annotations
 
@@ -35,6 +36,7 @@ CONDITIONS = {
     "straight": dict(n_jumps=10, turn_prob=0.0),
     "any_start_yaw": dict(n_jumps=10, yaw_noise=math.pi),
     "single_blocks": dict(n_jumps=10, start_size=1, single=True),
+    "obstacles": dict(n_jumps=10, obstacle_prob=0.5),
 }
 
 

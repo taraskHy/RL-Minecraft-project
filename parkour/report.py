@@ -239,6 +239,41 @@ def main(argv=None):
             lines.append(f"| {k} | {v['specs']} | {pct(v['mean_policy_success'])} | {v['specs_policy_never']} |")
         lines.append("")
 
+    spath = out / "stress.json"
+    if spath.exists():
+        st = json.loads(spath.read_text())
+        conds = st["conditions"]
+        lv = sorted({int(L) for c in conds.values() for L in c["per_level"]})
+        lines += ["## Course styles outside the training distribution", "",
+                  f"Checkpoint `{st['checkpoint']}`, {st['per_level']} new courses per level and condition "
+                  "(`python -m parkour.stress`).", "",
+                  "| Condition | All levels | " + " | ".join(f"L{L}" for L in lv) + " |",
+                  "| --- | --- | " + " | ".join("---" for _ in lv) + " |"]
+        for name, c in conds.items():
+            lines.append(f"| {name} | {pct(c['success'])} | " + " | ".join(pct(c['per_level'].get(str(L), c['per_level'].get(L))) for L in lv) + " |")
+        lines.append("")
+
+    obs_ev = read_eval("obstacles-ft")
+    obs_o = None
+    p = RUNS / "obstacles-ft" / "eval_obstacles_log.csv"
+    if p.exists():
+        rows = list(csv.DictReader(p.open()))
+        obs_o = {c: np.array([float(r[c]) for r in rows]) for c in rows[0]} if rows else None
+    if obs_ev is not None and obs_o is not None:
+        lv = levels_in(obs_ev)
+        lines += ["## Obstacles (head-hitter beams and decoy pillars)", "",
+                  "`obstacles-ft` starts from the main policy and trains with an obstacle on 30% of jumps. Both test",
+                  "sets are held out; the obstacle set puts an obstacle on 50% of jumps.", "",
+                  "| Evaluation | Test set | All levels | " + " | ".join(f"L{L}" for L in lv) + " |",
+                  "| --- | --- | --- | " + " | ".join("---" for _ in lv) + " |"]
+        for name, i in (("first", 0), ("last", -1)):
+            it = int(obs_ev["iteration"][i])
+            lines.append(f"| {name} (iteration {it}) | standard | {pct(obs_ev['success'][i])} | "
+                         + " | ".join(pct(obs_ev[f'success_L{L}'][i]) for L in lv) + " |")
+            lines.append(f"| {name} (iteration {it}) | obstacles | {pct(obs_o['success'][i])} | "
+                         + " | ".join(pct(obs_o[f'success_L{L}'][i]) for L in lv) + " |")
+        lines.append("")
+
     for name in ("offline", "live"):
         p = out / f"{name}_summary.md"
         if p.exists():
