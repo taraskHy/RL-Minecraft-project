@@ -5,7 +5,7 @@ Updated and pushed after every result. Every number is in
 [results/README.md](results/README.md) (generated from the run files); every
 piece of data is listed in [results/DATA.md](results/DATA.md).
 
-**Last updated:** 28 October 2026, 00:10.
+**Last updated:** 28 October 2026, 02:00.
 
 ## The project
 
@@ -70,26 +70,58 @@ blocks.
   you walk out of a block you overlap), so its first "proofs" were invalid;
   starts inside blocks are now rejected and tested.
 
+## Harder jumps (neo, double neo, 4-block)
+
+- **Single neos are possible** (a tick-by-tick search lands 16 of 18 layouts),
+  but very tight: in the search, only 1 in 2,000 to 1 in 16,000 sampled
+  action sequences landed one.
+- **Double and triple neos are impossible** in Minecraft's physics as
+  Mineflayer runs it: 0 of 64 layouts landed (36 from standing, 28 with a
+  3-4 block run-up), searched with the same tool that found the single neos.
+- **4-block jumps with a run-up:** the trained bot makes some that no
+  scripted strategy makes (12-38% of start angles).
+- **Neo training** (`runs/advanced-ft3`, levels 0-8): the bot completes 99%
+  of easy courses and 83% overall, but levels 6 and 7 (neo courses) stayed
+  flat at about 70% and 30% for 850 iterations. Diagnosis
+  (`results/runs/advanced-ft3/jump_eval_advanced.json`): on every neo type it
+  never makes, it **does not fall: it refuses to jump** and stands still
+  until the 10-second stall limit. Standing still cost less reward than a
+  likely fall (-5), so refusing was the rational choice under our reward.
+  This is a good presentation point about reward design.
+- **Fix being tested now:** a stall penalty (`--reward-stall 5`, a stall now
+  ends the episode as a failure, like a fall), fine-tuned from the
+  plateaued policy (`runs/neo-stall`, about 1 hour).
+
 ## Running now
 
-1. **Harder jumps (neo, double neo, 4-block momentum jumps, wide diagonals)**,
-   levels 6-8: training `runs/advanced-ft` from the final policy. At iteration
-   100 it completes about 45% of level-6 courses; on neo walls it still stalls
-   or falls (recordings kept in `results/games/neo-preview__bot`).
-2. **Which double neos are possible:** a tick-by-tick search, rerun after the
-   fix above. Single neos are proven possible (13 layouts).
-3. **Learning-progress recordings:** a fresh run that saves snapshots, played
-   on the same courses at every stage (untrained to trained), offline and in
-   real Minecraft, for the presentation (`results/progress.html`).
-4. The last two hyperparameter runs; the rest of that study resumes after.
+1. `neo-stall`: the stall-penalty fine-tune above.
+2. Hyperparameter study (`configs/sweep_hparams.json`), one run at a time:
+   3 of 9 finished.
+3. Only two training runs fit on the GPU at once now (a third spills out
+   of GPU memory and makes all of them 8 times slower).
 
 ## For the presentation
 
-- Pages (open in a browser): `results/replay_viewer.html` (real-game
-  replays), `results/progress.html` (learning progress, coming),
-  `results/neo_preview.html` (neo training).
-- Figures: `results/figures/`. Data: `results/DATA.md`.
-- Watch it live: `run.cmd live --checkpoint results\final_policy.pt --out
+- **Videos** (`results/videos/`, 1080p MP4):
+  - `ghost_race_00_tour.mp4` and `ghost_race_01..06`: ten training stages
+    of the same agent (untrained to 400 updates) run one unseen course at
+    once, seen from above. The untrained bot falls at once; later stages get
+    further; the trained ones reach the goal. Level 5 is hard: every stage
+    falls at its first jump.
+  - `real_minecraft_showcase.mp4` (35 s): the bot's own first-person view
+    in **real Minecraft 1.21.4** on three hand-designed courses it never saw
+    (`real_minecraft_tour/stairs/sprint.mp4` separately). All completed, 0
+    server corrections.
+- Pages (open in a browser): `results/theatre.html` (Minecraft-style 3D
+  replays and the ghost races, Overview camera), `results/replay_viewer.html`
+  (real-game replays), `results/progress.html` (learning progress),
+  `results/neo_preview.html` (neo attempts).
+- Figures: `results/figures/`. Data: `results/DATA.md`; every run's training
+  and evaluation logs are in `results/runs/` (now in Git too: before 28
+  October 01:50 a `.gitignore` rule kept them out of GitHub).
+- Make new videos: `scripts/render_videos.py` (ghost races) and
+  `scripts/film_pov.py` (real Minecraft, first person).
+- Watch it live: `run.cmd live --checkpoint resultsinal_policy.pt --out
   runs\demo --viewer YourMinecraftName`, then join `127.0.0.1:25570` in
   Minecraft Java 1.21.4.
 
@@ -102,6 +134,11 @@ blocks.
    neo results, the discussion and the conclusion.
 
 ## Update log
+
+- **28 Oct 2026, 02:00:** ghost-race and real-Minecraft first-person
+  videos; double and triple neos shown impossible; neo plateau diagnosed
+  (the bot refuses tight neos) and a stall-penalty fix in training; the
+  archived run logs pushed to GitHub.
 
 - **28 Oct 2026, 00:10:** all training data, evaluation logs and game
   recordings (real and offline, every tick) archived in `results/`; training
