@@ -27,7 +27,7 @@ seed 0 is the first 1000 iterations of the main run (identical settings).
 | nolanding | no landing bonus | 3 | 91.8 (90.0-94.2) | 95.0 | 59.5 (47.0-74.5) | 89.0 | 0.05 |
 | nofall | no fall penalty | 3 | 90.9 (90.5-91.2) | 94.5 | 55.2 (54.0-57.0) | 88.9 | 0.05 |
 | uniform | no curriculum (levels uniform) | 3 | 94.0 (93.0-95.0) | 97.0 | 72.0 (67.0-76.0) | 88.2 | 0.08 |
-| noroute | platform positions hidden: block scan + goal only | 2 | 83.4 (83.2-83.6) | 88.8 | 45.0 (42.5-47.5) | 74.1 | 0.35 |
+| noroute | platform positions hidden: block scan + goal only | 3 | 82.4 (80.6-83.6) | 86.8 | 43.0 (39.0-47.5) | 73.8 | 0.38 |
 
 ## Every jump type
 
@@ -54,8 +54,8 @@ reference is the `full` arm (defaults), mean over its seeds. All runs see 0.52 B
 | Run | Iteration | Validation success | Test success | L4 | L5 |
 | --- | --- | --- | --- | --- | --- |
 | defaults (`full`, 3 seeds) | 999 | - | 93.3 | 94.7 | 72.0 |
-| `hp-ent0.001` | 99 of 1000 (running) | 83.0 | 84.0 | 89.0 | 20.0 |
-| `hp-ent0.02` | 99 of 1000 (running) | 72.7 | 82.6 | 88.0 | 19.0 |
+| `hp-ent0.001` | 149 of 1000 (running) | 84.5 | 85.8 | 90.0 | 29.0 |
+| `hp-ent0.02` | 149 of 1000 (running) | 83.2 | 84.8 | 86.0 | 29.0 |
 
 ## Course styles outside the training distribution
 

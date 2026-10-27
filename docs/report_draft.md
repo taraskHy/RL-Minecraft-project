@@ -232,9 +232,10 @@ block tends to overshoot.
 ### 7.6 Is the route needed?
 
 With the platform corners hidden (only its own state, the 98-point block
-scan and the goal direction), the agent still completes 83.4% of test courses
-(2 of 3 seeds so far; level 5: 45%), against 93.3% with the route at the same
-budget. It needs about seven times as many ticks to reach 80%. The scan sees
+scan and the goal direction), the agent still completes 82.4% of test courses
+(3 seeds, 80.6-83.6%; level 5: 43%), against 93.3% with the route at the same
+budget. It needs about seven times as many ticks to reach 80% (0.38 against
+0.05 billion). The scan sees
 5.5 blocks ahead and 1.5 to each side, so after a turn the next platform is
 often outside it.
 

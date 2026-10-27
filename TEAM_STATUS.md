@@ -35,7 +35,7 @@ and the `codex/*` branches.
   the final score; the *landing bonus* and the *curriculum* show no reliable
   effect at this budget.
 - **Without being told the route** (only the blocks around it and the goal
-  direction) the agent still completes 83% of test courses.
+  direction) the agent still completes 82% of test courses (3 seeds).
 - **3D replays:** open `results/replay_viewer.html` in a browser (123 courses).
 
 ## How we know the simulator is right
@@ -49,7 +49,8 @@ largest difference 1.4e-14 blocks over 99,000 ticks. `run.cmd test` runs this.
 - The hyperparameter study (`configs/sweep_hparams.json`): entropy, discount,
   network size, KL target and number of environments, one at a time, compared
   on the validation set. Results appear in `results/README.md`.
-- The third no-route seed.
+- `final-v2`: obstacles from the start and a lower learning-rate ceiling
+  (3e-4) to remove the last training dip; 3,000 iterations.
 
 ## Waiting on the PC owner
 
