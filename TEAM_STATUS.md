@@ -4,7 +4,7 @@ One page for everyone on the team: what works, what is running, what is open.
 Updated and pushed after every result. Every number is in
 [results/README.md](results/README.md) (generated from the run files).
 
-**Last updated:** 27 October 2026, 23:00.
+**Last updated:** 27 October 2026, 23:45.
 
 ## The project now
 
@@ -15,6 +15,11 @@ and the `codex/*` branches.
 
 ## Headline results (simulator unless stated)
 
+- **Real Minecraft works.** On a local 1.21.4 server the bot completed
+  **59/60 unseen courses, 58/60 unseen obstacle courses and 3/3 hand-designed
+  courses**, exactly the courses the simulator predicted. The server corrected
+  its position 0 times in 123 episodes, and replaying its recorded moves in the
+  simulator reproduces every real trajectory to 2e-14 blocks.
 - **Final policy** (`runs/obstacles-ft`, main policy fine-tuned with
   obstacles): **97.1% of 1,200 unseen test courses** (level 5: 90.5%) and
   **93.6% of unseen courses with obstacles** (head-hitter beams, decoy pillars).
@@ -46,16 +51,16 @@ largest difference 1.4e-14 blocks over 99,000 ticks. `run.cmd test` runs this.
 
 ## Running now
 
+- **Harder jumps** (requested): neo, double neo, 4-block momentum jumps and
+  wide diagonals are built (levels 6-8). A search over action sequences is
+  checking which neo layouts are physically possible; training on them follows.
+
 - The hyperparameter study (`configs/sweep_hparams.json`): entropy, discount,
   network size, KL target and number of environments, one at a time, compared
   on the validation set. Results appear in `results/README.md`.
-- `final-v2`: obstacles from the start and a lower learning-rate ceiling
-  (3e-4) to remove the last training dip; 3,000 iterations.
 
 ## Waiting on the PC owner
 
-- **Minecraft EULA** (`run.cmd accept-eula --agree`, only if you accept it).
-  Then `run.cmd live ... --viewer YourName` runs the bot in real Minecraft.
 - **GitHub sign-in** on this PC, so the work can be pushed.
 
 ## Open problems anyone can pick up
@@ -72,6 +77,10 @@ and `results/final_policy.json` (what the bot loads), for example
 `run.cmd offline --checkpoint results\final_policy.pt --out runs\my-check`.
 
 ## Update log
+
+- **27 Oct 2026, 23:45:** EULA accepted by the PC owner; first real-Minecraft
+  runs: 59/60, 58/60 (obstacles) and 3/3, identical to the simulator. Neo,
+  double-neo, momentum and wide jumps added.
 
 - **27 Oct 2026, 23:00:** ablation (15 runs), obstacle fine-tune and no-route
   runs finished; the obstacle-trained policy is the final policy (97.1% /

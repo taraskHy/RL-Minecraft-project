@@ -67,8 +67,11 @@ def main():
     data = {
         "subtitle": "A PPO policy plays Minecraft parkour courses it never saw in training. Pick a course to watch it, tick by tick.",
         "meta": f"{ok}/{len(eps)} courses completed · " + "; ".join(modes),
-        "notes": ("Trajectories come from the bot's JavaScript stack running on prismarine-physics, the engine a Mineflayer bot "
-                  "moves with in real Minecraft (<code>run.cmd offline</code>). Start block in green, goal in gold, "
+        "notes": (("Trajectories were recorded in real Minecraft 1.21.4: a Mineflayer bot driven by the trained network on "
+                   "a local server (<code>run.cmd live</code>). " if any("live" in m for m in modes) else
+                   "Trajectories come from the bot's JavaScript stack running on prismarine-physics, the engine a "
+                   "Mineflayer bot moves with in real Minecraft (<code>run.cmd offline</code>). ") +
+                  "Start block in green, goal in gold, "
                   "obstacles (head-hitter beams and decoy pillars) in dark stone. "
                   "Space plays or pauses; the arrow keys step one game tick."),
         "episodes": eps,

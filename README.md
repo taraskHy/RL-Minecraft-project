@@ -24,10 +24,10 @@ real Minecraft server, on new courses.
 | Every possible jump type from a standing start | all made (hardest level 99.6%) | simulator |
 | The bot's JavaScript on Mineflayer's physics engine | 59/60 standard, 58/60 obstacle, 3/3 hand-designed; identical to the simulator | prismarine-physics, no server |
 | Physics port against the real library | 1.4e-14 blocks over 99,000 ticks | Node + prismarine-physics |
-| Real Minecraft server | ready, waiting for the EULA on this PC | - |
+| **Real Minecraft 1.21.4 server** | **59/60 standard, 58/60 obstacle, 3/3 hand-designed; identical to the simulator, 0 server corrections** | real game, Mineflayer bot |
 
 Details, figures, the reward ablation and the other experiments:
-[results/README.md](results/README.md). 3D replays: open
+[results/README.md](results/README.md). 3D replays of the real-game runs: open
 `results/replay_viewer.html` in a browser. Final policy in Git:
 `results/final_policy.pt` (weights, for `run.cmd offline` / `run.cmd live --checkpoint`) and
 `results/final_policy.json` (the exported network the bot loads).
