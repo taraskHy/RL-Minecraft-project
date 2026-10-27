@@ -2,7 +2,7 @@
   "description": "Runs for the GPU slot freed by the main run. obstacles-ft: the main policy fine-tuned with obstacles (head-hitter beams, decoy pillars) on 30% of jumps; it is evaluated on the standard and the obstacle test sets. noroute: the platform positions are hidden (block scan and goal only), same 1000 iterations and seeds as the ablation arms.",
   "common": [],
   "runs": [
-    {"run": "obstacles-ft", "args": ["--iterations", "1000", "--obstacle-prob", "0.3", "--init-from", "runs/main-s0/checkpoints/best.pt"]},
+    {"run": "obstacles-ft", "args": ["--iterations", "1000", "--obstacle-prob", "0.3", "--init-from", "runs/main-s0/checkpoints/latest.pt"]},
     {"run": "noroute-s0", "args": ["--iterations", "1000", "--hide", "platforms", "--seed", "0"]},
     {"run": "noroute-s1", "args": ["--iterations", "1000", "--hide", "platforms", "--seed", "1"]},
     {"run": "noroute-s2", "args": ["--iterations", "1000", "--hide", "platforms", "--seed", "2"]}
