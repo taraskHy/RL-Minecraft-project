@@ -267,6 +267,49 @@ from its recorded start state reproduced the real trajectory to within 2e-14
 blocks on every tick. In this setting the gap between simulation and the game
 is rounding error.
 
+### 7.10 Neo jumps and the refusal problem
+
+**What is possible.** A neo jumps around the end of a wall: the player takes
+off beside the wall, swings around its end in the air and lands on the far
+side. Our scripted strategies (11,520 curved ones per type) and a direct
+cross-entropy search over tick-by-tick action sequences (`parkour/cem.py`)
+agree that single neos are possible but extremely tight: the search landed
+16 of 18 single-neo layouts, yet only 1 in 2,000 to 1 in 16,000 sampled
+sequences landed. Double and triple neos (around two or three walls in one
+jump) landed in none of 64 layouts: 36 from a standing start and 28 with a
+3 to 4 block run-up (`configs/jump_cem.json`, `configs/jump_cem_momentum.json`).
+We report them as impossible under Minecraft's movement physics as
+prismarine-physics implements it. The search's first "proofs" of double neos
+started the player overlapping the wall, which Minecraft allows you to walk
+out of; starts inside blocks are now rejected (`physics.inside_solid`, with a
+test).
+
+**Training.** Levels 6 to 8 add single neos, 4-block jumps from a 3-block
+run-up and wide diagonal jumps (`configs/jump_levels_advanced.json`).
+Fine-tuning the final policy on levels 0 to 8 (`advanced-ft`, `-ft2`, `-ft3`,
+about 1,500 iterations in total) kept levels 0 to 4 at 96 to 100% and
+reached about 70% on level 6 and 30% on level 7 (held-out 10-jump courses),
+then stayed flat for about 850 iterations.
+
+**Diagnosis: the agent refuses.** We evaluated every advanced jump type alone
+from 16 start angles (`python -m parkour.jumpeval --advanced`, which splits a
+missed jump into falling and stalling). Of the 13 neo types the policy never
+makes, on 11 it stands still until the 200-tick stall limit in every attempt;
+on the other two it stalls in 94% and 44% of attempts and falls in the rest.
+Under our reward this is rational. A stall
+truncates the episode and the value of the last state is bootstrapped, so
+standing still costs only the time penalty (0.01 per tick), while a jump that
+lands with low probability mostly earns the fall penalty (-5). The fall
+penalty that helped most on levels 0 to 5 (section 7.2) makes the agent avoid
+the riskiest jumps entirely. On the 4-block run-up jumps, by contrast, it
+always tries, and it makes some that none of 4,032 scripted strategies makes
+(12 to 38% of start angles).
+
+**Fix.** An optional stall penalty (`--reward-stall`): a stall now ends the
+episode as a failure with that penalty, so refusing is never better than
+trying. *Result of the fine-tune with `--reward-stall 5`
+(`runs/neo-stall`): to be added.*
+
 ## 8. Discussion and limitations
 
 Points to develop:
@@ -278,6 +321,10 @@ Points to develop:
 - Course building and the start teleport use server commands (reset only).
 - Level 5 jumps need momentum; the feasibility study starts from rest, so it
   underestimates what chained jumps allow.
+- Reward terms interact with risk: the fall penalty speeds up learning and
+  raises the hardest-level score, but on very tight jumps (single neos) it
+  teaches the agent to refuse. Whether a stall counts as a failure is part of
+  the reward design, not a detail of the environment (section 7.10).
 
 ## 9. Conclusion
 

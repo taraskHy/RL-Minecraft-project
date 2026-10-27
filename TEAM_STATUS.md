@@ -83,9 +83,9 @@ blocks.
 - **Neo training** (`runs/advanced-ft3`, levels 0-8): the bot completes 99%
   of easy courses and 83% overall, but levels 6 and 7 (neo courses) stayed
   flat at about 70% and 30% for 850 iterations. Diagnosis
-  (`results/runs/advanced-ft3/jump_eval_advanced.json`): on every neo type it
-  never makes, it **does not fall: it refuses to jump** and stands still
-  until the 10-second stall limit. Standing still cost less reward than a
+  (`results/runs/advanced-ft3/jump_eval_advanced.json`): on 11 of the 13
+  neo types it never makes, it **does not fall: it refuses to jump** and
+  stands still until the 10-second stall limit, every time. Standing still cost less reward than a
   likely fall (-5), so refusing was the rational choice under our reward.
   This is a good presentation point about reward design.
 - **Fix being tested now:** a stall penalty (`--reward-stall 5`, a stall now
