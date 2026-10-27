@@ -42,7 +42,7 @@ const bot = mineflayer.createBot({ host: args.host, port: args.port, username: a
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 let episode = null
 let finish = null
-let previous = [] // platforms of the last course, to confirm they were cleared
+let previous = [] // solid cells of the last course, to confirm they were cleared
 let attributeNote = null
 let corrections = 0
 
@@ -135,6 +135,8 @@ async function runCourse (c, index) {
   for (const [x0, x1, z0, z1, y] of c.platforms) {
     await chatCommand(`/fill ${x0 + OX} ${y + OY} ${z0 + OZ} ${x1 + OX} ${y + OY} ${z1 + OZ} minecraft:stone`)
   }
+  const extra = c.extra || []
+  for (const [x, y, z] of extra) await chatCommand(`/setblock ${x + OX} ${y + OY} ${z + OZ} minecraft:stone`)
   const [sx, sy, sz] = c.spawn
   await chatCommand(`/tp ${args.username} ${sx + OX} ${sy + OY} ${sz + OZ} ${toNotchianYawDeg(c.spawn_yaw).toFixed(4)} 0`)
   await waitFor(() => {
@@ -142,12 +144,14 @@ async function runCourse (c, index) {
     return Math.abs(p.x - (sx + OX)) < 1e-6 && Math.abs(p.z - (sz + OZ)) < 1e-6 && Math.abs(p.y - (sy + OY)) < 1e-6
   }, 10000, 'teleport')
   await waitFor(() => c.platforms.every(([x0, x1, z0, z1, y]) => isSolid(x0, y, z0) && isSolid(x1, y, z1)), 10000, 'course blocks')
-  const wanted = new Set()
-  for (const [x0, x1, z0, z1, y] of c.platforms) for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) wanted.add(`${x},${y},${z}`)
-  const stale = []
-  for (const [x0, x1, z0, z1, y] of previous) for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) if (!wanted.has(`${x},${y},${z}`)) stale.push([x, y, z])
+  await waitFor(() => extra.every(([x, y, z]) => isSolid(x, y, z)), 10000, 'obstacle blocks')
+  const cells = []
+  for (const [x0, x1, z0, z1, y] of c.platforms) for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) cells.push([x, y, z])
+  cells.push(...extra)
+  const wanted = new Set(cells.map(k => k.join(',')))
+  const stale = previous.filter(k => !wanted.has(k.join(',')))
   await waitFor(() => stale.every(([x, y, z]) => !isSolid(x, y, z)), 10000, 'previous course cleared')
-  previous = c.platforms
+  previous = cells
   await sleep(500) // a few ticks to settle on the start block
   bot.entity.yaw = c.spawn_yaw
   corrections = 0

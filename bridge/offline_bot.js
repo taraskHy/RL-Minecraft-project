@@ -21,11 +21,12 @@ const out = fs.createWriteStream(args.out)
 const STONE = mcData.blocksByName.stone.id
 const AIR = mcData.blocksByName.air.id
 
-function makeWorld (platforms) {
+function makeWorld (platforms, extra) {
   const solid = new Set()
   for (const [x0, x1, z0, z1, y] of platforms) {
     for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) solid.add(`${x},${y},${z}`)
   }
+  for (const [x, y, z] of extra || []) solid.add(`${x},${y},${z}`)
   const isSolid = (x, y, z) => solid.has(`${x},${y},${z}`)
   const world = {
     getBlock (p) {
@@ -49,7 +50,7 @@ function entityAt (pos, yaw) {
 
 let ok = 0
 courses.forEach((c, index) => {
-  const { world, isSolid } = makeWorld(c.platforms)
+  const { world, isSolid } = makeWorld(c.platforms, c.extra)
   const physics = Physics(mcData, world)
   const e = entityAt(c.spawn, c.spawn_yaw)
   for (let t = 0; t < Number(args.settle); t++) physics.simulatePlayer(e, world)

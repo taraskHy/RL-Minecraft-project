@@ -31,6 +31,7 @@ from .model import ActorCritic, RunningNorm
 from .paths import RUNS
 
 TEST_SEED_FAMILY = 1  # numpy SeedSequence entropy [2026, family, ...]; training uses family 0
+OBSTACLE_TEST_FAMILY = 4  # held-out courses with obstacles
 
 
 @dataclass
@@ -71,19 +72,26 @@ class TrainConfig:
     reward: RewardConfig = field(default_factory=RewardConfig)
     init_from: str = ""
     hide: str = ""  # comma-separated observation parts the policy must not see, e.g. "platforms"
+    obstacle_prob: float = 0.0  # chance per jump of a head-hitter beam or a decoy pillar
 
 
 def course_hash(c: C.Course) -> str:
     return hashlib.sha1(c.platforms.tobytes()).hexdigest()
 
 
-def held_out_courses(levels, per_level: int, n_jumps: int) -> list[C.Course]:
+def held_out_courses(levels, per_level: int, n_jumps: int, obstacle_prob: float = 0.0,
+                     family: int = TEST_SEED_FAMILY) -> list[C.Course]:
     out = []
     for L in range(len(levels)):
-        rng = np.random.default_rng([2026, TEST_SEED_FAMILY, L])
+        rng = np.random.default_rng([2026, family, L])
         for i in range(per_level):
-            out.append(C.generate(rng, levels, L, n_jumps, seed=i))
+            out.append(C.generate(rng, levels, L, n_jumps, seed=i, obstacle_prob=obstacle_prob))
     return out
+
+
+def obstacle_courses(levels, per_level: int, n_jumps: int) -> list[C.Course]:
+    """Held-out courses where every jump has a 50% chance of an obstacle."""
+    return held_out_courses(levels, per_level, n_jumps, obstacle_prob=0.5, family=OBSTACLE_TEST_FAMILY)
 
 
 class CourseFactory:
@@ -103,7 +111,7 @@ class CourseFactory:
         while len(out) < k:
             L = len(out) % n_levels
             c = C.generate(rng, self.levels, L, int(rng.integers(self.cfg.jumps_min, self.cfg.jumps_max + 1)),
-                           turn_prob=self.cfg.turn_prob)
+                           turn_prob=self.cfg.turn_prob, obstacle_prob=self.cfg.obstacle_prob)
             if c.n >= 3 and course_hash(c) not in self.exclude:
                 out.append(c)
         return out
@@ -182,9 +190,12 @@ def train(cfg: TrainConfig) -> Path:
     n_levels = len(levels)
     tests = held_out_courses(levels, cfg.eval_per_level, cfg.eval_jumps)
     test_hashes = {course_hash(c) for c in tests}
+    obstacle_tests = obstacle_courses(levels, cfg.eval_per_level, cfg.eval_jumps) if cfg.obstacle_prob > 0 else []
+    test_hashes |= {course_hash(c) for c in obstacle_tests}
     factory = CourseFactory(cfg, levels, test_hashes)
     pool = CoursePool(factory.make(cfg.pool_size), dev, C.GRID)
     test_pool = CoursePool(tests, dev, C.GRID)
+    obstacle_pool = CoursePool(obstacle_tests, dev, C.GRID) if obstacle_tests else None
 
     if cfg.curriculum == "adaptive":
         sampler = LevelSampler(n_levels)
@@ -383,11 +394,25 @@ def train(cfg: TrainConfig) -> Path:
                             + [round(pl[L]["fell"], 4) for L in range(n_levels)])
             eval_f.flush()
             print(json.dumps({"eval_iteration": it, **ev}), flush=True)
+            score = ev["success"]
+            if obstacle_pool is not None:
+                evo = evaluate(model, obstacle_pool, dev, cfg.stall_ticks)
+                po = evo["per_level"]
+                opath = out / "eval_obstacles_log.csv"
+                new_file = not opath.exists()
+                with open(opath, "a", newline="") as fo:
+                    wo = csv.writer(fo)
+                    if new_file:
+                        wo.writerow(["iteration", "env_steps", "success"] + [f"success_L{L}" for L in range(n_levels)])
+                    wo.writerow([it, total_steps, round(evo["success"], 4)] + [round(po[L]["success"], 4) for L in range(n_levels)])
+                print(json.dumps({"eval_obstacles_iteration": it, "success": evo["success"]}), flush=True)
+                ev["obstacles"] = evo
+                score = (ev["success"] + evo["success"]) / 2
             ck = {"model": model.state_dict(), "optimizer": opt.state_dict(), "iteration": it,
                   "sampler": sampler.state_dict(), "config": cfg_dict, "eval": ev}
             _save(ck, out / "checkpoints" / "latest.pt")
-            if ev["success"] > best:
-                best = ev["success"]
+            if score > best:
+                best = score
                 _save(ck, out / "checkpoints" / "best.pt")
                 model.export(out / "policy_best.json", {"run": cfg.run, "iteration": it, "eval": ev})
             (out / "summary.json").write_text(json.dumps({"best_test_success": best, "last_eval": ev,

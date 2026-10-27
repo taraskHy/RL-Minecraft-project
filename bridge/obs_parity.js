@@ -18,6 +18,7 @@ const solids = input.courses.map(c => {
   for (const [x0, x1, z0, z1, y] of c.platforms) {
     for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) set.add(`${x},${y},${z}`)
   }
+  for (const [x, y, z] of c.extra || []) set.add(`${x},${y},${z}`)
   return set
 })
 const policy = input.policy ? Policy.load(input.policy) : null

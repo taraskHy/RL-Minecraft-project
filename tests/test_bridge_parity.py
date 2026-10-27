@@ -17,7 +17,8 @@ from parkour.paths import BRIDGE, NODE
 def record_states(n_envs=64, steps=120, seed=0):
     levels = C.load_levels()
     rng = np.random.default_rng(seed)
-    cs = [C.generate(rng, levels, i % len(levels), 8) for i in range(32)]
+    # Half the courses carry obstacles (beams and pillars), so the scan sees non-platform blocks.
+    cs = [C.generate(rng, levels, i % len(levels), 8, obstacle_prob=0.6 if i % 2 else 0.0) for i in range(32)]
     pool = CoursePool(cs, "cpu", C.GRID)
     env = ParkourEnv(pool, EnvConfig(num_envs=n_envs), LevelSampler(len(levels), fixed=[1] * len(levels)), seed=seed)
     model = ActorCritic()
@@ -59,7 +60,8 @@ class BridgeParity(unittest.TestCase):
             model.export(pol)
             inp = os.path.join(d, "in.json")
             with open(inp, "w") as f:
-                json.dump({"policy": pol, "courses": [{"platforms": c.platforms.tolist()} for c in pool.courses],
+                json.dump({"policy": pol, "courses": [{"platforms": c.platforms.tolist(), "extra": c.extra.tolist()}
+                                                       for c in pool.courses],
                            "cases": cases}, f)
             out = subprocess.run([str(NODE), str(BRIDGE / "obs_parity.js"), inp], capture_output=True, text=True,
                                  check=True, cwd=str(BRIDGE))

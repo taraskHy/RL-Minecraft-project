@@ -32,6 +32,25 @@ class Courses(unittest.TestCase):
             # Spawn stands on the centre of platform 0.
             np.testing.assert_allclose(c.spawn, c.centers()[0])
 
+    def test_obstacles_stay_clear_of_platforms_and_paths(self):
+        rng = np.random.default_rng(3)
+        n_extra = 0
+        for i in range(300):
+            c = C.generate(rng, self.levels, i % len(self.levels), 12, obstacle_prob=0.6)
+            plat = {tuple(x) for x in C.Course(c.platforms, c.spawn, c.spawn_yaw).blocks()}
+            extra = {tuple(x) for x in c.extra}
+            n_extra += len(extra)
+            self.assertFalse(plat & extra)
+            # Nothing directly on top of a platform: two blocks of standing room everywhere.
+            for x0, x1, z0, z1, y in c.platforms:
+                for x in range(x0, x1 + 1):
+                    for z in range(z0, z1 + 1):
+                        for dy in (1, 2):
+                            self.assertNotIn((x, y + dy, z), extra)
+            d = C.Course.from_json(c.to_json())
+            np.testing.assert_array_equal(d.extra, c.extra)
+        self.assertGreater(n_extra, 0)
+
     def test_seeded_generation_is_reproducible(self):
         a = C.generate(np.random.default_rng([1, 2]), self.levels, 3, 10)
         b = C.generate(np.random.default_rng([1, 2]), self.levels, 3, 10)

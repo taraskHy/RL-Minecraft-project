@@ -14,6 +14,12 @@ Each jump between consecutive platforms is described by a ``JumpSpec``:
 
 Difficulty levels group jump specs by how forgiving they are (see
 ``configs/jump_levels.json``, produced by ``parkour.feasibility``).
+
+Optional obstacles (``obstacle_prob`` > 0; off by default) add blocks that
+are not platforms: a *beam* across the gap three blocks above the takeoff
+surface, which the player's head hits at the top of a jump (a "head hitter";
+placed only on jump types that stay possible with it, see
+``configs/jump_beam.json``), and decoy *pillars* beside a landing platform.
 """
 from __future__ import annotations
 
@@ -52,6 +58,7 @@ class Course:
     seed: int = 0
     specs: list = field(default_factory=list)
     name: str = ""
+    extra: np.ndarray = field(default_factory=lambda: np.zeros((0, 3), dtype=np.int64))  # obstacle cells
 
     @property
     def n(self) -> int:
@@ -62,6 +69,8 @@ class Course:
         for x0, x1, z0, z1, y in self.platforms:
             xs, zs = np.meshgrid(np.arange(x0, x1 + 1), np.arange(z0, z1 + 1), indexing="ij")
             cells.append(np.stack((xs.ravel(), np.full(xs.size, y), zs.ravel()), -1))
+        if len(self.extra):
+            cells.append(np.asarray(self.extra, dtype=np.int64).reshape(-1, 3))
         return np.concatenate(cells).astype(np.int64)
 
     def centers(self) -> np.ndarray:
@@ -70,12 +79,14 @@ class Course:
 
     def to_json(self) -> dict:
         return {"platforms": self.platforms.tolist(), "spawn": self.spawn.tolist(), "spawn_yaw": self.spawn_yaw,
-                "level": self.level, "seed": self.seed, "specs": [s.key() for s in self.specs], "name": self.name}
+                "level": self.level, "seed": self.seed, "specs": [s.key() for s in self.specs], "name": self.name,
+                "extra": np.asarray(self.extra).reshape(-1, 3).tolist()}
 
     @classmethod
     def from_json(cls, d: dict) -> "Course":
         return cls(np.array(d["platforms"], dtype=np.int64), np.array(d["spawn"], dtype=np.float64),
-                   float(d["spawn_yaw"]), int(d.get("level", 0)), int(d.get("seed", 0)), name=d.get("name", ""))
+                   float(d["spawn_yaw"]), int(d.get("level", 0)), int(d.get("seed", 0)), name=d.get("name", ""),
+                   extra=np.array(d.get("extra", []), dtype=np.int64).reshape(-1, 3))
 
 
 def load_levels(path: Path | None = None) -> list[list[JumpSpec]]:
@@ -124,7 +135,7 @@ def _boxes_overlap(a, b) -> bool:
     return a[0] <= b[1] and b[0] <= a[1] and a[2] <= b[3] and b[2] <= a[3] and a[4] <= b[5] and b[4] <= a[5]
 
 
-def _fits(new: np.ndarray, platforms: list, grid=GRID, margin: int = 2) -> bool:
+def _fits(new: np.ndarray, platforms: list, grid=GRID, margin: int = 2, extras=()) -> bool:
     gx, gy, gz = grid
     if new[0] < margin or new[1] > gx - 1 - margin or new[2] < margin or new[3] > gz - 1 - margin:
         return False
@@ -145,12 +156,68 @@ def _fits(new: np.ndarray, platforms: list, grid=GRID, margin: int = 2) -> bool:
     # The new platform must not sit inside prev's headroom or touch it at the same height.
     if _boxes_overlap((new[0], new[1], new[4], new[4], new[2], new[3]), _box_of(prev)):
         return False
+    # Obstacles already placed stay out of the new platform's surroundings and flight path.
+    for x, y, z in extras:
+        cell = (x, x, y, y, z, z)
+        if _boxes_overlap(grown, cell) or _boxes_overlap(corridor, cell):
+            return False
     return True
+
+
+def _beam(prev: np.ndarray, new: np.ndarray, heading: int, height: int = 3) -> list:
+    """Cells of a beam across the gap, ``height`` blocks above the takeoff surface."""
+    hx, hz = HEADINGS[heading]
+    y = int(prev[4]) + 1 + height
+    if hx != 0:
+        lo, hi = (prev[1] + 1, new[0] - 1) if hx > 0 else (new[1] + 1, prev[0] - 1)
+        across = range(min(prev[2], new[2]), max(prev[3], new[3]) + 1)
+        return [(int(x), y, int(z)) for x in range(lo, hi + 1) for z in across]
+    lo, hi = (prev[3] + 1, new[2] - 1) if hz > 0 else (new[3] + 1, prev[2] - 1)
+    across = range(min(prev[0], new[0]), max(prev[1], new[1]) + 1)
+    return [(int(x), y, int(z)) for z in range(lo, hi + 1) for x in across]
+
+
+def _pillar(new: np.ndarray, heading: int, side: int) -> list:
+    """A 4-high decoy pillar two blocks to one side of a platform, level with its middle."""
+    hx, hz = HEADINGS[heading]
+    y0 = int(new[4]) - 1
+    if hx != 0:
+        z = new[3] + 2 if side * hx > 0 else new[2] - 2
+        x = (new[0] + new[1]) // 2
+    else:
+        x = new[0] - 2 if side * hz > 0 else new[1] + 2
+        z = (new[2] + new[3]) // 2
+    return [(int(x), y, int(z)) for y in range(y0, y0 + 4)]
+
+
+def _clear_of(cells: list, platforms: list, skip: tuple, grid=GRID) -> bool:
+    """Obstacle cells inside the grid and away from every platform and its headroom.
+
+    Platforms in ``skip`` (the two ends of a beam's jump) only keep their own
+    column of headroom free; all others also keep a one-block margin.
+    """
+    gx, gy, gz = grid
+    for x, y, z in cells:
+        if not (0 <= x < gx and 0 <= y < gy and 0 <= z < gz):
+            return False
+        for i, p in enumerate(platforms):
+            if i in skip:
+                box = (p[0], p[1], p[4], p[4] + HEADROOM, p[2], p[3])
+            else:
+                box = (p[0] - 1, p[1] + 1, p[4] - 1, p[4] + HEADROOM, p[2] - 1, p[3] + 1)
+            if _boxes_overlap(box, (x, x, y, y, z, z)):
+                return False
+    return True
+
+
+def load_beam_ok(path: Path | None = None) -> set:
+    path = path or CONFIGS / "jump_beam.json"
+    return {r["key"] for r in json.loads(Path(path).read_text())["specs"] if r["beam_ok"]}
 
 
 def generate(rng: np.random.Generator, levels: list[list[JumpSpec]], level: int, n_jumps: int,
              grid=GRID, turn_prob: float = 0.25, start_size: int | None = None, seed: int = 0,
-             yaw_noise: float = math.radians(60)) -> Course:
+             yaw_noise: float = math.radians(60), obstacle_prob: float = 0.0, beam_ok: set | None = None) -> Course:
     """One random course whose jumps come from ``levels[:level + 1]``.
 
     Half of the jumps come from ``level`` itself and half from easier levels,
@@ -176,6 +243,9 @@ def generate(rng: np.random.Generator, levels: list[list[JumpSpec]], level: int,
         z0 = int(rng.integers(8, gz - 8 - s))
     platforms = [np.array([x0, x0 + s - 1, z0, z0 + s - 1, y0], dtype=np.int64)]
     specs = []
+    extras: list = []
+    if obstacle_prob > 0 and beam_ok is None:
+        beam_ok = load_beam_ok()
     for _ in range(n_jumps):
         placed = False
         for attempt in range(30):
@@ -185,16 +255,28 @@ def generate(rng: np.random.Generator, levels: list[list[JumpSpec]], level: int,
             if rng.random() < turn_prob or attempt >= 15:
                 h = (heading + int(rng.choice([1, 3]))) % 4
             new = _platform_after(platforms[-1], h, spec)
-            if _fits(new, platforms, grid):
+            if _fits(new, platforms, grid, extras=extras):
                 platforms.append(new)
                 specs.append(spec)
+                # Obstacles draw random numbers only when enabled, so default courses are unchanged.
+                if obstacle_prob > 0 and rng.random() < obstacle_prob:
+                    k = len(platforms) - 1
+                    if rng.random() < 0.6 and spec.gap >= 1 and spec.key() in beam_ok:
+                        cells = _beam(platforms[-2], new, h)
+                        skip = (k - 1, k)
+                    else:
+                        cells = _pillar(new, h, int(rng.choice([-1, 1])))
+                        skip = ()
+                    if _clear_of(cells, platforms, skip, grid):
+                        extras.extend(cells)
                 heading = h
                 placed = True
                 break
         if not placed:
             break
     plats = np.stack(platforms)
-    c = Course(plats, np.zeros(3), 0.0, level=level, seed=seed, specs=specs)
+    c = Course(plats, np.zeros(3), 0.0, level=level, seed=seed, specs=specs,
+               extra=np.array(extras, dtype=np.int64).reshape(-1, 3))
     centres = c.centers()
     c.spawn = centres[0].copy()
     d = centres[1] - centres[0]

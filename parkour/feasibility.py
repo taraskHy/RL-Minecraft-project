@@ -12,6 +12,10 @@ conservative test: a spec that passes is possible without any run-up.
 
 Run: python -m parkour.feasibility  (writes configs/jump_feasibility.json and
 configs/jump_levels.json)
+     python -m parkour.feasibility --beam  (writes configs/jump_beam.json: the
+     same study with a head-hitter beam across the gap, 3 blocks above the
+     takeoff surface; a jump type may carry a beam in obstacle courses only if
+     its forgiveness with the beam stays within its own level)
 """
 from __future__ import annotations
 
@@ -25,7 +29,7 @@ import numpy as np
 import torch
 
 from . import physics
-from .courses import JumpSpec, single_jump
+from .courses import JumpSpec, _beam, single_jump
 from .env import CoursePool, standing_on
 from .paths import CONFIGS
 
@@ -53,8 +57,11 @@ def candidate_specs():
         yield JumpSpec(gap, dy, lat, size)
 
 
-def _evaluate_chunk(specs, device):
+def _evaluate_chunk(specs, device, beam=False):
     courses = [single_jump(s) for s in specs]
+    if beam:
+        for c in courses:
+            c.extra = np.array(_beam(c.platforms[0], c.platforms[1], 0), dtype=np.int64).reshape(-1, 3)
     pool = CoursePool(courses, device, grid=(24, 16, 24))
     strategies = list(itertools.product(START_BACK, AIM_LATERAL, AIM_ALONG, JUMP_TICKS, SPRINT, RELEASE_AFTER))
     ns, nk = len(specs), len(strategies)
@@ -97,10 +104,10 @@ def _evaluate_chunk(specs, device):
     return landed.view(ns, nk).float().mean(dim=1).cpu().numpy()
 
 
-def evaluate(specs, device="cuda"):
+def evaluate(specs, device="cuda", beam=False):
     out = []
     for i in range(0, len(specs), CHUNK):
-        out.append(_evaluate_chunk(specs[i:i + CHUNK], device))
+        out.append(_evaluate_chunk(specs[i:i + CHUNK], device, beam))
     return np.concatenate(out)
 
 
@@ -116,7 +123,10 @@ def assign_level(forgiveness: float) -> int | None:
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    ap.add_argument("--beam", action="store_true", help="study jumps under a head-hitter beam")
     args = ap.parse_args(argv)
+    if args.beam:
+        return beam_study(args.device)
     specs = list(candidate_specs())
     t0 = time.time()
     frac = evaluate(specs, args.device)
@@ -145,6 +155,28 @@ def main(argv=None):
     for L in levels:
         print(f"level {L['level']}: {len(L['specs'])} specs")
     return out
+
+
+
+def beam_study(device):
+    feas = json.loads((CONFIGS / "jump_feasibility.json").read_text())["specs"]
+    rows = [r for r in feas if r["level"] is not None and r["gap"] >= 1]
+    specs = [JumpSpec(r["gap"], r["dy"], r["lateral"], tuple(r["size"])) for r in rows]
+    t0 = time.time()
+    frac = evaluate(specs, device, beam=True)
+    out = []
+    for r, sp, f in zip(rows, specs, frac):
+        ok = bool(f > 0 and f >= LEVEL_EDGES[r["level"]])
+        for lat in ({r["lateral"], -r["lateral"]}):
+            key = JumpSpec(sp.gap, sp.dy, lat, sp.size).key()
+            out.append({"key": key, "level": r["level"], "forgiveness": r["forgiveness"],
+                        "forgiveness_beam": round(float(f), 5), "beam_ok": ok})
+    data = {"method": "as jump_feasibility.json, with a beam across the gap 3 blocks above the takeoff surface",
+            "beam_height": 3, "seconds": round(time.time() - t0, 1), "specs": out}
+    (CONFIGS / "jump_beam.json").write_text(json.dumps(data, indent=1))
+    n_ok = sum(o["beam_ok"] for o in out)
+    print(f"{len(out)} jump types with a gap, {n_ok} keep their level under a beam ({data['seconds']} s)")
+    return data
 
 
 if __name__ == "__main__":
