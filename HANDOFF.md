@@ -93,10 +93,12 @@ Concrete work, most important first. Nothing here needs new research.
    `results/README.md` is generated, so after the merge run `run.cmd report`
    instead of resolving it by hand (it also rewrites this file's snapshot);
    for `HANDOFF.md` keep both sides' hand-written text and add both session
-   log entries; then `run.cmd test` and push. Nothing on the branch changes
-   training, the physics, the bot or a default setting; the only behaviour
-   changes are the GPU watchdog also pausing `parkour.neo_dagger` and
-   `run.cmd report` also refreshing this file's snapshot.
+   log entries; then `run.cmd test` and push. The branch adds opt-in
+   features to the physics, courses, training, planner and both bots (ice,
+   planner options), all off by default and covered by tests (42 pass);
+   the only default behaviour changes are the GPU watchdog also pausing
+   `parkour.neo_dagger` and `run.cmd report` also refreshing this file's
+   snapshot and writing the new tables in `results/README.md`.
 2. **Confirm the retuned planner in real Minecraft** (PC; section 4,
    item 4): `run.cmd live --checkpoint results\final_policy.pt --planner
    --planner-config "{\"cost\": \"distance\", \"align\": 2.0}"
@@ -375,18 +377,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `f405271` (2026-10-28 14:45, branch `claude/pensive-knuth-biwj11`): Ice preview: the final policy, blind to ice, completes 95.6% of icy test courses
+Generated on top of commit `40df460` (2026-10-28 14:49, branch `claude/pensive-knuth-biwj11`): Ice courses, opt-in end to end: generation, pool, training flag, both bots
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 6 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 7 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `6228744` 2026-10-28 14:37 | 2 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 22 |
-| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 5 |
-| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 7 |
-| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 4 |
-| `results/DATA.md` | `f405271` 2026-10-28 14:45 | 0 |
+| `TEAM_STATUS.md` | `6228744` 2026-10-28 14:37 | 3 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 23 |
+| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 6 |
+| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 8 |
+| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 5 |
+| `results/DATA.md` | `f405271` 2026-10-28 14:45 | 1 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -567,7 +569,10 @@ Newest first. One entry per session; earlier history is in the
     pausing after landings hurts (`results/level5_pause_test.jsonl`); the
     neo policy's weakest neo types (section 4, item 1).
   - Code: opt-in ice physics with parity 7.1e-15 blocks
-    (`results/physics_parity_ice.json`); `results/README.md` gains the
+    (`results/physics_parity_ice.json`), and ice courses end to end
+    (generation, pool, `--ice-prob`, both bots; `tests/test_ice.py`); the
+    final policy, blind to ice, completes 95.6% of all-ice test courses
+    (`results/ice_preview.json`); `results/README.md` gains the
     retuned planner and one-policy tables (generator checked to reproduce
     the old page exactly); GPU watchdog also pauses `parkour.neo_dagger`.
   - Decisions: no Minecraft server here (the EULA is the user's to accept
