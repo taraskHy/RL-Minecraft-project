@@ -52,12 +52,15 @@ once with the chosen setting. Each run appends one JSON line to ``--out``
 from __future__ import annotations
 
 import argparse
+from contextlib import nullcontext
 import hashlib
 import json
 import math
+import os
 import re
 import sys
 import time
+from parkour.run_cache import append_jsonl_once, cache_lock, write_json_atomic
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -719,7 +722,7 @@ def merge_results(parts: list[dict]) -> dict:
 
 def part_bounds(n: int, k: int, parts: int) -> tuple[int, int]:
     """Courses [lo, hi) of part k (1-based) of ``parts`` contiguous parts of n courses."""
-    if not 1 <= k <= parts:
+    if not 1 <= k <= parts <= n:
         raise ValueError(f"part {k} of {parts}")
     return round((k - 1) * n / parts), round(k * n / parts)
 
@@ -783,26 +786,59 @@ def _part_command(a, k: int, n: int) -> list[str]:
     return cmd
 
 
-def _run_parts(a) -> list[dict]:
+def _cached_part(path, meta, bounds):
+    part = json.loads(path.read_text())
+    if (part.get('meta') != meta or part.get('courses') != list(bounds)
+            or len(part.get('per_course', [])) != bounds[1] - bounds[0]):
+        raise SystemExit(f'{path} was computed with other settings or courses; preserve it and use a new name')
+    return part
+
+
+def _run_parts(a, meta, count) -> list[dict]:
     """Run the parts of a split run that are not finished yet (at most --jobs at once); return all parts."""
     import subprocess
     folder = PARTS_DIR / a.name
     files = [folder / f"{k}of{a.parts}.json" for k in range(1, a.parts + 1)]
+    for k, f in enumerate(files, 1):
+        if f.exists():
+            _cached_part(f, meta, part_bounds(count, k, a.parts))
     todo = [k for k, f in enumerate(files, 1) if not f.exists()]
     running = []
-    while todo or running:
-        while todo and len(running) < max(1, a.jobs):
-            k = todo.pop(0)
-            log = open(folder / f"{k}of{a.parts}.log", "a")
-            running.append((k, subprocess.Popen(_part_command(a, k, a.parts), cwd=str(ROOT), stdout=log,
-                                                stderr=subprocess.STDOUT), log))
-        time.sleep(5)
-        for item in [r for r in running if r[1].poll() is not None]:
-            running.remove(item)
-            item[2].close()
-            if item[1].returncode != 0:
-                raise SystemExit(f"part {item[0]} of {a.parts} failed (see {folder / f'{item[0]}of{a.parts}.log'})")
-    return [json.loads(f.read_text()) for f in files]
+    try:
+        while todo or running:
+            while todo and len(running) < a.jobs:
+                k = todo.pop(0)
+                log = open(folder / f"{k}of{a.parts}.log", "a")
+                try:
+                    proc = subprocess.Popen(_part_command(a, k, a.parts), cwd=str(ROOT), stdout=log,
+                                            stderr=subprocess.STDOUT,
+                                            creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
+                except BaseException:
+                    log.close()
+                    raise
+                running.append((k, proc, log))
+            time.sleep(5)
+            for item in [r for r in running if r[1].poll() is not None]:
+                running.remove(item)
+                item[2].close()
+                if item[1].returncode != 0:
+                    raise SystemExit(f"part {item[0]} of {a.parts} failed (see {folder / f'{item[0]}of{a.parts}.log'})")
+    finally:
+        for _, proc, log in running:
+            if proc.poll() is None:
+                if os.name == 'nt':
+                    # Windows venv python.exe is a launcher; stop its child too.
+                    subprocess.run(['taskkill', '/PID', str(proc.pid), '/T', '/F'],
+                                   capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
+                else:
+                    proc.terminate()
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+            log.close()
+    return [_cached_part(f, meta, part_bounds(count, k, a.parts)) for k, f in enumerate(files, 1)]
 
 
 def main(argv=None):
@@ -848,6 +884,27 @@ def main(argv=None):
         raise SystemExit("--part and --parts need --name")
     if (a.part or a.parts) and cfg.batch != 1:
         raise SystemExit("a run in parts needs batch 1 (batched searches are seeded by tick, not by course)")
+    if a.parts < 0 or a.jobs < 1 or a.courses < 0 or (a.part and a.parts):
+        raise SystemExit('Use nonnegative --parts/--courses, positive --jobs, and only one of --part/--parts')
+    if a.part:
+        try:
+            k, n = (int(v) for v in a.part.split('/'))
+        except ValueError as exc:
+            raise SystemExit('--part must be K/N') from exc
+        a.part = f'{k}/{n}'  # Equivalent spellings must own the same lock.
+    folder = PARTS_DIR / a.name
+    lock_name = 'manager.lock' if a.parts else 'part-' + a.part.replace('/', 'of') + '.lock'
+    lock = cache_lock(folder / lock_name) if (a.part or a.parts) else nullcontext()
+    with lock:
+        _evaluate_cli(a, cfg, dev)
+
+
+def _evaluate_cli(a, cfg, dev):
+    courses = course_set(a.set, a.family)
+    if a.courses:
+        courses = courses[:a.courses]
+    if a.parts:
+        part_bounds(len(courses), 1, a.parts)
     test = a.family in TEST_FAMILIES
     ck = Path(a.checkpoint).resolve()
     ck_name = ck.relative_to(ROOT).as_posix() if ck.is_relative_to(ROOT) else ck.name
@@ -857,39 +914,43 @@ def main(argv=None):
             "measured": f"simulator (float64 port of prismarine-physics), {dev.upper() if dev == 'cpu' else 'CUDA'}"}
     if a.courses:
         meta["first_courses_only"] = a.courses
+    if a.part or a.parts:
+        meta['courses_sha256'] = hashlib.sha256(json.dumps([c.to_json() for c in courses], sort_keys=True).encode()).hexdigest()
     if a.parts:
         folder = PARTS_DIR / a.name
         folder.mkdir(parents=True, exist_ok=True)
         merged = folder / "merged.json"
-        if merged.exists():  # the row was written already: never twice
-            print(merged.read_text())
-            return
-        parts = _run_parts(a)
+        if merged.exists():  # Validate before republishing cached results to any requested destination.
+            previous = json.loads(merged.read_text())
+            if any(previous.get(k) != v for k, v in meta.items()) or previous.get('parts') != a.parts:
+                raise SystemExit(f'{merged} was computed with other settings; preserve it and use a new name')
+            if not all((folder / f'{k}of{a.parts}.json').exists() for k in range(1, a.parts + 1)):
+                raise SystemExit(f'{merged} exists but cached parts are missing; refusing to repeat evaluations')
+        parts = _run_parts(a, meta, len(courses))
         if any(p["meta"] != meta for p in parts):
             raise SystemExit(f"the parts in {folder} were run with other settings than these")
         res = merge_results(parts)
-        row = {**meta, **summarize(res), "parts": a.parts, "seconds": round(sum(p["seconds"] for p in parts), 1)}
+        row = {**meta, **summarize(res), "parts": a.parts, "seconds": round(sum(p["seconds"] for p in parts), 1),
+               'run_id': 'assist_parts/' + a.name}
     else:
-        courses = course_set(a.set, a.family)
-        if a.courses:
-            courses = courses[:a.courses]
         lo, hi = 0, len(courses)
         if a.part:
             k, n = (int(v) for v in a.part.split("/"))
             lo, hi = part_bounds(len(courses), k, n)
             part_file = PARTS_DIR / a.name / f"{k}of{n}.json"
             if part_file.exists():
+                _cached_part(part_file, meta, (lo, hi))
                 print(f"{part_file} exists")
                 return
         model = load_model(Path(a.checkpoint), dev)
+        if hashlib.sha1(ck.read_bytes()).hexdigest()[:12] != meta['checkpoint_sha1']:
+            raise SystemExit('Checkpoint changed while loading; use an immutable checkpoint copy')
         pool = CoursePool(courses[lo:hi], dev, C.GRID)
         t0 = time.time()
         res = evaluate_assisted(model, pool, dev, cfg, log=lambda d: print(json.dumps(d), flush=True), course_offset=lo)
         if a.part:
             part_file.parent.mkdir(parents=True, exist_ok=True)
-            tmp = part_file.with_suffix(".tmp")
-            tmp.write_text(json.dumps({"meta": meta, "courses": [lo, hi], **res, "seconds": round(time.time() - t0, 1)}))
-            tmp.replace(part_file)  # whole or not at all, even if the run is stopped while writing
+            write_json_atomic(part_file, {"meta": meta, "courses": [lo, hi], **res, "seconds": round(time.time() - t0, 1)})
             return
         row = {**meta, **summarize(res), "seconds": round(time.time() - t0, 1)}
     out = Path(a.out) if a.out else ROOT / "results" / "neo" / ("assist_test.jsonl" if test else "assist_validation.jsonl")
@@ -898,11 +959,13 @@ def main(argv=None):
                                                  if a.parts else None)
     if details:
         details.parent.mkdir(parents=True, exist_ok=True)
-        details.write_text(json.dumps({"row": row, "per_course": res["per_course"], "events": res["events"]}))
-    with open(out, "a") as fh:
-        fh.write(json.dumps(row) + "\n")
+        write_json_atomic(details, {"row": row, "per_course": res["per_course"], "events": res["events"]})
     if a.parts:
-        merged.write_text(json.dumps(row, indent=1))
+        append_jsonl_once(out, row)
+        write_json_atomic(merged, row)
+    else:
+        with open(out, "a") as fh:
+            fh.write(json.dumps(row) + "\n")
     print(json.dumps(row, indent=1))
 
 
