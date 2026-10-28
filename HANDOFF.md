@@ -102,11 +102,19 @@ More facts that hold now:
     head-hitter / ice kinds alone, and completes 25.5% / 1.5% / 7.0% of
     whole held-out courses of those levels; with the planner on every run-up
     jump, 31/40, 38/40, 32/40 (`results/extra/`).
-  - *Block shapes in the physics*: `physics.World(shape=...)` collides with
-    the real boxes of slabs, stairs, soul sand, trapdoors, carpets, fence and
-    wall posts and more (`configs/block_shapes.json`, from prismarine-block);
-    parity with prismarine-physics 1.4e-14 blocks over 60,000 ticks
-    (`results/physics_parity_shapes.json`). Courses do not use shapes yet.
+  - *New blocks* (physics, opt-in, each exact against prismarine-physics
+    over 60,000 ticks of random block fields, `results/physics_parity_*.json`):
+    block shapes (`physics.World(shape=...)`: slabs, stairs, soul sand,
+    dirt path, trapdoors, carpets, fence and wall posts, end rods, ladders;
+    boxes from prismarine-block in `configs/block_shapes.json`), slime
+    bounces (`World(slime=...)`), ladders and vines (`World(climb=...)`).
+    In courses, as composite jump kinds that end on stone (shaped targets
+    with an exit jump, slime pads with an exit above them, ladder climbs
+    onto a wall): `JumpSpec.block`, `.bounce`, `.ladder`; the pool, the
+    observation and its JavaScript mirror use the shapes' real tops and
+    footprints, both bots build the real blocks, and the offline bot plays
+    shaped, slime and ladder courses exactly like the simulator (tests).
+    The route planner refuses shaped courses for now.
 - What is running on the PC right now cannot be known from outside it: the
   last commits record finished results only. Check the processes there.
 
@@ -446,18 +454,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `2805259` (2026-10-28 17:25, branch `claude/pensive-knuth-biwj11`): Block shapes in the physics port (opt-in), exact against prismarine-physics
+Generated on top of commit `e9a19c6` (2026-10-28 18:12, branch `claude/pensive-knuth-biwj11`): Ladder climbs in courses and both bots; study kinds can be reused
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 15 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 20 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `af25aeb` 2026-10-28 14:50 | 6 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 31 |
-| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 14 |
-| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 16 |
-| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 13 |
-| `results/DATA.md` | updated together with this snapshot | 0 |
+| `TEAM_STATUS.md` | `af25aeb` 2026-10-28 14:50 | 11 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 36 |
+| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 19 |
+| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 21 |
+| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 18 |
+| `results/DATA.md` | `558979f` 2026-10-28 18:06 | 1 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
