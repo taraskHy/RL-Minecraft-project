@@ -515,18 +515,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `8420095` (2026-10-28 22:37, branch `main`): Keep training queue alive through file locks and merge assist approach fix
+Generated on top of commit `8ef38db` (2026-10-28 22:41, branch `main`): Merge ability-plan status and refresh training handoff
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 54 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 56 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 12 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 29 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 12 |
-| `results/README.md` | `37ede6e` 2026-10-28 20:16 | 8 |
-| `results/DATA.md` | `408de3d` 2026-10-28 22:10 | 12 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 14 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 31 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 14 |
+| `results/README.md` | `37ede6e` 2026-10-28 20:16 | 10 |
+| `results/DATA.md` | `408de3d` 2026-10-28 22:10 | 14 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -551,7 +551,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `final-v2` | 499 | 0.26 | 499 | 89.6 | 88.5 | 88.5 | 88.1 |
 | `full-s1` | 999 | 0.52 | - | - | - | 94.2 | - |
 | `full-s2` | 999 | 0.52 | 949 | 93.0 | 93.1 | 91.9 | - |
-| `g995-adv` | 149 | 0.08 | 99 | 81.8 | - | - | - |
+| `g995-adv` | 199 | 0.10 | 99 | 81.8 | - | - | - |
 | `g995-ice` | 199 | 0.10 | 99 | 96.8 | - | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
@@ -684,6 +684,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **28 Oct 2026, 22:49, Codex heartbeat on training PC:** archived new simulator validation progress (families 2/5): g995-adv: iteration 199, validation 78.50%, selected best iteration 99; g995-ice: iteration 199, validation 96.67%, selected best iteration 99. Advanced covers nine levels and ice six, so overall scores are not directly comparable. Verified each summary against its validation CSV and the selected validation maximum; test logs remain header-only and no completion/test result exists. Report and handoff refreshed. Exactly two trainers and the existing queue, thermal/duty watchdog and keep-awake helper remain healthy. No executable changes; prior tests remain applicable.
 
 - **28 Oct 2026, 22:41, Codex heartbeat on training PC:** merged documentation-only cloud commit `45e5e09`; its four validation counts match the archived CPU simulator evidence. Updated the abilities-plan queue row to the actual PC queue and corrected stale neo-export wording. No executable code changed since the 91-passing full CPU suite; focused `run.cmd test -k HeldOutFingerprints` passed 2 checks and 12 subtests (`runs/heartbeat-plan-docs-tests.txt`). Archived ice iteration 199 validation 96.67% (simulator, families 2/5); its best remains iteration 99, with no test evaluation. Exactly two trainers, one repaired queue, one watchdog and one keep-awake helper remain active.
 
