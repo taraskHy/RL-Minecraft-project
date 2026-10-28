@@ -102,7 +102,8 @@ More facts that hold now:
     (`--retries 1 --brake 14 --retry-horizon 48`): 147 of 218, 246 of 311
     neos (`official2_all_brake.json`; 17 of 93 second searches found a
     landing). Random neo courses (family 13): the policy alone 27 of 200,
-    planning every jump 106 (`random13_all.json`). Both bots
+    planning every jump 106 (`random13_all.json`), with brake and retry 119,
+    320 of 396 neos (`random13_all_brake.json`). Both bots
     have it (`parkour.live --assist '{"jumps": "advanced"}'`: the bot pauses
     on the takeoff, a Python planner service searches, prismarine-physics
     checks the plan, the bot plays it); the offline bot matches the

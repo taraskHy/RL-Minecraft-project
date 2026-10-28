@@ -157,8 +157,9 @@ its CPU; the training for them is queued for the PC
   policy made it worse (111). Planning every jump, and stopping on the
   takeoff to search again when a search finds nothing: 147 (67%), 246 of
   311 neos. On random courses of ordinary jumps where half the jumps are
-  neos, planning every jump completes 106 of 200 (the policy alone 27).
-  A plan over the two jumps before each neo is being measured; then the
+  neos, planning every jump completes 106 of 200 (the policy alone 27),
+  with the stop-and-search-again 119. A plan over the two jumps before each
+  neo is being measured; then the
   test courses, once. The offline bot (prismarine-physics, the live bot's
   engine) reproduces the simulator exactly with this planner; the live bot
   has it too (it stands still on the takeoff while the planner thinks), not
