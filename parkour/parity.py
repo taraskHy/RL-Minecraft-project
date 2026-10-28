@@ -35,7 +35,7 @@ class ParityCase:
 
 
 def random_case(rng: np.random.Generator, ticks: int = 120, size: int = 14, ice: float = 0.0,
-                shapes: float = 0.0, slime: float = 0.0, climb: float = 0.0) -> ParityCase:
+                shapes: float = 0.0, slime: float = 0.0, climb: float = 0.0, floor_shapes: float = 0.0) -> ParityCase:
     """A random block field with a player on top of a block and sticky random inputs; with ``ice``
     > 0, that share of the raised blocks (and always the start block) is ice; with ``shapes`` > 0,
     that share of the other raised blocks has a random collision shape of physics.shape_table()."""
@@ -93,6 +93,16 @@ def random_case(rng: np.random.Generator, ticks: int = 120, size: int = 14, ice:
             set() if shaped is None else {tuple(int(v) for v in b[:3]) for b in shaped})
         bouncy = np.array([b for b in raised if b in blocks and b not in taken and (b == start or rng.random() < slime)],
                           dtype=np.int64).reshape(-1, 3)
+    if floor_shapes > 0:  # drawn after that: shapes on the safety floor under the field, where players end up
+        names, boxes, counts = physics.shape_table()
+        # Only shapes with a box over the whole cell: posts and bars would open holes into the void.
+        full = [i for i in range(1, len(names)) if not names[i].startswith("ladder") and any(
+            b[0] == 0 and b[2] == 0 and b[3] == 1 and b[5] == 1 for b in boxes[i, :int(counts[i])].tolist())]
+        have = set() if shaped is None else {tuple(int(v) for v in b[:3]) for b in shaped}
+        extra = [(x, 1, z, full[int(rng.integers(len(full)))]) for x in range(o - 4, o + size + 4)
+                 for z in range(o - 4, o + size + 4) if (x, 1, z) not in have and rng.random() < floor_shapes]
+        shaped = np.concatenate([np.zeros((0, 4), dtype=np.int64) if shaped is None else shaped,
+                                 np.array(extra, dtype=np.int64).reshape(-1, 4)])
     ladders = vines = None
     if climb > 0:  # drawn after that: ladders on the sides of raised blocks, vines in the air beside them
         taken = {tuple(int(v) for v in b[:3]) for arr in (cells, shaped, bouncy) if arr is not None for b in arr}

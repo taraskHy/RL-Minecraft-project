@@ -10,9 +10,9 @@ from parkour.paths import NODE
 
 @unittest.skipUnless(NODE.exists(), "portable Node runtime not installed (run setup.cmd)")
 class PhysicsParity(unittest.TestCase):
-    def check(self, device, n, ticks, seed, ice=0.0, shapes=0.0, slime=0.0, climb=0.0):
+    def check(self, device, n, ticks, seed, **blocks):
         rng = np.random.default_rng(seed)
-        cases = [parity.random_case(rng, ticks=ticks, ice=ice, shapes=shapes, slime=slime, climb=climb) for _ in range(n)]
+        cases = [parity.random_case(rng, ticks=ticks, **blocks) for _ in range(n)]
         r = parity.compare(cases, device)
         self.assertEqual(r["flag_mismatch_ticks"], 0, r)
         self.assertLess(r["max_pos_err"], 1e-9, r)
@@ -28,7 +28,7 @@ class PhysicsParity(unittest.TestCase):
 
     def test_shapes_cpu(self):
         # Slabs, stairs, posts, carpets, ... (the optional shape grid), against the real block states.
-        self.check("cpu", 40, 120, 5, shapes=0.5)
+        self.check("cpu", 40, 120, 5, shapes=0.5, floor_shapes=0.5)
 
     def test_slime_cpu(self):
         # Slime blocks bounce (the optional slime grid) and have slipperiness 0.8.

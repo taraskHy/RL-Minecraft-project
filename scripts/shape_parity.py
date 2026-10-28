@@ -5,13 +5,16 @@
     python scripts/shape_parity.py --climb      (results/physics_parity_climb.json: ladders and vines)
 
 Random block fields (parity.random_case) where half the raised blocks other
-than the start block get a random shape of configs/block_shapes.json (slabs,
-stairs, soul sand, carpets, trapdoors, fence and wall posts, ...): the
+than the start block, and half the safety floor under the field (where the
+player ends up after a fall), get a random shape of configs/block_shapes.json
+(slabs, stairs, soul sand, carpets, trapdoors, fence and wall posts, ...; not
+the ladders, which climb: --climb): the
 simulator with World(shape=...) against prismarine-physics 1.11.1 through
 Node, whose blocks are the real block states (prismarine-block, Minecraft
 1.21.4), same 1e-7 collision tolerance. Also: how many trajectories the
 shapes change (the same cases with full cubes), and that a shape grid of only
-full cubes gives exactly the trajectories of the original code path. With
+full cubes gives exactly the trajectories of the original code path, and for
+every shape how many trajectories change when only it becomes a full cube. With
 --slime: half the other raised blocks and the start block are slime blocks
 (bounce and slipperiness 0.8, World(slime=..., slip=...)) instead.
 """
@@ -42,11 +45,22 @@ def main():
     if a.climb:
         return climb(a)
     rng = np.random.default_rng(a.seed)
-    cases = [parity.random_case(rng, ticks=a.ticks, shapes=0.5) for _ in range(a.cases)]
+    cases = [parity.random_case(rng, ticks=a.ticks, shapes=0.5, floor_shapes=0.5) for _ in range(a.cases)]
     r = parity.compare(cases)
     r.pop("first_bad")
     shaped = parity.run_torch(cases)
     n_shaped = [len(c.shapes) for c in cases]
+    names = physics.shape_table()[0]
+    drawn = [i for i, n in enumerate(names) if i and not n.startswith("ladder")]
+    per_shape = {}
+    for sid in drawn:  # that shape alone back to full cubes
+        keep = [c.shapes for c in cases]
+        for c in cases:
+            c.shapes = c.shapes[c.shapes[:, 3] != sid]
+        alone = parity.run_torch(cases)
+        for c, k in zip(cases, keep):
+            c.shapes = k
+        per_shape[names[sid]] = int((np.abs(alone["pos"] - shaped["pos"]).max(axis=(1, 2)) > 0).sum())
     for c in cases:
         c.shapes = None
     cubes = parity.run_torch(cases)
@@ -63,15 +77,15 @@ def main():
         zero = parity.run_torch(cases)
     finally:
         parity.physics.World = world_cls
-    names = physics.shape_table()[0]
-    out = {"method": "parkour.parity.compare with shapes: random_case(np.random.default_rng(%d), ticks=%d, shapes=0.5) x %d, "
+    out = {"method": "parkour.parity.compare with shapes: random_case(np.random.default_rng(%d), ticks=%d, shapes=0.5, floor_shapes=0.5) x %d, "
                      "the simulator with World(shape=...) against prismarine-physics 1.11.1 through Node with the real "
                      "block states (configs/block_shapes.json, prismarine-block, Minecraft 1.21.4), same 1e-7 collision "
                      "tolerance, CPU" % (a.seed, a.ticks, a.cases),
-           "shapes": list(names[1:]), "shaped_cells_per_case": round(float(np.mean(n_shaped)), 1),
+           "shapes": [names[i] for i in drawn], "shaped_cells_per_case": round(float(np.mean(n_shaped)), 1),
            "result": r,
            "effect_of_shapes": {"cases_changed": int((change > 0).sum()), "cases": a.cases,
-                                "largest_position_change_blocks": round(float(change.max()), 3)},
+                                "largest_position_change_blocks": round(float(change.max()), 3),
+                                "cases_changed_by_each_shape": per_shape},
            "full_cube_shape_grid_identical": all(np.array_equal(zero[k], cubes[k]) for k in cubes)}
     path = ROOT / "results" / "physics_parity_shapes.json"
     path.write_text(json.dumps(out, indent=1))
