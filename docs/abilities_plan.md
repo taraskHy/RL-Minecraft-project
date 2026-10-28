@@ -66,3 +66,16 @@ file in `results/` and says where it was measured.
   blocks: an exit jump; slime: an exit platform above the pad; ladders: the
   target on top of the wall), so the other jumps of a course keep the
   difficulty the feasibility study measured.
+- **Planning the new kinds** (`--jumps all` plans every jump). A slime jump
+  is planned from its takeoff to the exit after the pad in one plan
+  (`neo_assist.plan_target`): how high the bounce goes depends on how the
+  pad is hit, so a plan that only lands on the pad can leave the exit out of
+  reach. Plans get at least 80 ticks for slime jumps and 64 for ladder
+  climbs (`plan_horizon`; climbing 5 blocks takes about 43 ticks from a
+  standstill, and a 32-tick search found no plan). The bots' check of a plan
+  (`bridge/assist.js verifyPlan`) uses the shapes' tops and standing areas,
+  like `CoursePool.top` / `.foot`.
+- **Course files of hand-designed courses** (`courses.from_specs`) list only
+  their steps, not one spec per jump as generated courses do (no runway
+  steps, no exits); `neo_assist.specs_from_keys` puts those back, so the
+  assist plans the same jumps on both.
