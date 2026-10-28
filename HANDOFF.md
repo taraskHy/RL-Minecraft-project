@@ -92,8 +92,12 @@ More facts that hold now:
     Planning the wide and momentum jumps too (`--jumps advanced`): 119 of
     218, 214 of 286 neos passed. These rows (tagged `code 587c9b1`) ran an
     earlier default that searched up to 32 states at once (batch 32: same
-    method, other random draws); the current default, batch 1, is what the
-    bots reproduce, and the chosen setting is re-measured with it. Both bots
+    method, other random draws); re-measured with batch 1, which the bots
+    reproduce: 124 of 218, 221 of 289 neos passed, all 900 plans landed as
+    searched (`results/neo/assist_details/official2_advanced.json`: the 94
+    failed courses stop at 68 neos whose search found no landing, 22
+    ordinary jumps the policy missed and 4 momentum jumps). A search prior
+    from the policy (0.5) made it worse: 111 of 218. Both bots
     have it (`parkour.live --assist '{"jumps": "advanced"}'`: the bot pauses
     on the takeoff, a Python planner service searches, prismarine-physics
     checks the plan, the bot plays it); the offline bot matches the
@@ -493,18 +497,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `322310c` (2026-10-28 19:16, branch `claude/pensive-knuth-biwj11`): neo_pipeline: note that smoke runs land in runs/ and must not be archived
+Generated on top of commit `c4c2931` (2026-10-28 19:56, branch `claude/pensive-knuth-biwj11`): Fixes from the review: course files keep their jump specs for the planner service; per-jump retry stall check; pipeline never reuses a run
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 36 |
-| `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `7ed4c1b` 2026-10-28 18:20 | 13 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 52 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 11 |
-| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 37 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 43 |
+| `HANDOFF.md` | `c6a3f6b` 2026-10-28 19:24 | 2 |
+| `TEAM_STATUS.md` | `7ed4c1b` 2026-10-28 18:20 | 20 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 59 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 18 |
+| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 44 |
 | `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | `e2381cc` 2026-10-28 18:29 | 9 |
+| `results/DATA.md` | `21188a6` 2026-10-28 19:19 | 5 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 

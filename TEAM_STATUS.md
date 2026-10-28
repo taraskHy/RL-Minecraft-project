@@ -150,9 +150,12 @@ its CPU; the training for them is queued for the PC
   takeoff (or a wide or run-up jump's), a search with the exact game physics
   finds an action sequence from its exact state, and the bot plays it.
   On the 218 validation neo courses: the final policy alone completes 0;
-  with planning at neos 49; planning every advanced jump 119 (55%), passing
-  214 of the 286 neos it reaches. Every one of the 869 plans played landed
-  exactly as searched. The offline bot (prismarine-physics, the live bot's
+  with planning at neos 49; planning every advanced jump 124 (57%), passing
+  221 of the 289 neos it reaches (measured with the search the bots
+  reproduce; a first run with batched searches made 119). Every one of the
+  900 plans played landed exactly as searched; a search prior from the
+  policy made it worse (111). Planning every jump and braking before a
+  second search are being measured. The offline bot (prismarine-physics, the live bot's
   engine) reproduces the simulator exactly with this planner; the live bot
   has it too (it stands still on the takeoff while the planner thinks), not
   yet run on a real server.
