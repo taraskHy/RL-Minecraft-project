@@ -130,6 +130,11 @@ Concrete work, most important first. Nothing here needs new research.
    now also pauses `parkour.neo_dagger`, but the copy already running uses
    the old job list.
 6. Keep `TEAM_STATUS.md` and this file in step with each new result.
+7. **More parkour abilities** (cloud session, in progress since 28 Oct
+   evening): neo assist, head hitters, ice jumps, slime, block shapes.
+   `docs/abilities_plan.md` lists the stages, their status and the design
+   constraints found in the code; whatever needs training is queued for
+   the PC with the gaming-safe settings of section 6.
 
 ## 4. Open problems (unsolved, up for grabs)
 
@@ -291,6 +296,28 @@ started before that does not pause it until restarted. The live bot is left
 alone on purpose (it plays in real time). Log: `runs/gpu_watchdog.log`. If the watchdog is ever killed while jobs are
 paused: `python scripts/gpu_watchdog.py --resume-all`.
 
+**While the user games on the PC** (the user plays on the same GPU and asked
+for "a safe buffer", 28 Oct). Gaming-safe mode, added by the cloud session
+and not yet run on the PC: one GPU job at a time, capped and throttled.
+
+```text
+python scripts/gpu_watchdog.py --hot 60 --cool 52
+run.cmd train --run NAME ... --num-envs 8192 --gpu-mem-fraction 0.35 --gpu-duty 0.6 --threads 4
+```
+
+`--gpu-mem-fraction 0.35` caps PyTorch at 35% of the 16 GB (an allocation
+above it stops the run with "CUDA out of memory": then lower `--num-envs`
+to 4096, do not raise the cap; resume from `runs/NAME/checkpoints/latest.pt`).
+`--gpu-duty 0.6` sleeps after every iteration so the GPU computes at most
+60% of the time; `--threads 4` leaves CPU cores to the game. All three are
+off by default. Half the environments means half the samples per update:
+compare such runs with each other, not with 16,384-environment runs. To
+stop GPU work completely while a game runs, start the watchdog with
+`--pause-while VALORANT-Win64-Shipping.exe` (program names as in Task
+Manager's details tab): it suspends the jobs while the game runs and resumes
+them after it closes and the GPU is below `--cool`. This watchdog version
+also pauses `parkour.neo_assist`; restart a copy started before it.
+
 **Anywhere else** (a cloud container, another model's sandbox): no GPU,
 no `runs/`, no Minecraft server, but the test suite and CPU evaluations
 (planner, jump and stress checks with the checkpoints in `results/`) do
@@ -377,18 +404,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `bcf1f34` (2026-10-28 14:50, branch `claude/pensive-knuth-biwj11`): Handoff: what the branch changes, precisely; ice in the session log
+Generated on top of commit `af25aeb` (2026-10-28 14:50, branch `claude/pensive-knuth-biwj11`): Team status: ice platforms ready to train
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 8 |
-| `HANDOFF.md` | `bcf1f34` 2026-10-28 14:50 | 0 |
-| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 24 |
-| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 7 |
-| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 9 |
-| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 6 |
-| `results/DATA.md` | `f405271` 2026-10-28 14:45 | 2 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 9 |
+| `HANDOFF.md` | updated together with this snapshot | 0 |
+| `TEAM_STATUS.md` | `af25aeb` 2026-10-28 14:50 | 0 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 25 |
+| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 8 |
+| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 10 |
+| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 7 |
+| `results/DATA.md` | `f405271` 2026-10-28 14:45 | 3 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -545,6 +572,18 @@ At the end of a session, or after each result:
 
 Newest first. One entry per session; earlier history is in the
 [TEAM_STATUS update log](TEAM_STATUS.md#update-log) and `git log`.
+
+- **28 Oct 2026, evening, Claude Code (cloud session, continued again,
+  branch `claude/pensive-knuth-biwj11`, CPU only):** the user asked for
+  more parkour abilities (other blocks, head hitters) and consistent neos
+  while they game on the PC's GPU ("leave a safe buffer"). This session
+  cannot reach the PC, so it builds and measures on the CPU and prepares
+  training for the PC. Plan and progress: `docs/abilities_plan.md`. Done:
+  held-out fingerprint guard (`tests/test_heldout_fingerprints.py`, the 8
+  test/validation sets are byte-identical to commit 6170803); gaming-safe
+  training flags `--gpu-mem-fraction`, `--gpu-duty`, `--threads` (off by
+  default) and `gpu_watchdog.py --pause-while GAME.exe` (section 6). Next:
+  the neo assist (stage A).
 
 - **28 Oct 2026, afternoon, Claude Code (cloud session, continued, branch
   `claude/pensive-knuth-biwj11`, CPU only):** the user asked this session

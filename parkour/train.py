@@ -41,6 +41,9 @@ class TrainConfig:
     run: str = "dev"
     seed: int = 0
     device: str = "cuda"
+    gpu_mem_fraction: float = 0.0  # >0: cap this process at that share of GPU memory (e.g. 0.35 while the user games)
+    gpu_duty: float = 1.0  # <1: sleep after each iteration so the GPU works at most this share of the time
+    threads: int = 0  # >0: torch CPU threads
     num_envs: int = 16384
     rollout: int = 32
     iterations: int = 3000
@@ -236,6 +239,10 @@ def train(cfg: TrainConfig) -> Path:
     torch.manual_seed(cfg.seed)
     np.random.seed(cfg.seed)
     dev = torch.device(cfg.device)
+    if cfg.threads > 0:
+        torch.set_num_threads(cfg.threads)
+    if cfg.gpu_mem_fraction > 0 and dev.type == "cuda":
+        torch.cuda.set_per_process_memory_fraction(cfg.gpu_mem_fraction, dev)
     out = RUNS / cfg.run
     out.mkdir(parents=True, exist_ok=False if not cfg.init_from else True)
     (out / "checkpoints").mkdir(exist_ok=True)
@@ -530,6 +537,10 @@ def train(cfg: TrainConfig) -> Path:
                 model.export(out / "policy_best.json", {"run": cfg.run, "iteration": it, "eval": ev})
             (out / "summary.json").write_text(json.dumps({"best": best_info, "last_eval": ev,
                                                           "iteration": it, "env_steps": total_steps}, indent=1))
+        if cfg.gpu_duty < 1:  # leave the GPU idle for the rest of the time (another program, e.g. a game)
+            if dev.type == "cuda":
+                torch.cuda.synchronize(dev)
+            time.sleep((time.time() - t0) * (1 - cfg.gpu_duty) / max(cfg.gpu_duty, 0.05))
     log_f.close()
     eval_f.close()
     model.export(out / "policy_last.json", {"run": cfg.run, "iteration": cfg.iterations - 1})
