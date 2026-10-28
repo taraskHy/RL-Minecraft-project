@@ -514,18 +514,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `408de3d` (2026-10-28 22:10, branch `main`): Merge cloud abilities and verify bounded two-job GPU training
+Generated on top of commit `67585a9` (2026-10-28 22:18, branch `main`): Merge cloud assist refinements and archive validation progress
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 42 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 50 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 0 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 17 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 0 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 8 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 25 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 8 |
 | `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | `408de3d` 2026-10-28 22:10 | 0 |
+| `results/DATA.md` | `408de3d` 2026-10-28 22:10 | 8 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -550,7 +550,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `final-v2` | 499 | 0.26 | 499 | 89.6 | 88.5 | 88.5 | 88.1 |
 | `full-s1` | 999 | 0.52 | - | - | - | 94.2 | - |
 | `full-s2` | 999 | 0.52 | 949 | 93.0 | 93.1 | 91.9 | - |
-| `g995-adv` | 49 | 0.03 | 49 | 77.1 | - | - | - |
+| `g995-adv` | 99 | 0.05 | 99 | 81.8 | - | - | - |
 | `g995-ice` | 99 | 0.05 | 99 | 96.8 | - | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
@@ -683,6 +683,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **28 Oct 2026, 22:26, Codex heartbeat on training PC:** merged cloud result-only commit `37ede6e`: exact planning completes 106/200 random neo validation courses (family 13, CPU simulator; detail/summary consistency checked). `run.cmd test` passed on CPU with one-thread test workers: 87 passed, 1 CUDA test skipped, 12 subtests passed (`runs/heartbeat-random-neo-tests.txt`). Archived simulator validation at iteration 99: advanced 81.78% across nine levels and ice 96.83% across six levels, both families 2/5; these different overall sets are not directly comparable and neither test set has been evaluated. Both trainers and all safety helpers remain running under the current limits.
 
 - **28 Oct 2026, 22:18, Codex heartbeat on training PC:** merged seven cloud commits through `3ecc266`, preserving both session logs and current PC limits. The new assist course-file/retry fixes and held-out fingerprints pass `run.cmd test` on CPU: 87 passed, 1 CUDA test skipped to avoid extra GPU load, 12 subtests passed (`runs/heartbeat-cloud-merge-tests.txt`). The earlier full CUDA-enabled suite passed before these assist-only changes. Both trainers are progressing with the same 13% caps; ice iteration 99 validation is 96.83% (families 2/5, simulator), with no test evaluation yet. Refreshed report and archived logs. Keep the existing two-slot queue; do not start neo_pipeline until it inherits the PC controls.
 
