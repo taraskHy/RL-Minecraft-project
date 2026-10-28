@@ -797,6 +797,18 @@ Newest first. One entry per session; earlier history is in the
   test sets once (official 1, random 12, mixed 14 after the level file),
   the offline bot on `configs/neo_live_courses.json`, the per-kind preview,
   `jumpeval --extra`, then this file, TEAM_STATUS and DATA.md.
+  Later the same night: done since then: `all` + brake (official 2:
+  147/218; random 13: 119/200), the offline bot (25/31), the extra levels
+  (shaped blocks, slime, ladders), `jumpeval --extra`, the mixed set's
+  policy-alone row (37/200), `--approach`, and fixes from a review
+  workflow. The container restarted twice and lost two 2.5-hour runs, so
+  long runs are now restart-safe: `parkour.neo_assist ... --name NAME
+  --parts 4 --jobs 4` (rerun the same command after a restart: finished
+  parts in `runs/assist_parts/NAME/` are kept) and
+  `scripts/extra_preview.py` (keeps finished kinds in
+  `runs/extra_preview/`). Running: `all` + brake + approach on official 2
+  and random 13 (names `official2_all_brake_approach`,
+  `random13_all_brake_approach`).
 - **28 Oct 2026, evening, Claude Code (cloud session, continued again,
   branch `claude/pensive-knuth-biwj11`, CPU only):** the user asked for
   more parkour abilities (other blocks, head hitters) and consistent neos
