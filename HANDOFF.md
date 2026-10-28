@@ -102,7 +102,8 @@ More facts that hold now:
     (`--retries 1 --brake 14 --retry-horizon 48`): 147 of 218, 246 of 311
     neos (`official2_all_brake.json`; 17 of 93 second searches found a
     landing). Random neo courses (family 13): the policy alone 27 of 200,
-    planning every jump 106 (`random13_all.json`). Both bots
+    planning every jump 106 (`random13_all.json`), with brake and retry 119,
+    320 of 396 neos (`random13_all_brake.json`). Both bots
     have it (`parkour.live --assist '{"jumps": "advanced"}'`: the bot pauses
     on the takeoff, a Python planner service searches, prismarine-physics
     checks the plan, the bot plays it); the offline bot matches the
@@ -525,18 +526,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `702c77c` (2026-10-28 23:37, branch `main`): Archive new ice validation best at iteration 449
+Generated on top of commit `c775d0a` (2026-10-28 23:42, branch `main`): Archive advanced validation through iteration 399
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 65 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 66 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 23 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 40 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 23 |
-| `results/README.md` | `73b58bb` 2026-10-28 23:26 | 1 |
-| `results/DATA.md` | `408de3d` 2026-10-28 22:10 | 23 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 24 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 41 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 24 |
+| `results/README.md` | updated together with this snapshot | 0 |
+| `results/DATA.md` | `408de3d` 2026-10-28 22:10 | 24 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -562,7 +563,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `full-s1` | 999 | 0.52 | - | - | - | 94.2 | - |
 | `full-s2` | 999 | 0.52 | 949 | 93.0 | 93.1 | 91.9 | - |
 | `g995-adv` | 399 | 0.21 | 99 | 81.8 | - | - | - |
-| `g995-ice` | 449 | 0.24 | 449 | 97.3 | - | - | - |
+| `g995-ice` | 499 | 0.26 | 449 | 97.3 | - | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
 | `hp-envs4096` | 3999 | 0.52 | 3599 | 93.7 | 94.2 | 92.0 | - |
@@ -694,6 +695,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **28 Oct 2026, 23:48, Codex heartbeat on training PC:** merged data/documentation commits through `8b918e2`, preserving both histories and regenerating conflicting report/snapshot tables. Verified cloud CPU simulator validation evidence against all per-course records: planning all jumps with braking/retry completes 119/200 random neo courses (family 13), passing 320/396 reached neos. No executable changes since the tested assist integration. `run.cmd test -k HeldOutFingerprints` passes 2 tests and 12 subtests (93 deselected; `runs/heartbeat-random-brake-tests.txt`). Archived simulator training validation (families 2/5): g995-adv iteration 399: 81.78%, best iteration 99; g995-ice iteration 499: 96.58%, best iteration 449. Advanced covers nine levels, ice six; their overall scores are not directly comparable. Validation alone selects checkpoints; test logs remain header-only. The existing two trainers, queue, thermal/duty watchdog and keep-awake remain healthy; extra stays next.
 
 - **28 Oct 2026, 23:42, Codex heartbeat on training PC:** archived new simulator validation progress (families 2/5): g995-adv: iteration 399, validation 81.78%, selected best iteration 99; g995-ice: iteration 449, validation 97.33%, selected best iteration 449. Advanced covers nine levels and ice six, so overall scores are not directly comparable. Verified each summary against its validation CSV and the selected validation maximum; test logs remain header-only and no completion/test result exists. Report and handoff refreshed. Exactly two trainers and the existing queue, thermal/duty watchdog and keep-awake helper remain healthy. No executable changes; prior tests remain applicable.
 
