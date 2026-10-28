@@ -72,15 +72,17 @@ class PlannerService {
     this.proc = spawn(python, ['-m', 'parkour.neo_assist', '--serve', ...args], { cwd, stdio: ['pipe', 'pipe', 'inherit'] })
     this.waiting = []
     this.dead = null // why the planner can no longer answer; requests then get no plan at once
+    this.closing = false
     readline.createInterface({ input: this.proc.stdout }).on('line', line => {
       const w = this.waiting.shift()
       if (w) w(JSON.parse(line))
     })
-    const die = why => {
+    const die = (why, expected = false) => {
+      if (!this.dead && !expected) process.stderr.write(`planner service: ${why}; no more plans this run\n`)
       this.dead = this.dead || why
       for (const w of this.waiting.splice(0)) w({ plan: null, error: this.dead })
     }
-    this.proc.on('exit', code => die(`planner exited (${code})`))
+    this.proc.on('exit', code => die(`planner exited (${code})`, code === 0 && this.closing && !this.waiting.length))
     this.proc.on('error', err => die(`planner failed: ${err.message}`))
     this.proc.stdin.on('error', err => die(`planner input closed: ${err.message}`))
   }
@@ -93,7 +95,7 @@ class PlannerService {
     })
   }
 
-  close () { this.proc.stdin.end() }
+  close () { this.closing = true; this.proc.stdin.end() }
 }
 
 // Command-line flags of the planner service for an AssistConfig (device: that of the simulator it is compared with).

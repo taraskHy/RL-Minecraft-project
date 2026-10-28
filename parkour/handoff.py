@@ -143,7 +143,10 @@ def games_lines(results: Path) -> list[str]:
         s = read_json(p) or {}
         n = s.get("courses")
         done = round(s["success"] * n) if n and s.get("success") is not None else None
-        lines.append(f"| `{p.parent.name}` | {s.get('mode', '-')} | `{short_path(s.get('checkpoint', '-'))}` | "
+        label = f"`{p.parent.name}`"
+        if s.get("assist", {}).get("planner_errors"):
+            label += f" (degraded assist: {s['assist']['planner_errors']} planner errors)"
+        lines.append(f"| {label} | {s.get('mode', '-')} | `{short_path(s.get('checkpoint', '-'))}` | "
                      f"{f'{done}/{n}' if done is not None else '-'} | {pct(s.get('sim_success_same_courses'))} | "
                      f"{pct(s.get('outcome_agreement'))} |")
     return lines + [""]

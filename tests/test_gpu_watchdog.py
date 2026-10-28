@@ -24,3 +24,19 @@ def test_feedback_does_not_override_temperature_hysteresis():
 def test_gpu_pattern_ignores_keep_awake_arguments():
     assert G.GPU_JOBS.search('python -m parkour.train --run x')
     assert not G.GPU_JOBS.search('python scripts/keep_awake.py --pattern parkour.train')
+
+
+def test_offline_work_is_paused_but_live_services_and_helpers_are_not():
+    for command in (
+        'python -m parkour.train --run x',
+        'python -m parkour.live --offline --assist {}',
+        'python -m parkour.neo_assist --serve',
+    ):
+        assert G.pausable(command), command
+    for command in (
+        'python -m parkour.live --assist {}',
+        'python -m parkour.neo_assist --serve --realtime',
+        'python scripts/keep_awake.py --pattern parkour.train',
+        'python scripts/gpu_watchdog.py',
+    ):
+        assert not G.pausable(command), command

@@ -266,7 +266,10 @@ def game_row(out: Path, name: str, label: str | None = None) -> str | None:
         return None
     s = json.loads(sp.read_text())
     eps = s["episodes"]
-    return (f"| {label or name} | {s['mode']} | {sum(e['result'] == 'success' for e in eps)}/{len(eps)} | "
+    label = label or name
+    if s.get("assist", {}).get("planner_errors"):
+        label += f" (degraded assist: {s['assist']['planner_errors']} planner errors)"
+    return (f"| {label} | {s['mode']} | {sum(e['result'] == 'success' for e in eps)}/{len(eps)} | "
             f"{pct(s['sim_success_same_courses'])} | {pct(s['outcome_agreement'])} | "
             f"{sum(e.get('server_corrections') or 0 for e in eps)} | {s['replay_max_pos_err']:.1e} |")
 
