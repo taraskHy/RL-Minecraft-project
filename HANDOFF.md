@@ -388,7 +388,7 @@ evening; an older watchdog copy skipped every planner service). Log:
 `runs/gpu_watchdog.log`. If the watchdog is ever killed while jobs are
 paused: `python scripts/gpu_watchdog.py --resume-all`.
 
-**Current PC instruction (29 Oct, 00:51):** the user now permits 100% GPU use, superseding the 70% compute/aggregate-memory target. Initial order was `g995-adv` and `g995-ice` together, then `g995-extra`, with at most two trainers. Ice has completed and the queue now runs advanced plus extra. Remove the shared throttle immediately; remove each trainer's memory, duty and thread flags by saving its next checkpoint and resuming the same run from its own `latest.pt`. Keep thermal pause above 65 C/resume below 58 C and keep-awake. Preserve the existing rollout shape and recipe. If the user says gaming has resumed, use another checkpoint-safe transition with their requested gaming flags; do not stop their game.
+**Current PC instruction (29 Oct, 00:51):** the user now permits 100% GPU use, superseding the 70% compute/aggregate-memory target. Initial order was `g995-adv` and `g995-ice` together, then `g995-extra`, with at most two trainers. Ice has completed and the queue now runs advanced plus extra. The shared throttle and all trainer memory, duty and thread flags were removed; the initial runs resumed from their own checkpoints 699/799. Keep thermal pause above 65 C/resume below 58 C and keep-awake. Preserve the existing rollout shape and recipe. If the user says gaming has resumed, use another checkpoint-safe transition with their requested gaming flags; do not stop their game.
 
 **Earlier gaming guidance.** The user plays on the same GPU. On
 28 Oct they first asked for "a safe buffer", then (same evening) "you can
@@ -548,18 +548,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `316ab05` (2026-10-29 00:56, branch `main`): Merge remote-tracking branch 'origin/claude/pensive-knuth-biwj11'
+Generated on top of commit `bf01c50` (2026-10-29 01:13, branch `main`): Merge remote-tracking branch 'origin/claude/pensive-knuth-biwj11'
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 90 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 93 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 48 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 65 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 48 |
-| `results/README.md` | `0856810` 2026-10-29 00:44 | 4 |
-| `results/DATA.md` | `9b48bda` 2026-10-29 00:34 | 6 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 51 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 68 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 51 |
+| `results/README.md` | `0856810` 2026-10-29 00:44 | 7 |
+| `results/DATA.md` | `9b48bda` 2026-10-29 00:34 | 9 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -584,7 +584,8 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `final-v2` | 499 | 0.26 | 499 | 89.6 | 88.5 | 88.5 | 88.1 |
 | `full-s1` | 999 | 0.52 | - | - | - | 94.2 | - |
 | `full-s2` | 999 | 0.52 | 949 | 93.0 | 93.1 | 91.9 | - |
-| `g995-adv` | 849 | 0.45 | 99 | 81.8 | - | - | - |
+| `g995-adv` | 899 | 0.47 | 99 | 81.8 | - | - | - |
+| `g995-extra` | 49 | 0.03 | 49 | 59.6 | - | - | - |
 | `g995-ice` | 999 | 0.52 | 449 | 97.3 | 97.5 | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
@@ -718,6 +719,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **29 Oct 2026, 01:15, Codex heartbeat on training PC:** merged cloud documentation commit `5f22b61`, retaining its cloud CPU session entry and the PC session history. Archived simulator validation (families 2/5): g995-adv iteration 899: 81.17%, best remains iteration 99 at 81.78%; g995-extra first checkpoint 49: 59.625%, selected best 49. Advanced covers nine levels and extra twelve, so these overall scores are not directly comparable. Verified archived summaries against their validation CSVs and validation-selected maxima; both active runs have no test rows. Ice remains completed and reported once. Two unrestricted trainers, one queue, one thermal watchdog (65/58 C) and one keep-awake remain healthy; current GPU sample was 76% busy, 5349/16303 MiB, 38.38 C. No executable changes; the prior full CPU suite and 13 focused restart checks remain applicable. Report/handoff refreshed. Combined advanced/ice completion notification remains pending until advanced finishes.
 
 - **29 Oct 2026, 01:11, Codex on training PC:** merged cloud `c38de17` without rewriting either history. Hardened its opt-in resumable assist/preview evaluators: canonical manager/part locks, cleanup of sibling workers, checkpoint/device/course identity checks, atomic cache/detail/marker writes, and idempotent result rows after interrupted publication; existing test results can be republished from cache without reevaluation. The full CPU suite passes 107 tests and 26 subtests, with one CUDA test skipped to avoid extra GPU work (`runs/heartbeat-resume-merge-tests.txt`); after review, 13 focused cache/lock/publication tests pass (`runs/heartbeat-resume-cache-focused.txt`). No training/physics or held-out course changes. Ice completed 1,000 iterations: validation-selected checkpoint 449 scored 97.33% on families 2/5, then its only final test scored 97.50% standard and 94.50% obstacles (families 1/4, simulator, six levels). The existing queue immediately started g995-extra beside g995-adv. Advanced archived iteration 849 validation is 81.00% across nine levels; best remains iteration 99, tests remain unrun. Exactly two unrestricted trainers, one thermal watchdog (65/58 C), one queue and one keep-awake remain active. The user requests one combined notification after both initial runs finish; the native monitor now retains this request. `results/operations/g995-initial-comparison.json` contains the existing final-policy baseline and completed ice comparison, with ready=false until advanced finishes. Final-policy obstacle baseline is 95.25% from its selected iteration-699 CSV (the published one-decimal headline is 95.2%). No completion notification has been delivered yet. Report refreshed; next: finish advanced and send the combined validation/test comparison while extra continues.
 
