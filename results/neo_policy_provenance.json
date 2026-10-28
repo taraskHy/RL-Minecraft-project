@@ -1,0 +1,7 @@
+{
+  "source": "runs/neo-dagger3/checkpoints/best.pt",
+  "selection": "validation neo courses",
+  "source_sha256": "37ba0c9b4f1bbb8a4759616edc94ed51214a76cc3aed3bce4d622becb12f9241",
+  "export_sha256": "37ba0c9b4f1bbb8a4759616edc94ed51214a76cc3aed3bce4d622becb12f9241",
+  "final_policy_preserved": true
+}

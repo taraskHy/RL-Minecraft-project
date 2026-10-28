@@ -25,7 +25,11 @@ tolerance (`COLLISION_EPSILON`). Without it, rounding can let a player resting
 against a block face slip into the block. The port covers what the courses contain:
 air and full cubes with default slipperiness (walking, sprinting, jumping,
 sprint-jump boost, air control, drag, gravity, axis-by-axis collision,
-step-up, the jump cooldown).
+step-up, the jump cooldown). Ice is also ported but off by default: with an
+optional per-block slipperiness grid (`World(slip=...)`, ice 0.98) the ground
+friction comes from the block under the feet, matching the real library to
+7.1e-15 blocks over 60,000 ticks (`results/physics_parity_ice.json`); no
+course uses it yet.
 
 Evidence (`results/physics_parity.json`, run through Node on the real library
 with the same tolerance patch): on 24,000 random ticks on the CPU and 75,000

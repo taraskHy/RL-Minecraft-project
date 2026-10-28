@@ -8,7 +8,8 @@ hold every checkpoint).
 ## Training: every iteration of every run
 
 `results/runs/NAME/` for each training run (and `results/runs/_v1_unstable/`
-for the first three runs, discarded after PPO collapsed; kept as evidence):
+for the first three runs, discarded after PPO collapsed; kept as evidence;
+`final-v2` is an abandoned run that no result uses):
 
 | File | One row per | Columns (the ones you will want) |
 | --- | --- | --- |
@@ -107,8 +108,18 @@ and every tick's position and velocity, and the plans in planner runs),
 `summary.md` / `summary.json` (outcomes, comparison with the simulator) and,
 for real-game runs, `server.log.gz`.
 
+"Live" folders are **real Minecraft 1.21.4**; "offline" ones are the bot's
+JavaScript on Mineflayer's physics engine without a server. Every folder's
+`summary.md` names its checkpoint. The generated snapshot at the end of
+`HANDOFF.md` lists every folder with its score.
+
 | Folder | What |
 | --- | --- |
+| `v2-tuned-planner-offline`, `v2-tuned-planner-offline-obstacles` | the same courses offline with the retuned planner (`cost=distance, align=2.0`): 51/60, 56/60 |
+| `live2-final`, `live2-obstacles`, `live2-showcase` | real Minecraft, first final policy, re-run with the collision-tolerance patch: 59/60, 58/60, 3/4 |
+| `recheck-std`, `recheck-obs`, `recheck-show` | the same re-check offline: identical |
+| `neo-full`, `cheat-check` | an early neo checkpoint (`runs/neo-ck.pt`, source run not recorded) on the neo course set (1/31) and on one test course (0/1) |
+| `live-rainbow-test`, `viewer-test` | test runs: the four hand-designed courses (3/4) and one course with the spectator viewer (1/1) |
 | `live-final`, `live-final-obstacles`, `live-showcase`, `live-smoke` | **real Minecraft 1.21.4**, first final policy: 59/60, 58/60, 3/3, 6/6 |
 | `v2-live`, `v2-live-obstacles`, `v2-live-showcase` | **real Minecraft 1.21.4**, final policy, the same 60 + 60 held-out courses and the four hand-designed courses: 59/60, 57/60, 3/4 |
 | `v2-offline`, `v2-offline-obstacles`, `v2-offline-showcase` | the same courses on the offline bot: 59/60, 57/60, 3/4 |
@@ -143,6 +154,40 @@ on every course, and the real-Minecraft runs had 0 server corrections.
 | `replay_295_learned_no_course_list_level_5_course_1.mp4` | 3D replay of the learned no-route model in real Minecraft on a level-5 course the planner failed with the first final policy |
 | `real_minecraft_neo_level7.mp4` | first person, real Minecraft: the neo policy completes a held-out level-7 course with one neo (164 ticks, 0 server corrections) |
 
+## Evaluations (`results/`)
+
+| File | What |
+| --- | --- |
+| `final_policy.pt` / `.json` | the final policy (`runs/obstacles-g995`, discount 0.995) |
+| `final_policy_v1.pt` / `final_policy_v1.json` | the first final policy (`runs/obstacles-ft`, discount 0.99) |
+| `jump_eval.json`, `jump_eval_v1.json`, `jump_eval_main.json` | every jump type from a standing start at 16 angles: final, first final and main-run policy |
+| `stress.json`, `stress_v1.json`, `stress_main.json` | course styles outside training, 100 courses per level and condition, same three policies |
+| `offline_summary.md`, `live_summary.md` (and `offline_summary_v1.md`, `live_summary_v1.md`) | the bot's per-level tables offline and in real Minecraft, final and first final policy |
+| `physics_parity.json` | the simulator against prismarine-physics 1.11.1: 99,000 ticks, largest error 1.4e-14 blocks |
+| `ice_preview.json` | the final policy on the standard test courses with every platform (or every platform after the start) made of ice: 95.6% / 96.5% against 98.4% (`scripts/ice_preview.py`) |
+| `physics_parity_ice.json` | the same check with ice blocks (optional slipperiness grid): 60,000 ticks, largest error 7.1e-15 blocks |
+| `hparams_defaults_validation.json` | the defaults' validation score for the hyperparameter table |
+| `audit_claims.json` | the audit of 829 claims in the documents against the run files (28 Oct) |
+| `level5_by_position.json` | failure rate by position in the course on 3,000 extra level-5 courses (seed family 11, analysis only; `scripts/level5_positions.py`) |
+| `level5_pause_test.jsonl` | a test-time pause after each landing (0, 3, 6, 10 ticks) on 2,000 level-5 courses of family 11: worse (`scripts/level5_pause_test.py`) |
+| `jump_failures.json` | which jump each failed test course failed on, with the final policy: failure rate per jump type, by level and jump index, with and without a beam (`scripts/jump_failures.py`) |
+| `results/planner/` | route planner on the 1,200 + 1,200 test courses: `sim_test_*.json` (`_v1`: with the first final policy; `_tuned`: the retuned setting `cost=distance, align=2.0`); `validation_tuning.jsonl`: every planner variant tried on the validation courses (one JSON line each) |
+| `results/neo/` | the neo numbers (written by `scripts/neo_evidence.py` and the evaluations), below |
+
+`results/neo/`:
+
+| File | What |
+| --- | --- |
+| `course_eval.json`, `round3_eval.json` | each neo policy on the 210 held-out level 6-8 courses with a neo (and the validation ones) |
+| `by_neo_count.json` | the chosen neo policy split by the number of neos per course |
+| `jump_eval_*.json` | every advanced jump type alone (`parkour.jumpeval --advanced`), one file per neo policy |
+| `demonstrations.json`, `demos_collection.txt` | the search demonstrations: 50,706 collected, 12,800 used |
+| `neo_dagger_r1b.txt`, `neo_dagger_r2.txt`, `neo_dagger_r3.txt` | the DAgger collection logs per round |
+| `label_agreement.json` | how often DAgger labels agree with the bot, before and after simplification |
+| `detector_check.json` | the first neo-takeoff detector against the fixed one |
+| `wide_takeoff_search.json` | which neos are landable from 2x2 and 3x3 takeoffs |
+| `one_policy_comparison.json` | the neo policies on levels 0-5 (the same courses as the standard test set) and the final policies on levels 6-8 and the 210 neo courses (`scripts/one_policy_check.py`) |
+
 ## Pages to show
 
 | Page | Contents |
@@ -150,6 +195,9 @@ on every course, and the real-Minecraft runs had 0 server corrections.
 | `results/replay_viewer.html` | 3D replays of all 123 real-Minecraft episodes |
 | `results/progress.html` | learning progress: the same courses from untrained to trained, failures included |
 | `results/neo_preview.html` | neo training in progress |
+| `results/theatre.html` | Minecraft-style 3D replays and the ghost races |
+| `results/showcase.html` | the results page for the presentation ("Learning Minecraft Parkour") |
+| `results/overnight_plan.html` | the overnight decision tree of 28 October (`docs/overnight_plan.md`) |
 
 Open them in a browser; they need no server.
 
@@ -159,3 +207,9 @@ Open them in a browser; they need no server.
 `docs/report_draft.md` has the report text. `results/audit_claims.json` has
 the audit of the documents' claims against the data: 829 claims, 111 flagged
 wrong, 60 confirmed wrong, 14 disputed, 37 overturned.
+
+The cloud `report_draft.docx` and `.pdf` were generated before the PC merge. Rebuild them from the merged report and verify the page count before submission.
+
+## PC integration and new training
+
+`neo_policy.pt` / `neo_policy.json`: validation-selected neo-dagger3 checkpoint; `neo_policy_provenance.json` records its source and hashes. `runs/g995-*` archives are produced by the report as those runs finish. Their `test_once` protocol records validation every 50 iterations and tests the validation-selected best only at completion.

@@ -1,0 +1,4 @@
+{"pause": 0, "set": "2000", "courses": 2000, "success": 0.9015, "per_level": {"5": 0.901}, "mean_ticks_success": 187.0}
+{"pause": 3, "set": "2000", "courses": 2000, "success": 0.8, "per_level": {"5": 0.8}, "mean_ticks_success": 230.4}
+{"pause": 6, "set": "2000", "courses": 2000, "success": 0.7225, "per_level": {"5": 0.723}, "mean_ticks_success": 259.6}
+{"pause": 10, "set": "2000", "courses": 2000, "success": 0.7, "per_level": {"5": 0.7}, "mean_ticks_success": 296.2}

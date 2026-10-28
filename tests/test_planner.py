@@ -39,6 +39,27 @@ class Perception(unittest.TestCase):
         self.assertEqual(valid, [True] * 4)
         self.assertEqual(is_goal, [False, False, False, True])
 
+    def test_value_pick_takes_the_scorers_chain_and_is_off_by_default(self):
+        # From the start block both the next platform (1-block gap) and the one after it (4-block gap)
+        # are in reach; the greedy cost prefers the short jump.
+        plats = np.array([[4, 6, 20, 22, 10], [8, 8, 21, 21, 10], [11, 11, 21, 21, 10], [14, 15, 20, 22, 10]],
+                         dtype=np.int64)
+        c = C.Course(plats, np.array([5.5, 11.0, 21.5]), 0.0)
+        goal = ((14 + 15 + 1) / 2, 11.0, (20 + 22 + 1) / 2)
+        seen = []
+
+        def prefer_second(here, chains):
+            seen.append([[p.rect() for p in ch] for ch in chains])
+            return 1
+        for k, first in ((0, (8, 8, 21, 21, 10)), (2, (11, 11, 21, 21, 10))):
+            pl = GreedyPlanner(solid_of(c), goal, PlannerConfig(value_pick=k))
+            pl.scorer = prefer_second
+            pl.start((5.5, 11.0, 21.5))
+            self.assertEqual(pl.chain[0].rect(), first, f"value_pick={k}")
+        self.assertEqual(len(seen), 1)  # only asked when value_pick > 0
+        self.assertEqual([ch[0] for ch in seen[0]], [(8, 8, 21, 21, 10), (11, 11, 21, 21, 10)])
+        self.assertEqual(seen[0][1][1], (14, 15, 20, 22, 10))  # the rest of each chain is greedy
+
 
 class PlannerParity(unittest.TestCase):
     @unittest.skipUnless(NODE.exists(), "portable Node runtime not installed (run setup.cmd)")

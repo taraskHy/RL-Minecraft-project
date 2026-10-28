@@ -10,7 +10,7 @@ the data: training runs, policies, the route planner and neo files, the game
 folders (including the v2, planner, noroute, neo and film games) and the
 videos.
 
-**Last updated:** 28 October 2026, 12:40.
+**Last updated:** 28 October 2026, evening, training PC: cloud work merged through `d9237e7`; validation-only training queue being prepared.
 
 ## The project
 
@@ -82,6 +82,9 @@ validation, in all three seeds (95.2%, 95.8% and 95.2% against 91.8%).
   at this budget.
 - Not told where the platforms are (only the blocks it sees and the goal
   direction): 82% instead of 93%.
+- *Hyperparameters* (one at a time, chosen on validation): only the
+  discount 0.995 beats the defaults by more than 3 points (95.4% against
+  91.8% on validation, 3 seeds); it is in the final policy now.
 
 **Problems we found and fixed** (good presentation material):
 
@@ -204,15 +207,22 @@ decoy pillar). So the planner is the model for new maps; the learned one is
 the research comparison (report 7.12). Video: `replay_295_learned_*` (level 5,
 a course the planner failed).
 
-## Running now
+**Retuned on 28 Oct** (chosen on the
+validation courses): ranking platforms by gap length with a weaker pull to
+the goal gives **92.3%** standard and **90.5%** obstacle courses in the
+simulator (from 90.9% and 88.1%), and 51/60 and 56/60 with the offline bot;
+real Minecraft still to be run on the PC. Videos: `real_minecraft_showcase_no_course_list.mp4`
+(first person) and `replay_233_*` / `replay_240_*` (the plan drawn as
+numbered cyan platforms). Report section 7.11.
 
-Nothing is training, and no Minecraft server is running.
+## Last known state
+
+The cloud work is merged through `d9237e7`. Integration checks pass (56 tests, 8 subtests). The two-slot queue is ready to start `g995-adv` and `g995-ice`, then `g995-extra`. The game is closed: no GPU-memory, duty or thread limits. `scripts/training_queue.py` will fill available slots and replicate the best recipe on the shared validation levels 0-5; test scores do not select recipes.
 
 - **GPU temperature watchdog** (user rule, since 28 Oct 07:47):
   `scripts/gpu_watchdog.py` checks the GPU every 10 s, suspends the
   project's GPU jobs above 65 C (no state lost) and resumes them below 58 C.
-  Its log (`runs/gpu_watchdog.log`) shows no pause so far. It does not cover
-  `parkour.neo_dagger` or the live bot.
+  Its log (`runs/gpu_watchdog.log`) shows no pause so far. The merged watchdog also covers `parkour.neo_dagger` and `parkour.neo_assist`; the live bot is excluded.
 - Only two training runs fit on the GPU at once (a third spills out of GPU
   memory and makes all of them about 8 times slower, as noted in
   `docs/overnight_plan.md`).
@@ -235,7 +245,7 @@ Nothing is training, and no Minecraft server is running.
 - **Policy files:** `results/final_policy.pt` (final, discount 0.995) and
   `results/final_policy.json` (the exported network the bot loads); the first
   final policy is `results/final_policy_v1.pt` / `.json`. The neo policy is
-  `runs/neo-dagger3/checkpoints/best.pt` (local only; `runs/` is not in Git).
+  `results/neo_policy.pt` / `.json`, exported from the validation-selected `runs/neo-dagger3/checkpoints/best.pt`; original final policies are retained.
 - Pages (open in a browser): `results/theatre.html` (Minecraft-style 3D
   replays and the ghost races), `results/replay_viewer.html` (real-game
   replays), `results/progress.html` (learning progress),
@@ -257,15 +267,25 @@ Nothing is training, and no Minecraft server is running.
    course is still unsolved.
 2. One policy for everything: the neo policy and the final policy are
    separate networks, and nobody has tried to merge them yet.
-3. More block types: slabs, ladders, ice and fences need physics ports
-   (prismarine-physics has them) and new course pieces.
+3. Ice physics, ice platforms, head hitters and ice run-ups are now opt-in features; GPU training is queued. Slabs, ladders and fences remain open.
 4. Hand-built maps: extract the platform chain from a region of a real map.
-5. The report: `docs/report_draft.md` still needs the discussion written
-   out (section 8 is still a list of points to develop); the conclusion
-   (section 9) has a first draft.
+5. The report discussion and conclusion are drafted. The cloud DOCX/PDF exports predate this merged source; rebuild and check pagination before submission.
 
 ## Update log
 
+- **28 Oct 2026, evening, Codex on the training PC:** merged cloud work, retained the PC audit corrections and both histories, exported the neo policy, fixed relative-path checkpoint resume and preserved validation best, added opt-in final-test-only training and a two-slot queue. 56 tests and 8 subtests pass. Next: GPU training and real-Minecraft confirmation of the retuned planner.
+- **28 Oct 2026, afternoon (cloud session):** this page brought up to date:
+  final policy with discount 0.995 (98.4% / 95.2% in the simulator; 59/60,
+  57/60, 3/4 in real Minecraft), neos learned from demonstrations and DAgger
+  (0% to 29% of neo courses; 11/31 in real Minecraft), hyperparameter study
+  finished. Then, on the CPU: the route planner retuned (92.3% / 90.5%
+  without the course list, from 90.9% / 88.1%), the neo policy shown to be
+  only 2-3 points behind the final policy on ordinary courses, a failure
+  analysis by jump type, ice platforms ready to train (physics checked
+  against the real library; the current policy already makes 95.6% of
+  all-ice test courses without having seen ice), and the report
+  completed (20 pages in Word/PDF). `HANDOFF.md` and `AGENTS.md` tell any AI
+  model how to continue.
 - **28 Oct 2026, 12:40:** hyperparameter study finished. Discount 0.995,
   trained at full length, became the final policy at 10:41 (simulator test
   98.4% and 95.2% against 97.1% and 93.6%) and was re-run offline, in real

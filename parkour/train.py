@@ -41,6 +41,9 @@ class TrainConfig:
     run: str = "dev"
     seed: int = 0
     device: str = "cuda"
+    gpu_mem_fraction: float = 0.0  # >0: cap this process at that share of GPU memory (e.g. 0.35 while the user games)
+    gpu_duty: float = 1.0  # <1: sleep after each iteration so the GPU works at most this share of the time
+    threads: int = 0  # >0: torch CPU threads
     num_envs: int = 16384
     rollout: int = 32
     iterations: int = 3000
@@ -68,6 +71,7 @@ class TrainConfig:
     turn_prob: float = 0.25
     curriculum: str = "adaptive"  # adaptive | uniform
     eval_every: int = 50
+    test_once: bool = False  # select on validation; test only the selected checkpoint after training
     eval_per_level: int = 200
     val_per_level: int = 100
     eval_jumps: int = 10
@@ -89,7 +93,9 @@ class TrainConfig:
     bc_pairs: str = ""  # comma-separated .pt files of (observation, action) pairs (parkour.neo_dagger)
     wide_neo: bool = False  # training courses may place neos after wide takeoffs (courses._place)
     obstacle_prob: float = 0.0  # chance per jump of a head-hitter beam or a decoy pillar
+    ice_prob: float = 0.0  # chance per platform after the start of being ice (training courses only)
     advanced: bool = False  # add levels 6-8: neos, double neos, momentum and wide jumps
+    extra: bool = False  # add the head-hitter and ice run-up levels (configs/jump_levels_extra.json) after those
     save_at: str = ""  # comma-separated update counts at which to keep a snapshot (0 = untrained)
 
 
@@ -98,12 +104,12 @@ def course_hash(c: C.Course) -> str:
 
 
 def held_out_courses(levels, per_level: int, n_jumps: int, obstacle_prob: float = 0.0,
-                     family: int = TEST_SEED_FAMILY) -> list[C.Course]:
+                     family: int = TEST_SEED_FAMILY, ice_prob: float = 0.0) -> list[C.Course]:
     out = []
     for L in range(len(levels)):
         rng = np.random.default_rng([2026, family, L])
         for i in range(per_level):
-            out.append(C.generate(rng, levels, L, n_jumps, seed=i, obstacle_prob=obstacle_prob))
+            out.append(C.generate(rng, levels, L, n_jumps, seed=i, obstacle_prob=obstacle_prob, ice_prob=ice_prob))
     return out
 
 
@@ -129,7 +135,8 @@ class CourseFactory:
         while len(out) < k:
             L = len(out) % n_levels
             c = C.generate(rng, self.levels, L, int(rng.integers(self.cfg.jumps_min, self.cfg.jumps_max + 1)),
-                           turn_prob=self.cfg.turn_prob, obstacle_prob=self.cfg.obstacle_prob, wide_neo=self.cfg.wide_neo)
+                           turn_prob=self.cfg.turn_prob, obstacle_prob=self.cfg.obstacle_prob, wide_neo=self.cfg.wide_neo,
+                           ice_prob=self.cfg.ice_prob)
             if c.n >= 3 and course_hash(c) not in self.exclude:
                 out.append(c)
         return out
@@ -234,13 +241,26 @@ def train(cfg: TrainConfig) -> Path:
     torch.manual_seed(cfg.seed)
     np.random.seed(cfg.seed)
     dev = torch.device(cfg.device)
+    if cfg.threads > 0:
+        torch.set_num_threads(cfg.threads)
+    if cfg.gpu_mem_fraction > 0 and dev.type == "cuda":
+        torch.cuda.set_per_process_memory_fraction(cfg.gpu_mem_fraction, dev)
     out = RUNS / cfg.run
+    resuming = bool(cfg.init_from) and Path(cfg.init_from).resolve().parent.parent == out.resolve()
+    if (out / "train_log.csv").exists() and not resuming:
+        raise ValueError(f"Existing run {cfg.run}: resume its own latest.pt or choose a new run name")
+    old_summary = json.loads((out / "summary.json").read_text()) if resuming and (out / "summary.json").exists() else {}
+    if cfg.test_once and old_summary.get("test_eval"):
+        old_cfg = json.loads((out / "config.json").read_text())
+        if cfg.iterations > old_cfg["iterations"]:
+            raise ValueError("This run has already been tested; extend in a new run to keep one test per run")
+        return out
     out.mkdir(parents=True, exist_ok=False if not cfg.init_from else True)
     (out / "checkpoints").mkdir(exist_ok=True)
     cfg_dict = dataclasses.asdict(cfg)
     (out / "config.json").write_text(json.dumps(cfg_dict, indent=1))
 
-    levels = C.load_levels(advanced=cfg.advanced)
+    levels = C.load_levels(advanced=cfg.advanced, extra=cfg.extra)
     n_levels = len(levels)
     tests = held_out_courses(levels, cfg.eval_per_level, cfg.eval_jumps)
     test_hashes = {course_hash(c) for c in tests}
@@ -258,11 +278,11 @@ def train(cfg: TrainConfig) -> Path:
     if n_demo:
         pick = np.random.default_rng([2026, 3, cfg.seed]).choice(len(demos), n_demo, replace=False)
         train_courses[:n_demo] = [demo_course(demos[i], cfg.demo_level) for i in pick]
-    pool = CoursePool(train_courses, dev, C.GRID)
+    pool = CoursePool(train_courses, dev, C.GRID, ice=cfg.ice_prob > 0 or any(sp.ice for L in levels for sp in L))
     test_pool = CoursePool(tests, dev, C.GRID)
     obstacle_pool = CoursePool(obstacle_tests, dev, C.GRID) if obstacle_tests else None
     val_pool = CoursePool(vals, dev, C.GRID)
-    best_info = {}
+    best_info = old_summary.get("best", {})
 
     if cfg.curriculum == "adaptive":
         sampler = LevelSampler(n_levels)
@@ -282,8 +302,9 @@ def train(cfg: TrainConfig) -> Path:
     if cfg.init_from:
         ck = torch.load(cfg.init_from, map_location=dev, weights_only=False)
         model.load_state_dict(ck["model"])
-        if "optimizer" in ck and Path(cfg.init_from).parent.parent == out:
+        if "optimizer" in ck and resuming:
             opt.load_state_dict(ck["optimizer"])
+            lr = opt.param_groups[0]["lr"]
             start_it = ck["iteration"] + 1
             if "sampler" in ck:
                 sampler.load_state_dict(ck["sampler"])
@@ -331,7 +352,7 @@ def train(cfg: TrainConfig) -> Path:
     if eval_path.stat().st_size == 0:
         eval_w.writerow(["iteration", "env_steps", "success"] + [f"success_L{L}" for L in range(n_levels)]
                         + [f"progress_L{L}" for L in range(n_levels)] + [f"fell_L{L}" for L in range(n_levels)])
-    best = -1.0
+    best = best_info.get("validation_success", -1.0)
     obs = env.observe()
     total_steps = start_it * T * N
     t_start = time.time()
@@ -487,14 +508,16 @@ def train(cfg: TrainConfig) -> Path:
 
         if it % cfg.eval_every == cfg.eval_every - 1 or it == cfg.iterations - 1:
             model.eval()
-            ev = evaluate(model, test_pool, dev, cfg.stall_ticks)
-            pl = ev["per_level"]
-            eval_w.writerow([it, total_steps, round(ev["success"], 4)]
-                            + [round(pl[L]["success"], 4) for L in range(n_levels)]
-                            + [round(pl[L]["progress"], 4) for L in range(n_levels)]
-                            + [round(pl[L]["fell"], 4) for L in range(n_levels)])
-            eval_f.flush()
-            print(json.dumps({"eval_iteration": it, **ev}), flush=True)
+            ev = {}
+            if not cfg.test_once:
+                ev = evaluate(model, test_pool, dev, cfg.stall_ticks)
+                pl = ev["per_level"]
+                eval_w.writerow([it, total_steps, round(ev["success"], 4)]
+                                + [round(pl[L]["success"], 4) for L in range(n_levels)]
+                                + [round(pl[L]["progress"], 4) for L in range(n_levels)]
+                                + [round(pl[L]["fell"], 4) for L in range(n_levels)])
+                eval_f.flush()
+                print(json.dumps({"eval_iteration": it, **ev}), flush=True)
             # Model selection uses the validation courses only.
             evv = evaluate(model, val_pool, dev, cfg.stall_ticks)
             score = evv["success"]
@@ -506,7 +529,9 @@ def train(cfg: TrainConfig) -> Path:
                     wv.writerow(["iteration", "env_steps", "success"])
                 wv.writerow([it, total_steps, round(score, 4)])
             ev["validation_success"] = score
-            if obstacle_pool is not None:
+            ev["validation_per_level"] = evv["per_level"]
+            print(json.dumps({"validation_iteration": it, "success": score}), flush=True)
+            if obstacle_pool is not None and not cfg.test_once:
                 evo = evaluate(model, obstacle_pool, dev, cfg.stall_ticks)
                 po = evo["per_level"]
                 opath = out / "eval_obstacles_log.csv"
@@ -523,14 +548,53 @@ def train(cfg: TrainConfig) -> Path:
             _save(ck, out / "checkpoints" / "latest.pt")
             if score > best:
                 best = score
-                best_info = {"iteration": it, "validation_success": score, "test_success": ev["success"]}
+                best_info = {"iteration": it, "validation_success": score, "test_success": ev.get("success"),
+                             "validation_per_level": evv["per_level"]}
                 _save(ck, out / "checkpoints" / "best.pt")
                 model.export(out / "policy_best.json", {"run": cfg.run, "iteration": it, "eval": ev})
             (out / "summary.json").write_text(json.dumps({"best": best_info, "last_eval": ev,
                                                           "iteration": it, "env_steps": total_steps}, indent=1))
+        if (out / "pause_requested").exists() and (it + 1) % cfg.eval_every == 0 and it + 1 < cfg.iterations:
+            log_f.close()
+            eval_f.close()
+            (out / "pause_ready.json").write_text(json.dumps({"iteration": it, "checkpoint": "checkpoints/latest.pt"}))
+            print(json.dumps({"paused_at_checkpoint": it}), flush=True)
+            return out
+        if cfg.gpu_duty < 1:  # leave the GPU idle for the rest of the time (another program, e.g. a game)
+            if dev.type == "cuda":
+                torch.cuda.synchronize(dev)
+            time.sleep((time.time() - t0) * (1 - cfg.gpu_duty) / max(cfg.gpu_duty, 0.05))
     log_f.close()
     eval_f.close()
     model.export(out / "policy_last.json", {"run": cfg.run, "iteration": cfg.iterations - 1})
+    if cfg.test_once:
+        selected = torch.load(out / "checkpoints" / "best.pt", map_location=dev, weights_only=False)
+        model.load_state_dict(selected["model"])
+        model.eval()
+        tested = evaluate(model, test_pool, dev, cfg.stall_ticks)
+        best_it = selected["iteration"]
+        best_steps = (best_it + 1) * T * N
+        pl = tested["per_level"]
+        with open(eval_path, "a", newline="") as f:
+            csv.writer(f).writerow([best_it, best_steps, round(tested["success"], 4)]
+                + [round(pl[L]["success"], 4) for L in range(n_levels)]
+                + [round(pl[L]["progress"], 4) for L in range(n_levels)]
+                + [round(pl[L]["fell"], 4) for L in range(n_levels)])
+        if obstacle_pool is not None:
+            tested["obstacles"] = evaluate(model, obstacle_pool, dev, cfg.stall_ticks)
+            po = tested["obstacles"]["per_level"]
+            with open(out / "eval_obstacles_log.csv", "a", newline="") as f:
+                w = csv.writer(f)
+                if f.tell() == 0:
+                    w.writerow(["iteration", "env_steps", "success"] + [f"success_L{L}" for L in range(n_levels)])
+                w.writerow([best_it, best_steps, round(tested["obstacles"]["success"], 4)]
+                           + [round(po[L]["success"], 4) for L in range(n_levels)])
+        summary = json.loads((out / "summary.json").read_text())
+        summary["best"]["test_success"] = tested["success"]
+        summary["test_eval"] = {"iteration": best_it, **tested}
+        summary["completed"] = True
+        (out / "summary.json").write_text(json.dumps(summary, indent=1))
+        print(json.dumps({"selected_checkpoint_test": best_it, **tested}), flush=True)
     return out
 
 

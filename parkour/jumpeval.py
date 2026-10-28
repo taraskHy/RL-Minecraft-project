@@ -2,6 +2,7 @@
 
     python -m parkour.jumpeval --checkpoint runs/NAME/checkpoints/best.pt --out results/NAME/jump_eval.json
     python -m parkour.jumpeval --advanced ...   (neo and run-up jumps, levels 6-8)
+    python -m parkour.jumpeval --extra ...      (head hitters and ice run-ups, configs/jump_feasibility_extra.json)
 
 Each test course is a 1x1 takeoff block, the jump under test, and one easy
 3x3 platform after it (so the target is not the goal, as in a real course).
@@ -36,7 +37,7 @@ def jump_course(spec: C.JumpSpec, yaw_error: float) -> C.Course:
     base = C.single_jump(spec, takeoff=(1, 1), grid=GRID)
     after = C._platform_after(base.platforms[1], 0, C.JumpSpec(1, 0, 0, (3, 3)))
     plats = np.concatenate([base.platforms, after[None, :]])
-    c = C.Course(plats, base.spawn.copy(), base.spawn_yaw + yaw_error, specs=[spec], extra=base.extra)
+    c = C.Course(plats, base.spawn.copy(), base.spawn_yaw + yaw_error, specs=[spec], extra=base.extra, ice=base.ice)
     return c
 
 
@@ -45,11 +46,17 @@ def main(argv=None):
     ap.add_argument("--checkpoint", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--advanced", action="store_true", help="neo and run-up jump types (levels 6-8)")
+    ap.add_argument("--extra", action="store_true", help="head-hitter and ice run-up jump types")
     a = ap.parse_args(argv)
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     model = load_model(Path(a.checkpoint), dev)
-    name = "jump_feasibility_advanced.json" if a.advanced else "jump_feasibility.json"
+    name = ("jump_feasibility_extra.json" if a.extra else
+            "jump_feasibility_advanced.json" if a.advanced else "jump_feasibility.json")
     feas = json.loads((CONFIGS / name).read_text())["specs"]
+    if a.extra:
+        from .feasibility import EXTRA_LEVELS
+        for r in feas:  # level names instead of numbers: these levels follow whatever table they are added to
+            r["level"] = next((lv for lv, rule in EXTRA_LEVELS if rule(r)), None)
     specs = [C._spec_from(r) for r in feas]
     courses = [jump_course(s, e) for s in specs for e in YAW_ERRORS]
     pool = CoursePool(courses, dev, GRID)

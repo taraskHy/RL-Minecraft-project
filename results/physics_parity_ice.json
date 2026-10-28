@@ -1,0 +1,17 @@
+{
+ "method": "parkour.parity.compare with ice: random block fields where half the raised blocks and the start block are ice (slipperiness 0.98), the simulator with World(slip=...) against prismarine-physics 1.11.1 through Node with minecraft-data 1.21.4 ice blocks, same 1e-7 collision tolerance; random_case(np.random.default_rng(12), ticks=200, ice=0.5) x 300, CPU",
+ "result": {
+  "cases": 300,
+  "ticks": 60000,
+  "max_pos_err": 7.105427357601002e-15,
+  "max_vel_err": 1.1102230246251565e-16,
+  "flag_mismatch_ticks": 0,
+  "exact_pos_ticks": 58482,
+  "diverged_cases": 0
+ },
+ "effect_of_ice": {
+  "cases_changed": 297,
+  "cases": 300,
+  "largest_position_change_blocks": 9.495
+ }
+}

@@ -17,6 +17,7 @@ if "%CMD%"=="train" %PY% -m parkour.train %ARGS% & exit /b
 if "%CMD%"=="sweep" %PY% scripts\sweep.py %ARGS% & exit /b
 if "%CMD%"=="feasibility" %PY% -m parkour.feasibility %ARGS% & exit /b
 if "%CMD%"=="report" %PY% -m parkour.report %ARGS% & exit /b
+if "%CMD%"=="handoff" %PY% -m parkour.handoff %ARGS% & exit /b
 if "%CMD%"=="live" %PY% -m parkour.live %ARGS% & exit /b
 if "%CMD%"=="offline" %PY% -m parkour.live --offline %ARGS% & exit /b
 if "%CMD%"=="server" %PY% -m parkour.server run %ARGS% & exit /b
@@ -27,7 +28,8 @@ echo   test          run all automated checks
 echo   train         train a policy           (run.cmd train --run NAME)
 echo   sweep         run a list of trainings  (run.cmd sweep configs\sweep_ablation.json)
 echo   feasibility   recompute which jumps are possible
-echo   report        tables and plots from finished runs
+echo   report        tables and plots from finished runs (also refreshes the HANDOFF.md snapshot)
+echo   handoff       refresh the generated part of HANDOFF.md  (run.cmd handoff --check)
 echo   offline       play held-out courses with the JS bot on Mineflayer's physics, no server
 echo   live          play held-out courses in real Minecraft (needs accept-eula once)
 echo   server        start the local parkour server by hand

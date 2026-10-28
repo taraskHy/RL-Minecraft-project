@@ -31,6 +31,18 @@ Advanced jumps (levels 6 and up, ``configs/jump_levels_advanced.json``):
 * *momentum*: ``runway`` > 0 first places a runway (``runway`` long, 1 wide)
   one block ahead, so the jump itself starts with speed (e.g. a 4-block gap,
   a "5 block jump").
+
+Extra jumps (opt-in levels after the others, ``configs/jump_levels_extra.json``;
+they change nothing unless loaded with ``load_levels(extra=True)``):
+
+* *head hitter*: ``ceiling`` 1 puts a ceiling 2 blocks above a runway's
+  surface over every runway block but the first, so the run-up and the
+  takeoff are under a 2-high roof (the head hits it at once, which caps the
+  jump's rise at 0.2 blocks); ``ceiling`` 2 continues the roof over the gap
+  (a tunnel). The first runway block stays open so the jump onto the runway
+  can land.
+* *ice*: ``ice`` 1 makes the runway ice (slipperiness 0.98: slow to speed
+  up, faster at the end).
 """
 from __future__ import annotations
 
@@ -47,6 +59,7 @@ HEADINGS = ((1, 0), (0, 1), (-1, 0), (0, -1))  # +X, +Z, -X, -Z
 GRID = (64, 32, 64)
 MAX_PLATFORMS = 16
 HEADROOM = 4  # air kept above every platform and along every flight path
+MAX_EXTRA = 256  # obstacle cells a course may have (env.MAX_EXTRA); checked for head-hitter roofs
 
 
 @dataclass(frozen=True)
@@ -59,6 +72,8 @@ class JumpSpec:
     side: int = 1  # neo: +1 go around on the right of the heading, -1 on the left
     runway: int = 0  # momentum: length of a runway placed before the jump
     wall_at: int = 1  # neo: which gap cell (1 = right after the takeoff) holds the wall
+    ceiling: int = 0  # head hitter (runway jumps): 1 roof over the runway after its first block, 2 also over the gap
+    ice: int = 0  # 1: the runway is ice
 
     def key(self) -> str:
         k = f"g{self.gap}_dy{self.dy}_l{self.lateral}_s{self.size[0]}x{self.size[1]}"
@@ -68,12 +83,16 @@ class JumpSpec:
                 k += f"w{self.wall_at}"
         if self.runway:
             k += f"_run{self.runway}"
+        if self.ceiling:
+            k += f"_hh{self.ceiling}"
+        if self.ice:
+            k += f"_ice{self.ice}"
         return k
 
 
 def _spec_from(d: dict) -> "JumpSpec":
     return JumpSpec(d["gap"], d["dy"], d["lateral"], tuple(d["size"]), d.get("neo", 0), d.get("side", 1),
-                    d.get("runway", 0), d.get("wall_at", 1))
+                    d.get("runway", 0), d.get("wall_at", 1), d.get("ceiling", 0), d.get("ice", 0))
 
 
 @dataclass
@@ -86,6 +105,7 @@ class Course:
     specs: list = field(default_factory=list)
     name: str = ""
     extra: np.ndarray = field(default_factory=lambda: np.zeros((0, 3), dtype=np.int64))  # obstacle cells
+    ice: list = field(default_factory=list)  # indices of platforms made of ice (optional; slipperiness 0.98)
 
     @property
     def n(self) -> int:
@@ -100,27 +120,41 @@ class Course:
             cells.append(np.asarray(self.extra, dtype=np.int64).reshape(-1, 3))
         return np.concatenate(cells).astype(np.int64)
 
+    def ice_cells(self) -> np.ndarray:
+        """(M, 3) cells of the ice platforms."""
+        cells = [np.zeros((0, 3), dtype=np.int64)]
+        for k in self.ice:
+            x0, x1, z0, z1, y = (int(v) for v in self.platforms[k])
+            xs, zs = np.meshgrid(np.arange(x0, x1 + 1), np.arange(z0, z1 + 1), indexing="ij")
+            cells.append(np.stack((xs.ravel(), np.full(xs.size, y), zs.ravel()), -1))
+        return np.concatenate(cells).astype(np.int64)
+
     def centers(self) -> np.ndarray:
         p = self.platforms.astype(np.float64)
         return np.stack(((p[:, 0] + p[:, 1] + 1) / 2, p[:, 4] + 1, (p[:, 2] + p[:, 3] + 1) / 2), -1)
 
     def to_json(self) -> dict:
-        return {"platforms": self.platforms.tolist(), "spawn": self.spawn.tolist(), "spawn_yaw": self.spawn_yaw,
-                "level": self.level, "seed": self.seed, "specs": [s.key() for s in self.specs], "name": self.name,
-                "extra": np.asarray(self.extra).reshape(-1, 3).tolist()}
+        d = {"platforms": self.platforms.tolist(), "spawn": self.spawn.tolist(), "spawn_yaw": self.spawn_yaw,
+             "level": self.level, "seed": self.seed, "specs": [s.key() for s in self.specs], "name": self.name,
+             "extra": np.asarray(self.extra).reshape(-1, 3).tolist()}
+        if self.ice:  # only when used, so the files of courses without ice are unchanged
+            d["ice"] = [int(k) for k in self.ice]
+        return d
 
     @classmethod
     def from_json(cls, d: dict) -> "Course":
         return cls(np.array(d["platforms"], dtype=np.int64), np.array(d["spawn"], dtype=np.float64),
                    float(d["spawn_yaw"]), int(d.get("level", 0)), int(d.get("seed", 0)), name=d.get("name", ""),
-                   extra=np.array(d.get("extra", []), dtype=np.int64).reshape(-1, 3))
+                   extra=np.array(d.get("extra", []), dtype=np.int64).reshape(-1, 3), ice=[int(k) for k in d.get("ice", [])])
 
 
-def load_levels(path: Path | None = None, advanced: bool = False) -> list[list[JumpSpec]]:
+def load_levels(path: Path | None = None, advanced: bool = False, extra: bool = False) -> list[list[JumpSpec]]:
     """Jump specs per difficulty level, from the feasibility study.
 
     With ``advanced``, the neo and momentum levels from
-    ``configs/jump_levels_advanced.json`` follow the six basic levels.
+    ``configs/jump_levels_advanced.json`` follow the six basic levels. With
+    ``extra``, the head-hitter and ice levels of ``configs/jump_levels_extra.json``
+    follow those (so their level numbers depend on ``advanced``).
     """
     path = path or CONFIGS / "jump_levels.json"
     data = json.loads(Path(path).read_text())
@@ -128,6 +162,9 @@ def load_levels(path: Path | None = None, advanced: bool = False) -> list[list[J
     if advanced:
         adv = json.loads((CONFIGS / "jump_levels_advanced.json").read_text())
         levels += [[_spec_from(s) for s in level["specs"]] for level in adv["levels"]]
+    if extra:
+        ext = json.loads((CONFIGS / "jump_levels_extra.json").read_text())
+        levels += [[_spec_from(s) for s in level["specs"]] for level in ext["levels"]]
     return levels
 
 
@@ -269,6 +306,11 @@ def _place(platforms: list, extras: list, heading: int, spec: JumpSpec, grid=GRI
             lo, hi = min(prev[0], new[0]), max(prev[1], new[1])
             if (open_dir > 0 and new[1] != hi) or (open_dir < 0 and new[0] != lo):
                 return None
+    if spec.ceiling:
+        cells = _ceiling(prev, new, heading, spec)
+        allp = platforms + added
+        if len(extras) + len(cells) > MAX_EXTRA or not _roof_clear(cells, allp, len(allp) - 2, grid):
+            return None
     if spec.neo:
         # Taller than every platform from two before the takeoff to the target: none can reach its top.
         top = max(int(p[4]) for p in (platforms[-3:] + added))
@@ -296,6 +338,44 @@ def _beam(prev: np.ndarray, new: np.ndarray, heading: int, height: int = 3) -> l
     lo, hi = (prev[3] + 1, new[2] - 1) if hz > 0 else (new[3] + 1, prev[2] - 1)
     across = range(min(prev[0], new[0]), max(prev[1], new[1]) + 1)
     return [(int(x), y, int(z)) for z in range(lo, hi + 1) for x in across]
+
+
+def _ceiling(run: np.ndarray, new: np.ndarray, heading: int, spec: JumpSpec) -> list:
+    """Roof cells of a head-hitter runway: 2 blocks of air above its surface over every runway block
+    but the first (where the jump onto the runway lands), and with ``spec.ceiling`` 2 over the gap too."""
+    hx, hz = HEADINGS[heading]
+    y = int(run[4]) + 3
+    x0, x1, z0, z1 = (int(v) for v in run[:4])
+    if hx > 0:
+        cells = [(x, y, z) for x in range(x0 + 1, x1 + 1) for z in range(z0, z1 + 1)]
+    elif hx < 0:
+        cells = [(x, y, z) for x in range(x0, x1) for z in range(z0, z1 + 1)]
+    elif hz > 0:
+        cells = [(x, y, z) for z in range(z0 + 1, z1 + 1) for x in range(x0, x1 + 1)]
+    else:
+        cells = [(x, y, z) for z in range(z0, z1) for x in range(x0, x1 + 1)]
+    if spec.ceiling >= 2:
+        cells += _beam(run, new, heading, height=2)
+    return cells
+
+
+def _roof_clear(cells: list, platforms: list, run_k: int, grid=GRID) -> bool:
+    """Roof cells inside the grid and off every platform but their own runway ``run_k``: the target
+    (``run_k`` + 1) keeps its column of headroom free, all others also a one-block margin."""
+    gx, gy, gz = grid
+    for x, y, z in cells:
+        if not (0 <= x < gx and 0 <= y < gy and 0 <= z < gz):
+            return False
+        for i, p in enumerate(platforms):
+            if i == run_k:
+                continue
+            if i == run_k + 1:
+                box = (p[0], p[1], p[4], p[4] + HEADROOM, p[2], p[3])
+            else:
+                box = (p[0] - 1, p[1] + 1, p[4] - 1, p[4] + HEADROOM, p[2] - 1, p[3] + 1)
+            if _boxes_overlap(box, (x, x, y, y, z, z)):
+                return False
+    return True
 
 
 def _pillar(new: np.ndarray, heading: int, side: int) -> list:
@@ -339,11 +419,13 @@ def load_beam_ok(path: Path | None = None) -> set:
 def generate(rng: np.random.Generator, levels: list[list[JumpSpec]], level: int, n_jumps: int,
              grid=GRID, turn_prob: float = 0.25, start_size: int | None = None, seed: int = 0,
              yaw_noise: float = math.radians(60), obstacle_prob: float = 0.0, beam_ok: set | None = None,
-             wide_neo: bool = False) -> Course:
+             wide_neo: bool = False, ice_prob: float = 0.0) -> Course:
     """One random course whose jumps come from ``levels[:level + 1]``.
 
     Half of the jumps come from ``level`` itself and half from easier levels,
-    so every course mixes new and familiar jumps.
+    so every course mixes new and familiar jumps. With ``ice_prob`` each
+    platform after the start is ice with that chance (drawn last, so the
+    layout is the one the same random numbers give without ice).
     """
     gx, gy, gz = grid
     s = start_size or int(rng.choice([1, 2, 3], p=[0.4, 0.3, 0.3]))
@@ -366,6 +448,7 @@ def generate(rng: np.random.Generator, levels: list[list[JumpSpec]], level: int,
     platforms = [np.array([x0, x0 + s - 1, z0, z0 + s - 1, y0], dtype=np.int64)]
     specs = []
     extras: list = []
+    ice_runways: list = []
     if obstacle_prob > 0 and beam_ok is None:
         beam_ok = load_beam_ok()
     for _ in range(n_jumps):
@@ -387,6 +470,8 @@ def generate(rng: np.random.Generator, levels: list[list[JumpSpec]], level: int,
                 new_platforms, wall = placed_parts
                 if spec.runway:
                     specs.append(JumpSpec(1, 0, 0, (spec.runway, 1)))
+                if spec.ice:
+                    ice_runways.append(len(platforms))
                 platforms.extend(new_platforms)
                 extras.extend(wall)
                 specs.append(spec)
@@ -415,12 +500,14 @@ def generate(rng: np.random.Generator, levels: list[list[JumpSpec]], level: int,
             break
     plats = np.stack(platforms)
     c = Course(plats, np.zeros(3), 0.0, level=level, seed=seed, specs=specs,
-               extra=np.array(extras, dtype=np.int64).reshape(-1, 3))
+               extra=np.array(extras, dtype=np.int64).reshape(-1, 3), ice=ice_runways)
     centres = c.centers()
     c.spawn = centres[0].copy()
     d = centres[1] - centres[0]
     yaw_to = math.atan2(-d[0], -d[2])  # Mineflayer yaw that faces direction d
     c.spawn_yaw = float(yaw_to + rng.uniform(-yaw_noise, yaw_noise))
+    if ice_prob > 0:
+        c.ice = sorted(set(c.ice) | {k for k in range(1, c.n) if rng.random() < ice_prob})
     return c
 
 
@@ -439,7 +526,10 @@ def single_jump(spec: JumpSpec, takeoff: tuple = (1, 1), grid=(24, 16, 24), head
     new = _platform_after(prev, heading, JumpSpec(spec.gap, spec.dy, spec.lateral, spec.size))
     plats = np.stack([prev, new])
     extra = _neo_wall(prev, new, heading, spec) if spec.neo else []
-    c = Course(plats, np.zeros(3), 0.0, specs=[spec], extra=np.array(extra, dtype=np.int64).reshape(-1, 3))
+    if spec.ceiling:
+        extra = extra + _ceiling(prev, new, heading, spec)
+    c = Course(plats, np.zeros(3), 0.0, specs=[spec], extra=np.array(extra, dtype=np.int64).reshape(-1, 3),
+               ice=[0] if spec.ice else [])
     centres = c.centers()
     c.spawn = centres[0].copy()
     d = centres[1] - centres[0]
@@ -455,18 +545,21 @@ def from_specs(steps: list, start=(4, 12, 30), start_size: int = 3, heading: int
     x, y, z = start
     platforms = [np.array([x, x + start_size - 1, z, z + start_size - 1, y], dtype=np.int64)]
     extras: list = []
+    ice: list = []
     for spec, turn in steps:
         heading = (heading + turn) % 4
         if spec.neo or spec.runway:
             placed = _place(platforms, extras, heading, spec, wide_neo=True)
             if placed is None:
                 raise ValueError(f"{spec.key()} does not fit after platform {len(platforms) - 1}")
+            if spec.ice:
+                ice.append(len(platforms))
             platforms.extend(placed[0])
             extras.extend(placed[1])
         else:
             platforms.append(_platform_after(platforms[-1], heading, spec))
     c = Course(np.stack(platforms), np.zeros(3), 0.0, level=0, specs=[s for s, _ in steps], name=name,
-               extra=np.array(extras, dtype=np.int64).reshape(-1, 3))
+               extra=np.array(extras, dtype=np.int64).reshape(-1, 3), ice=ice)
     centres = c.centers()
     c.spawn = centres[0].copy()
     d = centres[1] - centres[0]

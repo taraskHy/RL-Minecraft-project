@@ -5,7 +5,8 @@
 Reads runs/*/eval_log.csv (held-out test set, deterministic policy), copies
 each run's small logs into OUT/runs/NAME/ for the record, and writes
 OUT/README.md (tables) and OUT/figures/*.png. All numbers are simulator
-results unless a table says otherwise.
+results unless a table says otherwise. With the default OUT it also refreshes the
+generated snapshot in HANDOFF.md (parkour.handoff).
 """
 from __future__ import annotations
 
@@ -18,6 +19,7 @@ from pathlib import Path
 
 import numpy as np
 
+from . import handoff
 from .paths import ROOT, RUNS
 
 ABLATION_ITERATIONS = 1000
@@ -445,6 +447,22 @@ def main(argv=None):
         lines.append("")
         rows = [r for r in (game_row(out, n) for n in ("v2-planner-offline", "v2-planner-offline-obstacles", "v2-planner-live",
                                                        "v2-planner-live-obstacles")) if r]
+        tuned = [(k, out / "planner" / f"sim_test_{k}_tuned.json") for k in ("standard", "obstacles")]
+        if all(f.exists() for _, f in tuned):
+            cfg = json.loads(tuned[0][1].read_text())["planner"]
+            lines += [f"Retuned for the final policy on the validation courses (`cost={cfg['cost']}`, `align={cfg['align']}`;",
+                      "every variant tried is in `results/planner/validation_tuning.jsonl`), the test sets used once:", "",
+                      "| Test set | Fall rule | Planner, retuned | " + " | ".join(f"L{L}" for L in range(6)) + " |",
+                      "| --- | --- | --- | " + " | ".join("---" for _ in range(6)) + " |"]
+            for label, path in tuned:
+                d = json.loads(path.read_text())
+                for rule in ("local", "remaining"):
+                    pr = d[rule]["planner_route"]
+                    lines.append(f"| {label} ({d['courses']}) | {rule} | {pct(pr['success'])} | "
+                                 + " | ".join(pct(pr["per_level"][str(L)]["success"]) for L in range(6)) + " |")
+            lines.append("")
+            rows += [r for r in (game_row(out, n, n + " (retuned planner)") for n in (
+                "v2-tuned-planner-offline", "v2-tuned-planner-offline-obstacles")) if r]
         rows += [r for r in (game_row(out, n, n + " (first final policy)") for n in (
             "planner-offline", "planner-offline-obstacles", "planner-live", "planner-live-obstacles")) if r]
         v1 = [(out / "planner" / f"sim_test_{k}_v1.json") for k in ("standard", "obstacles")]
@@ -526,6 +544,23 @@ def main(argv=None):
         if rows:
             lines += ["The neo policy on the neo course set (`configs/neo_live_courses.json`: the first 10 held-out test",
                       "courses with a neo of levels 6, 7 and 8, and the showcase neo course):", ""] + GAME_HEADER + rows + [""]
+        op = out / "neo" / "one_policy_comparison.json"
+        if op.exists():
+            c = json.loads(op.read_text())
+            lines += ["One policy for everything? Levels 0-5 of the advanced test set are the standard test courses, so the",
+                      "neo policies' scores there compare with the final policies' (`scripts/one_policy_check.py`; neo",
+                      "policies at their validation-chosen checkpoint; their neo-course results are in the table above):", "",
+                      "| Policy | Standard, L0-5 | Obstacles, L0-5 | L6 | L7 | L8 | Neo courses completed |",
+                      "| --- | --- | --- | --- | --- | --- | --- |"]
+            for name, f in c["final_policies"].items():
+                lines.append(f"| `{name}` | {f['standard_levels_0_5']} | {f['obstacles_levels_0_5']} | "
+                             + " | ".join(str(f["levels_6_8"][str(L)]) for L in (6, 7, 8))
+                             + f" | {f['neo_courses_completed']}/{f['neo_courses']} |")
+            for name, r in c["neo_policies"].items():
+                lines.append(f"| `{name}` (iteration {r['iteration']}) | {r['standard_levels_0_5']} | "
+                             f"{r['obstacles_levels_0_5']} | " + " | ".join(str(r["per_level"][str(L)]) for L in (6, 7, 8))
+                             + " | |")
+            lines.append("")
 
     for name in ("offline", "live", "offline_v1", "live_v1"):
         p = out / f"{name}_summary.md"
@@ -534,6 +569,11 @@ def main(argv=None):
 
     (out / "README.md").write_text("\n".join(lines) + "\n")
     print("\n".join(lines))
+    if out.resolve() == (ROOT / "results").resolve():
+        try:
+            print(f"HANDOFF.md snapshot {'updated' if handoff.update() else 'already current'}.")
+        except (OSError, ValueError) as e:
+            print(f"HANDOFF.md snapshot not updated: {e}")
 
 
 if __name__ == "__main__":

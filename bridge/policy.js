@@ -6,6 +6,7 @@
 
 const fs = require('fs')
 const { GreedyPlanner } = require('./planner')
+const { Assist } = require('./assist')
 
 const SCAN_FORWARD = Array.from({ length: 14 }, (_, i) => -1.0 + 0.5 * i)
 const SCAN_LATERAL = Array.from({ length: 7 }, (_, i) => -1.5 + 0.5 * i)
@@ -253,9 +254,18 @@ function onObstacle (s, extra) {
   return false
 }
 
+// Episode.step returns PLAN when the neo assist wants a plan (bridge/assist.js): the bot then gets
+// one for episode.pending and calls episode.resume(plan or null) for the action.
+const PLAN = 'plan'
+
 class Episode {
-  constructor (policy, platforms, isSolid, { stall = 200, maxTicks = 3000, extra = null, planner = null, fallRule = 'local' } = {}) {
+  constructor (policy, platforms, isSolid, { stall = 200, maxTicks = 3000, extra = null, planner = null, fallRule = 'local', assist = null } = {}) {
     this.extra = extra
+    // With an assist ({config, takeoffs}), planned actions replace the policy's (see PLAN).
+    this.assist = assist ? new Assist(assist.config, assist.takeoffs) : null
+    this.queue = []
+    this.pending = null
+    this.assistLog = []
     this.fallRule = fallRule
     // With a planner config, the policy's platform slots come from the blocks around the bot
     // (bridge/planner.js); the course list is only used to score the episode.
@@ -298,11 +308,37 @@ class Episode {
       }
       if (this.planner) this.planner.update(s.pos, s.onGround, this.ticks)
       if (this.memory) this.memory.update(s)
+      if (this.assist && this.queue.length === 0) {
+        const req = this.assist.request(s, this.cp, this.stall, this.ticks, this.stallLimit)
+        if (req) {
+          this.pending = { ...req, tick: this.ticks, state: s, lastAction: this.lastAction.slice() }
+          return PLAN
+        }
+      }
     } else {
       this.started = true
       this.init = s
       if (this.planner) this.planner.start(s.pos)
       if (this.extended) this.memory = new LandingMemory(s.pos, s.onGround)
+    }
+    return this._act(s)
+  }
+
+  // After PLAN: play ``plan`` (a list of actions) or, with null, let the policy act.
+  resume (plan, info = {}) {
+    const req = this.pending
+    this.pending = null
+    this.assistLog.push({ kind: req.kind, cp: req.cp, takeoff: req.takeoff, tick: req.tick, ...info, played: !!plan })
+    if (plan) this.queue = plan.map(a => a.slice())
+    return this._act(req.state)
+  }
+
+  _act (s) {
+    if (this.queue.length) {
+      const a = this.queue.shift()
+      this.actions.push(a)
+      this.lastAction = a
+      return a
     }
     const n = this.platforms.length
     let slots, progress
@@ -332,12 +368,13 @@ class Episode {
       init: this.init,
       actions: this.actions,
       traj: this.traj,
-      ...(this.planner ? { plans: this.planner.events } : {})
+      ...(this.planner ? { plans: this.planner.events } : {}),
+      ...(this.assist ? { assist: this.assistLog } : {})
     }
   }
 }
 
 module.exports = {
   observe, observeSlots, LandingMemory, OBS_DIM_EXT, standingOn, fellBelow, onObstacle, Policy, Episode, controls, wrapYaw, centre,
-  OBS_DIM, ACTION_DIMS, NO_ACTION, YAW_STEPS_DEG
+  OBS_DIM, ACTION_DIMS, NO_ACTION, YAW_STEPS_DEG, PLAN
 }

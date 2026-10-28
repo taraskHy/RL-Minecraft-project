@@ -107,6 +107,16 @@ courses). "Remaining" counts a drop onto any later, lower platform as a landing,
 | obstacles (1200) | local | 95.2 | 88.1 | 95.0 | 89.0 | 87.5 | 90.5 | 88.5 | 78.0 |
 | obstacles (1200) | remaining | 95.2 | 91.4 | 96.5 | 94.5 | 92.0 | 94.0 | 90.5 | 81.0 |
 
+Retuned for the final policy on the validation courses (`cost=distance`, `align=2.0`;
+every variant tried is in `results/planner/validation_tuning.jsonl`), the test sets used once:
+
+| Test set | Fall rule | Planner, retuned | L0 | L1 | L2 | L3 | L4 | L5 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| standard (1200) | local | 92.3 | 98.5 | 95.0 | 95.5 | 92.0 | 90.5 | 82.5 |
+| standard (1200) | remaining | 94.7 | 99.5 | 96.5 | 98.0 | 95.0 | 93.0 | 86.0 |
+| obstacles (1200) | local | 90.5 | 96.5 | 95.5 | 91.5 | 93.0 | 88.0 | 78.5 |
+| obstacles (1200) | remaining | 92.4 | 97.5 | 96.5 | 94.5 | 95.0 | 90.0 | 81.0 |
+
 With the first final policy the planner made 89.6 (standard) and 86.2 (obstacles) on the
 same test sets (`results/planner/sim_test_*_v1.json`).
 
@@ -116,6 +126,8 @@ same test sets (`results/planner/sim_test_*_v1.json`).
 | v2-planner-offline-obstacles | offline (prismarine-physics, no server) | 55/60 | 91.7 | 100.0 | 0 | 7.1e-15 |
 | v2-planner-live | live (Minecraft 1.21.4 server) | 50/60 | 83.3 | 100.0 | 0 | 2.1e-14 |
 | v2-planner-live-obstacles | live (Minecraft 1.21.4 server) | 55/60 | 91.7 | 100.0 | 0 | 2.1e-14 |
+| v2-tuned-planner-offline (retuned planner) | offline (prismarine-physics, no server) | 51/60 | 85.0 | 100.0 | 0 | 7.1e-15 |
+| v2-tuned-planner-offline-obstacles (retuned planner) | offline (prismarine-physics, no server) | 56/60 | 93.3 | 100.0 | 0 | 7.1e-15 |
 | planner-offline (first final policy) | offline (prismarine-physics, no server) | 52/60 | 86.7 | 100.0 | 0 | 7.1e-15 |
 | planner-offline-obstacles (first final policy) | offline (prismarine-physics, no server) | 53/60 | 88.3 | 100.0 | 0 | 3.6e-15 |
 | planner-live (first final policy) | live (Minecraft 1.21.4 server) | 52/60 | 86.7 | 100.0 | 0 | 2.1e-14 |
@@ -187,6 +199,21 @@ courses with a neo of levels 6, 7 and 8, and the showcase neo course):
 | --- | --- | --- | --- | --- | --- | --- |
 | neo-offline-final | offline (prismarine-physics, no server) | 11/31 | 35.5 | 100.0 | 0 | 7.1e-15 |
 | neo-live-final | live (Minecraft 1.21.4 server) | 11/31 | 35.5 | 100.0 | 0 | 2.1e-14 |
+
+One policy for everything? Levels 0-5 of the advanced test set are the standard test courses, so the
+neo policies' scores there compare with the final policies' (`scripts/one_policy_check.py`; neo
+policies at their validation-chosen checkpoint; their neo-course results are in the table above):
+
+| Policy | Standard, L0-5 | Obstacles, L0-5 | L6 | L7 | L8 | Neo courses completed |
+| --- | --- | --- | --- | --- | --- | --- |
+| `final_policy` | 98.4 | 95.2 | 71.0 | 3.5 | 1.5 | 0/210 |
+| `final_policy_v1` | 97.1 | 93.6 | 70.0 | 7.0 | 1.0 | 0/210 |
+| `advanced-ft3` (iteration 499) | 96.2 | 94.3 | 71.0 | 30.0 | 74.0 | |
+| `neo-stall` (iteration 749) | 96.9 | 95.2 | 69.0 | 30.5 | 81.5 | |
+| `neo-bc` (iteration 699) | 97.2 | 94.6 | 74.5 | 41.0 | 72.5 | |
+| `neo-dagger` (iteration 149) | 96.3 | 93.0 | 75.5 | 45.0 | 75.0 | |
+| `neo-dagger2` (iteration 299) | 96.6 | 93.8 | 74.0 | 50.0 | 77.0 | |
+| `neo-dagger3` (iteration 449) | 96.5 | 92.5 | 80.5 | 46.5 | 71.5 | |
 
 ## Offline check
 

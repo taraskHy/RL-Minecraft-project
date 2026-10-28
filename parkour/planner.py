@@ -22,6 +22,15 @@ platform for the slots after it, and stops at the goal platform.
 
 The same planner runs in the bot (bridge/planner.js); tests check that both
 pick the same platforms.
+
+With ``value_pick`` K > 0 (simulator only; the bot has no critic), the K
+cheapest next platforms are each extended greedily into a chain, and the
+chain whose slots give the highest value under the policy's own critic, at
+the player's current state, is taken. ``drop`` adds a cost per block a jump
+goes down; ``lookahead`` adds the cheapest onward jump. None of the three
+helped on the validation courses
+(results/planner/validation_tuning.jsonl); ``cost="distance", align=2.0``
+did, and is the setting recommended for the final policy (report 7.11).
 """
 from __future__ import annotations
 
@@ -30,6 +39,7 @@ import json
 import math
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import torch
@@ -39,6 +49,7 @@ from . import physics
 from .env import PLATFORM_SLOTS, STAND_EPS, CoursePool, EnvConfig, ParkourEnv
 
 LOOKAHEAD = PLATFORM_SLOTS - 1
+LOOKAHEAD_DEAD_END = 10.0  # cfg.lookahead: extra cost of a platform with no jump on from it
 # From the feasibility study (configs/jump_feasibility.json, straight jumps from a 1x1 block):
 # the longest possible air gap for each height change, and the best forgiveness at each gap.
 MAX_GAP = {1: 3, 0: 4, -1: 4, -2: 4, -3: 5}
@@ -63,6 +74,9 @@ class PlannerConfig:
     mark_passed: bool = True   # landing beyond the plan's next platform marks the ones skipped as passed
     clear_path: bool = True    # skip platforms whose straight flight path from here passes through blocks
     head_hitters: bool = True  # a slab 4 blocks above a platform it touches is a head hitter, not a target
+    value_pick: int = 0        # >0: of this many cheapest next platforms, take the chain the critic values most
+    drop: float = 0.0          # added cost per block a jump goes down (0: off, as in the bot)
+    lookahead: bool = False    # rank next platforms by their cost plus the cheapest jump on from them
 
 
 class Platform:
@@ -149,39 +163,59 @@ def head_hitter(p: Platform, platforms: list) -> bool:
     return False
 
 
-def choose(platforms: list, current: Platform, visited: set, goal: tuple, cfg: PlannerConfig, is_solid=None) -> list:
-    """Up to LOOKAHEAD platforms after ``current``: greedy, each from the one before."""
+def options(platforms: list, frm: Platform, current: Platform, chain: list, visited: set, goal: tuple,
+            cfg: PlannerConfig, is_solid=None) -> list:
+    """(cost, platform) for every platform reachable from ``frm``, in ``platforms`` order."""
+    fc = frm.centre()
+    gx, gz = goal[0] - fc[0], goal[2] - fc[2]
+    gn = _norm(gx, gz)
+    out = []
+    for p in platforms:
+        if p is current or p in chain or any(c in visited for c in p.cells):
+            continue
+        dy = p.y - frm.y
+        if dy < cfg.dy_min or dy > cfg.dy_max:
+            continue
+        dx = max(0, p.x0 - (frm.x1 + 1), frm.x0 - (p.x1 + 1))
+        dz = max(0, p.z0 - (frm.z1 + 1), frm.z0 - (p.z1 + 1))
+        d = _norm(dx, dz)
+        if d > (MAX_GAP[dy] + cfg.slack if cfg.limits == "table" else cfg.max_gap):
+            continue
+        if cfg.clear_path and is_solid is not None and not path_clear(is_solid, frm, p):
+            continue
+        pc = p.centre()
+        vx, vz = pc[0] - fc[0], pc[2] - fc[2]
+        vn = _norm(vx, vz)
+        cos = (vx * gx + vz * gz) / (vn * gn) if vn > 1e-9 and gn > 1e-9 else 0.0
+        if cfg.cost == "difficulty":
+            f = FORGIVENESS[dy]
+            cost = -math.log(f[min(round(d), len(f) - 1)]) - cfg.align * cos
+        else:
+            cost = d - cfg.align * cos
+        if cfg.drop and dy < 0:
+            cost += cfg.drop * -dy
+        out.append((cost, p))
+    return out
+
+
+def choose(platforms: list, current: Platform, visited: set, goal: tuple, cfg: PlannerConfig, is_solid=None,
+           first: Platform | None = None) -> list:
+    """Up to LOOKAHEAD platforms after ``current``: greedy, each from the one before (``first``, if
+    given, is taken as the first)."""
     chain = []
     frm = current
     for _ in range(LOOKAHEAD):
-        fc = frm.centre()
-        gx, gz = goal[0] - fc[0], goal[2] - fc[2]
-        gn = _norm(gx, gz)
         best, best_cost = None, math.inf
-        for p in platforms:
-            if p is current or p in chain or any(c in visited for c in p.cells):
-                continue
-            dy = p.y - frm.y
-            if dy < cfg.dy_min or dy > cfg.dy_max:
-                continue
-            dx = max(0, p.x0 - (frm.x1 + 1), frm.x0 - (p.x1 + 1))
-            dz = max(0, p.z0 - (frm.z1 + 1), frm.z0 - (p.z1 + 1))
-            d = _norm(dx, dz)
-            if d > (MAX_GAP[dy] + cfg.slack if cfg.limits == "table" else cfg.max_gap):
-                continue
-            if cfg.clear_path and is_solid is not None and not path_clear(is_solid, frm, p):
-                continue
-            pc = p.centre()
-            vx, vz = pc[0] - fc[0], pc[2] - fc[2]
-            vn = _norm(vx, vz)
-            cos = (vx * gx + vz * gz) / (vn * gn) if vn > 1e-9 and gn > 1e-9 else 0.0
-            if cfg.cost == "difficulty":
-                f = FORGIVENESS[dy]
-                cost = -math.log(f[min(round(d), len(f) - 1)]) - cfg.align * cos
-            else:
-                cost = d - cfg.align * cos
-            if cost < best_cost - 1e-9:
-                best, best_cost = p, cost
+        if first is not None and not chain:
+            best = first
+        else:
+            gcell = goal_cell(goal)
+            for cost, p in options(platforms, frm, current, chain, visited, goal, cfg, is_solid):
+                if cfg.lookahead and not p.contains(gcell):
+                    onward = [c for c, _ in options(platforms, p, current, chain + [p], visited, goal, cfg, is_solid)]
+                    cost += min(onward) if onward else LOOKAHEAD_DEAD_END
+                if cost < best_cost - 1e-9:
+                    best, best_cost = p, cost
         if best is None:
             break
         chain.append(best)
@@ -216,6 +250,7 @@ class GreedyPlanner:
         self.start_dist = None
         self.progress = 0.0
         self.events = []  # (tick, platform stood on, chosen chain) for the record
+        self.scorer = None  # value_pick: (platform stood on, candidate chains) -> index of the chain to take
 
     def start(self, pos) -> None:
         cell = next((c for c in support_cells(pos) if self.is_solid(*c)), None)
@@ -247,19 +282,25 @@ class GreedyPlanner:
         self.current = here
         self.visited.update(here.cells)
         targets = [p for p in platforms if not head_hitter(p, platforms)] if cfg.head_hitters else platforms
-        self.chain = choose(targets, here, self.visited, self.goal, cfg, self.is_solid)
         c = here.centre()
         dx, dy, dz = c[0] - self.goal[0], c[1] - self.goal[1], c[2] - self.goal[2]
         dist = math.sqrt(dx * dx + dy * dy + dz * dz)
         if self.start_dist is None:
             self.start_dist = max(dist, 1e-9)
         self.progress = min(1.0, max(0.0, 1.0 - dist / self.start_dist))
+        self.chain = choose(targets, here, self.visited, self.goal, cfg, self.is_solid)
+        if cfg.value_pick > 0 and self.scorer is not None and self.chain:
+            opts = options(targets, here, here, [], self.visited, self.goal, cfg, self.is_solid)
+            firsts = [p for _, p in sorted(opts, key=lambda o: o[0])[:cfg.value_pick]]
+            chains = [choose(targets, here, self.visited, self.goal, cfg, self.is_solid, first=p) for p in firsts]
+            self.chain = chains[self.scorer(here, chains)]
         self.events.append([tick, list(here.rect()), [list(p.rect()) for p in self.chain]])
         return True
 
-    def slots(self):
-        """Platforms for the policy's slots (current first), valid flags, goal flags."""
-        ps = ([self.current] if self.current is not None else []) + self.chain
+    def slots(self, chain: list | None = None):
+        """Platforms for the policy's slots (current first), valid flags, goal flags; ``chain``
+        replaces the plan."""
+        ps = ([self.current] if self.current is not None else []) + (self.chain if chain is None else chain)
         gcell = goal_cell(self.goal)
         rects = [p.rect() for p in ps] + [(0, 0, 0, 0, 0)] * (PLATFORM_SLOTS - len(ps))
         valid = [True] * len(ps) + [False] * (PLATFORM_SLOTS - len(ps))
@@ -285,6 +326,23 @@ def evaluate_planned(model, pool: CoursePool, device, cfg: PlannerConfig, stall_
     solid = pool.world.solid.cpu().numpy()
     gx, gy, gz = solid.shape[1:]
     goals = pool.centre[torch.arange(n, device=device), (pool.n - 1).clamp(min=0)].cpu().numpy()
+    lo = 11  # the slots follow 6 proprioceptive numbers and the 5 of the previous action
+    obs_now = env.observe() if cfg.value_pick else None  # refreshed every tick for the critic
+
+    def scorer_for(i, pl):
+        def score(here, chains):
+            m = len(chains)
+            r, v, g = zip(*(pl.slots(ch) for ch in chains))
+            st = SimpleNamespace(pos=env.state.pos[i:i + 1].expand(m, 3), yaw=env.state.yaw[i:i + 1].expand(m))
+            rows = obs_now[i:i + 1].repeat(m, 1)
+            rows[:, lo:lo + PLATFORM_SLOTS * 11] = env.obs_fn.slots(
+                st, torch.as_tensor(r, device=device), torch.as_tensor(v, device=device),
+                torch.as_tensor(g, device=device)).to(rows.dtype)
+            rows[:, -1] = pl.progress
+            with torch.no_grad():
+                return int(model.value(model.norm(rows)).argmax())
+        return score
+
     planners = []
     for i in range(n):
         s = solid[i]
@@ -292,6 +350,8 @@ def evaluate_planned(model, pool: CoursePool, device, cfg: PlannerConfig, stall_
         def is_solid(x, y, z, s=s):
             return 0 <= x < gx and 0 <= y < gy and 0 <= z < gz and bool(s[x, y, z])
         pl = GreedyPlanner(is_solid, tuple(goals[i]), cfg)
+        if cfg.value_pick:
+            pl.scorer = scorer_for(i, pl)
         pl.start(tuple(env.state.pos[i].tolist()))
         planners.append(pl)
 
@@ -313,7 +373,6 @@ def evaluate_planned(model, pool: CoursePool, device, cfg: PlannerConfig, stall_
 
     def observe():
         obs = env.observe()
-        lo = 11
         obs[:, lo:lo + PLATFORM_SLOTS * 11] = env.obs_fn.slots(env.state, R, V, G).to(obs.dtype)
         obs[:, -1] = P.to(obs.dtype)
         return obs
@@ -342,6 +401,8 @@ def evaluate_planned(model, pool: CoursePool, device, cfg: PlannerConfig, stall_
             # Re-plan where a player still in its first episode landed on a new platform.
             pos = env.state.pos.cpu().numpy()
             grounded = (env.state.on_ground & ~finished).cpu().numpy()
+            if cfg.value_pick:
+                obs_now = env.observe()
             changed = False
             for i in np.flatnonzero(grounded):
                 if planners[i].update(tuple(pos[i].tolist()), True, t + 1):

@@ -27,10 +27,12 @@ class ParityCase:
     pos: tuple
     yaw: np.ndarray  # (T,)
     controls: np.ndarray  # (T, 6) bool
+    ice: np.ndarray | None = None  # (I, 3) int, cells of ``blocks`` that are ice
 
 
-def random_case(rng: np.random.Generator, ticks: int = 120, size: int = 14) -> ParityCase:
-    """A random block field with a player on top of a block and sticky random inputs."""
+def random_case(rng: np.random.Generator, ticks: int = 120, size: int = 14, ice: float = 0.0) -> ParityCase:
+    """A random block field with a player on top of a block and sticky random inputs; with ``ice``
+    > 0, that share of the raised blocks (and always the start block) is ice."""
     blocks = set()
     floor_y = 6
     o = 26  # offset so a safety floor fits around the field at non-negative cells
@@ -69,12 +71,16 @@ def random_case(rng: np.random.Generator, ticks: int = 120, size: int = 14) -> P
             y += rng.normal(0.0, 0.4)
         yaw[t] = y
         controls[t] = c
-    return ParityCase(np.array(sorted(blocks), dtype=np.int64), pos, yaw, controls)
+    cells = None
+    if ice > 0:  # drawn last, so cases without ice are the same as before
+        cells = np.array([b for b in raised if b == start or rng.random() < ice], dtype=np.int64)
+    return ParityCase(np.array(sorted(blocks), dtype=np.int64), pos, yaw, controls, cells)
 
 
 def run_js(cases: list[ParityCase]) -> list[list[dict]]:
     payload = {"cases": [{
-        "blocks": c.blocks.tolist(), "pos": list(c.pos), "vel": [0.0, 0.0, 0.0], "onGround": False,
+        "blocks": c.blocks.tolist(), "ice": [] if c.ice is None else c.ice.tolist(),
+        "pos": list(c.pos), "vel": [0.0, 0.0, 0.0], "onGround": False,
         "jumpTicks": 0,
         "ticks": [{"yaw": float(c.yaw[t]), "c": [int(v) for v in c.controls[t]]} for t in range(len(c.yaw))],
     } for c in cases]}
@@ -97,7 +103,15 @@ def run_torch(cases: list[ParityCase], device: str = "cpu") -> list[dict]:
     for i, c in enumerate(cases):
         b = torch.as_tensor(c.blocks)
         solid[i, b[:, 0], b[:, 1], b[:, 2]] = True
-    world = physics.World(solid.to(device))
+    slip = None
+    if any(c.ice is not None and len(c.ice) for c in cases):
+        slip = torch.full(solid.shape, physics.DEFAULT_SLIPPERINESS, dtype=torch.float64)
+        for i, c in enumerate(cases):
+            if c.ice is not None and len(c.ice):
+                b = torch.as_tensor(c.ice)
+                slip[i, b[:, 0], b[:, 1], b[:, 2]] = physics.ICE_SLIPPERINESS
+        slip = slip.to(device)
+    world = physics.World(solid.to(device), slip)
     course = torch.arange(n, device=device)
     state = physics.PlayerState.at(torch.tensor([c.pos for c in cases], dtype=torch.float64, device=device),
                                    torch.zeros(n, dtype=torch.float64, device=device))

@@ -13,7 +13,7 @@ real Minecraft server, on new courses.
 
 **Status:** see [TEAM_STATUS.md](TEAM_STATUS.md) (updated by hand, so it can lag behind [results/README.md](results/README.md), which is generated from the run files).
 **Design and method:** [docs/design.md](docs/design.md).
-**Assistant handoff:** [HANDOFF.md](HANDOFF.md).
+**For AI agents and new contributors:** [AGENTS.md](AGENTS.md) (rules) and [HANDOFF.md](HANDOFF.md) (current state, what is left, what not to touch, open problems; kept up to date every session).
 
 ## Results so far
 

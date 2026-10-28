@@ -3,22 +3,28 @@
 //
 //   node parkour_bot.js --policy P.json --courses C.json --out episodes.jsonl
 //        [--port 25570] [--origin 0,80,0] [--pad -20,100,-20] [--viewer NAME] [--stall 200] [--max-ticks 3000]
+//        [--assist CONFIG_JSON --assist-python PYTHON --assist-checkpoint CKPT --assist-root DIR]
 //
 // For each course: move to the spawn pad, clear the course area, build the
 // platforms with /fill, /tp onto the start block, then drive the bot with the
 // policy one game tick at a time. The policy sees what the game shows (the
 // bot's position and velocity and the blocks around it) and acts through
 // ordinary movement controls only. Every tick is logged so parkour.live can
-// replay it in the simulator.
+// replay it in the simulator. With --assist (bridge/assist.js) the bot stops
+// its physics on a planned takeoff while the Python planner searches a plan
+// from its exact state (the server sees it stand still), checks the plan with
+// prismarine-physics against the real blocks, and plays it.
 
 const fs = require('fs')
 require('./physics_patch') // vanilla collision tolerance, as in the simulator
 const mineflayer = require('mineflayer')
 const { Vec3 } = require('vec3')
 const P = require('./policy')
+const A = require('./assist')
+const { Physics } = require('prismarine-physics')
 
 function parseArgs (argv) {
-  const a = { port: 25570, host: '127.0.0.1', origin: '0,80,0', pad: '-20,100,-20', stall: 200, maxTicks: 3000, username: 'ParkourBot', viewer: '', style: 'stone', webViewer: 0, hold: 0, planner: '', fallRule: 'local' }
+  const a = { port: 25570, host: '127.0.0.1', origin: '0,80,0', pad: '-20,100,-20', stall: 200, maxTicks: 3000, username: 'ParkourBot', viewer: '', style: 'stone', webViewer: 0, hold: 0, planner: '', fallRule: 'local', assist: '' }
   for (let i = 2; i < argv.length; i += 2) {
     const k = argv[i].replace(/^--/, '').replace(/-([a-z])/g, (_, c) => c.toUpperCase())
     a[k] = argv[i + 1]
@@ -44,7 +50,8 @@ const GRID = [64, 32, 64]
 // slime, soul sand or honey), so the bot moves exactly as it does on stone.
 const RAINBOW = ['white_concrete', 'orange_concrete', 'magenta_concrete', 'light_blue_concrete', 'yellow_concrete',
   'lime_concrete', 'pink_concrete', 'cyan_concrete', 'purple_concrete', 'blue_concrete', 'red_concrete', 'green_concrete']
-function blockFor (k, n) {
+function blockFor (k, n, ice) {
+  if ((ice || []).includes(k)) return 'minecraft:ice' // the bot's physics reads the block type: ice friction
   if (args.style !== 'rainbow') return 'minecraft:stone'
   if (k === 0) return 'minecraft:emerald_block'
   if (k === n - 1) return 'minecraft:gold_block'
@@ -109,17 +116,49 @@ function applyAction (a) {
   for (const k of ['forward', 'back', 'left', 'right', 'jump', 'sprint']) bot.setControlState(k, c[k])
 }
 
+const assistConfig = args.assist ? JSON.parse(args.assist) : null
+const service = assistConfig
+  ? new A.PlannerService(args.assistPython, A.serviceArgs(assistConfig, args.assistCheckpoint, args.courses), args.assistRoot)
+  : null
+let planning = false
+let courseIndex = -1
+
+function endEpisode () {
+  bot.clearControlStates()
+  const done = finish
+  finish = null
+  if (done) done()
+}
+
+// The bot stands still (no physics ticks) while the planner searches; the plan is checked in world
+// coordinates against the real blocks, as the bot's own physics will play it.
+function planThenAct (ep) {
+  planning = true
+  bot.physicsEnabled = false
+  const q = ep.pending
+  const c = courses[courseIndex]
+  service.plan({ index: courseIndex, cp: q.cp, target: q.target, kind: q.kind, attempt: q.attempt, state: q.state, lastAction: q.lastAction })
+    .then(r => {
+      const e = bot.entity
+      const here = { pos: [e.position.x, e.position.y, e.position.z], vel: [e.velocity.x, e.velocity.y, e.velocity.z], yaw: e.yaw, onGround: !!e.onGround, jumpTicks: bot.jumpTicks || 0, collidedH: !!e.isCollidedHorizontally }
+      const plats = c.platforms.map(([x0, x1, z0, z1, y]) => [x0 + OX, x1 + OX, z0 + OZ, z1 + OZ, y + OY])
+      const extra = (c.extra || []).map(([x, y, z]) => [x + OX, y + OY, z + OZ])
+      const world = { getBlock: p => bot.blockAt(p, false) }
+      const verified = !!r.plan && A.verifyPlan(Physics(bot.registry, world), world, here, r.plan, plats, q.cp, q.target, extra)
+      const a = ep.resume(verified ? r.plan : null, { found: !!r.plan, verified, rounds: r.rounds, seconds: r.seconds })
+      planning = false
+      if (a === null) endEpisode()
+      else applyAction(a)
+      bot.physicsEnabled = true
+    })
+}
+
 bot.on('physicsTick', () => {
   sanitizeAttributes()
-  if (!episode) return
+  if (!episode || planning) return
   const a = episode.step(state())
-  if (a === null) {
-    bot.clearControlStates()
-    const done = finish
-    finish = null
-    if (done) done()
-    return
-  }
+  if (a === P.PLAN) return planThenAct(episode)
+  if (a === null) return endEpisode()
   applyAction(a)
 })
 
@@ -160,7 +199,7 @@ async function runCourse (c, index) {
     await chatCommand(`/fill ${OX - 4} ${OY - 7} ${OZ - 4} ${OX + GRID[0] + 3} ${OY - 6} ${OZ + GRID[2] + 3} minecraft:air`)
   }
   for (const [k, [x0, x1, z0, z1, y]] of c.platforms.entries()) {
-    await chatCommand(`/fill ${x0 + OX} ${y + OY} ${z0 + OZ} ${x1 + OX} ${y + OY} ${z1 + OZ} ${blockFor(k, c.platforms.length)}`)
+    await chatCommand(`/fill ${x0 + OX} ${y + OY} ${z0 + OZ} ${x1 + OX} ${y + OY} ${z1 + OZ} ${blockFor(k, c.platforms.length, c.ice)}`)
   }
   const extra = c.extra || []
   for (const [x, y, z] of extra) await chatCommand(`/setblock ${x + OX} ${y + OY} ${z + OZ} ${OBSTACLE_BLOCK()}`)
@@ -201,8 +240,14 @@ async function runCourse (c, index) {
   const t0 = Date.now()
   if (args.webViewer) log(`film: start ${index} ${t0}`) // wall-clock marks for cutting a video
   const ep = new P.Episode(policy, c.platforms, isSolid, {
-    stall: args.stall, maxTicks: args.maxTicks, extra: c.extra || [], planner: args.planner ? JSON.parse(args.planner) : null, fallRule: args.fallRule
+    stall: args.stall,
+    maxTicks: args.maxTicks,
+    extra: c.extra || [],
+    planner: args.planner ? JSON.parse(args.planner) : null,
+    fallRule: args.fallRule,
+    assist: assistConfig ? { config: assistConfig, takeoffs: c.assist_takeoffs || [] } : null
   })
+  courseIndex = index
   await new Promise(resolve => { finish = resolve; episode = ep })
   episode = null
   if (args.webViewer) log(`film: end ${index} ${Date.now()}`)
@@ -240,6 +285,7 @@ bot.once('spawn', async () => {
       if (rec.success) ok++
     }
     log(`done: ${ok}/${courses.length} courses completed`)
+    if (service) service.close()
     out.end()
     await sleep(500)
     bot.quit()

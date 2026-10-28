@@ -20,6 +20,10 @@ configs/jump_levels.json)
      configs/jump_feasibility_advanced.json and configs/jump_levels_advanced.json:
      neo, double and triple neo jumps with a curved strategy family, momentum
      jumps from a runway, and sideways offsets of 3)
+     python -m parkour.feasibility --extra  (writes configs/jump_feasibility_extra.json
+     and configs/jump_levels_extra.json: head hitters, runways under a 2-high
+     roof, and ice runways, with a run-up strategy family; opt-in levels that
+     load_levels(extra=True) appends)
 """
 from __future__ import annotations
 
@@ -34,7 +38,7 @@ import torch
 
 from . import physics
 from .courses import JumpSpec, _beam, single_jump
-from .env import CoursePool, standing_on
+from .env import CoursePool, on_obstacle, standing_on
 from .paths import CONFIGS
 
 GAPS = range(0, 6)
@@ -242,6 +246,108 @@ def advanced_study(device):
     return out
 
 
+# Run-up strategies (extra study): start at the back of the runway, sprint toward an aim point on
+# the target, jump when the centre passes a point before (or past) the runway's end, optionally
+# hopping on every landing before that (head-hitter momentum), optionally letting go after the jump.
+RUN_AIM_LATERAL = (-0.3, -0.15, 0.0, 0.15, 0.3)
+RUN_EDGE = (-0.28, -0.2, -0.1, 0.0, 0.15, 0.3, 0.5, 0.75, 1.0)  # blocks before the runway's end
+RUN_HOP_FROM = (None, 0, 4)  # tick from which the bot jumps on every landing before the edge (None: never)
+RUN_RELEASE = (None, 3)  # ticks after the final jump at which forward and sprint are released
+RUN_HORIZON = 80
+
+
+def extra_specs():
+    roof = [JumpSpec(g, dy, lat, size, runway=r, ceiling=c)
+            for c in (1, 2) for r in (2, 3, 4) for g in (1, 2, 3, 4) for dy in (-2, -1, 0) for lat in (0, 1)
+            for size in ((1, 1), (2, 2))]
+    ice = [JumpSpec(g, dy, lat, size, runway=r, ceiling=c, ice=1)
+           for c in (0, 1) for r in (3, 4, 6) for g in (3, 4, 5) for dy in (-1, 0, 1) for lat in (0, 1)
+           for size in ((1, 1), (2, 2)) if not (c and dy > 0)]
+    return roof, ice
+
+
+def _evaluate_runway_chunk(specs, device):
+    courses = [single_jump(s) for s in specs]
+    pool = CoursePool(courses, device, grid=(24, 16, 24))
+    strategies = list(itertools.product(RUN_AIM_LATERAL, RUN_EDGE, RUN_HOP_FROM, RUN_RELEASE))
+    ns, nk = len(specs), len(strategies)
+    n = ns * nk
+    course = torch.arange(ns, device=device).repeat_interleave(nk)
+    col = lambda i, none: torch.tensor([st[i] if st[i] is not None else none for st in strategies],  # noqa: E731
+                                       device=device).repeat(ns)
+    aim_lat = col(0, 0).to(torch.float64)
+    edge = col(1, 0).to(torch.float64)
+    hop_from = col(2, 10_000)
+    release = col(3, 10_000)
+    run_end = pool.plat[course, 0, 1].to(torch.float64) + 1  # single_jump heads +X from its runway
+    start = pool.centre[course, 0].clone()
+    start[:, 0] = pool.plat[course, 0, 0].to(torch.float64) + 0.31  # back edge of the runway
+    aim = pool.centre[course, 1].clone()
+    aim[:, 2] += aim_lat
+    d = aim - start
+    yaw = torch.atan2(-d[:, 0], -d[:, 2])
+    s = physics.PlayerState.at(start, yaw)
+    landed = torch.zeros(n, dtype=torch.bool, device=device)
+    alive = ~physics.inside_solid(pool.world, course, s.pos)
+    jumped_at = torch.full((n,), 10_000, dtype=torch.int64, device=device)
+    low = torch.minimum(pool.top[course, 0], pool.top[course, 1])
+    for t in range(RUN_HORIZON):
+        at_edge = (s.pos[:, 0] >= run_end - edge) & (jumped_at == 10_000)
+        hop = (t >= hop_from) & (jumped_at == 10_000) & ~at_edge
+        jump = s.on_ground & (at_edge | hop)
+        jumped_at = torch.where(at_edge & s.on_ground & (jumped_at == 10_000), torch.full_like(jumped_at, t), jumped_at)
+        held = t < jumped_at + release
+        c = torch.zeros(n, 6, dtype=torch.bool, device=device)
+        c[:, physics.FORWARD] = held
+        c[:, physics.SPRINT] = held
+        c[:, physics.JUMP] = jump
+        s.yaw = yaw
+        s = physics.simulate(pool.world, course, s, c)
+        alive &= ~on_obstacle(pool, s, course) & (s.pos[:, 1] > low - 1.0)
+        landed |= standing_on(pool, s, course)[:, 1] & alive
+    return landed.view(ns, nk).float().mean(dim=1).cpu().numpy()
+
+
+EXTRA_LEVELS = (("head hitter", lambda r: r["kind"] == "roof" and r["forgiveness"] >= 0.05),
+                ("hard head hitter", lambda r: r["kind"] == "roof" and 0 < r["forgiveness"] < 0.05),
+                ("ice run-up", lambda r: r["kind"] == "ice" and r["forgiveness"] > 0))
+
+
+def extra_study(device):
+    roof, ice = extra_specs()
+    t0 = time.time()
+    rows = []
+    for kind, specs in (("roof", roof), ("ice", ice)):
+        frac = np.concatenate([_evaluate_runway_chunk(specs[i:i + 12], device) for i in range(0, len(specs), 12)])
+        for sp, f in zip(specs, frac):
+            rows.append({"kind": kind, "gap": sp.gap, "dy": sp.dy, "lateral": sp.lateral, "size": list(sp.size),
+                         "runway": sp.runway, "ceiling": sp.ceiling, "ice": sp.ice, "forgiveness": round(float(f), 5)})
+    out = {"method": "single run-up jumps from rest at the back of the runway; run-up strategies (jump at the "
+                     "runway's edge, hops before it, release after)",
+           "strategies": len(RUN_AIM_LATERAL) * len(RUN_EDGE) * len(RUN_HOP_FROM) * len(RUN_RELEASE),
+           "horizon_ticks": RUN_HORIZON, "seconds": round(time.time() - t0, 1), "specs": rows}
+    (CONFIGS / "jump_feasibility_extra.json").write_text(json.dumps(out, indent=1))
+    levels = []
+    for name, rule in EXTRA_LEVELS:
+        members = []
+        for r in rows:
+            if not rule(r):
+                continue
+            base = {k: r[k] for k in ("gap", "dy", "lateral", "size", "runway", "ceiling", "ice")}
+            members.append({**base, "side": 1})
+            if r["lateral"]:
+                members.append({**base, "lateral": -r["lateral"], "side": 1})
+        levels.append({"name": name, "specs": members})
+    (CONFIGS / "jump_levels_extra.json").write_text(json.dumps({"source": "parkour.feasibility --extra",
+                                                                "levels": levels}, indent=1))
+    for kind in ("roof", "ice"):
+        rk = [r for r in rows if r["kind"] == kind]
+        print(kind, f"{sum(r['forgiveness'] > 0 for r in rk)}/{len(rk)} possible")
+    for L in levels:
+        print(L["name"], len(L["specs"]), "specs")
+    return out
+
+
 def evaluate(specs, device="cuda", beam=False):
     out = []
     for i in range(0, len(specs), CHUNK):
@@ -263,7 +369,10 @@ def main(argv=None):
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--beam", action="store_true", help="study jumps under a head-hitter beam")
     ap.add_argument("--advanced", action="store_true", help="study neo, momentum and wide jumps")
+    ap.add_argument("--extra", action="store_true", help="study head hitters and ice run-ups")
     args = ap.parse_args(argv)
+    if args.extra:
+        return extra_study(args.device)
     if args.advanced:
         return advanced_study(args.device)
     if args.beam:
