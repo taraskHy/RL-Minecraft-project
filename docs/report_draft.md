@@ -211,7 +211,34 @@ The safeguards held the run stable except for one short dip (section 5).
 
 ### 7.3 Hyperparameters
 
-*To be filled when `configs/sweep_hparams.json` finishes.*
+One setting at a time around the defaults, seed 0, the same 0.52 B game
+ticks as the ablation arms; chosen by the validation courses, test reported
+(`configs/sweep_hparams.json`, table in `results/README.md`). The defaults
+score 91.8% on validation (2 seeds) and 93.3% on test (3 seeds, level 5:
+72.0%).
+
+| Change | Validation | Test | Level 5 |
+| --- | --- | --- | --- |
+| discount 0.98 | 89.2 | 90.4 | 58.0 |
+| **discount 0.995 (3 seeds)** | **95.4** (95.2, 95.8, 95.2) | **95.2** (95.0, 94.9, 95.6) | **76.3** |
+| entropy 0.001 | 94.3 | 94.1 | 70.5 |
+| entropy 0.02 | 91.0 | 91.5 | 64.0 |
+| KL target 0.005 | 89.7 | 90.8 | 52.5 |
+| KL target 0.02 | 92.2 | 91.8 | 62.0 |
+| network 256-128 | 92.5 | 91.3 | 56.0 |
+| network 1024-512-256 | 94.5 | 95.4 | 83.5 |
+| 4,096 environments (4,000 smaller updates) | 91.5 | 92.0 | 60.0 |
+
+Only a longer horizon passed our bar of 3 points over the defaults on
+validation, and it held in all three seeds (+3.6 validation, +1.9 test,
++4.3 on level 5). A 10-jump course takes 120 to 200 ticks; with discount
+0.99 the goal bonus is worth 30 to 13% of its value at the start, with 0.995
+55 to 37%, so the far goal pulls harder through the whole course. A shorter
+horizon (0.98) and a tighter KL target hurt most. The large network is the
+best single run on level 5 (83.5%) but one seed, below the bar on
+validation. Following the plan, a full-length run with discount 0.995 (the
+main run's recipe plus the obstacle fine-tune) is training; it replaces the
+final policy only if it is better on the validation courses.
 
 ### 7.4 Every jump type
 
