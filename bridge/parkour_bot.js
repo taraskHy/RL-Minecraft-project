@@ -164,6 +164,7 @@ function planThenAct (ep) {
       const verified = !!r.plan && A.verifyPlan(Physics(bot.registry, world), world, here, r.plan, plats, q.cp, q.target, extra, geom)
       const brake = !r.plan && r.brake && A.verifyPlan(Physics(bot.registry, world), world, here, r.brake, plats, q.cp, q.cp, extra, geom, true) ? r.brake : null
       const a = ep.resume(verified ? r.plan : null, { found: !!r.plan, verified, rounds: r.rounds, seconds: r.seconds }, brake)
+      if (a === P.PLAN) return planThenAct(ep) // a failed approach: the takeoff's own request, still frozen
       planning = false
       if (a === null) endEpisode()
       else applyAction(a)
@@ -284,7 +285,7 @@ async function runCourse (c, index) {
     extra: c.extra || [],
     planner: args.planner ? JSON.parse(args.planner) : null,
     fallRule: args.fallRule,
-    assist: assistConfig ? { config: assistConfig, takeoffs: c.assist_takeoffs || [], targets: c.assist_targets || null, retryHorizons: c.assist_retry_horizons || null } : null,
+    assist: assistConfig ? { config: assistConfig, takeoffs: c.assist_takeoffs || [], targets: c.assist_targets || null, retryHorizons: c.assist_retry_horizons || null, approach: c.assist_approach || null } : null,
     shapes: c.shapes || null,
     topOf
   })

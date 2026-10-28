@@ -24,8 +24,22 @@ FLAGS = subprocess.CREATE_NO_WINDOW
 
 def save(path, obj):
     tmp = path.with_suffix('.tmp')
-    tmp.write_text(json.dumps(obj, indent=2))
-    os.replace(tmp, path)
+    try:
+        tmp.write_text(json.dumps(obj, indent=2))
+        for attempt in range(20):
+            try:
+                os.replace(tmp, path)
+                return True
+            except PermissionError:
+                if attempt == 19:
+                    raise
+                time.sleep(0.25)
+    except OSError as exc:
+        # OneDrive, antivirus, or a reader can briefly deny replacement. Keep
+        # the previous valid state file and the live in-memory job inventory;
+        # retry on the next loop instead of abandoning the running trainers.
+        print(f'State save deferred; queue continues tracking jobs: {exc}', flush=True)
+        return False
 
 
 def processes():
@@ -88,8 +102,13 @@ def main():
     handles = {}
     print('Queue started; at most two logical training jobs globally', flush=True)
     while True:
-        plan = json.loads(PLAN.read_text())
-        control = json.loads(CONTROL.read_text()) if CONTROL.exists() else {'gaming': False, 'hold': False}
+        try:
+            plan = json.loads(PLAN.read_text())
+            control = json.loads(CONTROL.read_text()) if CONTROL.exists() else {'gaming': False, 'hold': False}
+        except (OSError, ValueError) as exc:
+            print(f'Configuration unavailable; no launch: {exc}', flush=True)
+            time.sleep(5)
+            continue
         try:
             rows = processes()  # fails closed: never launch without a valid process inventory
         except (OSError, ValueError, subprocess.SubprocessError) as exc:

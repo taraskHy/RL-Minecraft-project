@@ -20,14 +20,15 @@ const DEFAULTS = { horizon: 32, retry_horizon: 0, retries: 0, retry_every: 10, a
 
 // When to plan, per episode: AssistConfig fields (snake_case, as parkour/neo_assist.py writes them).
 // targets[i]: the platform a plan from takeoffs[i] ends on (neo_assist.plan_target; default the next one);
-// retryHorizons[i]: the ticks a retry plan from it may take (neo_assist.plan_horizon), for the stall check.
+// retryHorizons[i]: the ticks a retry plan from it may take (neo_assist.plan_horizon), for the stall check;
+// approach: the platforms where a plan over the next two jumps is tried first (neo_assist.approach_platforms).
 class Assist {
-  constructor (cfg, takeoffs, targets = null, retryHorizons = null) {
+  constructor (cfg, takeoffs, targets = null, retryHorizons = null, approach = null) {
     cfg = { ...DEFAULTS, ...cfg }
     this.cfg = cfg
     this.planned = new Set(takeoffs)
     this.target = new Map(takeoffs.map((k, i) => [k, targets ? targets[i] : k + 1]))
-    this.before = new Set(takeoffs.filter(k => k >= 1 && !this.planned.has(k - 1)).map(k => k - 1))
+    this.before = new Set(approach || takeoffs.filter(k => k >= 1 && !this.planned.has(k - 1)).map(k => k - 1))
     this.tries = new Map()
     this.triedBefore = new Set()
     this.lastTry = -1e9
@@ -41,16 +42,15 @@ class Assist {
     const braked = this.braked
     this.braked = false
     if (!s.onGround) return null
+    if (this.cfg.approach > 0 && this.before.has(cp) && !this.triedBefore.has(cp)) { // first: a plan over two jumps
+      return this._take('approach', cp, this.target.get(cp + 1), 0, ticks)
+    }
     const n = this.tries.get(cp) || 0
     if (this.planned.has(cp)) {
       if (n === 0) return this._take('takeoff', cp, this.target.get(cp), 0, ticks)
       if (n <= this.cfg.retries && (ticks - this.lastTry >= this.cfg.retry_every || braked) && stall + this.retryHorizon.get(cp) < stallLimit) {
         return this._take('retry', cp, this.target.get(cp), n, ticks)
       }
-      return null
-    }
-    if (this.cfg.approach > 0 && this.before.has(cp) && !this.triedBefore.has(cp)) {
-      return this._take('approach', cp, this.target.get(cp + 1), 0, ticks)
     }
     return null
   }

@@ -16,9 +16,9 @@ from parkour import courses as C
 from parkour import physics
 from parkour.env import CoursePool, on_obstacle
 from parkour.live import load_model
-from parkour.neo_assist import (AssistConfig, Rules, assist_fields, brake_plan, courses_from_file, evaluate_assisted,
-                                 jump_kind, mixed_courses, official_neo_courses, plan_target, planned_takeoffs,
-                                 random_neo_courses, spec_from_key, specs_from_keys)
+from parkour.neo_assist import (AssistConfig, Rules, approach_platforms, assist_fields, brake_plan, courses_from_file,
+                                 evaluate_assisted, jump_kind, mixed_courses, official_neo_courses, plan_target,
+                                 planned_takeoffs, random_neo_courses, spec_from_key, specs_from_keys)
 from parkour.neo_dagger import neo_takeoffs
 from parkour.paths import BRIDGE, CONFIGS, NODE, ROOT
 from parkour.train import evaluate
@@ -133,6 +133,25 @@ class AssistExtraKinds(unittest.TestCase):
                 self.assertEqual(h, 80 if sp.bounce else 64 if sp.ladder else 48)
         self.assertEqual(specs_from_keys(["g1_dy0_l0_s1x1"], 5), [])  # cannot be aligned: no specs, not wrong ones
 
+    def test_approach_before_neos_then_the_takeoff_search(self):
+        cs = official_neo_courses(2)[:6]
+        for c in cs:  # with every jump planned, an approach before every neo takeoff
+            self.assertEqual(approach_platforms(c, planned_takeoffs(c, "all")), sorted(k - 1 for k in neo_takeoffs(c) if k >= 1))
+            ks = planned_takeoffs(c, "neo")
+            self.assertTrue(set(approach_platforms(c, ks)) >= {k - 1 for k in ks if k >= 1 and k - 1 not in ks})
+        model = load_model(ROOT / "results" / "final_policy.pt", "cpu")
+        res = evaluate_assisted(model, CoursePool(cs, "cpu", C.GRID), "cpu",
+                                AssistConfig(samples=64, iterations=3, jumps="all", approach=48))
+        ev = res["events"]
+        approaches = [e for e in ev if e["kind"] == "approach"]
+        self.assertTrue(approaches)
+        for e in approaches:
+            self.assertEqual(e["target"], e["takeoff"] + 1)  # from the platform before the neo's takeoff, over it
+            same = [x for x in ev if x["kind"] == "takeoff" and x["course"] == e["course"] and x["takeoff"] == e["takeoff"] - 1
+                    and x["tick"] == e["tick"]]
+            self.assertEqual(len(same), 0 if e["found"] else 1)  # without a plan, the takeoff search at once
+        self.assertEqual(res["plans"]["landed_as_planned"], res["plans"]["played"])
+
     def test_every_jump_planned_and_slime_plans_end_past_the_pad(self):
         cs = extra_kind_courses()
         self.assertTrue(any(c.slime for c in cs) and any(c.shapes for c in cs) and any(len(c.ladders) for c in cs))
@@ -199,6 +218,12 @@ class AssistBotParity(unittest.TestCase):
     def test_same_on_shaped_slime_and_ladder_courses(self):
         self.check(AssistConfig(samples=256, iterations=8, jumps="all", retries=1, brake=14, retry_horizon=48),
                    extra_kind_courses())
+
+    def test_same_with_approach_plans_before_neos(self):
+        res, bot = self.check(AssistConfig(samples=128, iterations=4, jumps="all", approach=48, retries=1, brake=14),
+                              official_neo_courses(2)[:6])
+        self.assertGreater(sum(e["kind"] == "approach" for e in res["events"]), 0)
+        self.assertEqual(sum(x["kind"] == "approach" for x in bot), sum(e["kind"] == "approach" for e in res["events"]))
 
     def test_same_with_brakes_and_retries(self):
         res, bot = self.check(AssistConfig(samples=64, iterations=3, jumps="advanced", retries=1, brake=14),

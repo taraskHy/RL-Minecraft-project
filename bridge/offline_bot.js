@@ -102,14 +102,14 @@ async function main () {
       extra: c.extra || [],
       planner: args.planner ? JSON.parse(args.planner) : null,
       fallRule: args.fallRule,
-      assist: assistConfig ? { config: assistConfig, takeoffs: c.assist_takeoffs || [], targets: c.assist_targets || null, retryHorizons: c.assist_retry_horizons || null } : null,
+      assist: assistConfig ? { config: assistConfig, takeoffs: c.assist_takeoffs || [], targets: c.assist_targets || null, retryHorizons: c.assist_retry_horizons || null, approach: c.assist_approach || null } : null,
       shapes: c.shapes || null,
       topOf
     })
     for (;;) {
       const s = { pos: [e.pos.x, e.pos.y, e.pos.z], vel: [e.vel.x, e.vel.y, e.vel.z], yaw: e.yaw, onGround: e.onGround, jumpTicks: e.jumpTicks, collidedH: e.isCollidedHorizontally }
       let a = ep.step(s)
-      if (a === P.PLAN) {
+      while (a === P.PLAN) { // a failed approach is followed by the takeoff's request in the same tick
         const q = ep.pending
         const r = await service.plan({ index, cp: q.cp, target: q.target, kind: q.kind, attempt: q.attempt, state: q.state, lastAction: q.lastAction })
         const verified = !!r.plan && A.verifyPlan(physics, world, q.state, r.plan, c.platforms, q.cp, q.target, c.extra, ep.geom)
