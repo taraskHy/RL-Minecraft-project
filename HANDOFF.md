@@ -442,7 +442,22 @@ needs the PC's GPU.
   matter (`--simplify`); a round without this collapsed
   (`runs/neo-dagger-collapsed`). Neo takeoffs are detected by wall blocks
   only (the first detector counted ordinary up-jumps: 1,090 of 2,526 were
-  real neos).
+  real neos), and not by blocks under the target (a ladder climb's wall
+  counted as a neo until 28 Oct evening; no held-out neo course changed).
+- Planning with the exact physics (`parkour/neo_assist.py`): a plan
+  searched from the bot's exact state lands exactly as searched, in the
+  simulator and in the offline bot (prismarine-physics), so what limits the
+  assist is only whether the search finds a landing from that state. A
+  policy prior in the search made it worse on validation (111 vs 119 of 218
+  neo courses). After a failed search, stopping on the takeoff and searching
+  again from the standstill finds a landing for about a third of the
+  failures (scratch experiment: 4 of 11; `--brake`).
+- prismarine-physics takes version rules from its own feature table, not
+  minecraft-data: in 1.21 soul sand and honey do not slow the player,
+  pressing jump on a ladder climbs, trapdoors over ladders are not
+  climbable. A slime bounce keeps the landing speed (upward), so how high it
+  goes depends on how the pad is hit: the assist plans a slime jump and the
+  exit after it as one plan.
 - `train.py`: `bc_decay` defaults to False, as in every neo run (the
   imitation weight was constant).
 
