@@ -154,8 +154,12 @@ its CPU; the training for them is queued for the PC
   221 of the 289 neos it reaches (measured with the search the bots
   reproduce; a first run with batched searches made 119). Every one of the
   900 plans played landed exactly as searched; a search prior from the
-  policy made it worse (111). Planning every jump and braking before a
-  second search are being measured. The offline bot (prismarine-physics, the live bot's
+  policy made it worse (111). Planning every jump, and stopping on the
+  takeoff to search again when a search finds nothing: 147 (67%), 246 of
+  311 neos. On random courses of ordinary jumps where half the jumps are
+  neos, planning every jump completes 106 of 200 (the policy alone 27).
+  A plan over the two jumps before each neo is being measured; then the
+  test courses, once. The offline bot (prismarine-physics, the live bot's
   engine) reproduces the simulator exactly with this planner; the live bot
   has it too (it stands still on the takeoff while the planner thinks), not
   yet run on a real server.

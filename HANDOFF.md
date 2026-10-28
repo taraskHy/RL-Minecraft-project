@@ -97,7 +97,12 @@ More facts that hold now:
     searched (`results/neo/assist_details/official2_advanced.json`: the 94
     failed courses stop at 68 neos whose search found no landing, 22
     ordinary jumps the policy missed and 4 momentum jumps). A search prior
-    from the policy (0.5) made it worse: 111 of 218. Both bots
+    from the policy (0.5) made it worse: 111 of 218. Planning every jump
+    (`--jumps all`) with a stop and a second search after a failed one
+    (`--retries 1 --brake 14 --retry-horizon 48`): 147 of 218, 246 of 311
+    neos (`official2_all_brake.json`; 17 of 93 second searches found a
+    landing). Random neo courses (family 13): the policy alone 27 of 200,
+    planning every jump 106 (`random13_all.json`). Both bots
     have it (`parkour.live --assist '{"jumps": "advanced"}'`: the bot pauses
     on the takeoff, a Python planner service searches, prismarine-physics
     checks the plan, the bot plays it); the offline bot matches the
