@@ -117,7 +117,13 @@ Concrete work, most important first. Nothing here needs new research.
 
 1. **Neo jumps are still mostly failed.** 29% of neo courses; courses with
    two or more neos almost never (5/81). DAgger round 3 beat round 2 on
-   validation but not on the test courses (61 vs 63 of 210).
+   validation but not on the test courses (61 vs 63 of 210). Alone from a
+   standing start (`results/neo/jump_eval_neo-dagger3.json`, 16 angles)
+   the chosen policy no longer refuses (stalls 0-12% per type); it now
+   tries and falls. Weakest types: gap 2 down 1 with the wall at gap cell
+   2 (19%), then gap 2 up 1 (wall cell 2), gap 3 down 1 (wall cell 1 or 2)
+   at 44%; best 81%. So more DAgger states on those layouts is the obvious
+   next step.
    Untried directions: more DAgger rounds with more arrival states, a
    separate neo skill the main policy hands over to, a curriculum of neo
    tightness. Keep picking checkpoints on the validation family.
@@ -302,18 +308,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `b05becd` (2026-10-28 13:52, branch `claude/pensive-knuth-biwj11`): Retuned route planner: 92.3% and 90.5% of the test courses without the course list
+Generated on top of commit `a9cafce` (2026-10-28 14:04, branch `claude/pensive-knuth-biwj11`): Handoff tidy-up; record the last planner variants tried on validation
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 13 |
+| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 14 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `b05becd` 2026-10-28 13:52 | 0 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 6 |
-| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 18 |
-| `docs/report_draft.md` | `b05becd` 2026-10-28 13:52 | 0 |
-| `results/README.md` | `6170803` 2026-10-28 11:40 | 15 |
-| `results/DATA.md` | `b05becd` 2026-10-28 13:52 | 0 |
+| `TEAM_STATUS.md` | `b05becd` 2026-10-28 13:52 | 1 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 7 |
+| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 19 |
+| `docs/report_draft.md` | `b05becd` 2026-10-28 13:52 | 1 |
+| `results/README.md` | `6170803` 2026-10-28 11:40 | 16 |
+| `results/DATA.md` | `b05becd` 2026-10-28 13:52 | 1 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
