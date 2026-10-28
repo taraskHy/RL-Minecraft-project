@@ -140,7 +140,7 @@ More facts that hold now:
 
 ## 3. What is left to do
 
-**PC completion update, 28 Oct 21:38:** cloud merged through `21188a6`; neo files shipped; retuned planner verified on both real-Minecraft sets (51/60 and 56/60, zero corrections) and adopted in Python/JS. Items 1, 2, 4 and 5 below describe the completed integration steps and ongoing merge/watchdog procedure. Training continues under the latest 70% compute/memory request.
+**PC completion update, 28 Oct 21:38:** cloud merged through `21188a6`; neo files shipped; retuned planner verified on both real-Minecraft sets (51/60 and 56/60, zero corrections) and adopted in Python/JS. Items 1, 2, 4 and 5 below describe the completed integration steps and ongoing merge/watchdog procedure. The latest user request (29 Oct) permits 100% GPU use, with the temperature rule retained.
 
 Concrete work, most important first. Nothing here needs new research.
 
@@ -193,14 +193,15 @@ Concrete work, most important first. Nothing here needs new research.
 7. **More parkour abilities** (cloud session, in progress since 28 Oct
    evening): neo assist, head hitters, ice jumps, slime, block shapes.
    `docs/abilities_plan.md` lists the stages, their status and the design
-   constraints found in the code; whatever needs training is queued for
-   the PC with the gaming-safe settings of section 6. For the PC:
+   constraints found in the code. The current two-slot queue and full-GPU
+   instruction in section 6 govern PC training. Commands below are recipe
+   references; do not start a competing sweep or pipeline. For the PC:
    - the neo assist in real Minecraft: `run.cmd live --checkpoint
      results\final_policy.pt --courses-file configs\neo_live_courses.json
      --assist "{}" --out runs\neo-assist-live` (and `--offline` first; the
      planner service runs on the PC's Python);
    - train the new kinds and the neo levels on the discount-0.995 policy,
-     one run at a time with the gaming flags: `python scripts/sweep.py
+     original one-slot gaming sweep reference: `python scripts/sweep.py
      configs\sweep_new_skills.json --slots 1` (`extra-ft`: the extra levels
      after the basic ones, uniform curriculum; `advanced-g995`: levels 6-8).
      Pick on validation, then `parkour.jumpeval --extra`,
@@ -374,7 +375,7 @@ holds it awake while training runs.
 
 **GPU temperature rule (user, 28 Oct):** above 65 C pause the GPU work,
 resume when cool. `scripts/gpu_watchdog.py` runs in the background: every
-10 s it reads nvidia-smi; above 65 C it suspends the project's GPU jobs by
+1 s it reads nvidia-smi; above 65 C it suspends the project's GPU jobs by
 name (train, neo_demos, neo_dagger, cem, planner, jumpeval, stress,
 feasibility, cem_momentum_neo; suspended, so no state is lost) and resumes
 them below 58 C. `neo_dagger` was added on 28 Oct afternoon: a watchdog
@@ -387,7 +388,7 @@ evening; an older watchdog copy skipped every planner service). Log:
 `runs/gpu_watchdog.log`. If the watchdog is ever killed while jobs are
 paused: `python scripts/gpu_watchdog.py --resume-all`.
 
-**Current PC instruction (28 Oct evening):** queue `g995-adv`, `g995-ice` concurrently, then `g995-extra`, with at most two trainers. The later user request caps both compute and aggregate memory at 70%, superseding the earlier unrestricted-GPU request. Overwatch was observed running at 22:04; gaming limits are active. Resume each same run from its own `latest.pt`; retain the newer 70% aggregate target. Other applications can independently exceed it, so monitor actual usage and do not stop the user's game.
+**Current PC instruction (29 Oct, 00:51):** the user now permits 100% GPU use, superseding the 70% compute/aggregate-memory target. Keep `g995-adv` and `g995-ice` concurrent, then `g995-extra`, with at most two trainers. Remove the shared throttle immediately; remove each trainer's memory, duty and thread flags by saving its next checkpoint and resuming the same run from its own `latest.pt`. Keep thermal pause above 65 C/resume below 58 C and keep-awake. Preserve the existing rollout shape and recipe. If the user says gaming has resumed, use another checkpoint-safe transition with their requested gaming flags; do not stop their game.
 
 **Earlier gaming guidance.** The user plays on the same GPU. On
 28 Oct they first asked for "a safe buffer", then (same evening) "you can
@@ -484,18 +485,18 @@ needs the PC's GPU.
 - `train.py`: `bc_decay` defaults to False, as in every neo run (the
   imitation weight was constant).
 
-## Training queue operation (PC, 28 Oct evening)
+## Training queue operation (PC, updated 29 Oct)
 
-**Latest user decision:** bound both compute and memory to 70%. The user rejected the initial 10-second duty window because it produced long 98% bursts. The replacement watchdog uses shared 50-ms windows with measured-utilization feedback and headroom below 70%; telemetry and process discovery run separately from the pacing loop. This is a measured software target, not a hardware guarantee against every transient peak or game usage. Overwatch increased the non-training baseline to about 40% memory and 37% compute at 22:04. Each trainer now has a 13% allocator cap, with smaller working tensors, leaving room for the game and runtime overhead. Verify actual card memory with nvidia-smi. This supersedes the earlier unrestricted-GPU request and the 75% per-job gaming recipe.
+**Latest user decision (29 Oct):** 100% GPU use is permitted. The earlier 70% compute/aggregate-memory target and 13% per-trainer allocator caps are superseded. Use thermal protection only, without a duty or utilization target, and omit `--gpu-mem-fraction`, `--gpu-duty` and `--threads` from training commands. Current queue control: `gaming=false`, `memory_fraction_per_job=0`, `shared_compute_duty=1`, `small_memory=true`, `hold=false`. The shared duty field records intent; the watchdog's command actually controls shared throttling. Keep the existing compact tensors and rollout dimensions for continuity. Full GPU availability does not require filling unused memory or guarantee a constant 100% utilization reading.
 
 The first startup attempts hit Windows shared-memory spill (the dense ice friction grid alone was 8 GiB). Their logs are retained in `runs/startup-memory-spill-20261028/` (advanced: 8 updates, ice: 1; neither had a checkpoint). `--compact-ice` stores one byte per cell and reconstructs the exact float64 friction on lookup. Validation and test pools use `--eval-batch-size 256`, keeping the same course sets with bounded memory; unused cache is released between batches. The later 28% ice run exceeded its allocator limit during PPO, after saving iteration 49; its full original log and config are retained in `runs/g995-ice/recovery/20261028-220658/`, including 41 uncheckpointed updates. Both jobs resumed their own iteration-49 checkpoint at 22:07. With Overwatch open, all queued recipes use a 1,024-course training pool, 8,192 environments, rollout 64 and 32 minibatches; game ticks per PPO iteration remain 524,288. The changed minibatch count and rollout shape affect training dynamics and must be reported. Test sets and checkpoint selection remain unchanged. Test pools allocate only at final testing with `--test-once`.
 
 - `scripts/training_queue.py` reads `configs/training_queue.json`, keeps at most two logical training process trees, and writes `runs/training_queue_state.json`. Initial order: advanced and ice together, then extra. Later seeds use the best completed initial recipe on the common validation levels 0-5 (standard plus obstacles), never test scores.
 - Windows/OneDrive can temporarily lock the queue state file. The queue retries atomic replacement, retains the previous valid file and its in-memory job inventory if the lock persists, and retries next loop. Configuration read errors prevent new launches until the next successful read. A restarted queue attaches to existing trainer process trees; do not reset its state or restart trainers merely to restore scheduling.
 - Keep this queue as the sole training launcher. Before using `scripts/neo_pipeline.py`, integrate its stages with the two-slot/memory controls and `--test-once`; its direct training commands do not yet inherit these PC restrictions.
-- `runs/training_control.json`: `gaming=true` requests each job to stop cleanly at its next 50-update checkpoint and resume under the same run name with the three gaming flags; `gaming=false` does the reverse. `hold=true` prevents new starts. Do not launch a second queue.
+- `runs/training_control.json`: a change in `gaming` requests each job to stop cleanly at its next 50-update checkpoint and resume under the same run name. `gaming=true` adds duty 0.9 and threads 8; memory is controlled separately by `memory_fraction_per_job` (set it to 0.75 for the user's original gaming recipe, or their newer requested cap). `gaming=false` plus memory fraction 0 removes all three limits. `hold=true` prevents new starts. Do not launch a second queue.
 - `--test-once` validates every 50 iterations and tests only the selected best at completion. Resume restores iteration, optimizer, learning rate and validation best; simulator episodes/course pool restart, so it is not bit-identical continuation. Completed tested runs get a new name for further training.
-- Current watchdog command: `python scripts/gpu_watchdog.py --hot 65 --cool 58 --duty 0.55 --period 0.05 --utilization-target 0.7 --every 1`. The host duty ceiling is deliberately below the GPU busy-time limit because queued kernels continue briefly after host suspension. Keep `scripts/keep_awake.py` running. A five-minute native heartbeat in this chat monitors progress and publishes completed results; the local queue fills training slots immediately.
+- Current watchdog command: `python scripts/gpu_watchdog.py --hot 65 --cool 58 --every 1` (default duty 1, utilization target 0). After forcibly stopping an older watchdog, resume its suspended project jobs before starting the replacement. Keep `scripts/keep_awake.py` running. The five-minute native heartbeat has the same unrestricted-GPU instruction and monitors progress/publication; the local queue fills training slots immediately.
 - Neo policy now shipped as `results/neo_policy.pt` and `.json`; hashes in `results/neo_policy_provenance.json`. Final policy files retained.
 - Normal Windows test run after the second merge: 85 passed, 8 subtests (`runs/pc-final-merge-tests.txt`). CPU assist parity now pins the subprocess service to CPU (device-specific search RNG differs from CUDA).
 
@@ -531,18 +532,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `0856810` (2026-10-29 00:44, branch `main`): Merge mixed-course policy baseline and clarify dataset labels
+Generated on top of commit `528687f` (2026-10-29 00:47, branch `main`): Archive advanced 649 and ice 749 validation results
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 86 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 87 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 44 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 61 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 44 |
-| `results/README.md` | `0856810` 2026-10-29 00:44 | 0 |
-| `results/DATA.md` | `9b48bda` 2026-10-29 00:34 | 2 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 45 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 62 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 45 |
+| `results/README.md` | `0856810` 2026-10-29 00:44 | 1 |
+| `results/DATA.md` | `9b48bda` 2026-10-29 00:34 | 3 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -567,8 +568,8 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `final-v2` | 499 | 0.26 | 499 | 89.6 | 88.5 | 88.5 | 88.1 |
 | `full-s1` | 999 | 0.52 | - | - | - | 94.2 | - |
 | `full-s2` | 999 | 0.52 | 949 | 93.0 | 93.1 | 91.9 | - |
-| `g995-adv` | 649 | 0.34 | 99 | 81.8 | - | - | - |
-| `g995-ice` | 749 | 0.39 | 449 | 97.3 | - | - | - |
+| `g995-adv` | 699 | 0.37 | 99 | 81.8 | - | - | - |
+| `g995-ice` | 799 | 0.42 | 449 | 97.3 | - | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
 | `hp-envs4096` | 3999 | 0.52 | 3599 | 93.7 | 94.2 | 92.0 | - |
@@ -684,7 +685,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 
 ### In `results/` but not yet in `results/DATA.md`
 
-`operations/` (3 files), `report_draft.pdf`, `videos/ghost_race_02_level_1_course_0.mp4`, `videos/ghost_race_03_level_2_course_0.mp4`, `videos/ghost_race_04_level_3_course_0.mp4`, `videos/ghost_race_05_level_4_course_0.mp4`, `videos/replay_137_neo_policy_level_7_course_5.mp4`
+`operations/` (4 files), `report_draft.pdf`, `videos/ghost_race_02_level_1_course_0.mp4`, `videos/ghost_race_03_level_2_course_0.mp4`, `videos/ghost_race_04_level_3_course_0.mp4`, `videos/ghost_race_05_level_4_course_0.mp4`, `videos/replay_137_neo_policy_level_7_course_5.mp4`
 
 <!-- END AUTO-SNAPSHOT -->
 
@@ -701,6 +702,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **29 Oct 2026, 00:55, Codex on training PC:** applied the user's new permission for 100% GPU use. Replaced the shared throttle with thermal-only watchdog (65/58 C, one-second telemetry); kept the existing queue and keep-awake. Advanced and ice saved checkpoints 699/799 and resumed from their own latest.pt without memory, duty or thread caps; rollout dimensions and training recipe remain unchanged. Verified exactly two progressing trainers, one queue, one watchdog and one keep-awake. The 30-sample card-wide measurement averaged 75.2% GPU busy time and peaked at 42.3 C; full availability does not imply constant utilization. Evidence: `results/operations/full-gpu-transition-20261029.json`. Updated the native five-minute monitor to follow the latest full-GPU instruction. Five focused CPU queue/watchdog tests pass (`runs/full-gpu-mode-checks.txt`). Refreshed report and checked simulator validation summaries against CSVs (families 2/5): g995-adv iteration 699: 81.44% validation, selected best 99; g995-ice iteration 799: 93.75% validation, selected best 449. Advanced has nine levels and ice six; these overall scores are not directly comparable. Test logs remain header-only; extra remains next.
 
 - **29 Oct 2026, 00:47, Codex heartbeat on training PC:** archived new simulator validation progress (families 2/5): g995-adv: iteration 649, validation 80.61%, selected best iteration 99; g995-ice: iteration 749, validation 94.50%, selected best iteration 449. Advanced covers nine levels and ice six, so overall scores are not directly comparable. Verified each summary against its validation CSV and the selected validation maximum; test logs remain header-only and no completion/test result exists. Report and handoff refreshed. Exactly two trainers and the existing queue, thermal/duty watchdog and keep-awake helper remain healthy. No executable changes; prior tests remain applicable.
 

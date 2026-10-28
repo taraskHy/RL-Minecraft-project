@@ -7,7 +7,9 @@ made consistently on a random course, while they play a game on the PC's
 GPU (first "leave a safe buffer", then "you can use more GPU, don't leave
 like a 40% margin": about 10%). The cloud session has no GPU and cannot
 reach the PC, so it builds, verifies and measures on the CPU, and prepares
-the training for the PC (gaming settings, HANDOFF section 6).
+the training for the PC. Those were the original 28 Oct gaming settings;
+the latest instruction on 29 Oct permits 100% GPU use under the two-slot
+queue and thermal protection described in HANDOFF section 6.
 
 Rules that shape every stage (AGENTS.md, HANDOFF section 5): every feature
 is opt-in and off by default; the held-out test and validation courses stay
@@ -22,7 +24,7 @@ file in `results/` and says where it was measured.
 | 0 | Held-out fingerprint guard; gaming-safe GPU flags (`--gpu-mem-fraction`, `--gpu-duty`, `--threads`, watchdog `--pause-while`) | done |
 | A | Neo assist: an exact-model search at every neo takeoff, in the simulator (`parkour/neo_assist.py`) and both bots (`bridge/assist.js`, `parkour.live --assist`); options `--jumps all` (every jump), `--brake` (stop and retry after a failed search), `--approach` (one plan over the two jumps before a neo first), per-kind plan targets and horizons | built; validation (official, family 2): `advanced` 124/218 (batch 1; 119 batched), with the policy prior 111/218 (prior stays 0); `all` + brake 147/218; offline neo-set 25/31 (reported only), real-Minecraft assist verification pending |
 | A2 | The assist on random courses made of ordinary jumps plus neos (new seed families 12 test, 13 validation), and a mixed set with every special kind (14 test, 15 validation) | validation (random, family 13): policy alone 27/200, `all` 106/200; `all` + brake 119/200; approach measurement pending; mixed families 14/15 and all extra preview sets now fingerprint-guarded |
-| Q | Active PC queue: `scripts/training_queue.py`, configured by `configs/training_queue.json`; current limits in `HANDOFF.md` | `g995-adv` and `g995-ice` running, `g995-extra` pending; 0.13 allocator cap per job, shared 70% compute/aggregate-memory target and thermal watchdog; validation-only selection, tests at completion; cloud reports an `extra-ft` CPU smoke check with uniform curriculum covering all six extra levels (6-11); queued `g995-extra` keeps adaptive curriculum |
+| Q | Active PC queue: `scripts/training_queue.py`, configured by `configs/training_queue.json`; current limits in `HANDOFF.md` | `g995-adv` and `g995-ice` running, `g995-extra` pending; user permits 100% GPU use as of 29 Oct, with no memory/duty/thread caps and thermal-only watchdog (65/58 C); validation-only selection, tests at completion; cloud reports an `extra-ft` CPU smoke check with uniform curriculum covering all six extra levels (6-11); queued `g995-extra` keeps adaptive curriculum |
 | B | Head hitters (2-high roofs over a runway, tunnels) and ice run-ups as new jump kinds, opt-in levels, feasibility-checked | done (zero-shot results in `results/extra/`; training is for the PC) |
 | E1 | Slime bounce: physics (opt-in, parity 1.4e-14), slime pads in courses and both bots | done |
 | C | Block shapes in the physics (slabs, soul sand, fence and wall posts, ...), opt-in, parity | done (1.4e-14 blocks, `results/physics_parity_shapes.json`) |
