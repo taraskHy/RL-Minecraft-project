@@ -666,6 +666,23 @@ At the end of a session, or after each result:
 Newest first. One entry per session; earlier history is in the
 [TEAM_STATUS update log](TEAM_STATUS.md#update-log) and `git log`.
 
+- **28 Oct 2026, late evening, Claude Code (the same cloud session after a
+  context reset, branch `claude/pensive-knuth-biwj11`, CPU only):** the
+  assist plans the new kinds (`--jumps all`; slime jumps planned to the
+  exit, longer ladder plans, shape-aware plan checks in the bots), brakes
+  and searches again after a failed search (`--brake`), reads course files
+  with their jump specs (a review found the planner service had none), and
+  has a `mixed` course set with every special kind (families 14/15);
+  `jumpeval` keeps the blocks of composite kinds; ladder walls no longer
+  count as neos; `scripts/neo_pipeline.py` runs learned-neo DAgger rounds
+  on the PC in one command. Validation so far (simulator, 218 neo courses):
+  `advanced` with the bots' search 124/218; the policy prior 111/218
+  (rejected). Running when this was written: `all` on random 13, `all` +
+  brake on official 2 and random 13, the extra feasibility study (writes
+  the shaped, slime and ladder levels). Next: choose on validation, run the
+  test sets once (official 1, random 12, mixed 14 after the level file),
+  the offline bot on `configs/neo_live_courses.json`, the per-kind preview,
+  `jumpeval --extra`, then this file, TEAM_STATUS and DATA.md.
 - **28 Oct 2026, evening, Claude Code (cloud session, continued again,
   branch `claude/pensive-knuth-biwj11`, CPU only):** the user asked for
   more parkour abilities (other blocks, head hitters) and consistent neos
