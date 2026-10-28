@@ -134,9 +134,12 @@ def main():
                 for marker in ['pause_requested', 'pause_ready.json']:
                     (folder/marker).unlink(missing_ok=True)
                 args = [sys.executable, '-u', '-m', 'parkour.train', '--run', name, '--init-from', init,
-                        '--obstacle-prob', '0.3', '--gamma', '0.995', '--iterations', '1000', '--test-once'] + job['flags']
+                        '--obstacle-prob', '0.3', '--gamma', '0.995', '--iterations', '1000', '--test-once', '--compact-ice'] + job['flags']
+                fraction = float(control.get('memory_fraction_per_job', 0))
+                if fraction:
+                    args += ['--gpu-mem-fraction', str(fraction)]
                 if control.get('gaming', False):
-                    args += ['--gpu-mem-fraction', '0.75', '--gpu-duty', '0.9', '--threads', '8']
+                    args += ['--gpu-duty', '0.9', '--threads', '8']
                 logs = RUNS/'queue_logs'; logs.mkdir(exist_ok=True)
                 with open(logs/f'{name}.log', 'a') as log:
                     proc = subprocess.Popen(args, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, creationflags=FLAGS)

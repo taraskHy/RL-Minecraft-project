@@ -379,6 +379,10 @@ needs the PC's GPU.
 
 ## Training queue operation (PC, 28 Oct evening)
 
+**Latest user decision:** bound both compute and memory to 70%. The watchdog applies a shared 70% duty window to both jobs together; each trainer uses a 28% allocator cap, leaving room for CUDA and desktop memory below the aggregate target. Verify actual card memory with nvidia-smi. This supersedes the earlier unrestricted-GPU request and the gaming recipe while the cap is active.
+
+The first startup attempts hit Windows shared-memory spill (the dense ice friction grid alone was 8 GiB). Their logs are retained in `runs/startup-memory-spill-20261028/` (advanced: 8 updates, ice: 1; neither had a checkpoint). They were stopped and retained as failed startup attempts; the same requested run names restart from final_policy after a compact-ice parity fix. `--compact-ice` stores one boolean per cell and reconstructs the exact float64 friction on lookup; no training pool or batch size is reduced. Test pools allocate only at final testing with `--test-once`.
+
 - `scripts/training_queue.py` reads `configs/training_queue.json`, keeps at most two logical training process trees, and writes `runs/training_queue_state.json`. Initial order: advanced and ice together, then extra. Later seeds use the best completed initial recipe on the common validation levels 0-5 (standard plus obstacles), never test scores.
 - `runs/training_control.json`: `gaming=true` requests each job to stop cleanly at its next 50-update checkpoint and resume under the same run name with the three gaming flags; `gaming=false` does the reverse. `hold=true` prevents new starts. Do not launch a second queue.
 - `--test-once` validates every 50 iterations and tests only the selected best at completion. Resume restores iteration, optimizer, learning rate and validation best; simulator episodes/course pool restart, so it is not bit-identical continuation. Completed tested runs get a new name for further training.
@@ -417,18 +421,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `80b37db` (2026-10-28 19:19, branch `main`): Preserve PC documentation updates before cloud integration
+Generated on top of commit `bbb1494` (2026-10-28 20:40, branch `main`): Merge cloud parkour work and prepare safe two-slot GPU training
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | updated together with this snapshot | 0 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 16 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | updated together with this snapshot | 0 |
-| `docs/design.md` | updated together with this snapshot | 0 |
-| `docs/report_draft.md` | updated together with this snapshot | 0 |
-| `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | updated together with this snapshot | 0 |
+| `TEAM_STATUS.md` | `bbb1494` 2026-10-28 20:40 | 0 |
+| `README.md` | `bbb1494` 2026-10-28 20:40 | 0 |
+| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 15 |
+| `docs/report_draft.md` | `bbb1494` 2026-10-28 20:40 | 0 |
+| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 14 |
+| `results/DATA.md` | `bbb1494` 2026-10-28 20:40 | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -559,6 +563,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `v2-planner-live-obstacles` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 55/60 | 91.7 | 100.0 |
 | `v2-planner-offline` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 50/60 | 83.3 | 100.0 |
 | `v2-planner-offline-obstacles` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 55/60 | 91.7 | 100.0 |
+| `v2-tuned-planner-live` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 51/60 | 85.0 | 100.0 |
 | `v2-tuned-planner-offline` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 51/60 | 85.0 | 100.0 |
 | `v2-tuned-planner-offline-obstacles` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 56/60 | 93.3 | 100.0 |
 | `viewer-test` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |

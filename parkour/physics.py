@@ -73,7 +73,7 @@ class World:
     is exactly the one all results so far were measured with.
     """
 
-    def __init__(self, solid: torch.Tensor, slip: torch.Tensor | None = None):
+    def __init__(self, solid: torch.Tensor, slip: torch.Tensor | None = None, *, compact_ice: bool = False):
         if solid.dim() != 4:
             raise ValueError("solid must have shape (P, GX, GY, GZ)")
         self.solid = solid.to(torch.bool).contiguous()
@@ -82,7 +82,10 @@ class World:
         self.device = solid.device
         if slip is not None and tuple(slip.shape) != tuple(solid.shape):
             raise ValueError("slip must have the shape of solid")
-        self.slip = None if slip is None else slip.to(torch.float64).contiguous().view(-1)
+        self.compact_ice = compact_ice
+        if compact_ice and slip is not None and slip.dtype != torch.bool:
+            raise ValueError("compact ice requires a boolean ice mask")
+        self.slip = None if slip is None else slip.to(torch.bool if compact_ice else torch.float64).contiguous().view(-1)
 
     def lookup(self, course, ix, iy, iz):
         """Solid flags for integer cells; arguments broadcast together."""
@@ -97,6 +100,9 @@ class World:
         inside = (ix >= 0) & (ix < gx) & (iy >= 0) & (iy < gy) & (iz >= 0) & (iz < gz)
         index = ((course * gx + ix.clamp(0, gx - 1)) * gy + iy.clamp(0, gy - 1)) * gz + iz.clamp(0, gz - 1)
         values = self.slip[index]
+        if self.compact_ice:
+            values = torch.where(values, torch.full(values.shape, ICE_SLIPPERINESS, dtype=torch.float64, device=values.device),
+                                 torch.full(values.shape, DEFAULT_SLIPPERINESS, dtype=torch.float64, device=values.device))
         return torch.where(inside, values, torch.full_like(values, DEFAULT_SLIPPERINESS))
 
 

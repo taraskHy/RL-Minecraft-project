@@ -71,6 +71,7 @@ class TrainConfig:
     turn_prob: float = 0.25
     curriculum: str = "adaptive"  # adaptive | uniform
     eval_every: int = 50
+    compact_ice: bool = False  # opt-in boolean ice grid; queried friction remains float64
     test_once: bool = False  # select on validation; test only the selected checkpoint after training
     eval_per_level: int = 200
     val_per_level: int = 100
@@ -278,9 +279,9 @@ def train(cfg: TrainConfig) -> Path:
     if n_demo:
         pick = np.random.default_rng([2026, 3, cfg.seed]).choice(len(demos), n_demo, replace=False)
         train_courses[:n_demo] = [demo_course(demos[i], cfg.demo_level) for i in pick]
-    pool = CoursePool(train_courses, dev, C.GRID, ice=cfg.ice_prob > 0 or any(sp.ice for L in levels for sp in L))
-    test_pool = CoursePool(tests, dev, C.GRID)
-    obstacle_pool = CoursePool(obstacle_tests, dev, C.GRID) if obstacle_tests else None
+    pool = CoursePool(train_courses, dev, C.GRID, ice=cfg.ice_prob > 0 or any(sp.ice for L in levels for sp in L), compact_ice=cfg.compact_ice)
+    test_pool = None if cfg.test_once else CoursePool(tests, dev, C.GRID)
+    obstacle_pool = CoursePool(obstacle_tests, dev, C.GRID) if obstacle_tests and not cfg.test_once else None
     val_pool = CoursePool(vals, dev, C.GRID)
     best_info = old_summary.get("best", {})
 
@@ -568,6 +569,8 @@ def train(cfg: TrainConfig) -> Path:
     eval_f.close()
     model.export(out / "policy_last.json", {"run": cfg.run, "iteration": cfg.iterations - 1})
     if cfg.test_once:
+        test_pool = CoursePool(tests, dev, C.GRID, compact_ice=cfg.compact_ice)
+        obstacle_pool = CoursePool(obstacle_tests, dev, C.GRID, compact_ice=cfg.compact_ice) if obstacle_tests else None
         selected = torch.load(out / "checkpoints" / "best.pt", map_location=dev, weights_only=False)
         model.load_state_dict(selected["model"])
         model.eval()

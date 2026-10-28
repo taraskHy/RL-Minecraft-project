@@ -28,7 +28,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LOG = ROOT / "runs" / "gpu_watchdog.log"
-GPU_JOBS = re.compile(r"parkour\.(train|neo_demos|neo_dagger|neo_assist|cem|planner|jumpeval|stress|feasibility)\b"
+GPU_JOBS = re.compile(r"(?:^|\s)-m\s+parkour\.(train|neo_demos|neo_dagger|neo_assist|cem|planner|jumpeval|stress|feasibility)\b"
                       r"|cem_momentum")
 PROCESS_SUSPEND_RESUME = 0x0800
 
@@ -105,15 +105,19 @@ def main():
     ap.add_argument("--every", type=float, default=10.0)
     ap.add_argument("--pause-while", type=lambda v: [x for x in v.split(",") if x], default=[],
                     help="comma-separated program names; GPU jobs stay suspended while one of them runs")
+    ap.add_argument("--duty", type=float, default=1.0, help="shared compute duty for all GPU jobs together")
+    ap.add_argument("--period", type=float, default=10.0)
     ap.add_argument("--resume-all", action="store_true")
     a = ap.parse_args()
+    if not 0 < a.duty <= 1 or a.period <= 0:
+        ap.error("duty must be in (0, 1] and period must be positive")
     LOG.parent.mkdir(exist_ok=True)
     if a.resume_all:
         for pid, cmd in gpu_jobs().items():
             log(f"resume (manual) pid {pid}: {resume(pid)} {short(cmd)}")
         return
     log(f"watchdog started: pause above {a.hot} C, resume below {a.cool} C, every {a.every:g} s"
-        + (f", and while {', '.join(a.pause_while)} runs" if a.pause_while else ""))
+        + (f", and while {', '.join(a.pause_while)} runs" if a.pause_while else "") + f", shared duty {a.duty:.0%}")
     paused: dict = {}
     holding = for_heat = False
     deg = (lambda t: "temperature unknown" if t is None else f"{t:.0f} C")
@@ -121,24 +125,28 @@ def main():
         while True:
             t = temperature()
             game = running(a.pause_while)
-            hot = t is not None and t > a.hot
-            if not holding and (hot or game):
+            if t is not None and t > a.hot:
+                for_heat = True
+            elif t is not None and t < a.cool:
+                for_heat = False
+            duty_pause = a.duty < 1 and time.monotonic() % a.period >= a.period * a.duty
+            should_hold = for_heat or game or duty_pause
+            if not holding and should_hold:
                 for pid, cmd in gpu_jobs().items():
                     if suspend(pid):
                         paused[pid] = cmd
-                holding, for_heat = True, hot
-                why = f"at {deg(t)}" if hot else f"while {', '.join(a.pause_while)} runs ({deg(t)})"
-                log(f"PAUSE {why}: suspended {len(paused)} processes: " + "; ".join(short(c) for c in set(paused.values())))
-            elif holding and not game and ((t is not None and t < a.cool) or (t is None and not for_heat)):
+                holding = True
+                why = "temperature" if for_heat else "game" if game else "shared duty"
+                log(f"PAUSE {why} at {deg(t)}: suspended {len(paused)} processes")
+            elif holding and not should_hold:
                 n = sum(resume(pid) for pid in paused)
                 log(f"RESUME at {deg(t)}: resumed {n} of {len(paused)} processes")
                 paused, holding = {}, False
             elif holding:
-                for pid, cmd in gpu_jobs().items():  # jobs started while paused
+                for pid, cmd in gpu_jobs().items():
                     if pid not in paused and suspend(pid):
                         paused[pid] = cmd
-                        log(f"suspended a job started while paused ({deg(t)}): {short(cmd)}")
-            time.sleep(a.every)
+            time.sleep(min(a.every, 0.5) if a.duty < 1 else a.every)
     finally:
         if paused:
             n = sum(resume(pid) for pid in paused)

@@ -90,7 +90,7 @@ MAX_EXTRA = 256
 class CoursePool:
     """Courses packed into tensors on one device."""
 
-    def __init__(self, courses: list[Course], device, grid, ice: bool | None = None):
+    def __init__(self, courses: list[Course], device, grid, ice: bool | None = None, compact_ice: bool = False):
         """``ice``: keep a slipperiness grid for ice platforms (default: if any course has ice; a pool
         that will receive ice courses through ``replace`` needs True)."""
         self.courses = courses
@@ -116,11 +116,12 @@ class CoursePool:
             level[i] = c.level
         self.slip = None
         if any(c.ice for c in courses) if ice is None else ice:
-            self.slip = torch.full(solid.shape, physics.DEFAULT_SLIPPERINESS, dtype=torch.float64)
+            self.slip = torch.full(solid.shape, False if compact_ice else physics.DEFAULT_SLIPPERINESS,
+                                   dtype=torch.bool if compact_ice else torch.float64)
             for i, c in enumerate(courses):
                 self._set_ice(self.slip, i, c)
             self.slip = self.slip.to(device)
-        self.world = physics.World(solid.to(device), self.slip)
+        self.world = physics.World(solid.to(device), self.slip, compact_ice=compact_ice)
         self.plat = plat.to(device)
         self.rem = rem.to(device)
         self.n = n.to(device)
@@ -139,10 +140,10 @@ class CoursePool:
 
     @staticmethod
     def _set_ice(slip: torch.Tensor, index: int, course: Course) -> None:
-        slip[index] = physics.DEFAULT_SLIPPERINESS
+        slip[index] = False if slip.dtype == torch.bool else physics.DEFAULT_SLIPPERINESS
         cells = torch.as_tensor(course.ice_cells(), device=slip.device)
         if len(cells):
-            slip[index, cells[:, 0], cells[:, 1], cells[:, 2]] = physics.ICE_SLIPPERINESS
+            slip[index, cells[:, 0], cells[:, 1], cells[:, 2]] = True if slip.dtype == torch.bool else physics.ICE_SLIPPERINESS
 
     def _set_extra(self, index: int, course: Course) -> None:
         e = np.asarray(course.extra, dtype=np.int64).reshape(-1, 3)
