@@ -143,7 +143,9 @@ Concrete work, most important first. Nothing here needs new research.
    shows: 94% of the failures are on level-5 jumps, and those fail in
    0.7% of tries as the first jump (from a standing start) but 1.4-2.6%
    later in the course: the hardest jumps are harder when the bot arrives
-   moving. Of the 57 obstacle failures,
+   moving. Making it stop does not help: pausing 3-10 ticks after each
+   landing lowers level-5 success from 90.2% to 70-80%
+   (`scripts/level5_pause_test.py`, `results/level5_pause_test.jsonl`). Of the 57 obstacle failures,
    17 are on a jump under a head-hitter beam (12 of the 38 at level 5).
    Worst case: a 5-block gap down 3 with a 2-block sideways offset onto
    one block fails in 5 of its 10 attempts under a beam, 3 of 27 without.
@@ -329,17 +331,17 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `de2e7b3` (2026-10-28 14:10, branch `claude/pensive-knuth-biwj11`): Failure analysis by jump type: beams over level-5 jumps
+Generated on top of commit `a79e753` (2026-10-28 14:14, branch `claude/pensive-knuth-biwj11`): Level-5 failures by position: flat along the course, rarer from a standing start
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 17 |
+| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 18 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `b05becd` 2026-10-28 13:52 | 4 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 10 |
-| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 22 |
-| `docs/report_draft.md` | `568763d` 2026-10-28 14:05 | 1 |
-| `results/README.md` | `6170803` 2026-10-28 11:40 | 19 |
+| `TEAM_STATUS.md` | `b05becd` 2026-10-28 13:52 | 5 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 11 |
+| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 23 |
+| `docs/report_draft.md` | `568763d` 2026-10-28 14:05 | 2 |
+| `results/README.md` | `6170803` 2026-10-28 11:40 | 20 |
 | `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
