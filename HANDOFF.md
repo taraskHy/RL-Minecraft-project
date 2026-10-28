@@ -361,18 +361,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `85b8f50` (2026-10-28 14:27, branch `claude/pensive-knuth-biwj11`): AGENTS.md: what runs in a sandbox, and not accepting the EULA for the user
+Generated on top of commit `8da16f5` (2026-10-28 14:31, branch `claude/pensive-knuth-biwj11`): Ice physics, opt-in: per-block slipperiness matching prismarine-physics to 7e-15 blocks
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 0 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 1 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `12c736a` 2026-10-28 14:26 | 1 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 16 |
-| `docs/design.md` | updated together with this snapshot | 0 |
-| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 1 |
-| `results/README.md` | `6170803` 2026-10-28 11:40 | 25 |
-| `results/DATA.md` | updated together with this snapshot | 0 |
+| `TEAM_STATUS.md` | `12c736a` 2026-10-28 14:26 | 2 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 17 |
+| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 0 |
+| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 2 |
+| `results/README.md` | updated together with this snapshot | 0 |
+| `results/DATA.md` | `8da16f5` 2026-10-28 14:31 | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 

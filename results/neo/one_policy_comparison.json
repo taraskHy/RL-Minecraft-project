@@ -104,6 +104,8 @@
  },
  "final_policies": {
   "final_policy": {
+   "standard_levels_0_5": 98.4,
+   "obstacles_levels_0_5": 95.2,
    "levels_6_8": {
     "6": 71.0,
     "7": 3.5,
@@ -113,6 +115,8 @@
    "neo_courses": 210
   },
   "final_policy_v1": {
+   "standard_levels_0_5": 97.1,
+   "obstacles_levels_0_5": 93.6,
    "levels_6_8": {
     "6": 70.0,
     "7": 7.0,

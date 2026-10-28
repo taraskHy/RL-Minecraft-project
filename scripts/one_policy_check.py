@@ -56,13 +56,17 @@ def main():
             "per_level": {L: round(100 * float(t[f"success_L{L}"]), 1) for L in range(9)}}
     hard = held_out_courses(advanced, 200, 10)[6 * 200:]
     neo = [c for c in hard if neo_takeoffs(c)]
+    sets = {"standard_levels_0_5": held_out_courses(basic, 200, 10), "obstacles_levels_0_5": obstacle_courses(basic, 200, 10)}
     out["final_policies"] = {}
     for name in ("final_policy", "final_policy_v1"):
         model = load_model(ROOT / "results" / f"{name}.pt", dev)
         r = evaluate(model, CoursePool(hard, dev, C.GRID), dev, 200, deterministic=True)
         rn = evaluate(model, CoursePool(neo, dev, C.GRID), dev, 200, deterministic=True)
-        out["final_policies"][name] = {"levels_6_8": {L: round(100 * v["success"], 1) for L, v in r["per_level"].items()},
-                                       "neo_courses_completed": round(rn["success"] * len(neo)), "neo_courses": len(neo)}
+        out["final_policies"][name] = {
+            **{k: round(100 * evaluate(model, CoursePool(cs, dev, C.GRID), dev, 200, deterministic=True)["success"], 1)
+               for k, cs in sets.items()},
+            "levels_6_8": {L: round(100 * v["success"], 1) for L, v in r["per_level"].items()},
+            "neo_courses_completed": round(rn["success"] * len(neo)), "neo_courses": len(neo)}
     path = ROOT / "results" / "neo" / "one_policy_comparison.json"
     path.write_text(json.dumps(out, indent=1))
     print(json.dumps(out, indent=1))
