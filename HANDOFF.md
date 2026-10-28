@@ -508,18 +508,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `7208ebe` (2026-10-28 21:15, branch `claude/pensive-knuth-biwj11`): Team status and handoff: 147 of 218 with every jump planned and brake-and-retry; 106 of 200 random neo courses
+Generated on top of commit `8b918e2` (2026-10-28 21:46, branch `claude/pensive-knuth-biwj11`): Team status and handoff: 119 of 200 random neo courses with brake and retry
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 51 |
-| `HANDOFF.md` | `7208ebe` 2026-10-28 21:15 | 0 |
-| `TEAM_STATUS.md` | `7208ebe` 2026-10-28 21:15 | 0 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 67 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 26 |
-| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 52 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 53 |
+| `HANDOFF.md` | updated together with this snapshot | 0 |
+| `TEAM_STATUS.md` | `8b918e2` 2026-10-28 21:46 | 0 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 69 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 28 |
+| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 54 |
 | `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | `21188a6` 2026-10-28 19:19 | 13 |
+| `results/DATA.md` | `21188a6` 2026-10-28 19:19 | 15 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -607,6 +607,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `live2-final` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 59/60 | 98.3 | 100.0 |
 | `live2-obstacles` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 58/60 | 96.7 | 100.0 |
 | `live2-showcase` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 3/4 | 75.0 | 100.0 |
+| `neo-assist-offline-all-brake` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 25/31 | 80.6 | 100.0 |
 | `neo-full` | offline (prismarine-physics, no server) | `runs/neo-ck.pt` | 1/31 | 3.2 | 100.0 |
 | `neo-live-final` | live (Minecraft 1.21.4 server) | `runs/neo-dagger3/checkpoints/best.pt` | 11/31 | 35.5 | 100.0 |
 | `neo-offline-final` | offline (prismarine-physics, no server) | `runs/neo-dagger3/checkpoints/best.pt` | 11/31 | 35.5 | 100.0 |
@@ -656,7 +657,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 
 ### In `results/` but not yet in `results/DATA.md`
 
-Nothing: the data index names everything.
+`games/neo-assist-offline-all-brake/`
 
 <!-- END AUTO-SNAPSHOT -->
 

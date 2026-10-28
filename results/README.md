@@ -237,6 +237,15 @@ are the chosen settings.
 | validation | random (family 13) | `final_policy` | all, brake | all | 119/200 (59.5) | 320/396 | 1534/1534 |
 | test | random (family 12) | `final_policy` | policy alone |  | 33/200 (16.5) | 1/162 |  |
 
+The assist in the bots, on the neo course set of the neo policy's runs (`configs/neo_live_courses.json`:
+the first 10 held-out test courses with a neo of levels 6, 7 and 8, and the showcase neo course; the
+neo policy alone made 11/31 there, offline and in real Minecraft). The final policy plays; the bot
+pauses for the Python planner service and checks every plan with prismarine-physics:
+
+| Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |
+| --- | --- | --- | --- | --- | --- | --- |
+| neo-assist-offline-all-brake (jumps all, retries 1, brake 14) | offline (prismarine-physics, no server) | 25/31 | 80.6 | 100.0 | 0 | 7.1e-15 |
+
 ## New jump kinds and blocks: head hitters, ice run-ups, shaped blocks, slime, ladders (simulator)
 
 Opt-in levels (`configs/jump_levels_extra.json`, `run.cmd train --extra`) that the final policy was
