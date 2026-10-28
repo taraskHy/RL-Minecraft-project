@@ -134,13 +134,33 @@ def plan_horizon(course: C.Course, k: int, kind: str, cfg: "AssistConfig") -> in
     return h
 
 
+def specs_from_keys(keys: list[str], n_platforms: int) -> list[C.JumpSpec]:
+    """A course file's jump specs, one per jump from platform k to k + 1 as ``courses.generate`` records them.
+
+    Hand-designed courses (``courses.from_specs``) list only the specs they were built from; their runway
+    steps and the exits after shaped targets and slime pads are put back."""
+    specs = [spec_from_key(k) for k in keys]
+    if len(specs) == n_platforms - 1:
+        return specs
+    out = []
+    for sp in specs:
+        if sp.runway:
+            out.append(C.JumpSpec(1, 0, 0, (sp.runway, 1)))
+        out.append(sp)
+        if sp.block:
+            out.append(C.exit_spec(sp.block))
+        if sp.bounce:
+            out.append(C.bounce_exit(sp))
+    return out if len(out) == n_platforms - 1 else specs
+
+
 def courses_from_file(raw: list[dict]) -> list[C.Course]:
     """Courses of a course file (its "courses" list) with their jump specs, which ``Course.from_json`` leaves out."""
     out = []
     for d in raw:
         c = C.Course.from_json(d)
         if d.get("specs"):
-            c.specs = [spec_from_key(k) for k in d["specs"]]
+            c.specs = specs_from_keys(d["specs"], c.n)
         out.append(c)
     return out
 

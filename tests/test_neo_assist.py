@@ -15,8 +15,8 @@ from parkour import courses as C
 from parkour import physics
 from parkour.env import CoursePool, on_obstacle
 from parkour.live import load_model
-from parkour.neo_assist import (AssistConfig, Rules, evaluate_assisted, official_neo_courses, plan_target,
-                                 planned_takeoffs, random_neo_courses, spec_from_key)
+from parkour.neo_assist import (AssistConfig, Rules, courses_from_file, evaluate_assisted, official_neo_courses,
+                                 plan_target, planned_takeoffs, random_neo_courses, spec_from_key, specs_from_keys)
 from parkour.neo_dagger import neo_takeoffs
 from parkour.paths import BRIDGE, CONFIGS, NODE, ROOT
 from parkour.train import evaluate
@@ -116,6 +116,22 @@ class SpecKeys(unittest.TestCase):
                 C.JumpSpec(2, -3, 0, (1, 1), bounce=2), C.JumpSpec(1, 4, 0, (1, 1), ladder=1),
                 C.JumpSpec(3, 0, 0, (1, 1), runway=4, ceiling=2, ice=1)]:
             self.assertEqual(spec_from_key(sp.key()), sp)
+
+    def test_hand_designed_courses_get_one_spec_per_jump(self):
+        steps = [(C.JumpSpec(1, 0, 0, (1, 1)), 0), (C.JumpSpec(1, 0, 0, (1, 1), neo=1), 0),
+                 (C.JumpSpec(2, 0, 0, (2, 2), block="bottom_slab"), 0),
+                 (C.JumpSpec(2, -3, 0, (1, 1), bounce=1), 1), (C.JumpSpec(4, -1, 0, (2, 2), runway=3), 0),
+                 (C.JumpSpec(1, 0, 0, (3, 3)), 0)]
+        c = C.from_specs(steps)
+        self.assertNotEqual(len(c.specs), c.n - 1)
+        d = c.to_json()
+        specs = specs_from_keys(d["specs"], c.n)
+        self.assertEqual(len(specs), c.n - 1)
+        runway = next(k for k, sp in enumerate(specs) if sp.runway)
+        x0, x1, z0, z1, _ = (int(v) for v in c.platforms[runway])
+        self.assertEqual(max(x1 - x0, z1 - z0) + 1, 3)  # the run-up jump starts from the 3-long runway
+        pad = int(c.slime[0])
+        self.assertEqual([plan_target(courses_from_file([d])[0], k) for k in range(c.n - 1)][pad - 1], pad + 1)
 
     def test_all_plans_every_jump(self):
         c = random_neo_courses(13, n=1)[0]
