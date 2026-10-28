@@ -297,7 +297,8 @@ def new_abilities(out: Path) -> list:
                   "action sequence from its exact state and the bot plays it (`parkour/neo_assist.py`). Jumps planned:",
                   "`neo` the neos; `advanced` also the wide and momentum jumps; `all` every jump. Official: the held-out",
                   "level 6-8 courses with a neo (family 2 validation, family 1 test); random: courses of level 0-5 jumps",
-                  "where half the jumps are neos (13 validation, 12 test). Settings are chosen on validation; test lines",
+                  "where half the jumps are neos (13 validation, 12 test); mixed: ordinary and special jump kinds",
+                  "including the extra levels (15 validation, 14 test). Settings are chosen on validation; test lines",
                   "are the chosen settings.", "",
                   "| Split | Courses | Policy | Setting | Jumps planned | Completed | Neo jumps passed / reached | "
                   "Plans landed / played |", "| --- | --- | --- | --- | --- | --- | --- | --- |"]

@@ -10,7 +10,7 @@ the data: training runs, policies, the route planner and neo files, the game
 folders (including the v2, planner, noroute, neo and film games) and the
 videos.
 
-**Last updated:** 29 Oct 2026, 00:34, training PC: cloud merged through `ed31daf`; two validation-only training runs active under the 70% GPU target.
+**Last updated:** 29 Oct 2026, 00:43, training PC: cloud merged through `1752c13`; two validation-only training runs active under the 70% GPU target.
 
 ## The project
 
@@ -259,7 +259,7 @@ The retuned planner is confirmed in real Minecraft: 51/60 standard and 56/60 obs
 
 ## Last known state
 
-The cloud work is merged through `ed31daf`. The latest CPU merge checks pass (92 tests, 12 subtests; one CUDA test skipped to avoid extra GPU load), plus three focused watchdog/planner-failure checks. The earlier CUDA-enabled suite passed 85 tests and 8 subtests, with 6 focused checks after the cache-release change. Both `g995-adv` and `g995-ice` resumed their own iteration-49 checkpoint at 22:07, with `g995-extra` next. The latest user instruction limits both GPU compute and memory to 70%. The initial 10-second duty cycle produced unacceptable long 98% bursts; it has been replaced by shared 50-ms pacing with feedback from measured GPU usage, targeting headroom below 70%. This software control cannot guarantee every transient sample or the user's game stays below 70%.
+The cloud work is merged through `1752c13`. The latest CPU merge checks pass (92 tests, 12 subtests; one CUDA test skipped to avoid extra GPU load), plus three focused watchdog/planner-failure checks. The earlier CUDA-enabled suite passed 85 tests and 8 subtests, with 6 focused checks after the cache-release change. Both `g995-adv` and `g995-ice` resumed their own iteration-49 checkpoint at 22:07, with `g995-extra` next. The latest user instruction limits both GPU compute and memory to 70%. The initial 10-second duty cycle produced unacceptable long 98% bursts; it has been replaced by shared 50-ms pacing with feedback from measured GPU usage, targeting headroom below 70%. This software control cannot guarantee every transient sample or the user's game stays below 70%.
 
 Overwatch was observed running at 22:04, with no trainers active and about 40% card memory already in use. Training now uses a 13% allocator cap per job, 1,024-course pools, 8,192 environments, rollout 64, and 32 minibatches; game ticks per iteration remain 524,288, while rollout shape and minibatch changes affect optimization. The earlier ice run exceeded its 28% allocator cap during PPO; original logs/config are retained under its `recovery/20261028-220658/` directory, and it resumed the saved checkpoint. Shared 70% compute feedback, thermal protection and keep-awake remain active. The local queue fills slots; a five-minute native heartbeat monitors progress and publishes results. Later recipes are selected from common validation levels 0-5; test scores do not select recipes.
 
@@ -318,6 +318,8 @@ The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
 5. The report discussion and conclusion are drafted. The cloud DOCX/PDF exports predate this merged source; rebuild and check pagination before submission.
 
 ## Update log
+
+- **29 Oct 2026, 00:43, Codex heartbeat on training PC:** merged cloud baseline `1752c13`: the shipped final policy without assistance completes 37/200 mixed simulator validation courses (family 15, ordinary and special jump kinds). Verified checkpoint hash and aggregate count consistency; no per-course detail file accompanies this result. The mixed dataset matches its pinned fingerprint. Added the mixed family definitions to the report; three integrity tests and 26 subtests pass (93 deselected; `runs/heartbeat-mixed-baseline-tests.txt`). Archived training validation (families 2/5): g995-adv iteration 599: 80.17%, selected best 99; g995-ice iteration 699: 95.00%, selected best 449. Advanced uses nine levels and ice six; checkpoints remain selected only on validation, and training test logs are header-only. Report/handoff refreshed; two trainers and the existing queue/watchdog/keep-awake remain active.
 
 - **29 Oct 2026, 00:34, Codex heartbeat on training PC:** merged cloud diagnostic result `ed31daf`. Verified all 826 single-jump kinds at 16 starting angles and their aggregate summaries: the shipped final policy succeeds on shaped-block kinds at 99.06%, slime bounces at 39.94%, ladder climbs at 37.50% (simulator; `results/extra/jump_eval_final_policy.json`). These are single-jump diagnostics, separate from validation/test course families and not used for checkpoint or recipe selection. Retained original result fields; clarified the rendered label as "no scripted landing" because the policy does pass one such kind, and expanded the data index to cover all measured kinds. Regenerated report/handoff; three fingerprint tests and 26 subtests passed (93 deselected; `runs/heartbeat-extra-jumps-tests.txt`), and rendered labels/data totals were checked. Existing training, queue and safety helpers continue.
 

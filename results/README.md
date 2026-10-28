@@ -221,7 +221,8 @@ When the bot first stands on a planned takeoff, a cross-entropy search with the 
 action sequence from its exact state and the bot plays it (`parkour/neo_assist.py`). Jumps planned:
 `neo` the neos; `advanced` also the wide and momentum jumps; `all` every jump. Official: the held-out
 level 6-8 courses with a neo (family 2 validation, family 1 test); random: courses of level 0-5 jumps
-where half the jumps are neos (13 validation, 12 test). Settings are chosen on validation; test lines
+where half the jumps are neos (13 validation, 12 test); mixed: ordinary and special jump kinds
+including the extra levels (15 validation, 14 test). Settings are chosen on validation; test lines
 are the chosen settings.
 
 | Split | Courses | Policy | Setting | Jumps planned | Completed | Neo jumps passed / reached | Plans landed / played |
@@ -235,6 +236,7 @@ are the chosen settings.
 | validation | random (family 13) | `final_policy` | all | all | 106/200 (53.0) | 277/367 | 1440/1440 |
 | validation | official (family 2) | `final_policy` | all, brake | all | 147/218 (67.4) | 246/311 | 2284/2284 |
 | validation | random (family 13) | `final_policy` | all, brake | all | 119/200 (59.5) | 320/396 | 1534/1534 |
+| validation | mixed (family 15) | `final_policy` | policy alone |  | 37/200 (18.5) | 0/19 |  |
 | test | random (family 12) | `final_policy` | policy alone |  | 33/200 (16.5) | 1/162 |  |
 
 The assist in the bots, on the neo course set of the neo policy's runs (`configs/neo_live_courses.json`:

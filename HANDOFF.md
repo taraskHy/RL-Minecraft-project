@@ -531,18 +531,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `888fe9f` (2026-10-29 00:29, branch `main`): Merge mixed and extra-course fingerprint guards
+Generated on top of commit `9b48bda` (2026-10-29 00:34, branch `main`): Merge extra-jump diagnostics and clarify report labels
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 82 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 84 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 40 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 57 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 40 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 42 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 59 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 42 |
 | `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | updated together with this snapshot | 0 |
+| `results/DATA.md` | `9b48bda` 2026-10-29 00:34 | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -701,6 +701,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **29 Oct 2026, 00:43, Codex heartbeat on training PC:** merged cloud baseline `1752c13`: the shipped final policy without assistance completes 37/200 mixed simulator validation courses (family 15, ordinary and special jump kinds). Verified checkpoint hash and aggregate count consistency; no per-course detail file accompanies this result. The mixed dataset matches its pinned fingerprint. Added the mixed family definitions to the report; three integrity tests and 26 subtests pass (93 deselected; `runs/heartbeat-mixed-baseline-tests.txt`). Archived training validation (families 2/5): g995-adv iteration 599: 80.17%, selected best 99; g995-ice iteration 699: 95.00%, selected best 449. Advanced uses nine levels and ice six; checkpoints remain selected only on validation, and training test logs are header-only. Report/handoff refreshed; two trainers and the existing queue/watchdog/keep-awake remain active.
 
 - **29 Oct 2026, 00:34, Codex heartbeat on training PC:** merged cloud diagnostic result `ed31daf`. Verified all 826 single-jump kinds at 16 starting angles and their aggregate summaries: the shipped final policy succeeds on shaped-block kinds at 99.06%, slime bounces at 39.94%, ladder climbs at 37.50% (simulator; `results/extra/jump_eval_final_policy.json`). These are single-jump diagnostics, separate from validation/test course families and not used for checkpoint or recipe selection. Retained original result fields; clarified the rendered label as "no scripted landing" because the policy does pass one such kind, and expanded the data index to cover all measured kinds. Regenerated report/handoff; three fingerprint tests and 26 subtests passed (93 deselected; `runs/heartbeat-extra-jumps-tests.txt`), and rendered labels/data totals were checked. Existing training, queue and safety helpers continue.
 
