@@ -38,7 +38,7 @@ import numpy as np
 import torch
 
 from . import physics
-from .courses import Course, JumpSpec, _beam, _platform_after, exit_spec, shape_geometry, single_jump
+from .courses import Course, JumpSpec, _beam, _platform_after, bounce_exit, exit_spec, shape_geometry, single_jump
 from .env import CoursePool, on_obstacle, standing_on
 from .paths import CONFIGS
 
@@ -66,7 +66,7 @@ def candidate_specs():
         yield JumpSpec(gap, dy, lat, size)
 
 
-def _evaluate_chunk(specs, device, beam=False, courses=None):
+def _evaluate_chunk(specs, device, beam=False, courses=None, land_on=1, horizon=HORIZON):
     courses = courses or [single_jump(s) for s in specs]
     if beam:
         for c in courses:
@@ -101,8 +101,8 @@ def _evaluate_chunk(specs, device, beam=False, courses=None):
     s = physics.PlayerState.at(start, yaw)
     landed = torch.zeros(n, dtype=torch.bool, device=device)
     alive = ~physics.inside_solid(pool.world, course, s.pos)  # never start inside a block
-    low = torch.minimum(pool.top[course, 0], pool.top[course, 1])
-    for t in range(HORIZON):
+    low = pool.top[course][:, :land_on + 1].amin(dim=1)
+    for t in range(horizon):
         c = torch.zeros(n, 6, dtype=torch.bool, device=device)
         held = t < release
         c[:, physics.FORWARD] = held
@@ -110,7 +110,7 @@ def _evaluate_chunk(specs, device, beam=False, courses=None):
         c[:, physics.JUMP] = jtick == t
         s.yaw = yaw
         s = physics.simulate(pool.world, course, s, c)
-        landed |= standing_on(pool, s, course)[:, 1] & alive
+        landed |= standing_on(pool, s, course)[:, land_on] & alive
         # A strategy stops counting once it has fallen below the lower platform.
         alive &= s.pos[:, 1] > low - 1.0
     return landed.view(ns, nk).float().mean(dim=1).cpu().numpy()
@@ -344,10 +344,27 @@ def _evaluate_courses(courses, device):
     return np.concatenate(out)
 
 
+BOUNCE_HORIZON = 80  # takeoff, fall to the pad, bounce and the flight to the exit
+
+
+def bounce_specs():
+    return [JumpSpec(g, dy, 0, size, bounce=b) for g in (1, 2, 3) for dy in (-2, -3, -4) for size in ((1, 1), (2, 2))
+            for b in (1, 2, 3)]
+
+
+def bounce_course(spec: JumpSpec) -> Course:
+    """Takeoff (1x1 stone), the slime pad of ``spec`` and its exit, heading +X."""
+    c = single_jump(spec)
+    out = _platform_after(c.platforms[1], 0, bounce_exit(spec))
+    c.platforms = np.concatenate([c.platforms, out[None, :]])
+    return c
+
+
 EXTRA_LEVELS = (("head hitter", lambda r: r["kind"] == "roof" and r["forgiveness"] >= 0.05),
                 ("hard head hitter", lambda r: r["kind"] == "roof" and 0 < r["forgiveness"] < 0.05),
                 ("ice run-up", lambda r: r["kind"] == "ice" and r["forgiveness"] > 0),
-                ("shaped blocks", lambda r: r["kind"] == "shape" and r["forgiveness"] > 0 and r["exit_forgiveness"] >= 0.05))
+                ("shaped blocks", lambda r: r["kind"] == "shape" and r["forgiveness"] > 0 and r["exit_forgiveness"] >= 0.05),
+                ("slime bounce", lambda r: r["kind"] == "bounce" and r["forgiveness"] > 0))
 
 
 def extra_study(device):
@@ -368,6 +385,13 @@ def extra_study(device):
     for sp, f in zip(shaped, frac):
         rows.append({"kind": "shape", "gap": sp.gap, "dy": sp.dy, "lateral": sp.lateral, "size": list(sp.size),
                      "block": sp.block, "forgiveness": round(float(f), 5), "exit_forgiveness": exits[(sp.block, sp.size)]})
+    bounce = bounce_specs()
+    frac = np.concatenate([_evaluate_chunk([s.specs[0] for s in part], device, courses=part, land_on=2, horizon=BOUNCE_HORIZON)
+                           for part in ([bounce_course(sp) for sp in bounce[i:i + CHUNK]]
+                                        for i in range(0, len(bounce), CHUNK))])
+    for sp, f in zip(bounce, frac):  # landing on the exit after the bounce
+        rows.append({"kind": "bounce", "gap": sp.gap, "dy": sp.dy, "lateral": sp.lateral, "size": list(sp.size),
+                     "bounce": sp.bounce, "forgiveness": round(float(f), 5)})
     out = {"method": "single run-up jumps from rest at the back of the runway; run-up strategies (jump at the "
                      "runway's edge, hops before it, release after). Shaped blocks: the straight strategies of the "
                      "basic study from a 1x1 stone block onto the shaped target, and from the shaped block over the "
@@ -381,14 +405,14 @@ def extra_study(device):
         for r in rows:
             if not rule(r):
                 continue
-            base = {k: r[k] for k in ("gap", "dy", "lateral", "size", "runway", "ceiling", "ice", "block") if k in r}
+            base = {k: r[k] for k in ("gap", "dy", "lateral", "size", "runway", "ceiling", "ice", "block", "bounce") if k in r}
             members.append({**base, "side": 1})
             if r["lateral"]:
                 members.append({**base, "lateral": -r["lateral"], "side": 1})
         levels.append({"name": name, "specs": members})
     (CONFIGS / "jump_levels_extra.json").write_text(json.dumps({"source": "parkour.feasibility --extra",
                                                                 "levels": levels}, indent=1))
-    for kind in ("roof", "ice", "shape"):
+    for kind in ("roof", "ice", "shape", "bounce"):
         rk = [r for r in rows if r["kind"] == kind]
         print(kind, f"{sum(r['forgiveness'] > 0 for r in rk)}/{len(rk)} possible")
     for L in levels:

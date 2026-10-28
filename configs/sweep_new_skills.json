@@ -1,0 +1,9 @@
+{
+  "description": "Training for the new abilities, for the PC, one run at a time while the user games (python scripts/sweep.py configs/sweep_new_skills.json --slots 1, with scripts/gpu_watchdog.py running). Every run fine-tunes the discount-0.995 final policy with its settings (obstacles on 30% of jumps) and the gaming flags (75% of GPU memory, GPU busy 90% of the time, 8 CPU threads; HANDOFF section 6). extra-ft: the opt-in extra levels after the basic ones (levels 6-10 of that run: head hitter, hard head hitter, ice run-up, shaped blocks, slime bounce) with a uniform curriculum, because the adaptive one never advanced past a hard level in the advanced runs. advanced-g995: the neo, momentum and wide levels 6-8 on the discount-0.995 policy (the neo policy so far started from the discount-0.99 runs). Choose checkpoints on validation (best.pt); then report the test sets once: parkour.jumpeval --extra or --advanced, scripts/extra_preview.py, parkour.neo_assist --set official --family 1, and the standard and obstacle test sets as a forgetting check.",
+  "common": ["--init-from", "results/final_policy.pt", "--gamma", "0.995", "--obstacle-prob", "0.3",
+             "--gpu-mem-fraction", "0.75", "--gpu-duty", "0.9", "--threads", "8"],
+  "runs": [
+    {"run": "extra-ft", "args": ["--iterations", "1000", "--extra", "--curriculum", "uniform"]},
+    {"run": "advanced-g995", "args": ["--iterations", "1000", "--advanced"]}
+  ]
+}

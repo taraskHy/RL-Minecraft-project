@@ -32,19 +32,23 @@ const courses = JSON.parse(fs.readFileSync(args.courses, 'utf8')).courses
 const out = fs.createWriteStream(args.out)
 const STONE = mcData.blocksByName.stone.id
 const ICE = mcData.blocksByName.ice.id
+const SLIME = mcData.blocksByName.slime_block.id
 const AIR = mcData.blocksByName.air.id
 
-function makeWorld (platforms, extra, ice, shapes) {
+function makeWorld (platforms, extra, ice, shapes, slime) {
   const solid = new Set()
   const icy = new Set()
+  const bouncy = new Set()
   const shaped = new Map()
   for (const [k, [x0, x1, z0, z1, y]] of platforms.entries()) {
     const isIce = (ice || []).includes(k)
+    const isSlime = (slime || []).includes(k)
     const shape = shapes ? shapes[k] : undefined
     for (let x = x0; x <= x1; x++) {
       for (let z = z0; z <= z1; z++) {
         solid.add(`${x},${y},${z}`)
         if (isIce) icy.add(`${x},${y},${z}`)
+        if (isSlime) bouncy.add(`${x},${y},${z}`)
         if (shape) shaped.set(`${x},${y},${z}`, Block.fromStateId(STATES[shape], 0))
       }
     }
@@ -58,7 +62,8 @@ function makeWorld (platforms, extra, ice, shapes) {
       const real = shaped.get(`${x},${y},${z}`)
       if (real) return { type: real.type, shapes: real.shapes, boundingBox: real.boundingBox, position: new Vec3(x, y, z), metadata: real.metadata }
       const s = isSolid(x, y, z)
-      const type = s ? (icy.has(`${x},${y},${z}`) ? ICE : STONE) : AIR
+      const key = `${x},${y},${z}`
+      const type = s ? (icy.has(key) ? ICE : bouncy.has(key) ? SLIME : STONE) : AIR
       return { type, shapes: s ? [[0, 0, 0, 1, 1, 1]] : [], boundingBox: s ? 'block' : 'empty', position: new Vec3(x, y, z), metadata: 0 }
     }
   }
@@ -83,7 +88,7 @@ const service = assistConfig
 async function main () {
   let ok = 0
   for (const [index, c] of courses.entries()) {
-    const { world, isSolid, topOf } = makeWorld(c.platforms, c.extra, c.ice, c.shapes)
+    const { world, isSolid, topOf } = makeWorld(c.platforms, c.extra, c.ice, c.shapes, c.slime)
     const physics = Physics(mcData, world)
     const e = entityAt(c.spawn, c.spawn_yaw)
     for (let t = 0; t < Number(args.settle); t++) physics.simulatePlayer(e, world)

@@ -128,18 +128,24 @@ class CoursePool:
             spawn_yaw[i] = c.spawn_yaw
             level[i] = c.level
         self.slip = None
-        if any(c.ice for c in courses) if ice is None else ice:
+        if any(c.ice or c.slime for c in courses) if ice is None else ice:
             self.slip = torch.full(solid.shape, physics.DEFAULT_SLIPPERINESS, dtype=torch.float64)
             for i, c in enumerate(courses):
                 self._set_ice(self.slip, i, c)
             self.slip = self.slip.to(device)
+        self.slime = None
+        if any(c.slime for c in courses) if ice is None else ice:  # slime blocks bounce (and are slippery)
+            self.slime = torch.zeros(solid.shape, dtype=torch.bool)
+            for i, c in enumerate(courses):
+                self._set_slime(self.slime, i, c)
+            self.slime = self.slime.to(device)
         self.shape_grid = None
         if any(c.shapes for c in courses) if shapes is None else shapes:
             self.shape_grid = torch.zeros(solid.shape, dtype=torch.uint8)
             for i, c in enumerate(courses):
                 self._set_shapes(self.shape_grid, i, c)
             self.shape_grid = self.shape_grid.to(device)
-        self.world = physics.World(solid.to(device), self.slip, self.shape_grid)
+        self.world = physics.World(solid.to(device), self.slip, self.shape_grid, self.slime)
         self.plat = plat.to(device)
         self.rem = rem.to(device)
         self.n = n.to(device)
@@ -166,6 +172,16 @@ class CoursePool:
         cells = torch.as_tensor(course.ice_cells(), device=slip.device)
         if len(cells):
             slip[index, cells[:, 0], cells[:, 1], cells[:, 2]] = physics.ICE_SLIPPERINESS
+        cells = torch.as_tensor(course.slime_cells(), device=slip.device)
+        if len(cells):
+            slip[index, cells[:, 0], cells[:, 1], cells[:, 2]] = physics.SLIME_SLIPPERINESS
+
+    @staticmethod
+    def _set_slime(grid: torch.Tensor, index: int, course: Course) -> None:
+        grid[index] = False
+        cells = torch.as_tensor(course.slime_cells(), device=grid.device)
+        if len(cells):
+            grid[index, cells[:, 0], cells[:, 1], cells[:, 2]] = True
 
     @staticmethod
     def _set_shapes(grid: torch.Tensor, index: int, course: Course) -> None:
@@ -219,8 +235,12 @@ class CoursePool:
         self._set_extra(index, course)
         if self.slip is not None:
             self._set_ice(self.slip, index, course)  # the world reads this tensor's memory
-        elif course.ice:
+        elif course.ice or course.slime:
             raise ValueError("this pool has no ice grid; build it with ice=True")
+        if self.slime is not None:
+            self._set_slime(self.slime, index, course)
+        elif course.slime:
+            raise ValueError("this pool has no slime grid; build it with ice=True")
         self.version += 1
 
 
