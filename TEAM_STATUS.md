@@ -4,14 +4,14 @@ One page for everyone on the team: what works, what is running, what is open.
 Updated and pushed regularly; the newest results can reach
 [results/README.md](results/README.md) first. The main results are in that
 README (generated from the run files, neo results included); the rest come
-from the files in `runs/`, `results/` and `configs/`. [results/DATA.md](results/DATA.md) lists most of
-the data, but has not been updated since the night of 27-28 October; the
-generated snapshot at the end of [HANDOFF.md](HANDOFF.md) lists what it is
-missing.
+from the files in `runs/`, `results/` and `configs/`. [results/DATA.md](results/DATA.md) indexes all
+of the data (the generated snapshot at the end of [HANDOFF.md](HANDOFF.md)
+lists anything new it is missing).
 
-**Last updated:** 28 October 2026, afternoon: every training result up to
+**Last updated:** 28 October 2026, evening: every training result up to
 the PC's commit `a7a426c` (12:34), plus CPU results from a cloud session on
-branch `claude/pensive-knuth-biwj11` (not merged into `main` yet).
+branch `claude/pensive-knuth-biwj11` (not merged into `main` yet), including
+the new abilities below.
 
 ## The project
 
@@ -140,6 +140,36 @@ blocks.
   policy 98.4%) and 92.5% with obstacles (95.2%), while the final policy
   completes none of the 210 neo courses.
 
+## New abilities (28 Oct evening, cloud session; simulator unless said)
+
+The cloud session cannot use the PC's GPU, so it built and checked these on
+its CPU; the training for them is queued for the PC
+(`configs/sweep_new_skills.json`). Plan and status: `docs/abilities_plan.md`.
+
+- **The bot plans its hardest jumps.** When it first stands on a neo's
+  takeoff (or a wide or run-up jump's), a search with the exact game physics
+  finds an action sequence from its exact state, and the bot plays it.
+  On the 218 validation neo courses: the final policy alone completes 0;
+  with planning at neos 49; planning every advanced jump 119 (55%), passing
+  214 of the 286 neos it reaches. Every one of the 869 plans played landed
+  exactly as searched. The offline bot (prismarine-physics, the live bot's
+  engine) reproduces the simulator exactly with this planner; the live bot
+  has it too (it stands still on the takeoff while the planner thinks), not
+  yet run on a real server.
+- **Head hitters and ice run-ups**: new jump kinds (a run-up under a
+  2-high roof, a tunnel, an ice runway), checked possible by a scripted
+  study. The final policy, never trained on them, makes 68% of the head
+  hitter kinds alone, 22% of the hard ones and 49% of the ice ones; whole
+  courses of those kinds 25.5%, 1.5% and 7.0%, and with the planner 31/40,
+  38/40, 32/40.
+- **New blocks in the physics**, each matching prismarine-physics to
+  1.4e-14 blocks over 60,000 ticks: slabs, stairs, soul sand, carpets,
+  trapdoors, fence and wall posts, ladders (block shapes), slime (bounces),
+  ladders and vines (climbing). Courses can use them as jump kinds that
+  land on a shaped block, bounce off a slime pad, or climb a ladder onto a
+  wall; both bots build the real blocks and the offline bot plays them
+  exactly like the simulator.
+
 ## No course list: the bot finds its own route
 
 Requested from the side chat: run the trained bot on maps where nobody gives
@@ -225,10 +255,12 @@ the training PC.
 The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
 (sections 3 to 5).
 
-1. Neos: 29% of neo courses, and courses with two or more neos almost never.
+1. Neos: the learned neo policy completes 29% of neo courses; with the
+   new planning assist (simulator) the final policy completes 55% of the
+   validation neo courses. Training the policy itself to do it is still open.
 2. One policy for both normal and neo courses (now there are two).
-3. More block types: slabs, ladders, ice and fences need physics ports
-   (prismarine-physics has them) and new course pieces.
+3. New blocks are in the physics and in course pieces (shapes, slime,
+   ladders); the policy has not been trained on them yet (PC queue).
 4. Hand-built maps: extract the platform chain from a region of a real map.
 5. The report: `docs/report_draft.md` is complete in draft (results with
    the new final policy and the neo results, discussion, conclusion,
@@ -237,6 +269,12 @@ The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
    exactly the limit. It needs a read-through by the team.
 
 ## Update log
+
+- **28 Oct 2026, evening (cloud session):** new abilities: planning the
+  hardest jumps with the exact physics (neo assist; simulator and both
+  bots), head-hitter and ice run-up jump kinds, block shapes, slime and
+  ladders in the physics and in courses (exact against prismarine-physics),
+  a gaming-friendly training mode for the PC and its queue. Details above.
 
 - **28 Oct 2026, afternoon (cloud session):** this page brought up to date:
   final policy with discount 0.995 (98.4% / 95.2% in the simulator; 59/60,
