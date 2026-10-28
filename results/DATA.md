@@ -78,6 +78,7 @@ JavaScript on Mineflayer's physics engine without a server. Every folder's
 | `stress.json`, `stress_v1.json`, `stress_main.json` | course styles outside training, 100 courses per level and condition, same three policies |
 | `offline_summary.md`, `live_summary.md` (and `offline_summary_v1.md`, `live_summary_v1.md`) | the bot's per-level tables offline and in real Minecraft, final and first final policy |
 | `physics_parity.json` | the simulator against prismarine-physics 1.11.1: 99,000 ticks, largest error 1.4e-14 blocks |
+| `ice_preview.json` | the final policy on the standard test courses with every platform (or every platform after the start) made of ice: 95.6% / 96.5% against 98.4% (`scripts/ice_preview.py`) |
 | `physics_parity_ice.json` | the same check with ice blocks (optional slipperiness grid): 60,000 ticks, largest error 7.1e-15 blocks |
 | `hparams_defaults_validation.json` | the defaults' validation score for the hyperparameter table |
 | `audit_claims.json` | the audit of 829 claims in the documents against the run files (28 Oct) |

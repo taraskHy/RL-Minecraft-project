@@ -206,7 +206,12 @@ Concrete work, most important first. Nothing here needs new research.
    pieces (`parkour/courses.py`, opt-in), an observation of the block type
    (the 255-number observation cannot see ice, so a new policy, trained on
    the GPU), `bridge/policy.js` and the bot building ice blocks, and the
-   live checks.
+   live checks. A first measurement (`scripts/ice_preview.py` ->
+   `results/ice_preview.json`, simulator): the final policy, blind to ice,
+   still completes 95.6% of the standard test courses when every platform
+   is ice (98.4% on stone); level 5 drops from 93.5% to 86.0%, falls there
+   from 6.5% to 13%. So ice is a cheap next block type: most of the skill
+   carries over, and the gap is at the hardest jumps.
 7. **Hand-built maps:** extract the platform chain from a region of a real
    map instead of generating courses.
 8. Double and triple neos: reopen only with a new search method; the
@@ -362,18 +367,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `6228744` (2026-10-28 14:37, branch `claude/pensive-knuth-biwj11`): Team status: the afternoon's results in the update log
+Generated on top of commit `88b55e6` (2026-10-28 14:43, branch `claude/pensive-knuth-biwj11`): Planner: opt-in one-step lookahead, within noise on validation
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 4 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 5 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `6228744` 2026-10-28 14:37 | 0 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 20 |
-| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 3 |
-| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 5 |
-| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 2 |
-| `results/DATA.md` | `8da16f5` 2026-10-28 14:31 | 3 |
+| `TEAM_STATUS.md` | `6228744` 2026-10-28 14:37 | 1 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 21 |
+| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 4 |
+| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 6 |
+| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 3 |
+| `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
