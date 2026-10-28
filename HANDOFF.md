@@ -84,9 +84,9 @@ Concrete work, most important first. Nothing here needs new research.
    complete (7.3-7.9 report the final policy with the first one in
    brackets; 7.10 has the imitation + DAgger results; 7.11-7.12 give both
    policies' planner numbers); sections 8 (discussion) and 9 (conclusion)
-   are written. Still to do: a read-through by the team, the 8-20 page limit
-   (Arial 12, 1.5 spacing; the draft is about 6,500 words), and placing the
-   figures (the draft names them, none are embedded).
+   are written; figures 1-5 are embedded (from `results/figures/`). Still
+   to do: a read-through by the team and the 8-20 page limit (Arial 12, 1.5
+   spacing; the draft is about 6,600 words).
 2. **Ship the neo policy in Git** if the team will present it: it exists
    only as `runs/neo-dagger3/checkpoints/best.pt` on the PC. Export it next
    to the final policy (for example `results/neo_policy.pt` / `.json`)
@@ -264,18 +264,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `80097c6` (2026-10-28 12:59, branch `claude/pensive-knuth-biwj11`): Document final-v2 as an abandoned run; team status: report drafted
+Generated on top of commit `5b0af09` (2026-10-28 13:05, branch `claude/pensive-knuth-biwj11`): README: results table with the final policy, planner and neo rows
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 5 |
+| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 7 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `80097c6` 2026-10-28 12:59 | 0 |
-| `README.md` | `a37dea9` 2026-10-28 12:26 | 5 |
-| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 10 |
-| `docs/report_draft.md` | `70379e1` 2026-10-28 12:58 | 1 |
-| `results/README.md` | `6170803` 2026-10-28 11:40 | 7 |
-| `results/DATA.md` | `80097c6` 2026-10-28 12:59 | 0 |
+| `TEAM_STATUS.md` | `80097c6` 2026-10-28 12:59 | 2 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 0 |
+| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 12 |
+| `docs/report_draft.md` | updated together with this snapshot | 0 |
+| `results/README.md` | `6170803` 2026-10-28 11:40 | 9 |
+| `results/DATA.md` | `80097c6` 2026-10-28 12:59 | 2 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 

@@ -169,6 +169,11 @@ a log-ratio clamp, dual clipping, a per-minibatch KL stop at 0.05 and a
 KL-adaptive learning rate (target 0.01). No collapse occurred afterwards
 (section 7).
 
+![Training curves of the first runs, before the safeguards](../results/figures/training__v1_unstable_main-s0.png)
+
+*Figure 1: a run before the safeguards (`runs/_v1_unstable`): the
+catastrophic updates show as spikes in KL and drops in training success.*
+
 ## 6. From simulator to Minecraft
 
 The trained actor is exported as JSON and evaluated in JavaScript inside the
@@ -201,8 +206,19 @@ shared with two other runs) the last checkpoint completes **95.5%** of the
 5. Levels 0 to 3 are above 96% at the first evaluation (26 million ticks) and
 level 4 passes 90% at 0.08 billion; level 5 rises from 2% to 78% by 0.55
 billion ticks and stays between 64 and 92% afterwards, apart from the one dip at 1.0 billion (figure
-`main_learning_curve`).
+2).
 The safeguards held the run stable except for one short dip (section 5).
+
+![Held-out success per difficulty level during the main run](../results/figures/main_learning_curve.png)
+
+*Figure 2: held-out test success per difficulty level during the main run
+(`main-s0`), every 50 iterations.*
+
+![The main run's training curves](../results/figures/training_main-s0.png)
+
+*Figure 3: the main run's training curves (success, reward, falls, episode
+length, curriculum level, entropy, policy and value loss, KL, learning
+rate), every iteration.*
 
 ### 7.2 Reward and curriculum ablation (3 seeds per arm, 0.52 B ticks each)
 
@@ -213,6 +229,11 @@ The safeguards held the run stable except for one short dip (section 5).
 | no landing bonus | 91.8% (90.0-94.2) | 59.5% (47.0-74.5) | 0.05 B |
 | no fall penalty | 90.9% (90.5-91.2) | 55.2% (54.0-57.0) | 0.05 B |
 | no curriculum | 94.0% (93.0-95.0) | 72.0% (67.0-76.0) | 0.08 B |
+
+![Reward and curriculum ablation](../results/figures/ablation_curves.png)
+
+*Figure 4: held-out success during training for each ablation arm, 3 seeds
+per arm.*
 
 - The **fall penalty** (the height idea) matters most: without it the final
   success and the level-5 success fall below every seed of the full arm.
@@ -269,7 +290,13 @@ of the time [99.6%]; the one level-5 type it misses sometimes, a 4-block gap
 with a one-block sideways offset, it makes from 14 of the 16 angles. Of the
 49 types that none of the 4,032 scripted strategies lands, it makes 3 [4] at
 least once, including a diagonal 4-block gap onto a 3x3 platform from 15 of
-the 16 start angles [all 16] (figure `jumps`).
+the 16 start angles [all 16] (figure 5).
+
+![Every jump type: the policy against scripted strategies](../results/figures/jumps.png)
+
+*Figure 5: every jump type, one dot each: the final policy's success over
+16 start angles against the jump's forgiveness (the share of the 4,032
+scripted strategies that land it); the dashed lines separate the levels.*
 
 ### 7.5 Course styles outside training (final policy, 100 courses per level)
 
