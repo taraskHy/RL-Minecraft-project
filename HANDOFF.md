@@ -82,7 +82,18 @@ More facts that hold now:
 
 Concrete work, most important first. Nothing here needs new research.
 
-1. **Confirm the retuned planner in real Minecraft** (PC; section 4,
+1. **Merge `claude/pensive-knuth-biwj11` into `main`** (PC session; the
+   cloud session's work: docs, the handoff tools, planner options, analyses,
+   new files in `results/`). `git fetch origin && git merge
+   origin/claude/pensive-knuth-biwj11`, no rebase. If `main` has moved:
+   `results/README.md` is generated, so after the merge run `run.cmd report`
+   instead of resolving it by hand (it also rewrites this file's snapshot);
+   for `HANDOFF.md` keep both sides' hand-written text and add both session
+   log entries; then `run.cmd test` and push. Nothing on the branch changes
+   training, the physics, the bot or a default setting; the only behaviour
+   changes are the GPU watchdog also pausing `parkour.neo_dagger` and
+   `run.cmd report` also refreshing this file's snapshot.
+2. **Confirm the retuned planner in real Minecraft** (PC; section 4,
    item 4): `run.cmd live --checkpoint results\final_policy.pt --planner
    --planner-config "{\"cost\": \"distance\", \"align\": 2.0}"
    --courses-file results\games\v2-planner-live\courses.json --out
@@ -91,7 +102,7 @@ Concrete work, most important first. Nothing here needs new research.
    `parkour/planner.py` (`PlannerConfig`) and `bridge/planner.js`
    (`DEFAULTS`), keep `tests/test_planner.py` passing, and update report
    7.11 and 9, `README.md` and `TEAM_STATUS.md`.
-2. **Report** (`docs/report_draft.md`, for the course): section 7 is
+3. **Report** (`docs/report_draft.md`, for the course): section 7 is
    complete (7.3-7.9 report the final policy with the first one in
    brackets; 7.10 has the imitation + DAgger results; 7.11-7.12 give both
    policies' planner numbers); sections 8 (discussion) and 9 (conclusion)
@@ -104,14 +115,14 @@ Concrete work, most important first. Nothing here needs new research.
    comes from `results/` or the run files; Arial 12, 1.5 spacing,
    one-inch margins, 8 to 20 pages without the references. Still to do: a
    read-through by the team.
-3. **Ship the neo policy in Git** if the team will present it: it exists
+4. **Ship the neo policy in Git** if the team will present it: it exists
    only as `runs/neo-dagger3/checkpoints/best.pt` on the PC. Export it next
    to the final policy (for example `results/neo_policy.pt` / `.json`)
    without replacing `results/final_policy.*`.
-4. **Restart the GPU watchdog on the PC** after merging this branch: it
+5. **Restart the GPU watchdog on the PC** after merging this branch: it
    now also pauses `parkour.neo_dagger`, but the copy already running uses
    the old job list.
-5. Keep `TEAM_STATUS.md` and this file in step with each new result.
+6. Keep `TEAM_STATUS.md` and this file in step with each new result.
 
 ## 4. Open problems (unsolved, up for grabs)
 
@@ -331,18 +342,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `a79e753` (2026-10-28 14:14, branch `claude/pensive-knuth-biwj11`): Level-5 failures by position: flat along the course, rarer from a standing start
+Generated on top of commit `b85b254` (2026-10-28 14:21, branch `claude/pensive-knuth-biwj11`): level5_pause_test.py: imports in the scripts' usual style
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 18 |
+| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 20 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `b05becd` 2026-10-28 13:52 | 5 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 11 |
-| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 23 |
-| `docs/report_draft.md` | `568763d` 2026-10-28 14:05 | 2 |
-| `results/README.md` | `6170803` 2026-10-28 11:40 | 20 |
-| `results/DATA.md` | updated together with this snapshot | 0 |
+| `TEAM_STATUS.md` | `b05becd` 2026-10-28 13:52 | 7 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 13 |
+| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 25 |
+| `docs/report_draft.md` | `568763d` 2026-10-28 14:05 | 4 |
+| `results/README.md` | `6170803` 2026-10-28 11:40 | 22 |
+| `results/DATA.md` | `b905bb1` 2026-10-28 14:21 | 1 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -520,8 +531,8 @@ Newest first. One entry per session; earlier history is in the
   analysis by jump type (section 4, item 3) and of the neo policy's weak
   neo types (section 4, item 1). Decision: no Minecraft server in the cloud
   container (it needs the user's EULA acceptance for that machine), so all
-  real-game checks stay on the PC. Next: section 3, item 1 (confirm the
-  retuned planner in real Minecraft on the PC). Decision: CPU torch
+  real-game checks stay on the PC. Next: section 3, items 1 and 2 (merge this
+  branch, then confirm the retuned planner in real Minecraft on the PC). Decision: CPU torch
   cannot be installed here (`download.pytorch.org` is blocked by this
   environment's network), so no new numbers are computed in this session;
   everything comes from files already in `results/` (superseded: PyPI's
