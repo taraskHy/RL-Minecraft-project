@@ -30,10 +30,12 @@ class ParityCase:
     ice: np.ndarray | None = None  # (I, 3) int, cells of ``blocks`` that are ice
     shapes: np.ndarray | None = None  # (M, 4) int, cells of ``blocks`` with a collision shape: x, y, z, shape id
     slime: np.ndarray | None = None  # (L, 3) int, cells of ``blocks`` that are slime blocks
+    ladders: np.ndarray | None = None  # (A, 4) int: x, y, z, facing (0-3: north, east, south, west) of ladder blocks
+    vines: np.ndarray | None = None  # (V, 3) int, air cells that hold a vine
 
 
 def random_case(rng: np.random.Generator, ticks: int = 120, size: int = 14, ice: float = 0.0,
-                shapes: float = 0.0, slime: float = 0.0) -> ParityCase:
+                shapes: float = 0.0, slime: float = 0.0, climb: float = 0.0) -> ParityCase:
     """A random block field with a player on top of a block and sticky random inputs; with ``ice``
     > 0, that share of the raised blocks (and always the start block) is ice; with ``shapes`` > 0,
     that share of the other raised blocks has a random collision shape of physics.shape_table()."""
@@ -81,7 +83,7 @@ def random_case(rng: np.random.Generator, ticks: int = 120, size: int = 14, ice:
     shaped = None
     if shapes > 0:  # drawn after that, for the same reason
         icy = set() if cells is None else {tuple(int(v) for v in b) for b in cells}
-        n_shapes = len(physics.shape_table()[0])
+        n_shapes = sum(1 for n in physics.shape_table()[0] if not n.startswith("ladder"))  # shapes only, no climbing
         shaped = np.array([(*b, int(rng.integers(1, n_shapes))) for b in raised  # not the start block's head room
                            if b != start and b in blocks and b not in icy and rng.random() < shapes],
                           dtype=np.int64).reshape(-1, 4)
@@ -91,7 +93,28 @@ def random_case(rng: np.random.Generator, ticks: int = 120, size: int = 14, ice:
             set() if shaped is None else {tuple(int(v) for v in b[:3]) for b in shaped})
         bouncy = np.array([b for b in raised if b in blocks and b not in taken and (b == start or rng.random() < slime)],
                           dtype=np.int64).reshape(-1, 3)
-    return ParityCase(np.array(sorted(blocks), dtype=np.int64), pos, yaw, controls, cells, shaped, bouncy)
+    ladders = vines = None
+    if climb > 0:  # drawn after that: ladders on the sides of raised blocks, vines in the air beside them
+        taken = {tuple(int(v) for v in b[:3]) for arr in (cells, shaped, bouncy) if arr is not None for b in arr}
+        lad, vin, used = [], [], set()
+        for b in raised:
+            if b not in blocks or b in taken or b == start or rng.random() >= climb:
+                continue
+            f = int(rng.integers(4))
+            dx, dz = ((0, 1), (-1, 0), (0, -1), (1, 0))[f]  # the side the ladder faces, away from its wall
+            beside = (b[0] + dx, b[1], b[2] + dz)
+            if beside in blocks or beside in used:
+                continue
+            used.add(beside)
+            if rng.random() < 0.5:
+                lad.append((*beside, f))
+            else:
+                vin.append(beside)
+        for x, y, z, _ in lad:
+            blocks.add((x, y, z))
+        ladders = np.array(lad, dtype=np.int64).reshape(-1, 4)
+        vines = np.array(vin, dtype=np.int64).reshape(-1, 3)
+    return ParityCase(np.array(sorted(blocks), dtype=np.int64), pos, yaw, controls, cells, shaped, bouncy, ladders, vines)
 
 
 def run_js(cases: list[ParityCase]) -> list[list[dict]]:
@@ -99,6 +122,7 @@ def run_js(cases: list[ParityCase]) -> list[list[dict]]:
         "blocks": c.blocks.tolist(), "ice": [] if c.ice is None else c.ice.tolist(),
         "shapes": [] if c.shapes is None else [[*b[:3].tolist(), physics.shape_table()[0][b[3]]] for b in c.shapes],
         "slime": [] if c.slime is None else c.slime.tolist(),
+        "ladders": [] if c.ladders is None else c.ladders.tolist(), "vines": [] if c.vines is None else c.vines.tolist(),
         "pos": list(c.pos), "vel": [0.0, 0.0, 0.0], "onGround": False,
         "jumpTicks": 0,
         "ticks": [{"yaw": float(c.yaw[t]), "c": [int(v) for v in c.controls[t]]} for t in range(len(c.yaw))],
@@ -143,14 +167,29 @@ def run_torch(cases: list[ParityCase], device: str = "cpu") -> list[dict]:
                 slime[i, b[:, 0], b[:, 1], b[:, 2]] = True
         slime = slime.to(device)
     shape = None
-    if any(c.shapes is not None and len(c.shapes) for c in cases):
+    has_ladders = any(c.ladders is not None and len(c.ladders) for c in cases)
+    has_climb = has_ladders or any(c.vines is not None and len(c.vines) for c in cases)
+    if any(c.shapes is not None and len(c.shapes) for c in cases) or has_ladders:
         shape = torch.zeros(solid.shape, dtype=torch.uint8)
+        ladder_ids = torch.tensor([physics.shape_id(f"ladder_{d}") for d in ("north", "east", "south", "west")])
         for i, c in enumerate(cases):
             if c.shapes is not None and len(c.shapes):
                 b = torch.as_tensor(c.shapes)
                 shape[i, b[:, 0], b[:, 1], b[:, 2]] = b[:, 3].to(torch.uint8)
+            if c.ladders is not None and len(c.ladders):
+                b = torch.as_tensor(c.ladders)
+                shape[i, b[:, 0], b[:, 1], b[:, 2]] = ladder_ids[b[:, 3]].to(torch.uint8)
         shape = shape.to(device)
-    world = physics.World(solid.to(device), slip, shape, slime)
+    climb = None
+    if has_climb:
+        climb = torch.zeros(solid.shape, dtype=torch.bool)
+        for i, c in enumerate(cases):
+            for arr in (c.ladders, c.vines):
+                if arr is not None and len(arr):
+                    b = torch.as_tensor(arr)
+                    climb[i, b[:, 0], b[:, 1], b[:, 2]] = True
+        climb = climb.to(device)
+    world = physics.World(solid.to(device), slip, shape, slime, climb)
     course = torch.arange(n, device=device)
     state = physics.PlayerState.at(torch.tensor([c.pos for c in cases], dtype=torch.float64, device=device),
                                    torch.zeros(n, dtype=torch.float64, device=device))

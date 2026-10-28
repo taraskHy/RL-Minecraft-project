@@ -82,6 +82,7 @@ JavaScript on Mineflayer's physics engine without a server. Every folder's
 | `physics_parity_ice.json` | the same check with ice blocks (optional slipperiness grid): 60,000 ticks, largest error 7.1e-15 blocks |
 | `physics_parity_shapes.json` | the same check with block shapes (optional shape grid: slabs, stairs, soul sand, carpets, trapdoors, fence and wall posts, ...; real block states on the Node side): 60,000 ticks, largest error 1.4e-14 blocks (`scripts/shape_parity.py`) |
 | `physics_parity_slime.json` | the same check with slime blocks (optional slime grid: bounce, slipperiness 0.8): 60,000 ticks, largest error 1.4e-14 blocks (`scripts/shape_parity.py --slime`) |
+| `physics_parity_climb.json` | the same check with ladders and vines (optional climb grid; in 1.21 climbing also by jumping): 60,000 ticks, largest error 1.4e-14 blocks (`scripts/shape_parity.py --climb`) |
 | `results/extra/` | head hitters and ice run-ups (the opt-in extra levels): `jump_eval_final_policy.json` every kind alone at 16 angles (`parkour.jumpeval --extra`); `course_preview_family1.json` whole held-out courses of those levels, the final policy alone and with the planner (`scripts/extra_preview.py`). Simulator only |
 | `hparams_defaults_validation.json` | the defaults' validation score for the hyperparameter table |
 | `audit_claims.json` | the audit of 829 claims in the documents against the run files (28 Oct) |

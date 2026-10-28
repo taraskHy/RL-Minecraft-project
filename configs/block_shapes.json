@@ -382,6 +382,82 @@
      1
     ]
    ]
+  },
+  {
+   "name": "ladder_north",
+   "block": "ladder",
+   "properties": {
+    "facing": "north",
+    "waterlogged": false
+   },
+   "state": 4742,
+   "boxes": [
+    [
+     0,
+     0,
+     0.8125,
+     1,
+     1,
+     1
+    ]
+   ]
+  },
+  {
+   "name": "ladder_east",
+   "block": "ladder",
+   "properties": {
+    "facing": "east",
+    "waterlogged": false
+   },
+   "state": 4748,
+   "boxes": [
+    [
+     0,
+     0,
+     0,
+     0.1875,
+     1,
+     1
+    ]
+   ]
+  },
+  {
+   "name": "ladder_south",
+   "block": "ladder",
+   "properties": {
+    "facing": "south",
+    "waterlogged": false
+   },
+   "state": 4744,
+   "boxes": [
+    [
+     0,
+     0,
+     0,
+     1,
+     1,
+     0.1875
+    ]
+   ]
+  },
+  {
+   "name": "ladder_west",
+   "block": "ladder",
+   "properties": {
+    "facing": "west",
+    "waterlogged": false
+   },
+   "state": 4746,
+   "boxes": [
+    [
+     0.8125,
+     0,
+     0,
+     1,
+     1,
+     1
+    ]
+   ]
   }
  ]
 }

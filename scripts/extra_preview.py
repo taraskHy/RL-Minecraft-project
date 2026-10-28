@@ -3,9 +3,10 @@
     python scripts/extra_preview.py [--per-level 200] [--assist-per-level 50] [--family 1]
 
 Courses: the basic levels 0-5 followed by the extra levels of
-configs/jump_levels_extra.json (here levels 6 head hitter, 7 hard head
-hitter, 8 ice run-up; half of each course's jumps come from its level, half
-from levels 0-5), 10 jumps, held-out seed family 1 (test) or 2 (validation).
+configs/jump_levels_extra.json (levels 6 and up here, named in the file:
+head hitter, hard head hitter, ice run-up, shaped blocks, slime bounce; half
+of each course's jumps come from its level, half from levels 0-5), 10 jumps,
+held-out seed family 1 (test) or 2 (validation).
 The policy was never trained on these kinds. With the planner
 (parkour.neo_assist, jumps "advanced": every run-up jump is planned from the
 bot's exact state) on the first --assist-per-level courses of each level,
@@ -27,9 +28,10 @@ from parkour import courses as C  # noqa: E402
 from parkour.env import CoursePool  # noqa: E402
 from parkour.live import load_model  # noqa: E402
 from parkour.neo_assist import AssistConfig, evaluate_assisted, summarize  # noqa: E402
+from parkour.paths import CONFIGS  # noqa: E402
 from parkour.train import evaluate, held_out_courses  # noqa: E402
 
-NAMES = {6: "head hitter", 7: "hard head hitter", 8: "ice run-up"}
+NAMES = {6 + i: L["name"] for i, L in enumerate(json.loads((CONFIGS / "jump_levels_extra.json").read_text())["levels"])}
 
 
 def main():

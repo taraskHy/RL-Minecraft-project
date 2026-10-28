@@ -15,8 +15,8 @@ class Shapes(unittest.TestCase):
         world_cls = physics.World
 
         class ZeroShapes(world_cls):
-            def __init__(self, solid, slip=None, shape=None, slime=None):
-                super().__init__(solid, slip, torch.zeros(solid.shape, dtype=torch.uint8), slime)
+            def __init__(self, solid, slip=None, shape=None, *rest):
+                super().__init__(solid, slip, torch.zeros(solid.shape, dtype=torch.uint8), *rest)
 
         parity.physics.World = ZeroShapes
         try:

@@ -5,8 +5,8 @@
 //   node export_shapes.js [--check]      writes ../configs/block_shapes.json (--check: compare only)
 //
 // Isolated states only: fences, walls and panes change shape with their neighbours, so courses use
-// them as single posts. Blocks with movement rules of their own (ladders, vines, slime, honey,
-// water, webs, scaffolding) are not here.
+// them as single posts. Ladders are here for their boxes; their climbing rule is World(climb=...).
+// Other blocks with movement rules of their own (slime, honey, water, webs, scaffolding) are not.
 
 const fs = require('fs')
 const path = require('path')
@@ -32,7 +32,12 @@ const KINDS = [
   ['stairs_north', 'stone_stairs', { facing: 'north', half: 'bottom', shape: 'straight', waterlogged: false }],
   ['stairs_east', 'stone_stairs', { facing: 'east', half: 'bottom', shape: 'straight', waterlogged: false }],
   ['stairs_south', 'stone_stairs', { facing: 'south', half: 'bottom', shape: 'straight', waterlogged: false }],
-  ['stairs_west', 'stone_stairs', { facing: 'west', half: 'bottom', shape: 'straight', waterlogged: false }]
+  ['stairs_west', 'stone_stairs', { facing: 'west', half: 'bottom', shape: 'straight', waterlogged: false }],
+  // Ladders (climbable: physics.World(climb=...)); the facing is the side the ladder is seen from.
+  ['ladder_north', 'ladder', { facing: 'north', waterlogged: false }],
+  ['ladder_east', 'ladder', { facing: 'east', waterlogged: false }],
+  ['ladder_south', 'ladder', { facing: 'south', waterlogged: false }],
+  ['ladder_west', 'ladder', { facing: 'west', waterlogged: false }]
 ]
 
 function table () {

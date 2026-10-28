@@ -8,8 +8,9 @@ solid cubes with default slipperiness, and two opt-in extensions that change
 nothing unless passed: per-cell slipperiness (ice) and per-cell collision
 shapes (slabs, stairs, soul sand, carpets, trapdoors, fence and wall posts,
 ..., ``World(shape=...)`` with the boxes of configs/block_shapes.json), and
-slime bounces (``World(slime=...)``, with slipperiness 0.8 in ``slip``). Water,
-lava, ladders, honey, cobwebs, sneaking, effects and elytra are not ported.
+slime bounces (``World(slime=...)``, with slipperiness 0.8 in ``slip``), and
+climbing ladders and vines (``World(climb=...)``). Water, lava, honey,
+cobwebs, scaffolding, sneaking, effects and elytra are not ported.
 
 Every expression keeps the operand order of the JavaScript source, in float64,
 so trajectories match the original to rounding error (see
@@ -52,6 +53,8 @@ AUTOJUMP_COOLDOWN = 10
 DEFAULT_SLIPPERINESS = 0.6
 ICE_SLIPPERINESS = 0.98  # ice and packed ice (blue ice: 0.989); only with World(slip=...)
 SLIME_SLIPPERINESS = 0.8  # slime blocks also bounce (World(slime=...))
+LADDER_MAX_SPEED = 0.15  # in a ladder or vine cell (World(climb=...))
+LADDER_CLIMB_SPEED = 0.2
 GROUND_INERTIA = 0.6 * 0.91  # default slipperiness * 0.91
 _INERTIA_CUBED = GROUND_INERTIA * GROUND_INERTIA * GROUND_INERTIA
 WALK_ACCELERATION = 0.1 * (0.1627714 / _INERTIA_CUBED)
@@ -107,7 +110,7 @@ class World:
     """
 
     def __init__(self, solid: torch.Tensor, slip: torch.Tensor | None = None, shape: torch.Tensor | None = None,
-                 slime: torch.Tensor | None = None):
+                 slime: torch.Tensor | None = None, climb: torch.Tensor | None = None):
         if solid.dim() != 4:
             raise ValueError("solid must have shape (P, GX, GY, GZ)")
         self.solid = solid.to(torch.bool).contiguous()
@@ -120,6 +123,10 @@ class World:
         if slime is not None and tuple(slime.shape) != tuple(solid.shape):
             raise ValueError("slime must have the shape of solid")
         self.slime = None if slime is None else slime.to(torch.bool).contiguous().view(-1)
+        if climb is not None and tuple(climb.shape) != tuple(solid.shape):
+            raise ValueError("climb must have the shape of solid")
+        # Ladders and vines: cells the player climbs in (a ladder is also solid with its thin box; a vine is not).
+        self.climb = None if climb is None else climb.to(torch.bool).contiguous().view(-1)
         self.shape_ids = None
         if shape is not None:
             if tuple(shape.shape) != tuple(solid.shape):
@@ -138,10 +145,18 @@ class World:
 
     def slime_at(self, course, ix, iy, iz):
         """Slime flags of integer cells (False outside the grid); needs ``slime``."""
+        return self._flag(self.slime, course, ix, iy, iz)
+
+    def climb_at(self, course, pos):
+        """(N,) bool: the cell of the feet (pos floored) is a ladder or vine; needs ``climb``."""
+        f = torch.floor(pos).to(torch.int64)
+        return self._flag(self.climb, course, f[:, 0], f[:, 1], f[:, 2])
+
+    def _flag(self, flat, course, ix, iy, iz):
         gx, gy, gz = self.shape
         inside = (ix >= 0) & (ix < gx) & (iy >= 0) & (iy < gy) & (iz >= 0) & (iz < gz)
         index = ((course * gx + ix.clamp(0, gx - 1)) * gy + iy.clamp(0, gy - 1)) * gz + iz.clamp(0, gz - 1)
-        return self.slime[index] & inside
+        return flat[index] & inside
 
     def shapes(self, course, ix, iy, iz):
         """Shape ids (int64) of integer cells, 0 outside the grid; needs ``shape``."""
@@ -426,11 +441,19 @@ def simulate(world: World, course: torch.Tensor, state: PlayerState, controls: t
     heading = speed >= 0.01
     vx = torch.where(heading, vx - (st * cos2 + fw * sin2), vx)
     vz = torch.where(heading, vz + (fw * cos2 - st * sin2), vz)
+    if world.climb is not None:  # on a ladder or vine: slow sideways, fall at most 0.15 per tick (no sneaking)
+        on = world.climb_at(course, state.pos)
+        m = LADDER_MAX_SPEED
+        vx = torch.where(on, torch.maximum(const(-m), torch.minimum(vx, const(m))), vx)
+        vz = torch.where(on, torch.maximum(const(-m), torch.minimum(vz, const(m))), vz)
+        vy = torch.where(on, torch.maximum(vy, const(-m)), vy)
 
     pos, mvel, on_ground, collided_h, collided_v = _move(
         world, course, state.pos, torch.stack((vx, vy, vz), -1), state.on_ground, check)
 
     mx, my, mz = mvel.unbind(-1)
+    if world.climb is not None:  # pushing against something, or jumping (1.14+), while on a ladder climbs it
+        my = torch.where(world.climb_at(course, pos) & (collided_h | jump), const(LADDER_CLIMB_SPEED), my)
     my = (my - GRAVITY) * AIRDRAG
     mx = mx * inertia
     mz = mz * inertia

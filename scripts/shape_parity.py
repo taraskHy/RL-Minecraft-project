@@ -2,6 +2,7 @@
 
     python scripts/shape_parity.py [--cases 300] [--ticks 200]
     python scripts/shape_parity.py --slime      (results/physics_parity_slime.json)
+    python scripts/shape_parity.py --climb      (results/physics_parity_climb.json: ladders and vines)
 
 Random block fields (parity.random_case) where half the raised blocks other
 than the start block get a random shape of configs/block_shapes.json (slabs,
@@ -34,9 +35,12 @@ def main():
     ap.add_argument("--ticks", type=int, default=200)
     ap.add_argument("--seed", type=int, default=13)
     ap.add_argument("--slime", action="store_true")
+    ap.add_argument("--climb", action="store_true")
     a = ap.parse_args()
     if a.slime:
         return slime(a)
+    if a.climb:
+        return climb(a)
     rng = np.random.default_rng(a.seed)
     cases = [parity.random_case(rng, ticks=a.ticks, shapes=0.5) for _ in range(a.cases)]
     r = parity.compare(cases)
@@ -51,8 +55,8 @@ def main():
     world_cls = physics.World
 
     class ZeroShapes(world_cls):
-        def __init__(self, solid, slip=None, shape=None, slime=None):
-            super().__init__(solid, slip, torch.zeros(solid.shape, dtype=torch.uint8) if shape is None else shape, slime)
+        def __init__(self, solid, slip=None, shape=None, *rest):
+            super().__init__(solid, slip, torch.zeros(solid.shape, dtype=torch.uint8) if shape is None else shape, *rest)
 
     parity.physics.World = ZeroShapes
     try:
@@ -94,6 +98,34 @@ def slime(a):
                                "largest_position_change_blocks": round(float(change.max()), 3),
                                "highest_upward_speed_blocks_per_tick": round(float(bouncy["vel"][..., 1].max()), 3)}}
     path = ROOT / "results" / "physics_parity_slime.json"
+    path.write_text(json.dumps(out, indent=1))
+    print(json.dumps(out, indent=1))
+
+
+def climb(a):
+    rng = np.random.default_rng(a.seed)
+    cases = [parity.random_case(rng, ticks=a.ticks, climb=0.6) for _ in range(a.cases)]
+    r = parity.compare(cases)
+    r.pop("first_bad")
+    climbing = parity.run_torch(cases)
+    n_l, n_v = [len(c.ladders) for c in cases], [len(c.vines) for c in cases]
+    for c in cases:  # the same fields without the ladders and vines
+        if c.ladders is not None and len(c.ladders):
+            drop = {tuple(int(v) for v in b[:3]) for b in c.ladders}
+            c.blocks = np.array([b for b in c.blocks.tolist() if tuple(b) not in drop], dtype=np.int64)
+        c.ladders = c.vines = None
+    plain = parity.run_torch(cases)
+    change = np.abs(climbing["pos"] - plain["pos"]).max(axis=(1, 2))
+    out = {"method": "parkour.parity.compare with ladders and vines: random_case(np.random.default_rng(%d), ticks=%d, "
+                     "climb=0.6) x %d (ladders against the sides of raised blocks, vines in the air beside them), the "
+                     "simulator with World(climb=..., shape=ladder boxes) against prismarine-physics 1.11.1 through Node "
+                     "with the real ladder and vine block states (Minecraft 1.21.4: climbing also by jumping), same 1e-7 "
+                     "collision tolerance, CPU" % (a.seed, a.ticks, a.cases),
+           "ladders_per_case": round(float(np.mean(n_l)), 1), "vines_per_case": round(float(np.mean(n_v)), 1),
+           "result": r,
+           "effect_of_climbing": {"cases_changed": int((change > 0).sum()), "cases": a.cases,
+                                  "largest_position_change_blocks": round(float(change.max()), 3)}}
+    path = ROOT / "results" / "physics_parity_climb.json"
     path.write_text(json.dumps(out, indent=1))
     print(json.dumps(out, indent=1))
 
