@@ -86,6 +86,7 @@ class Course:
     specs: list = field(default_factory=list)
     name: str = ""
     extra: np.ndarray = field(default_factory=lambda: np.zeros((0, 3), dtype=np.int64))  # obstacle cells
+    ice: list = field(default_factory=list)  # indices of platforms made of ice (optional; slipperiness 0.98)
 
     @property
     def n(self) -> int:
@@ -100,20 +101,32 @@ class Course:
             cells.append(np.asarray(self.extra, dtype=np.int64).reshape(-1, 3))
         return np.concatenate(cells).astype(np.int64)
 
+    def ice_cells(self) -> np.ndarray:
+        """(M, 3) cells of the ice platforms."""
+        cells = [np.zeros((0, 3), dtype=np.int64)]
+        for k in self.ice:
+            x0, x1, z0, z1, y = (int(v) for v in self.platforms[k])
+            xs, zs = np.meshgrid(np.arange(x0, x1 + 1), np.arange(z0, z1 + 1), indexing="ij")
+            cells.append(np.stack((xs.ravel(), np.full(xs.size, y), zs.ravel()), -1))
+        return np.concatenate(cells).astype(np.int64)
+
     def centers(self) -> np.ndarray:
         p = self.platforms.astype(np.float64)
         return np.stack(((p[:, 0] + p[:, 1] + 1) / 2, p[:, 4] + 1, (p[:, 2] + p[:, 3] + 1) / 2), -1)
 
     def to_json(self) -> dict:
-        return {"platforms": self.platforms.tolist(), "spawn": self.spawn.tolist(), "spawn_yaw": self.spawn_yaw,
-                "level": self.level, "seed": self.seed, "specs": [s.key() for s in self.specs], "name": self.name,
-                "extra": np.asarray(self.extra).reshape(-1, 3).tolist()}
+        d = {"platforms": self.platforms.tolist(), "spawn": self.spawn.tolist(), "spawn_yaw": self.spawn_yaw,
+             "level": self.level, "seed": self.seed, "specs": [s.key() for s in self.specs], "name": self.name,
+             "extra": np.asarray(self.extra).reshape(-1, 3).tolist()}
+        if self.ice:  # only when used, so the files of courses without ice are unchanged
+            d["ice"] = [int(k) for k in self.ice]
+        return d
 
     @classmethod
     def from_json(cls, d: dict) -> "Course":
         return cls(np.array(d["platforms"], dtype=np.int64), np.array(d["spawn"], dtype=np.float64),
                    float(d["spawn_yaw"]), int(d.get("level", 0)), int(d.get("seed", 0)), name=d.get("name", ""),
-                   extra=np.array(d.get("extra", []), dtype=np.int64).reshape(-1, 3))
+                   extra=np.array(d.get("extra", []), dtype=np.int64).reshape(-1, 3), ice=[int(k) for k in d.get("ice", [])])
 
 
 def load_levels(path: Path | None = None, advanced: bool = False) -> list[list[JumpSpec]]:
@@ -339,11 +352,13 @@ def load_beam_ok(path: Path | None = None) -> set:
 def generate(rng: np.random.Generator, levels: list[list[JumpSpec]], level: int, n_jumps: int,
              grid=GRID, turn_prob: float = 0.25, start_size: int | None = None, seed: int = 0,
              yaw_noise: float = math.radians(60), obstacle_prob: float = 0.0, beam_ok: set | None = None,
-             wide_neo: bool = False) -> Course:
+             wide_neo: bool = False, ice_prob: float = 0.0) -> Course:
     """One random course whose jumps come from ``levels[:level + 1]``.
 
     Half of the jumps come from ``level`` itself and half from easier levels,
-    so every course mixes new and familiar jumps.
+    so every course mixes new and familiar jumps. With ``ice_prob`` each
+    platform after the start is ice with that chance (drawn last, so the
+    layout is the one the same random numbers give without ice).
     """
     gx, gy, gz = grid
     s = start_size or int(rng.choice([1, 2, 3], p=[0.4, 0.3, 0.3]))
@@ -421,6 +436,8 @@ def generate(rng: np.random.Generator, levels: list[list[JumpSpec]], level: int,
     d = centres[1] - centres[0]
     yaw_to = math.atan2(-d[0], -d[2])  # Mineflayer yaw that faces direction d
     c.spawn_yaw = float(yaw_to + rng.uniform(-yaw_noise, yaw_noise))
+    if ice_prob > 0:
+        c.ice = [k for k in range(1, c.n) if rng.random() < ice_prob]
     return c
 
 

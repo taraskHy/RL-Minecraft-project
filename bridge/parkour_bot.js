@@ -44,7 +44,8 @@ const GRID = [64, 32, 64]
 // slime, soul sand or honey), so the bot moves exactly as it does on stone.
 const RAINBOW = ['white_concrete', 'orange_concrete', 'magenta_concrete', 'light_blue_concrete', 'yellow_concrete',
   'lime_concrete', 'pink_concrete', 'cyan_concrete', 'purple_concrete', 'blue_concrete', 'red_concrete', 'green_concrete']
-function blockFor (k, n) {
+function blockFor (k, n, ice) {
+  if ((ice || []).includes(k)) return 'minecraft:ice' // the bot's physics reads the block type: ice friction
   if (args.style !== 'rainbow') return 'minecraft:stone'
   if (k === 0) return 'minecraft:emerald_block'
   if (k === n - 1) return 'minecraft:gold_block'
@@ -160,7 +161,7 @@ async function runCourse (c, index) {
     await chatCommand(`/fill ${OX - 4} ${OY - 7} ${OZ - 4} ${OX + GRID[0] + 3} ${OY - 6} ${OZ + GRID[2] + 3} minecraft:air`)
   }
   for (const [k, [x0, x1, z0, z1, y]] of c.platforms.entries()) {
-    await chatCommand(`/fill ${x0 + OX} ${y + OY} ${z0 + OZ} ${x1 + OX} ${y + OY} ${z1 + OZ} ${blockFor(k, c.platforms.length)}`)
+    await chatCommand(`/fill ${x0 + OX} ${y + OY} ${z0 + OZ} ${x1 + OX} ${y + OY} ${z1 + OZ} ${blockFor(k, c.platforms.length, c.ice)}`)
   }
   const extra = c.extra || []
   for (const [x, y, z] of extra) await chatCommand(`/setblock ${x + OX} ${y + OY} ${z + OZ} ${OBSTACLE_BLOCK()}`)

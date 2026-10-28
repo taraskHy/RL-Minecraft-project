@@ -90,7 +90,9 @@ MAX_EXTRA = 256
 class CoursePool:
     """Courses packed into tensors on one device."""
 
-    def __init__(self, courses: list[Course], device, grid):
+    def __init__(self, courses: list[Course], device, grid, ice: bool | None = None):
+        """``ice``: keep a slipperiness grid for ice platforms (default: if any course has ice; a pool
+        that will receive ice courses through ``replace`` needs True)."""
         self.courses = courses
         self.device = device
         p = len(courses)
@@ -112,7 +114,13 @@ class CoursePool:
             spawn[i] = torch.as_tensor(c.spawn)
             spawn_yaw[i] = c.spawn_yaw
             level[i] = c.level
-        self.world = physics.World(solid.to(device))
+        self.slip = None
+        if any(c.ice for c in courses) if ice is None else ice:
+            self.slip = torch.full(solid.shape, physics.DEFAULT_SLIPPERINESS, dtype=torch.float64)
+            for i, c in enumerate(courses):
+                self._set_ice(self.slip, i, c)
+            self.slip = self.slip.to(device)
+        self.world = physics.World(solid.to(device), self.slip)
         self.plat = plat.to(device)
         self.rem = rem.to(device)
         self.n = n.to(device)
@@ -128,6 +136,13 @@ class CoursePool:
         for i, c in enumerate(courses):
             self._set_extra(i, c)
         self.version = 0  # bumped whenever a course is replaced
+
+    @staticmethod
+    def _set_ice(slip: torch.Tensor, index: int, course: Course) -> None:
+        slip[index] = physics.DEFAULT_SLIPPERINESS
+        cells = torch.as_tensor(course.ice_cells(), device=slip.device)
+        if len(cells):
+            slip[index, cells[:, 0], cells[:, 1], cells[:, 2]] = physics.ICE_SLIPPERINESS
 
     def _set_extra(self, index: int, course: Course) -> None:
         e = np.asarray(course.extra, dtype=np.int64).reshape(-1, 3)
@@ -157,6 +172,10 @@ class CoursePool:
         self.centre[index] = torch.stack(((pf[:, 0] + pf[:, 1] + 1) / 2, pf[:, 4] + 1, (pf[:, 2] + pf[:, 3] + 1) / 2), -1)
         self.top[index] = pf[:, 4] + 1
         self._set_extra(index, course)
+        if self.slip is not None:
+            self._set_ice(self.slip, index, course)  # the world reads this tensor's memory
+        elif course.ice:
+            raise ValueError("this pool has no ice grid; build it with ice=True")
         self.version += 1
 
 

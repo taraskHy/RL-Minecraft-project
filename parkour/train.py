@@ -89,6 +89,7 @@ class TrainConfig:
     bc_pairs: str = ""  # comma-separated .pt files of (observation, action) pairs (parkour.neo_dagger)
     wide_neo: bool = False  # training courses may place neos after wide takeoffs (courses._place)
     obstacle_prob: float = 0.0  # chance per jump of a head-hitter beam or a decoy pillar
+    ice_prob: float = 0.0  # chance per platform after the start of being ice (training courses only)
     advanced: bool = False  # add levels 6-8: neos, double neos, momentum and wide jumps
     save_at: str = ""  # comma-separated update counts at which to keep a snapshot (0 = untrained)
 
@@ -98,12 +99,12 @@ def course_hash(c: C.Course) -> str:
 
 
 def held_out_courses(levels, per_level: int, n_jumps: int, obstacle_prob: float = 0.0,
-                     family: int = TEST_SEED_FAMILY) -> list[C.Course]:
+                     family: int = TEST_SEED_FAMILY, ice_prob: float = 0.0) -> list[C.Course]:
     out = []
     for L in range(len(levels)):
         rng = np.random.default_rng([2026, family, L])
         for i in range(per_level):
-            out.append(C.generate(rng, levels, L, n_jumps, seed=i, obstacle_prob=obstacle_prob))
+            out.append(C.generate(rng, levels, L, n_jumps, seed=i, obstacle_prob=obstacle_prob, ice_prob=ice_prob))
     return out
 
 
@@ -129,7 +130,8 @@ class CourseFactory:
         while len(out) < k:
             L = len(out) % n_levels
             c = C.generate(rng, self.levels, L, int(rng.integers(self.cfg.jumps_min, self.cfg.jumps_max + 1)),
-                           turn_prob=self.cfg.turn_prob, obstacle_prob=self.cfg.obstacle_prob, wide_neo=self.cfg.wide_neo)
+                           turn_prob=self.cfg.turn_prob, obstacle_prob=self.cfg.obstacle_prob, wide_neo=self.cfg.wide_neo,
+                           ice_prob=self.cfg.ice_prob)
             if c.n >= 3 and course_hash(c) not in self.exclude:
                 out.append(c)
         return out
@@ -258,7 +260,7 @@ def train(cfg: TrainConfig) -> Path:
     if n_demo:
         pick = np.random.default_rng([2026, 3, cfg.seed]).choice(len(demos), n_demo, replace=False)
         train_courses[:n_demo] = [demo_course(demos[i], cfg.demo_level) for i in pick]
-    pool = CoursePool(train_courses, dev, C.GRID)
+    pool = CoursePool(train_courses, dev, C.GRID, ice=cfg.ice_prob > 0)
     test_pool = CoursePool(tests, dev, C.GRID)
     obstacle_pool = CoursePool(obstacle_tests, dev, C.GRID) if obstacle_tests else None
     val_pool = CoursePool(vals, dev, C.GRID)

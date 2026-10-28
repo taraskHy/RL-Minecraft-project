@@ -203,10 +203,18 @@ Concrete work, most important first. Nothing here needs new research.
    blocks over 60,000 ticks, every flag equal (`results/physics_parity_ice.json`,
    `tests/test_physics_parity.py::test_ice_cpu`); ice changes 297 of 300 of
    those trajectories. Still needed before a policy can use ice: ice course
-   pieces (`parkour/courses.py`, opt-in), an observation of the block type
-   (the 255-number observation cannot see ice, so a new policy, trained on
-   the GPU), `bridge/policy.js` and the bot building ice blocks, and the
-   live checks. A first measurement (`scripts/ice_preview.py` ->
+   pieces and training are now in place too, all opt-in:
+   `generate(ice_prob=...)` / `Course.ice` (platform indices; the layout and
+   course files are unchanged without it), `CoursePool` keeps the ice grid
+   through refreshes, `run.cmd train --ice-prob P`, the live bot builds
+   `minecraft:ice` (its physics then uses ice friction by itself), and the
+   offline bot plays ice courses exactly like the simulator
+   (`tests/test_ice.py`). Next (GPU): fine-tune the final policy with
+   `--ice-prob 0.3` (and the final policy's other settings: `--gamma 0.995
+   --obstacle-prob 0.3`), evaluate with `scripts/ice_preview.py
+   --checkpoint ...` and on the normal test sets; later an observation of
+   the block type (the 255-number observation cannot see ice; a new
+   observation needs `bridge/policy.js` changed in step). A first measurement (`scripts/ice_preview.py` ->
    `results/ice_preview.json`, simulator): the final policy, blind to ice,
    still completes 95.6% of the standard test courses when every platform
    is ice (98.4% on stone); level 5 drops from 93.5% to 86.0%, falls there
@@ -367,18 +375,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `88b55e6` (2026-10-28 14:43, branch `claude/pensive-knuth-biwj11`): Planner: opt-in one-step lookahead, within noise on validation
+Generated on top of commit `f405271` (2026-10-28 14:45, branch `claude/pensive-knuth-biwj11`): Ice preview: the final policy, blind to ice, completes 95.6% of icy test courses
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 5 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 6 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `6228744` 2026-10-28 14:37 | 1 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 21 |
-| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 4 |
-| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 6 |
-| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 3 |
-| `results/DATA.md` | updated together with this snapshot | 0 |
+| `TEAM_STATUS.md` | `6228744` 2026-10-28 14:37 | 2 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 22 |
+| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 5 |
+| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 7 |
+| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 4 |
+| `results/DATA.md` | `f405271` 2026-10-28 14:45 | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
