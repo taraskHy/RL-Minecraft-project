@@ -232,6 +232,7 @@ are the chosen settings.
 | validation | random (family 13) | `final_policy` | policy alone |  | 27/200 (13.5) | 0/169 |  |
 | validation | official (family 2) | `final_policy` | advanced, prior 0.5 | advanced | 111/218 (50.9) | 195/281 | 830/830 |
 | validation | official (family 2) | `final_policy` | advanced | advanced | 124/218 (56.9) | 221/289 | 900/900 |
+| validation | random (family 13) | `final_policy` | all | all | 106/200 (53.0) | 277/367 | 1440/1440 |
 | test | random (family 12) | `final_policy` | policy alone |  | 33/200 (16.5) | 1/162 |  |
 
 ## New jump kinds and blocks: head hitters, ice run-ups, shaped blocks, slime, ladders (simulator)

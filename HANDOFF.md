@@ -497,18 +497,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `c4c2931` (2026-10-28 19:56, branch `claude/pensive-knuth-biwj11`): Fixes from the review: course files keep their jump specs for the planner service; per-jump retry stall check; pipeline never reuses a run
+Generated on top of commit `3ecc266` (2026-10-28 19:58, branch `claude/pensive-knuth-biwj11`): Handoff session log: the late-evening state and what is next
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 43 |
-| `HANDOFF.md` | `c6a3f6b` 2026-10-28 19:24 | 2 |
-| `TEAM_STATUS.md` | `7ed4c1b` 2026-10-28 18:20 | 20 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 59 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 18 |
-| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 44 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 45 |
+| `HANDOFF.md` | `3ecc266` 2026-10-28 19:58 | 0 |
+| `TEAM_STATUS.md` | `109795a` 2026-10-28 19:57 | 1 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 61 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 20 |
+| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 46 |
 | `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | `21188a6` 2026-10-28 19:19 | 5 |
+| `results/DATA.md` | `21188a6` 2026-10-28 19:19 | 7 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
