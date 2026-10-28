@@ -54,6 +54,7 @@ JavaScript on Mineflayer's physics engine without a server. Every folder's
 | `v2-live`, `v2-live-obstacles`, `v2-live-showcase` | real Minecraft, **final policy** (discount 0.995): 59/60 standard, 57/60 obstacles, 3/4 hand-designed (misses the neo course) |
 | `v2-offline`, `v2-offline-obstacles`, `v2-offline-showcase` | the same courses offline: identical outcomes |
 | `v2-planner-live`, `v2-planner-live-obstacles`, `v2-planner-offline`, `v2-planner-offline-obstacles` | final policy + route planner, no course list: 50/60, 55/60 (live and offline identical) |
+| `v2-tuned-planner-offline`, `v2-tuned-planner-offline-obstacles` | the same courses offline with the retuned planner (`cost=distance, align=2.0`): 51/60, 56/60 |
 | `live2-final`, `live2-obstacles`, `live2-showcase` | real Minecraft, first final policy, re-run with the collision-tolerance patch: 59/60, 58/60, 3/4 |
 | `recheck-std`, `recheck-obs`, `recheck-show` | the same re-check offline: identical |
 | `live-final`, `live-final-obstacles`, `live-showcase`, `live-smoke` | real Minecraft, first final policy, before the collision-tolerance patch: 59/60, 58/60, 3/3, 6/6 |
@@ -79,7 +80,7 @@ JavaScript on Mineflayer's physics engine without a server. Every folder's
 | `physics_parity.json` | the simulator against prismarine-physics 1.11.1: 99,000 ticks, largest error 1.4e-14 blocks |
 | `hparams_defaults_validation.json` | the defaults' validation score for the hyperparameter table |
 | `audit_claims.json` | the audit of 829 claims in the documents against the run files (28 Oct) |
-| `results/planner/` | route planner on the 1,200 + 1,200 test courses: `sim_test_*.json` (`_v1`: with the first final policy) |
+| `results/planner/` | route planner on the 1,200 + 1,200 test courses: `sim_test_*.json` (`_v1`: with the first final policy; `_tuned`: the retuned setting `cost=distance, align=2.0`); `validation_tuning.jsonl`: every planner variant tried on the validation courses (one JSON line each) |
 | `results/neo/` | the neo numbers (written by `scripts/neo_evidence.py` and the evaluations), below |
 
 `results/neo/`:

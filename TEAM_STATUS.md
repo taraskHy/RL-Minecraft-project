@@ -154,7 +154,11 @@ final policy jumps to them, no retraining. Only the goal position is given.
 
 Real Minecraft matches the simulator on every course, 0 server corrections.
 Most failures: the planner takes a shortcut to a later platform that is in
-reach, and that jump is harder. Videos: `real_minecraft_showcase_no_course_list.mp4`
+reach, and that jump is harder. **Retuned on 28 Oct** (chosen on the
+validation courses): ranking platforms by gap length with a weaker pull to
+the goal gives **92.3%** standard and **90.5%** obstacle courses in the
+simulator (from 90.9% and 88.1%), and 51/60 and 56/60 with the offline bot;
+real Minecraft still to be run on the PC. Videos: `real_minecraft_showcase_no_course_list.mp4`
 (first person) and `replay_233_*` / `replay_240_*` (the plan drawn as
 numbered cyan platforms). Report section 7.11.
 

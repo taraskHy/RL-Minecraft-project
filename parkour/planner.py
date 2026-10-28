@@ -26,7 +26,10 @@ pick the same platforms.
 With ``value_pick`` K > 0 (simulator only; the bot has no critic), the K
 cheapest next platforms are each extended greedily into a chain, and the
 chain whose slots give the highest value under the policy's own critic, at
-the player's current state, is taken.
+the player's current state, is taken. ``drop`` adds a cost per block a jump
+goes down. Neither helped on the validation courses
+(results/planner/validation_tuning.jsonl); ``cost="distance", align=2.0``
+did, and is the setting recommended for the final policy (report 7.11).
 """
 from __future__ import annotations
 
@@ -70,6 +73,7 @@ class PlannerConfig:
     clear_path: bool = True    # skip platforms whose straight flight path from here passes through blocks
     head_hitters: bool = True  # a slab 4 blocks above a platform it touches is a head hitter, not a target
     value_pick: int = 0        # >0: of this many cheapest next platforms, take the chain the critic values most
+    drop: float = 0.0          # added cost per block a jump goes down (0: off, as in the bot)
 
 
 class Platform:
@@ -185,6 +189,8 @@ def options(platforms: list, frm: Platform, current: Platform, chain: list, visi
             cost = -math.log(f[min(round(d), len(f) - 1)]) - cfg.align * cos
         else:
             cost = d - cfg.align * cos
+        if cfg.drop and dy < 0:
+            cost += cfg.drop * -dy
         out.append((cost, p))
     return out
 

@@ -44,7 +44,7 @@ it was measured.
 | --- | --- | --- | --- |
 | **Final policy** (discount 0.995) | `results/final_policy.pt` / `.json` = `runs/obstacles-g995` best, iteration 699 (validation 97.6) | 98.4% standard (level 5: 93.5), 95.2% obstacles (level 5: 81.0) | 59/60 standard, 57/60 obstacles, 3/4 hand-designed (the miss is the neo course, not in its training); 0 server corrections; same outcome as the simulator on every course |
 | First final policy (discount 0.99) | `results/final_policy_v1.*` = `runs/obstacles-ft` | 97.1%, 93.6% | 59/60, 58/60, 3/3 |
-| **New map, no course list**: greedy route planner + final policy | `parkour/planner.py` = `bridge/planner.js` | 90.9% standard, 88.1% obstacles | 50/60, 55/60 |
+| **New map, no course list**: greedy route planner + final policy | `parkour/planner.py` = `bridge/planner.js` | 90.9% standard, 88.1% obstacles; **retuned** (`cost=distance, align=2.0`, chosen on validation): 92.3%, 90.5% | 50/60, 55/60 (retuned: not run yet; offline bot 51/60, 56/60) |
 | Learned no-route model (research comparison) | `runs/noroute-v2` | 85.4%, 70.9% | 55/60, 37/60 |
 | **Neo policy** (imitation + 3 DAgger rounds) | `runs/neo-dagger3` best, **only on the PC** (not in Git) | 61/210 (29.0%) held-out level 6-8 courses with a neo; 97/224 neo jumps passed | 11/31 neo course set (`configs/neo_live_courses.json`), same as offline and the simulator |
 
@@ -80,7 +80,16 @@ More facts that hold now:
 
 Concrete work, most important first. Nothing here needs new research.
 
-1. **Report** (`docs/report_draft.md`, for the course): section 7 is
+1. **Confirm the retuned planner in real Minecraft** (PC; section 4,
+   item 4): `run.cmd live --checkpoint results\final_policy.pt --planner
+   --planner-config "{\"cost\": \"distance\", \"align\": 2.0}"
+   --courses-file results\games\v2-planner-live\courses.json --out
+   runs\v2-tuned-planner-live` (and the same with
+   `v2-planner-live-obstacles`). If it holds, make it the default in both
+   `parkour/planner.py` (`PlannerConfig`) and `bridge/planner.js`
+   (`DEFAULTS`), keep `tests/test_planner.py` passing, and update report
+   7.11 and 9, `README.md` and `TEAM_STATUS.md`.
+2. **Report** (`docs/report_draft.md`, for the course): section 7 is
    complete (7.3-7.9 report the final policy with the first one in
    brackets; 7.10 has the imitation + DAgger results; 7.11-7.12 give both
    policies' planner numbers); sections 8 (discussion) and 9 (conclusion)
@@ -88,17 +97,19 @@ Concrete work, most important first. Nothing here needs new research.
    `scripts/report_docx.py --pdf` writes `results/report_draft.docx` / `.pdf`
    in the submission format (needs pandoc, python-docx, LibreOffice; not on
    the PC by default): **20 pages before the references, exactly the
-   limit**, so any addition needs a cut. Still to do: a read-through by
-   the team, and removing the italic "Draft" note at the top before
-   submitting.
-2. **Ship the neo policy in Git** if the team will present it: it exists
+   limit**, so any addition needs a cut (figure 3 of the main run's
+   training curves was already cut for space). Rules for it: every number
+   comes from `results/` or the run files; Arial 12, 1.5 spacing,
+   one-inch margins, 8 to 20 pages without the references. Still to do: a
+   read-through by the team.
+3. **Ship the neo policy in Git** if the team will present it: it exists
    only as `runs/neo-dagger3/checkpoints/best.pt` on the PC. Export it next
    to the final policy (for example `results/neo_policy.pt` / `.json`)
    without replacing `results/final_policy.*`.
-3. **Restart the GPU watchdog on the PC** after merging this branch: it
+4. **Restart the GPU watchdog on the PC** after merging this branch: it
    now also pauses `parkour.neo_dagger`, but the copy already running uses
    the old job list.
-4. Keep `TEAM_STATUS.md` and this file in step with each new result.
+5. Keep `TEAM_STATUS.md` and this file in step with each new result.
 
 ## 4. Open problems (unsolved, up for grabs)
 
@@ -119,15 +130,19 @@ Concrete work, most important first. Nothing here needs new research.
    (`results/planner/`, report 7.11). With the final policy 98 of the 109
    failed standard courses are route failures (jump failures fell from 21
    to 11, route failures only from 104 to 98), so the planner, not the
-   policy, is what limits the "no course list" score. **Experiment in progress (cloud
-   session, 28 Oct):** `PlannerConfig.value_pick = K` (opt-in, default 0 =
-   unchanged) lets the policy's own critic choose among the K cheapest next
-   platforms (each extended greedily into a chain). Simulator only: the bot
-   has no critic, so `bridge/planner.js` is unchanged. The refactor keeps
-   the default plans identical to the bot's (`tests/test_planner.py`
-   passes, including the Python/JavaScript parity test). Being measured on
-   the validation family only (`python -m parkour.planner --family 2
-   --value-pick 4`).
+   policy, is what limits the "no course list" score. Note that leaving
+   the course's order is usually fine: on validation 327 of the 367 runs
+   that left it still succeeded. **Tried on 28 Oct (cloud session, CPU,
+   validation only, `results/planner/validation_tuning.jsonl`):**
+   critic-chosen routes (`value_pick`, opt-in, simulator only) are worse
+   (84.7-87.7% vs 92.5%); a drop penalty (`drop`) and retuning `align`
+   alone are within noise; hard limits on drop height break the planner
+   (courses have real 3-block drops). **What worked:** `cost=distance,
+   align=2.0`: validation 92.8 vs 91.3% and 89.0 vs 87.4% (1,800 courses
+   each), test 92.3% and 90.5% (from 90.9 and 88.1), offline bot 51/60 and
+   56/60 (from 50 and 55), identical to the simulator. Still open: about 80
+   route failures per 1,200 courses remain, and the fall rule's artefact
+   on long drops (the "remaining" rule scores about 2 points higher).
 5. **Learned no-route model and obstacles:** 10 of its 23 obstacle-course
    falls end on top of an obstacle (6 on a beam, 4 on a decoy pillar).
 6. **More block types:** slabs, ladders, ice, fences and water need physics
@@ -281,18 +296,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `47450e0` (2026-10-28 13:10, branch `claude/pensive-knuth-biwj11`): Report 7.11: the better policy fixes the planner's jumps, not its routes
+Generated on top of commit `67c91ee` (2026-10-28 13:11, branch `claude/pensive-knuth-biwj11`): Test the planner's value_pick option; how to run the tests in a cloud sandbox
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 11 |
+| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 12 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `106bb78` 2026-10-28 13:09 | 1 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 4 |
-| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 16 |
-| `docs/report_draft.md` | `47450e0` 2026-10-28 13:10 | 0 |
-| `results/README.md` | `6170803` 2026-10-28 11:40 | 13 |
-| `results/DATA.md` | `7f74e24` 2026-10-28 13:09 | 2 |
+| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 5 |
+| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 17 |
+| `docs/report_draft.md` | updated together with this snapshot | 0 |
+| `results/README.md` | `6170803` 2026-10-28 11:40 | 14 |
+| `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -423,6 +438,8 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `v2-planner-live-obstacles` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 55/60 | 91.7 | 100.0 |
 | `v2-planner-offline` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 50/60 | 83.3 | 100.0 |
 | `v2-planner-offline-obstacles` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 55/60 | 91.7 | 100.0 |
+| `v2-tuned-planner-offline` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 51/60 | 85.0 | 100.0 |
+| `v2-tuned-planner-offline-obstacles` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 56/60 | 93.3 | 100.0 |
 | `viewer-test` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
 
 ### In `results/` but not yet in `results/DATA.md`
@@ -458,9 +475,13 @@ Newest first. One entry per session; earlier history is in the
   neo results in 7.10, both policies in 7.11-7.12), sections 8 and 9
   written (793 real-game episodes over all runs, 0 server corrections);
   `final-v2` documented as abandoned. Now: the value-guided planner
-  experiment (section 4, item 4), on CPU in this container once PyTorch is
-  installed from PyPI (`download.pytorch.org` is blocked here, PyPI is not;
-  the CUDA wheel runs on CPU). Decision: CPU torch
+  experiment (section 4, item 4), on CPU in this container (PyTorch from
+  PyPI; the CPU simulator reproduces the published course-list scores
+  exactly, 98.42% and 95.25%). Result: a retuned planner setting
+  (`cost=distance, align=2.0`) chosen on validation, 92.3% / 90.5% on the
+  test sets (from 90.9 / 88.1), offline bot 51/60, 56/60; critic-chosen
+  routes and a drop penalty did not help. Report 7.11 updated (still 20
+  pages). Next: section 3, item 1 (confirm in real Minecraft on the PC). Decision: CPU torch
   cannot be installed here (`download.pytorch.org` is blocked by this
   environment's network), so no new numbers are computed in this session;
   everything comes from files already in `results/` (superseded: PyPI's
