@@ -112,7 +112,15 @@ Concrete work, most important first. Nothing here needs new research.
    most remaining failures of the final policy are there.
 4. **Planner shortcuts:** most planner failures take a shortcut to a later
    platform that is in reach, and that jump is harder
-   (`results/planner/`, report 7.11).
+   (`results/planner/`, report 7.11). **Experiment in progress (cloud
+   session, 28 Oct):** `PlannerConfig.value_pick = K` (opt-in, default 0 =
+   unchanged) lets the policy's own critic choose among the K cheapest next
+   platforms (each extended greedily into a chain). Simulator only: the bot
+   has no critic, so `bridge/planner.js` is unchanged. Not yet measured;
+   evaluate on the validation family only (`python -m parkour.planner
+   --family 2 --value-pick 4`), and run `tests/test_planner.py` (the
+   default path was refactored into `options()` + `choose()` and must still
+   match the bot's plans exactly).
 5. **Learned no-route model and obstacles:** 10 of its 23 obstacle-course
    falls end on top of an obstacle (6 on a beam, 4 on a decoy pillar).
 6. **More block types:** slabs, ladders, ice, fences and water need physics
@@ -256,18 +264,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `70379e1` (2026-10-28 12:58, branch `claude/pensive-knuth-biwj11`): Report sections 8 and 9: discussion, limitations and conclusion
+Generated on top of commit `80097c6` (2026-10-28 12:59, branch `claude/pensive-knuth-biwj11`): Document final-v2 as an abandoned run; team status: report drafted
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 4 |
+| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 5 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `a37dea9` 2026-10-28 12:26 | 4 |
-| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 9 |
-| `docs/report_draft.md` | `70379e1` 2026-10-28 12:58 | 0 |
-| `results/README.md` | `6170803` 2026-10-28 11:40 | 6 |
-| `results/DATA.md` | updated together with this snapshot | 0 |
+| `TEAM_STATUS.md` | `80097c6` 2026-10-28 12:59 | 0 |
+| `README.md` | `a37dea9` 2026-10-28 12:26 | 5 |
+| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 10 |
+| `docs/report_draft.md` | `70379e1` 2026-10-28 12:58 | 1 |
+| `results/README.md` | `6170803` 2026-10-28 11:40 | 7 |
+| `results/DATA.md` | `80097c6` 2026-10-28 12:59 | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -431,10 +439,15 @@ Newest first. One entry per session; earlier history is in the
   "not yet indexed" list is empty); the GPU watchdog also pauses
   `parkour.neo_dagger`; report section 7 complete (final policy, DAgger
   neo results in 7.10, both policies in 7.11-7.12), sections 8 and 9
-  written (793 real-game episodes over all runs, 0 server corrections). Decision: CPU torch
+  written (793 real-game episodes over all runs, 0 server corrections);
+  `final-v2` documented as abandoned. Now: the value-guided planner
+  experiment (section 4, item 4), on CPU in this container once PyTorch is
+  installed from PyPI (`download.pytorch.org` is blocked here, PyPI is not;
+  the CUDA wheel runs on CPU). Decision: CPU torch
   cannot be installed here (`download.pytorch.org` is blocked by this
   environment's network), so no new numbers are computed in this session;
-  everything comes from files already in `results/`. This
+  everything comes from files already in `results/` (superseded: PyPI's
+  torch wheel works, see the next lines). This
   branch is not merged into `main`; the PC session should merge it.
 - **28 Oct 2026, Claude Code (cloud session, branch
   `claude/pensive-knuth-biwj11`):** turned this file into a living handoff
