@@ -5,7 +5,8 @@
 Reads runs/*/eval_log.csv (held-out test set, deterministic policy), copies
 each run's small logs into OUT/runs/NAME/ for the record, and writes
 OUT/README.md (tables) and OUT/figures/*.png. All numbers are simulator
-results unless a table says otherwise.
+results unless a table says otherwise. With the default OUT it also refreshes the
+generated snapshot in HANDOFF.md (parkour.handoff).
 """
 from __future__ import annotations
 
@@ -18,6 +19,7 @@ from pathlib import Path
 
 import numpy as np
 
+from . import handoff
 from .paths import ROOT, RUNS
 
 ABLATION_ITERATIONS = 1000
@@ -534,6 +536,11 @@ def main(argv=None):
 
     (out / "README.md").write_text("\n".join(lines) + "\n")
     print("\n".join(lines))
+    if out.resolve() == (ROOT / "results").resolve():
+        try:
+            print(f"HANDOFF.md snapshot {'updated' if handoff.update() else 'already current'}.")
+        except (OSError, ValueError) as e:
+            print(f"HANDOFF.md snapshot not updated: {e}")
 
 
 if __name__ == "__main__":
