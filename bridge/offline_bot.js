@@ -5,7 +5,7 @@
 //
 //   node offline_bot.js --policy P.json --courses C.json --out episodes.jsonl [--settle 10]
 //                       [--planner '{"radius": 12}'] [--fall-rule local|remaining]
-//                       [--assist CONFIG_JSON --assist-python PYTHON --assist-checkpoint CKPT --assist-root DIR]
+//                       [--assist CONFIG_JSON --assist-python PYTHON --assist-checkpoint CKPT --assist-root DIR --assist-device cpu|cuda]
 //
 // With --assist (bridge/assist.js) the courses carry "assist_takeoffs" and a Python planner
 // service plans the bot's neos; every plan is checked with prismarine-physics before it is played.
@@ -86,7 +86,7 @@ function entityAt (pos, yaw) {
 
 const assistConfig = args.assist ? JSON.parse(args.assist) : null
 const service = assistConfig
-  ? new A.PlannerService(args.assistPython, A.serviceArgs(assistConfig, args.assistCheckpoint, args.courses), args.assistRoot)
+  ? new A.PlannerService(args.assistPython, A.serviceArgs(assistConfig, args.assistCheckpoint, args.courses, args.assistDevice), args.assistRoot)
   : null
 
 async function main () {

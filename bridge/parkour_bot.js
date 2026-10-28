@@ -3,7 +3,7 @@
 //
 //   node parkour_bot.js --policy P.json --courses C.json --out episodes.jsonl
 //        [--port 25570] [--origin 0,80,0] [--pad -20,100,-20] [--viewer NAME] [--stall 200] [--max-ticks 3000]
-//        [--assist CONFIG_JSON --assist-python PYTHON --assist-checkpoint CKPT --assist-root DIR]
+//        [--assist CONFIG_JSON --assist-python PYTHON --assist-checkpoint CKPT --assist-root DIR --assist-device cpu|cuda]
 //
 // For each course: move to the spawn pad, clear the course area, build the
 // platforms with /fill, /tp onto the start block, then drive the bot with the
@@ -134,7 +134,7 @@ function applyAction (a) {
 
 const assistConfig = args.assist ? JSON.parse(args.assist) : null
 const service = assistConfig
-  ? new A.PlannerService(args.assistPython, A.serviceArgs(assistConfig, args.assistCheckpoint, args.courses), args.assistRoot)
+  ? new A.PlannerService(args.assistPython, A.serviceArgs(assistConfig, args.assistCheckpoint, args.courses, args.assistDevice), args.assistRoot)
   : null
 let planning = false
 let courseIndex = -1

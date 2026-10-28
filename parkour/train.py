@@ -243,7 +243,8 @@ def train(cfg: TrainConfig) -> Path:
     if cfg.threads > 0:
         torch.set_num_threads(cfg.threads)
     if cfg.gpu_mem_fraction > 0 and dev.type == "cuda":
-        torch.cuda.set_per_process_memory_fraction(cfg.gpu_mem_fraction, dev)
+        torch.cuda.set_per_process_memory_fraction(cfg.gpu_mem_fraction,
+                                                   dev.index if dev.index is not None else torch.cuda.current_device())
     out = RUNS / cfg.run
     out.mkdir(parents=True, exist_ok=False if not cfg.init_from else True)
     (out / "checkpoints").mkdir(exist_ok=True)
@@ -346,6 +347,7 @@ def train(cfg: TrainConfig) -> Path:
     obs = env.observe()
     total_steps = start_it * T * N
     t_start = time.time()
+    busy = []  # wall time of each iteration, for --gpu-duty
     for it in range(start_it, cfg.iterations):
         t0 = time.time()
         model.eval()
@@ -542,7 +544,10 @@ def train(cfg: TrainConfig) -> Path:
         if cfg.gpu_duty < 1:  # leave the GPU idle for the rest of the time (another program, e.g. a game)
             if dev.type == "cuda":
                 torch.cuda.synchronize(dev)
-            time.sleep((time.time() - t0) * (1 - cfg.gpu_duty) / max(cfg.gpu_duty, 0.05))
+            # An iteration the watchdog kept suspended (a game, heat) is not busy time: cap at 3x the recent median.
+            busy.append(time.time() - t0)
+            work = min(busy[-1], 3 * float(np.median(busy[-20:])))
+            time.sleep(work * (1 - cfg.gpu_duty) / max(cfg.gpu_duty, 0.05))
     log_f.close()
     eval_f.close()
     model.export(out / "policy_last.json", {"run": cfg.run, "iteration": cfg.iterations - 1})

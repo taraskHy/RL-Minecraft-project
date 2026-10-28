@@ -131,12 +131,17 @@ def main(argv=None):
     if a.assist:
         if a.planner:
             raise SystemExit("--assist needs the course list (not --planner)")
-        from .neo_assist import AssistConfig, planned_takeoffs
+        from .neo_assist import AssistConfig, planned_takeoffs, spec_from_key
         assist_cfg = AssistConfig(**{"batch": 1, **json.loads(a.assist)})
         if assist_cfg.batch != 1:
             raise SystemExit("the bots reproduce only searches with batch 1")
+        if not assist_cfg.enabled:
+            assist_cfg = None
+    if assist_cfg is not None:
         for c, d, r in zip(courses, course_json, raw):
-            d["assist_takeoffs"] = planned_takeoffs(c, assist_cfg.jumps, r.get("specs"))
+            if not c.specs and r.get("specs"):  # a course file: its jump types, so the simulator plans where the bot does
+                c.specs = [spec_from_key(k) for k in r["specs"]]
+            d["assist_takeoffs"] = planned_takeoffs(c, assist_cfg.jumps)
     (out / "courses.json").write_text(json.dumps({"courses": course_json}))
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     model = load_model(Path(a.checkpoint).resolve(), dev)
@@ -146,7 +151,8 @@ def main(argv=None):
     assist_args = []
     if assist_cfg is not None:
         assist_args = ["--assist", json.dumps(dataclasses.asdict(assist_cfg)), "--assist-python", sys.executable,
-                       "--assist-checkpoint", str(Path(a.checkpoint).resolve()), "--assist-root", str(ROOT)]
+                       "--assist-checkpoint", str(Path(a.checkpoint).resolve()), "--assist-root", str(ROOT),
+                       "--assist-device", "cuda" if torch.cuda.is_available() else "cpu"]
     planner_json = ""
     if a.planner:
         from .planner import PlannerConfig

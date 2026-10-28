@@ -70,6 +70,16 @@ class NeoAssist(unittest.TestCase):
         self.assertEqual([c.to_json() for c in rnd[:5]], [c.to_json() for c in random_neo_courses(13, n=5)])
 
 
+@unittest.skipUnless(NODE.exists(), "portable Node runtime not installed (run setup.cmd)")
+class AssistDefaults(unittest.TestCase):
+    def test_bot_trigger_defaults_are_the_python_ones(self):
+        out = subprocess.run([str(NODE), "-e", "process.stdout.write(JSON.stringify(require('./assist').DEFAULTS))"],
+                             cwd=str(BRIDGE), capture_output=True, text=True, check=True)
+        js = json.loads(out.stdout)
+        py = dataclasses.asdict(AssistConfig())
+        self.assertEqual(js, {k: py[k] for k in js})
+
+
 class SpecKeys(unittest.TestCase):
     def test_every_level_spec_round_trips(self):
         for adv in (False, True):
@@ -94,7 +104,8 @@ class AssistBotParity(unittest.TestCase):
             subprocess.run([str(NODE), str(BRIDGE / "offline_bot.js"), "--policy", pol, "--courses", crs, "--out", out,
                             "--settle", str(SETTLE_TICKS), "--assist", json.dumps(dataclasses.asdict(cfg)),
                             "--assist-python", sys.executable, "--assist-checkpoint", str(ROOT / "results" / "final_policy.pt"),
-                            "--assist-root", str(ROOT)], check=True, cwd=str(BRIDGE), capture_output=True)
+                            "--assist-root", str(ROOT), "--assist-device", "cpu"], check=True, cwd=str(BRIDGE),
+                           capture_output=True)
             js = [json.loads(line) for line in open(out) if line.strip()]
         self.assertEqual([e["success"] for e in js], [c["success"] for c in res["per_course"]])
         self.assertEqual([e["ticks"] for e in js], [c["ticks"] for c in res["per_course"]])

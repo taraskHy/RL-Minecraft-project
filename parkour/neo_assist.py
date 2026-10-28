@@ -547,6 +547,8 @@ def main(argv=None):
     ap.add_argument("--tag", default="")
     ap.add_argument("--serve", action="store_true", help="plan for the bots: JSON lines on stdin/stdout (see serve)")
     ap.add_argument("--courses-file", default="", help="with --serve: the courses the bot plays")
+    ap.add_argument("--device", default="", help="cpu or cuda (default: cuda if available); the bots' planner service "
+                                                 "must use the device of the simulator run it is compared with")
     for k, v in asdict(AssistConfig()).items():
         if k != "enabled":
             ap.add_argument("--" + k.replace("_", "-"), type=type(v), default=v)
@@ -557,7 +559,7 @@ def main(argv=None):
     if a.family not in valid[a.set]:
         raise SystemExit(f"--set {a.set} has families {valid[a.set]} (test, validation)")
     cfg = AssistConfig(enabled=not a.off, **{k: getattr(a, k) for k in asdict(AssistConfig()) if k != "enabled"})
-    dev = "cuda" if torch.cuda.is_available() else "cpu"
+    dev = a.device or ("cuda" if torch.cuda.is_available() else "cpu")
     if a.serve:
         courses = [C.Course.from_json(d) for d in json.loads(Path(a.courses_file).read_text())["courses"]]
         serve(load_model(Path(a.checkpoint), dev), courses, cfg, dev)

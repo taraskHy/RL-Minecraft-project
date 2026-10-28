@@ -14,9 +14,14 @@ const HALF_WIDTH = 0.3
 const STAND_EPS = 1e-6
 const YAW_STEPS_DEG = [-20.0, -6.0, -1.5, 0.0, 1.5, 6.0, 20.0]
 
+// AssistConfig's defaults (parkour/neo_assist.py) for the fields the trigger rules read, so a partial
+// --assist JSON behaves as in Python (tests/test_neo_assist.py checks they agree).
+const DEFAULTS = { horizon: 32, retry_horizon: 0, retries: 0, retry_every: 10, approach: 0 }
+
 // When to plan, per episode: AssistConfig fields (snake_case, as parkour/neo_assist.py writes them).
 class Assist {
   constructor (cfg, takeoffs) {
+    cfg = { ...DEFAULTS, ...cfg }
     this.cfg = cfg
     this.planned = new Set(takeoffs)
     this.before = new Set(takeoffs.filter(k => k >= 1 && !this.planned.has(k - 1)).map(k => k - 1))
@@ -57,14 +62,22 @@ class PlannerService {
   constructor (python, args, cwd) {
     this.proc = spawn(python, ['-m', 'parkour.neo_assist', '--serve', ...args], { cwd, stdio: ['pipe', 'pipe', 'inherit'] })
     this.waiting = []
+    this.dead = null // why the planner can no longer answer; requests then get no plan at once
     readline.createInterface({ input: this.proc.stdout }).on('line', line => {
       const w = this.waiting.shift()
       if (w) w(JSON.parse(line))
     })
-    this.proc.on('exit', code => { for (const w of this.waiting.splice(0)) w({ plan: null, error: `planner exited (${code})` }) })
+    const die = why => {
+      this.dead = this.dead || why
+      for (const w of this.waiting.splice(0)) w({ plan: null, error: this.dead })
+    }
+    this.proc.on('exit', code => die(`planner exited (${code})`))
+    this.proc.on('error', err => die(`planner failed: ${err.message}`))
+    this.proc.stdin.on('error', err => die(`planner input closed: ${err.message}`))
   }
 
   plan (req) {
+    if (this.dead) return Promise.resolve({ plan: null, error: this.dead })
     return new Promise(resolve => {
       this.waiting.push(resolve)
       this.proc.stdin.write(JSON.stringify(req) + '\n')
@@ -74,9 +87,10 @@ class PlannerService {
   close () { this.proc.stdin.end() }
 }
 
-// Command-line flags of the planner service for an AssistConfig.
-function serviceArgs (cfg, checkpoint, coursesFile) {
+// Command-line flags of the planner service for an AssistConfig (device: that of the simulator it is compared with).
+function serviceArgs (cfg, checkpoint, coursesFile, device = '') {
   const out = ['--checkpoint', checkpoint, '--courses-file', coursesFile]
+  if (device) out.push('--device', device)
   for (const [k, v] of Object.entries(cfg)) if (k !== 'enabled') out.push('--' + k.replace(/_/g, '-'), String(v))
   return out
 }
@@ -127,4 +141,4 @@ function verifyPlan (physics, world, e, plan, platforms, cp, target, extra) {
   return standsOn({ pos: [c.pos.x, c.pos.y, c.pos.z], onGround: c.onGround }, platforms[target])
 }
 
-module.exports = { Assist, PlannerService, serviceArgs, verifyPlan }
+module.exports = { Assist, DEFAULTS, PlannerService, serviceArgs, verifyPlan }
