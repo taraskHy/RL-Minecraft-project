@@ -25,11 +25,19 @@ tolerance (`COLLISION_EPSILON`). Without it, rounding can let a player resting
 against a block face slip into the block. The port covers what the courses contain:
 air and full cubes with default slipperiness (walking, sprinting, jumping,
 sprint-jump boost, air control, drag, gravity, axis-by-axis collision,
-step-up, the jump cooldown). Ice is also ported but off by default: with an
-optional per-block slipperiness grid (`World(slip=...)`, ice 0.98) the ground
-friction comes from the block under the feet, matching the real library to
-7.1e-15 blocks over 60,000 ticks (`results/physics_parity_ice.json`); no
-course uses it yet.
+step-up, the jump cooldown). Further blocks are ported but off by default,
+each through an optional per-cell grid and each matching the real library to
+about 1e-14 blocks over 60,000 ticks of random block fields
+(`results/physics_parity_*.json`): ice (`World(slip=...)`, slipperiness
+0.98 under the feet), block shapes (`World(shape=...)`: slabs, stairs, soul
+sand, dirt path, trapdoors, carpets, fence and wall posts, end rods,
+ladders; every box of every cell takes part in the collision, with the
+boxes prismarine-block gives for 1.21.4, `configs/block_shapes.json`),
+slime (`World(slime=...)`: a vertical collision reverses the vertical
+speed) and ladders and vines (`World(climb=...)`: slow fall and sideways
+speed, climbing at 0.2 blocks per tick when pushing against something or
+pressing jump). prismarine-physics takes its version rules from its own
+feature table: for 1.21 soul sand and honey do not slow the player.
 
 Evidence (`results/physics_parity.json`, run through Node on the real library
 with the same tolerance patch): on 24,000 random ticks on the CPU and 75,000
@@ -173,3 +181,37 @@ part of the policy.
 prismarine-physics without a server. `parkour.live` compares either mode with
 the simulator (tick-by-tick replay of the recorded actions, and the outcome
 of the same policy on the same course in the simulator).
+
+## 8. Opt-in extensions (28 October, evening)
+
+None of these change the defaults: held-out courses stay byte-identical
+(`tests/test_heldout_fingerprints.py`), and every default test still passes.
+
+- **Planning the hardest jumps** (`parkour/neo_assist.py`). The simulator is
+  an exact model of the bot's physics, so a jump can be planned: when the
+  bot first stands on a planned takeoff (a neo's, or with `jumps` advanced
+  also a wide or run-up jump's), a cross-entropy search over the policy's
+  own discrete actions, started from the bot's exact state, looks for a
+  sequence that lands on the next platform without standing on an obstacle
+  or falling, and the bot plays it; then the policy continues. Options:
+  retries from a standstill, a longer horizon, plans from the platform
+  before the takeoff (approach), a prior from the policy's own action
+  probabilities. In the bots, the episode returns PLAN, a Python planner
+  service searches from the bot's state, prismarine-physics replays the
+  plan on a copy of the bot against its own world, and the bot plays it
+  only if it lands; the live bot stops its physics meanwhile. Every search
+  has its own seed, so the offline bot reproduces the simulator's plans.
+- **New jump kinds** (`JumpSpec` fields; `configs/jump_levels_extra.json`,
+  `load_levels(extra=True)`): run-ups under a 2-high roof (`ceiling`: the
+  rise is capped at 0.2 blocks; hops under the roof build speed), ice
+  runways (`ice`), shaped targets with an easy exit jump (`block`), slime
+  pads with an exit platform above them (`bounce`), ladder climbs onto a
+  wall (`ladder`). Each is a composite that ends on stone, so the other
+  jumps of a course keep the difficulty the feasibility study measured
+  (`parkour.feasibility --extra`, with run-up, bounce and climb horizons).
+- **Shaped platforms in the environment**: the pool keeps per-platform tops
+  and footprints from the shapes (standing, falls, distances), the
+  observation's platform slots use them and the scan reads the shape's top;
+  `bridge/policy.js` mirrors this (`platformGeometry`, `topOf`), checked by
+  `tests/test_bridge_parity.py` on states standing on every shaped platform
+  and inside ladder cells.
