@@ -192,6 +192,13 @@ straight from the run files. Simulator results are on the held-out test set
 (200 courses per level, generated with 10 jumps) with the deterministic policy
 unless stated otherwise.
 
+The final policy changed late in the project. Where sections 7.4 to 7.9 say
+final policy, they mean the first final policy (`obstacles-ft`, discount
+0.99, section 7.7). A full-length run with discount 0.995 (`obstacles-g995`,
+section 7.3) then beat it on the validation courses and replaced it. Section
+7.13 re-measures the new final policy. Sections 7.11 and 7.12 name the policy
+behind each number, and 7.11 gives the new one's planner numbers first.
+
 ### 7.1 Main run
 
 After 3,000 iterations (1.57 billion game ticks, 2.6 hours on one RTX 5080
@@ -219,8 +226,9 @@ The safeguards held the run stable except for one short dip (section 5).
   about three times faster.
 - The **landing bonus** lowers level-5 success on average without it, but the
   seeds overlap, so this run count shows no reliable effect.
-- The **curriculum** shows no benefit at this budget; uniform sampling learns
-  slightly more slowly (0.08 against 0.05 B ticks to 80%) and ends equal.
+- The **curriculum** does not raise the final score at this budget; uniform
+  sampling learns slightly more slowly (0.08 against 0.05 B ticks to 80%)
+  and ends equal.
 
 ### 7.3 Hyperparameters
 
@@ -249,9 +257,14 @@ validation, and it held in all three seeds (+3.6 validation, +1.9 test,
 55 to 37%, so the far goal pulls harder through the whole course. A shorter
 horizon (0.98) and a tighter KL target hurt most. The large network is the
 best single run on level 5 (83.5%) but one seed, below the bar on
-validation. Following the plan, a full-length run with discount 0.995 (the
-main run's recipe plus the obstacle fine-tune) is training; it replaces the
-final policy only if it is better on the validation courses.
+validation. Following the plan, we trained discount 0.995 at full length
+with the main run's recipe (`main-g995`, 3,000 iterations) and the same
+obstacle fine-tune (`obstacles-g995`, 1,000 iterations). Its checkpoint
+chosen on validation (iteration 699) beat the first final policy there,
+97.6% against 96.6%, so it became the final policy. On the test sets
+(simulator) it completes 98.4% of standard courses (level 5: 93.5%) against
+97.1% (90.5%), and 95.2% of obstacle courses (level 5: 81.0%) against 93.6%
+(75.5%). Section 7.13 gives its other results.
 
 ### 7.4 Every jump type
 
@@ -287,8 +300,8 @@ Before fine-tuning, the main policy completed 46.8% of new courses with
 head-hitter beams and decoy pillars (stress test, 100 per level, against 96.7%
 of standard ones). Fine-tuned for 1,000 iterations with an obstacle on 30% of
 jumps, it completes 93.6% of the held-out obstacle courses and 97.1% of the standard
-test set (level 5: 90.5%); it improved on both. This fine-tuned policy is the
-final policy.
+test set (level 5: 90.5%); it improved on both. This fine-tuned policy was
+the first final policy; section 7.13 describes the one that replaced it.
 
 ### 7.8 The bot's own code
 
@@ -330,7 +343,7 @@ test).
 
 **Training.** Levels 6 to 8 add single neos, 4-block jumps from a 2- to
 4-block run-up and wide diagonal jumps (`configs/jump_levels_advanced.json`).
-Fine-tuning the final policy on levels 0 to 8 (`advanced-ft`, `-ft2`, `-ft3`,
+Fine-tuning the first final policy on levels 0 to 8 (`advanced-ft`, `-ft2`, `-ft3`,
 about 1,700 iterations in total) kept levels 0 to 4 at 96 to 100% and
 reached about 70% on level 6 and 30% on level 7 (held-out test courses),
 then stayed flat (level 6 for about 850 iterations, level 7 for about 650).
@@ -361,8 +374,121 @@ refusals fall from 95% to 89% of the failed attempts and falls rise from 5%
 to 11%. Course scores stay flat (level 6: 68.5%, level 7: 33%). The penalty
 makes refusing costlier, but random exploration almost never finds the
 curved run a neo needs (in the search, 1 in 2,000 to 16,000 sampled action
-sequences landed one). Learning from the search's successful sequences
-(demonstrations) is the natural next step.
+sequences landed one). So we ran a second search, this time in the agent's
+own action space, and gave the agent its successful sequences as
+demonstrations.
+
+**Demonstrations.** A cross-entropy search in the bot's own discrete action
+space (`parkour/neo_demos.py`, the 252 actions applied as the environment
+applies them) collected 50,706 landing sequences on the 16 landable
+single-neo layouts, with the wall on either side, from standing starts on
+the takeoff block. The search rejects a sequence that starts inside a block,
+stands on top of the wall or drops far enough to count as a fall, and it
+keeps a sequence only if a replay in the environment lands too. We used
+12,800 of them (400 per layout and wall side; `results/neo/demonstrations.json`).
+
+**Imitation.** `neo-bc` continues from `neo-stall` for 800 iterations. A
+behaviour-cloning loss on the demonstrations runs next to the PPO loss
+(weight 1, constant for the whole run), 1,024 of the training courses start where
+a demonstration starts, and the stall penalty stays at 5. It makes all 13
+single-neo types from a standing start (simulator, 16 start angles), 54.8%
+of attempts on average, where the policies before it made none.
+
+**DAgger with a search expert.** The demonstrations all start from rest, but
+on a course the bot reaches a neo moving, at its own speed and angle. DAgger
+(`parkour/neo_dagger.py`) collects labels in the states the policy itself
+visits. The policy plays training courses with neos (levels 6 and 7, never
+held-out courses). At each neo takeoff it reaches, we record its exact
+state, and a batched search looks for a landing from that state. It found
+one from 93%, 84% and 88% of the reached takeoffs in rounds 1, 2 and 3
+(round 1's takeoffs include the false ones described below;
+`results/neo/neo_dagger_r1b.txt`, `neo_dagger_r2.txt`, `neo_dagger_r3.txt`).
+The observations along the found sequences, paired with the sequences' actions,
+become imitation pairs. Each round adds its pairs to those of the earlier
+rounds and trains for 500 iterations. Two problems came up along the way.
+
+- *Label noise.* The first DAgger attempt collapsed: held-out success over
+  levels 0 to 8 fell from 86.5% for the imitation policy it started from to
+  5% after 50 iterations and was at 59% after 500 (simulator). The search
+  fills ticks where the action does not matter with random actions, so many
+  labels differed from the policy's choice on ticks where either action
+  works.
+  We now start the search from the policy's own action probabilities and
+  simplify every found sequence: wherever the neo still lands with the bot's
+  own choice, that choice goes back in. The labels then agree with the bot's
+  own choice on 89 to 99% of ticks for each action part in round 1 and on
+  82 to 99% over rounds 1 to 3 (turning lowest), and the imitation policy's
+  own loss on round 1's labels is 2.6, against 22.0 on those of the
+  collapsed attempt (`results/neo/label_agreement.json`).
+  Rounds 1 to 3 also use a smaller imitation weight (0.3 instead of 1,
+  constant in every run).
+- *Neo detection.* Round 1 counted one-block-up jumps as neo takeoffs. On
+  round 1's 1,024 training courses (seed 2; the file counts the collapsed
+  attempt as round 1) its detector found 2,526 takeoffs, and only 1,090 of
+  them (43%) were real neos (`results/neo/detector_check.json`).
+  From round 2 on, only wall blocks count.
+
+Results on the 210 held-out test courses of levels 6 to 8 that contain a neo
+(337 neo jumps, simulator). Neo jumps passed counts the neo jumps the bot
+reached and got past.
+
+| Neo policy | Courses completed | Neo jumps passed / reached |
+| --- | --- | --- |
+| stall penalty only (`neo-stall`) | 0/210 (0.0%) | 0/202 (0.0%) |
+| + imitation (`neo-bc`) | 49/210 (23.3%) | 82/227 (36.1%) |
+| + DAgger round 1 | 62/210 (29.5%) | 99/228 (43.4%) |
+| + DAgger round 2, best checkpoint | 63/210 (30.0%) | 112/239 (46.9%) |
+| + DAgger round 2, last checkpoint | 74/210 (35.2%) | 115/239 (48.1%) |
+| + DAgger round 3, chosen on the validation neo courses | 61/210 (29.0%) | 97/224 (43.3%) |
+
+Imitation takes the bot from no neo course to 23.3%, and DAgger to about
+30%, where rounds 2 and 3 level off. We chose round 3's checkpoint on the
+validation family's neo courses (34.4% there, against 33.0% for round 2's
+best checkpoint), and it is the neo policy reported below. Round 2's last
+checkpoint scores higher on test, but it was not a validation pick, and the
+gap between two checkpoints of one run (63 against 74 courses) is larger
+than the differences between the three DAgger rounds (61 to 63 courses).
+The chosen neo policy makes all 13 single-neo types from a standing start,
+60.6% of attempts on average (round 1: 70.2%).
+
+Each extra neo in a course is one more tight jump. The chosen neo policy
+completes 56 of the 129 test courses with one neo, 3 of 47 with two, 2 of 25
+with three and 0 of 9 with four or more (simulator,
+`results/neo/by_neo_count.json`).
+
+On the neo course set (`configs/neo_live_courses.json`: the first 10
+held-out test courses with a neo from each of levels 6, 7 and 8, plus the
+hand-designed neo course of section 7.9) the neo policy completed 11 of 31
+courses with the offline bot and 11 of 31 in real Minecraft. These are
+exactly the courses the simulator completed, with 0 server corrections and a
+replay error of 2.1e-14 blocks in the game. Every course it completed has one
+neo. It fails the hand-designed neo course: it passes that course's first
+neo, which takes off from a 2x2 block, and falls at the second neo, after 3
+of its 11 jumps, in the simulator, with the offline bot and in real
+Minecraft (`results/games/neo-offline-final`, `results/games/neo-live-final`).
+A first-person video
+(`results/videos/real_minecraft_neo_level7.mp4`) shows the neo policy
+completing a held-out level-7 course with one neo in real Minecraft (164
+ticks, 0 corrections).
+
+**Wide takeoffs.** Our generator places a neo only after a takeoff one block
+wide across the jump. This is a simplification; parkour has no such rule. We
+ran the demonstration search after 1x1, 2x2 and 3x3
+takeoffs (simulator, 3 layouts, wall on either side;
+`results/neo/wide_takeoff_search.json`). It found all 200 landings it looked
+for whenever the landing lies one lane from the wall's open end (every 1x1
+case and the 2x2 cases on the open side) and none whenever it lies two lanes
+away (the other side of a 2x2 takeoff, and every 3x3 case, where the landing
+is in the middle lane).
+`courses._place(wide_neo=True)` allows such neos in hand-designed courses and
+in the DAgger training courses. The default generator and every test and
+validation set are unchanged, so the test numbers above contain no
+wide-takeoff neos.
+
+The neo policy is separate from the final policy. It continues the
+discount-0.99 line (the first final policy fine-tuned on levels 0 to 8),
+while the final policy of section 7.13 trained on levels 0 to 5 with
+obstacles and never saw a neo.
 
 ### 7.11 Without the course list: a greedy route planner
 
@@ -387,38 +513,43 @@ four slots; the policy is not retrained. Only the goal's position is given
    towards the goal win. The rule repeats from the chosen platform for the
    two slots after it.
 
-All settings were chosen on the validation courses; the test set was used
-once. Results (`results/planner/`, final policy):
+All settings were chosen on the validation courses and kept unchanged for
+the new final policy; the test set was used once per policy. Results with
+the new final policy (`results/planner/`, section 7.13):
 
 | Unseen courses | Course list given | Planner | Planner, "remaining" fall rule |
 | --- | --- | --- | --- |
-| 1,200 standard, simulator | 97.1% | 89.6% | 92.9% |
-| 1,200 with obstacles, simulator | 93.6% | 86.2% | 89.8% |
-| 60 standard, real Minecraft | 59/60 | 52/60 | |
-| 60 with obstacles, real Minecraft | 58/60 | 53/60 | |
-| 3 hand-designed, real Minecraft | 3/3 | 3/3 | |
+| 1,200 standard, simulator | 98.4% | 90.9% | 94.5% |
+| 1,200 with obstacles, simulator | 95.2% | 88.1% | 91.4% |
+| 60 standard, real Minecraft | 59/60 | 50/60 | |
+| 60 with obstacles, real Minecraft | 57/60 | 55/60 | |
 
-In real Minecraft and with the offline bot the planner made exactly the
-courses the simulator made, with 0 server corrections; replaying the
-recorded actions reproduced every trajectory to 2e-14 blocks, and a test
-checks that Python and the bot's JavaScript make identical plans.
+With the first final policy the planner made 89.6% and 86.2% in the
+simulator (92.9% and 89.8% with the "remaining" rule), 52/60 and 53/60 in
+real Minecraft, and all 3 hand-designed courses of section 7.8 in real
+Minecraft.
+With both policies, in real Minecraft and with the offline bot, the planner
+made exactly the courses the simulator made, with 0 server corrections;
+replaying the recorded actions reproduced every trajectory to 2e-14 blocks,
+and a test checks that Python and the bot's JavaScript make identical plans.
 
-Failure modes (test sets, standard fall rule). Of the 125 failed standard
-courses, 104 failed after the plan left the course's order at some landing,
-almost always by skipping ahead: a later platform of the course is within
-reach and closer to the goal, so it is chosen over the course's next one;
-in the other 21 the plan followed the course and the jump itself failed. On
-obstacle courses: 116 after leaving the order, 45 jump failures and 4 runs
-where no reachable platform was in view. Most shortcuts succeed (on the tour
-course the bot finished in 128 ticks instead of 145), but they are not the
-jumps the course was built around, and some are harder. 40 of the 125
-standard failures are an artefact of our fall rule, which only looks at the
-platforms around the current one in course order: the bot is above the lower
-platform it chose when the rule calls a fall. Counting a drop onto any later
-platform as a landing (the "remaining" rule, evaluation only) gives the last
-column. Before the head-hitter rule, a third of the failures on obstacle
-courses were jumps aimed at a beam; decoy pillars are columns, so the
-planner never treats them as platforms.
+Failure modes (first final policy, test sets, standard fall rule). Of the
+125 failed standard courses, 104 failed after the plan left the course's
+order at some landing, almost always by skipping ahead: a later platform of
+the course is within reach and closer to the goal, so it is chosen over the
+course's next one; in the other 21 the plan followed the course and the jump
+itself failed. On obstacle courses: 116 after leaving the order, 45 jump
+failures and 4 runs where no reachable platform was in view. Most shortcuts
+succeed (on the tour course the bot finished in 128 ticks instead of 145),
+but they are not the jumps the course was built around, and some are harder.
+40 of the 125 standard failures are an artefact of our fall rule, which only
+looks at the platforms around the current one in course order: the bot is
+above the lower platform it chose when the rule calls a fall. Counting a
+drop onto any later platform as a landing (the "remaining" rule, evaluation
+only) gives 92.9% and 89.8% for the first final policy, and the table's last
+column for the new one. Before the head-hitter rule, a third of the failures
+on obstacle courses were jumps aimed at a beam; decoy pillars are columns,
+so the planner never treats them as platforms.
 
 ### 7.12 A learned model that finds its route itself
 
@@ -435,7 +566,7 @@ the goal direction. It trained from scratch for 3,000 iterations (1.57 B ticks, 
 hours, obstacles on 30% of jumps); the checkpoint was chosen on the
 validation courses (iteration 2,849).
 
-| Unseen courses | Course list given | Planner (7.11) | Learned, no list | Earlier no-route arm (7.6) |
+| Unseen courses | Course list given (first final policy) | Planner (7.11, first final policy) | Learned, no list | Earlier no-route arm (7.6) |
 | --- | --- | --- | --- | --- |
 | 1,200 standard, simulator | 97.1% | 89.6% | 85.4% | 82.4% |
 | level 5 of those | 90.5% | 76.0% | 52.0% | 43.0% |
@@ -448,8 +579,11 @@ The learned model beats the earlier no-route arm (85.4% against 82.4%; the
 arm saw 5.5 blocks ahead and 1.5 to the side), but it also trained three times
 as long, and after the same 0.52 B ticks it scored 77.3%. So these runs do not
 show that the wider scan and the memory help. The simple planner on top of the
-route-trained policy is better on every large test set. The learned model's
-real-game score on the 60 standard courses (55/60, above the planner's 52/60) is within the noise of so small a sample.
+route-trained policy is better on every large test set, with the first final
+policy and with the new one (90.9% and 88.1%, section 7.11). The learned
+model's real-game score on the 60 standard courses (55/60, above the
+planner's 52/60 with the first final policy and 50/60 with the new one) is
+within the noise of so small a sample.
 Its weak points are the hardest jumps and decoys: of its 23 falls on the
 real-game obstacle courses, 10 end standing on a pillar or beam, which the
 planner's perception rules exclude by construction. It completes only one of
@@ -457,6 +591,65 @@ the three hand-designed courses (a 12-jump tour, an 11-jump staircase and a
 9-jump line of mostly 3-block gaps; only the staircase's eight climbs in a row
 are unlike the training courses). In the game it again matched the
 simulator on every course with 0 server corrections.
+
+### 7.13 The final policy
+
+The final policy is `obstacles-g995` at iteration 699 (`results/final_policy.pt`):
+discount 0.995, the main run's recipe for 3,000 iterations (`main-g995`) and
+then 1,000 iterations of the obstacle fine-tune. It was chosen on the
+validation courses, where it beat the first final policy (`obstacles-ft`,
+`results/final_policy_v1.pt`) 97.6% to 96.6%. We re-measured it on the test
+sets, every jump type, the course styles, the bot runs and the planner. In
+the text below, a number in brackets after a result is the first final
+policy's.
+
+| Test | New final policy | First final policy |
+| --- | --- | --- |
+| 1,200 standard test courses, simulator | 98.4% | 97.1% |
+| level 5 of those | 93.5% | 90.5% |
+| 1,200 obstacle test courses, simulator | 95.2% | 93.6% |
+| level 5 of those | 81.0% | 75.5% |
+| 60 standard courses, offline bot and real Minecraft | 59/60 | 59/60 |
+| 60 obstacle courses, offline bot and real Minecraft | 57/60 | 58/60 |
+| 4 hand-designed courses, offline bot and real Minecraft | 3/4 | 3/4 (real Minecraft) |
+| planner, 1,200 standard courses, simulator | 90.9% | 89.6% |
+| planner, 1,200 obstacle courses, simulator | 88.1% | 86.2% |
+| planner, 60 standard courses, offline bot and real Minecraft | 50/60 | 52/60 |
+| planner, 60 obstacle courses, offline bot and real Minecraft | 55/60 | 53/60 |
+
+**Every jump type** (simulator, standing start on a 1x1 block, 16 start
+angles). It makes every jump type of levels 0 to 5, levels 0 to 4 every
+time and level 5 99.1% of the time (99.6%). Of the 49 types that no scripted
+strategy lands it makes 3 at least once (4), among them the diagonal
+4-block gap onto a 3x3 platform at 15 of 16 start angles
+(`results/jump_eval.json`).
+
+**Course styles** (simulator, 100 new courses per level and condition).
+Standard 98.3% (97.5%), 15-jump courses 96.5% (95.2%), a turn at every jump
+94.2% (90.3%), straight lines 98.3% (98.5%), any start direction 96.7%
+(96.7%), single blocks only 93.0% (91.2%), obstacles 96.3% (95.3%). The
+weakest cases are still level 5 with only single blocks, 75% (73%), or a
+turn at every jump, 80% (68%).
+
+**The bot.** The offline bot (the bot's JavaScript on prismarine-physics,
+no server) and the real game gave identical results on the same 60 standard,
+60 obstacle and 4 hand-designed courses as section 7.9 (section 7.8 ran only
+the first 3 of them), and both matched the simulator on every course. The server made 0 corrections in 124
+episodes, and replaying the recorded actions reproduced the real
+trajectories to 2.1e-14 blocks. The failed hand-designed course is the neo
+course, which this policy never trained on. On these 60-course samples the
+two policies are within noise of each other; the 1,200-course test sets in
+the simulator show the new one better.
+
+**The planner** with the new final policy is described in section 7.11. The
+first-person showcase videos and the planner videos in `results/videos/`
+were made with the first final policy. The ghost-race videos show ten
+training stages of a separate run (`progress-demo`, from untrained to 400
+iterations). The two neo videos (`real_minecraft_neo_level7.mp4`,
+`replay_137_neo_policy_level_7_course_5.mp4`) show the neo policy of section
+7.10, a separate line, and
+`replay_295_learned_no_course_list_level_5_course_1.mp4` shows the learned
+model of section 7.12.
 
 ## 8. Discussion and limitations
 
@@ -475,10 +668,75 @@ Points to develop:
   level 5 sooner and raises the hardest-level score, but on very tight jumps (single neos) it
   teaches the agent to refuse. Whether a stall counts as a failure is part of
   the reward design, not a detail of the environment (section 7.10).
+- Learning from demonstrations needs clean labels. A search expert that
+  fills unimportant ticks with random actions gives labels that disagree
+  with the policy where nothing is at stake. The first DAgger attempt,
+  trained on such labels, collapsed. The fixed rounds also lowered the
+  imitation weight, so these runs do not separate the two changes, but a
+  weight of 1 on clean demonstrations (`neo-bc`) did not collapse. Starting
+  the search from the policy's own action
+  probabilities and putting the policy's choice back wherever the neo still
+  lands made the labels agree with the policy's own choice on 89 to 99% of
+  ticks for each action part in round 1 and on 82 to 99% over rounds 1 to 3
+  (section 7.10).
+- All selection used the validation courses: the hyperparameters, the
+  checkpoints, the planner settings, the neo round and the replacement of the
+  first final policy. Test numbers sometimes favour a checkpoint that
+  validation did not pick (round 2's last neo checkpoint, 35.2% against
+  29.0%); we report the validation pick. On the 60-course bot samples the two
+  final policies are within noise; the 1,200-course test sets in the
+  simulator show the new one better.
+- The one-block-wide takeoff before a neo is a simplification of our course
+  generator. The search lands neos from a 2x2 takeoff when the landing lies
+  one lane from the wall's open end (`results/neo/wide_takeoff_search.json`),
+  but none of our test or validation courses contain them, so the neo test
+  numbers do not cover them; only the hand-designed neo course has one
+  (section 7.10).
 
 ## 9. Conclusion
 
-*To be written.*
+A PPO agent trained on generated courses, in a simulator that reproduces the
+movement engine of a Mineflayer bot, completes parkour courses it has never
+seen. The final policy (discount 0.995) completes 98.4% of 1,200 held-out
+standard courses and 95.2% of 1,200 held-out obstacle courses in the
+simulator (level 5: 93.5% and 81.0%). In
+real Minecraft the bot made exactly the courses the simulator made (59 of 60
+standard, 57 of 60 obstacle courses), with 0 server corrections and replays
+that match the game to 2.1e-14 blocks. The simulator matches
+prismarine-physics to 1.4e-14 blocks over 99,000 ticks, so in this setting
+the gap between simulation and the game is rounding error.
+
+The reward study (simulator, 3 seeds per arm) shows that the fall penalty
+matters most: without it the agent ends at 90.9% instead of 93.3% and at
+55.2% instead of 72.0% on level 5. Distance shaping leaves the final score
+unchanged and reaches 80% about three times sooner. The curriculum leaves
+the final score unchanged at this budget (94.0% without it against 93.3%;
+level 5: 72.0% for both) and reaches 80% somewhat sooner (0.05 against 0.08
+B ticks). The only hyperparameter that helped by more than 3
+points on validation was a longer horizon (discount 0.995), which gave the
+final policy. The same fall penalty, against a stall that costs almost
+nothing, explains why the agent refuses single neos: without a stall
+penalty it stood still until the stall limit in 95% of its attempts on them
+(simulator).
+
+Neo jumps remain hard. With PPO alone, with or without a stall penalty, the
+agent made none of the 13 single-neo types. Demonstrations from a search and
+DAgger raised the completed neo test courses from 0% to about 30% (29.0% for
+the neo policy chosen on validation, simulator). On 31 neo courses that
+policy completed 11 with the offline bot and the same 11 in real Minecraft.
+Of its 61 completed test courses, 56 have one neo; of the 81 courses with
+two or more neos it completes 5 (simulator, `results/neo/by_neo_count.json`).
+The search found no double or triple neo in 64 layouts,
+so we treat them as impossible, though the search does not prove it.
+
+The policy also works without the course list. A simple greedy planner fills
+the policy's platform slots from the solid blocks within 12 blocks of the bot
+(only the goal position is given), and the unchanged final policy
+then completes 90.9% of standard and 88.1% of obstacle test courses in the
+simulator, and 50 of 60 and 55 of 60 in real Minecraft. A model trained
+without the list reaches 85.4% and 70.9% in the simulator, so on our test
+sets the hand-written planner on top of the route-trained policy is the
+better way to play maps without a course list.
 
 ## References
 

@@ -83,13 +83,13 @@ a { color: var(--sky); }
   <section aria-label="Real Minecraft, first person">
     <figure>
       <video src="videos/real_minecraft_showcase.mp4" autoplay muted loop playsinline controls></video>
-      <figcaption>The bot's own view on a Minecraft 1.21.4 server, on three hand-designed courses it never trained on. It completed all three, and the server corrected its position 0 times.</figcaption>
+      <figcaption>The bot's own view on a Minecraft 1.21.4 server, on three hand-designed courses it never trained on. It completed all three, and the server corrected its position 0 times. The video shows the first final policy; the final policy, used for the four numbers below, also completes all three.</figcaption>
     </figure>
     <div class="stats">
-      <div class="stat"><span class="where">simulator</span><b>97.1%</b><span>of 1,200 unseen 10-jump courses completed</span></div>
+      <div class="stat"><span class="where">simulator</span><b>98.4%</b><span>of 1,200 unseen 10-jump courses completed</span></div>
       <div class="stat"><span class="where">real Minecraft</span><b>59/60</b><span>unseen courses completed on a 1.21.4 server, the same ones as in the simulator</span></div>
-      <div class="stat"><span class="where">real Minecraft</span><b>0</b><span>position corrections by the server in 123 test episodes</span></div>
-      <div class="stat"><span class="where">replay check</span><b>2e-14</b><span>blocks: largest gap between a real run and its simulator replay</span></div>
+      <div class="stat"><span class="where">real Minecraft</span><b>0</b><span>position corrections by the server in 124 test episodes</span></div>
+      <div class="stat"><span class="where">replay check</span><b>2.1e-14</b><span>blocks: largest gap between a real run and its simulator replay</span></div>
     </div>
   </section>
 
@@ -98,7 +98,7 @@ a { color: var(--sky); }
     <div class="two">
       <figure>
         <video src="videos/ghost_race_00_tour.mp4" autoplay muted loop playsinline controls></video>
-        <figcaption>Ten snapshots of the same agent, from untrained to 400 updates, run one unseen course at the same time. Each colour is one stage of training.</figcaption>
+        <figcaption>Ten snapshots of a separate short training run (not a final policy), from untrained to 400 updates, run one unseen course at the same time. Each colour is one stage of training.</figcaption>
       </figure>
       <div style="display:grid;gap:14px">
         <h2>From falling off the first block to the goal</h2>
@@ -112,6 +112,7 @@ a { color: var(--sky); }
     <div class="eyebrow">Training</div>
     <h2>Main run: 1.57 billion game ticks in 2.6 hours</h2>
     <p>16,384 games run at once on one GPU, at about 170,000 game ticks per second including the network updates. Every 50 updates the policy plays 1,200 held-out courses, 200 per difficulty level.</p>
+    <p>The curve is the first main run, with discount 0.99. The final policy uses discount 0.995, the only setting in our hyperparameter study that beat the defaults by more than 3 points on validation, in all three seeds. We trained it at full length, 3,000 updates and then 1,000 with obstacles, and chose its checkpoint on the simulator's validation courses: 97.6% there, against 96.6% for the first final policy.</p>
     <div class="panel">
       <div class="legend"><span><i style="background:var(--grass)"></i>all levels</span><span><i style="background:var(--sky)"></i>level 5, the hardest</span></div>
       <div class="chart" id="curve"></div>
@@ -139,16 +140,35 @@ a { color: var(--sky); }
     <div class="eyebrow">Harder jumps</div>
     <h2>Neo jumps, double neos and 4-block jumps</h2>
     <div class="two">
-      <ul class="facts">
-        <li><b>16/18</b><span><span class="tag ok">possible</span> Single neo layouts (jumping around a wall) that a tick-by-tick search could land. Only 1 in 2,000 to 1 in 16,000 sampled move sequences works.</span></li>
-        <li><b>0/64</b><span><span class="tag no">none found</span> Double and triple neo layouts, 36 from standing and 28 with a 3 to 4 block run-up. The same search landed none of them, so we treat them as impossible.</span></li>
-        <li><b>12-38%</b><span><span class="tag ok">found by the agent</span> Start angles from which the trained agent clears 4-block run-up jumps that none of 4,032 scripted strategies clears.</span></li>
-      </ul>
+      <div style="display:grid;gap:28px">
+        <ul class="facts">
+          <li><b>16/18</b><span><span class="tag ok">possible</span> Single neo layouts (jumping around a wall) that a tick-by-tick search could land. Only 1 in 2,000 to 1 in 16,000 sampled move sequences works.</span></li>
+          <li><b>13/13</b><span><span class="tag ok">learned</span> Single neo types of levels 6 and 7, the possible layouts that a scripted strategy also lands. The agent lands all 13 after learning from demonstrations, up from 0 with PPO alone. From a standing start the chosen neo policy lands 60.6% of tries on average, over 16 start angles in the simulator.</span></li>
+          <li><b>0/64</b><span><span class="tag no">none found</span> Double and triple neo layouts, 36 from standing and 28 with a 3 to 4 block run-up. The same search landed none of them, so we treat them as impossible.</span></li>
+          <li><b>12-38%</b><span><span class="tag ok">found by the agent</span> Start angles from which the trained agent clears 4-block run-up jumps that none of 4,032 scripted strategies clears.</span></li>
+        </ul>
+        <figure>
+          <video src="videos/real_minecraft_neo_level7.mp4" autoplay muted loop playsinline controls></video>
+          <figcaption>Real Minecraft, first person: the chosen neo policy (DAgger round 3) completes a held-out level-7 course with one neo in 164 ticks, with 0 server corrections. In the simulator it completes 56 of the 129 held-out test courses with one neo (43%).</figcaption>
+        </figure>
+      </div>
       <div class="panel">
-        <h2 style="font-size:20px">Why neo training stalled</h2>
-        <p>Trained on neo courses, the agent reached about 70% on level 6 and 30% on level 7, then stayed flat for 850 updates. It made none of the 13 neo jump types. On 11 of them it did not fall: it stood still until the 10-second stall limit, every time.</p>
-        <p>Standing still cost less reward than a likely fall, so refusing was the best choice under our reward. We added a stall penalty, so a refusal now counts as a failure.</p>
-        <p id="neo-status"><span class="tag no">still 0 of 13</span> With the penalty, refusals fell from 95% to 89% of failed tries, but random exploration almost never finds the curved run a neo needs. Next: learn from the search's successful move sequences.</p>
+        <h2 style="font-size:20px">How the agent learned neos</h2>
+        <p>Trained on neo courses with PPO alone, the agent made none of the 13 neo jump types. On 11 of them it stood still until the 10-second stall limit, every time. Standing still cost less reward than a likely fall. A stall penalty made refusing count as a failure, but random exploration almost never finds the curved run a neo needs.</p>
+        <p>So we gave it examples. A search in the bot's own action space found 50,706 landing sequences, each checked in the environment, and the agent imitated 12,800 of them while PPO kept training. Three rounds of DAgger followed: the agent plays, the search looks for a landing from each neo takeoff it reaches, and the moves it finds become new examples. The search found a landing from 84% and 88% of those takeoffs in rounds 2 and 3, and from 93% in round 1, where a detection bug also counted one-block-up jumps as takeoffs: on that round's courses only 43% of the detected takeoffs were real neos.</p>
+        <p>On 210 held-out neo courses of levels 6 to 8, in the simulator:</p>
+        <div class="scroll"><table>
+          <thead><tr><th>Neo policy</th><th>Courses done</th><th>Neos passed</th></tr></thead>
+          <tbody>
+            <tr><td>PPO with stall penalty</td><td>0%</td><td>0%</td></tr>
+            <tr><td>+ imitation</td><td>23.3%</td><td>36.1%</td></tr>
+            <tr><td>+ DAgger round 1</td><td>29.5%</td><td>43.4%</td></tr>
+            <tr><td>+ DAgger round 2</td><td>30.0%</td><td>46.9%</td></tr>
+            <tr><td>+ DAgger round 3, chosen</td><td>29.0%</td><td>43.3%</td></tr>
+          </tbody>
+        </table></div>
+        <p class="muted">Neos passed counts only the neo jumps the agent reached. Round 3 was chosen on the validation neo courses. Rounds 2 and 3 level off at about 30%. The chosen policy completes 56 of 129 courses with one neo and 5 of 81 with two or more. The neo policy is a separate fine-tune on levels 0 to 8; the final policy is trained on levels 0 to 5, without neos.</p>
+        <p id="neo-status"><span class="tag ok">11/31 in both</span> On 31 neo courses (the first 10 held-out test courses with a neo of levels 6, 7 and 8, and the hand-designed neo course), the chosen neo policy completes 11 in real Minecraft, the same 11 as in the simulator, with 0 server corrections. Each of them has one neo.</p>
       </div>
     </div>
   </section>
@@ -158,7 +178,7 @@ a { color: var(--sky); }
     <div class="two">
       <figure>
         <video src="videos/real_minecraft_showcase_no_course_list.mp4" autoplay muted loop playsinline controls></video>
-        <figcaption>Real Minecraft, first person, with no list of platforms: a route planner finds them in the blocks around the bot.</figcaption>
+        <figcaption>Real Minecraft, first person, with no list of platforms: a route planner finds them in the blocks around the bot. Recorded with the first final policy.</figcaption>
       </figure>
       <div style="display:grid;gap:14px">
         <h2>The bot finds its own route</h2>
@@ -166,13 +186,13 @@ a { color: var(--sky); }
         <div class="scroll"><table>
           <thead><tr><th>Unseen courses</th><th>List given</th><th>Planner</th><th>Learned</th></tr></thead>
           <tbody>
-            <tr><td>1,200 standard, simulator</td><td>97.1%</td><td>89.6%</td><td>85.4%</td></tr>
-            <tr><td>1,200 with obstacles, simulator</td><td>93.6%</td><td>86.2%</td><td>70.9%</td></tr>
-            <tr><td>60 standard, real Minecraft</td><td>59/60</td><td>52/60</td><td>55/60</td></tr>
-            <tr><td>60 with obstacles, real Minecraft</td><td>58/60</td><td>53/60</td><td>37/60</td></tr>
+            <tr><td>1,200 standard, simulator</td><td>98.4%</td><td>90.9%</td><td>85.4%</td></tr>
+            <tr><td>1,200 with obstacles, simulator</td><td>95.2%</td><td>88.1%</td><td>70.9%</td></tr>
+            <tr><td>60 standard, real Minecraft</td><td>59/60</td><td>50/60</td><td>55/60</td></tr>
+            <tr><td>60 with obstacles, real Minecraft</td><td>57/60</td><td>55/60</td><td>37/60</td></tr>
           </tbody>
         </table></div>
-        <p class="muted">Most planner failures follow a shortcut: a later platform is in reach, so it skips ahead, and that jump is harder than the course's own next one. The learned column is a model trained to find platforms itself from a wide block scan and a memory of its last landings. It is weaker, and obstacles fool it: 10 of its 23 real-game failures with obstacles end standing on a beam or a pillar.</p>
+        <p class="muted">The first two columns use the final policy; with the first final policy the planner made 89.6% and 86.2% in the simulator. Most planner failures follow a shortcut: a later platform is in reach, so it skips ahead, and that jump is harder than the course's own next one. The learned column is a model trained to find platforms itself from a wide block scan and a memory of its last landings. It is weaker on the 1,200-course sets, and obstacles fool it: 10 of its 23 real-game failures with obstacles end standing on a beam or a pillar.</p>
       </div>
     </div>
   </section>
@@ -185,16 +205,16 @@ a { color: var(--sky); }
         <thead><tr><th>Unseen courses</th><th>Simulator</th><th>Bot, no server</th><th>Real Minecraft</th></tr></thead>
         <tbody>
           <tr><td>10 jumps, all 6 levels</td><td>59/60</td><td>59/60</td><td>59/60</td></tr>
-          <tr><td>with obstacles</td><td>58/60</td><td>58/60</td><td>58/60</td></tr>
-          <tr><td>hand-designed</td><td>3/3</td><td>3/3</td><td>3/3</td></tr>
+          <tr><td>with obstacles</td><td>57/60</td><td>57/60</td><td>57/60</td></tr>
+          <tr><td>hand-designed</td><td>3/4</td><td>3/4</td><td>3/4</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="muted">Our PyTorch port of prismarine-physics, the engine Mineflayer moves bots with, matches the original to 1.4e-14 blocks over 99,000 ticks. The bot runs the exported network in JavaScript, in step with the server's ticks.</p>
+    <p class="muted">All rows use the final policy. The hand-designed miss is the neo course, which is outside this policy's training. Our PyTorch port of prismarine-physics, the engine Mineflayer moves bots with, matches the original to 1.4e-14 blocks over 99,000 ticks. The bot runs the exported network in JavaScript, in step with the server's ticks.</p>
   </section>
 
   <footer>
-    <span>Everything here comes from files in the project repository: main tables in <span class="path">results/README.md</span>, training logs and jump tests in <span class="path">results/runs/</span>, recorded games in <span class="path">results/games/</span>, the neo search in <span class="path">configs/jump_cem*.json</span>, the physics check in <span class="path">results/physics_parity.json</span>, videos in <span class="path">results/videos/</span>.</span>
+    <span>The numbers here come from files in the project repository: main tables in <span class="path">results/README.md</span>, training logs and jump tests in <span class="path">results/runs/</span>, recorded games in <span class="path">results/games/</span>, the neo search in <span class="path">configs/jump_cem*.json</span>, the neo jump tests, demonstration counts, DAgger collection logs, detector check and the split by number of neos per course in <span class="path">results/neo/</span>, the physics check in <span class="path">results/physics_parity.json</span>, videos in <span class="path">results/videos/</span>.</span>
   </footer>
 </div>
 

@@ -17,22 +17,37 @@ real Minecraft server, on new courses.
 
 ## Results so far
 
+Final policy: `obstacles-g995` (discount 0.995), chosen on the validation courses.
+
 | What | Result | Where measured |
 | --- | --- | --- |
-| Unseen 10-jump courses, all 6 levels (1,200) | 97.1% (hardest level 90.5%) | simulator |
-| Unseen courses with obstacles (1,200) | 93.6% | simulator |
-| All 194 jump types of levels 0-5 from a standing start (wide and neo jumps not part of this test) | all made (hardest level 99.6%) | simulator |
-| The bot's JavaScript on Mineflayer's physics engine | 59/60 standard, 58/60 obstacle, 3/3 hand-designed; identical to the simulator | prismarine-physics, no server |
+| Unseen courses of up to 10 jumps, all 6 levels (1,200) | 98.4% (hardest level 93.5%) | simulator |
+| Unseen courses with obstacles (1,200) | 95.2% (hardest level 81.0%) | simulator |
+| All 194 jump types of levels 0-5 from a standing start (wide and neo jumps not part of this test) | all made (hardest level 99.1%) | simulator |
+| The bot's JavaScript on Mineflayer's physics engine | 59/60 standard, 57/60 obstacle, 3/4 hand-designed; identical to the simulator | prismarine-physics, no server |
 | Physics port against the real library | 1.4e-14 blocks over 99,000 ticks (`results/physics_parity.json`) | Node + prismarine-physics |
-| **Real Minecraft 1.21.4 server** | **59/60 standard, 58/60 obstacle, 3/3 hand-designed; identical to the simulator, 0 server corrections** | real game, Mineflayer bot |
+| **Real Minecraft 1.21.4 server** | **59/60 standard, 57/60 obstacle, 3/4 hand-designed; identical to the simulator, 0 server corrections** | real game, Mineflayer bot |
+| Route planner instead of the course list (only the goal position given) | 90.9% standard, 88.1% obstacle (1,200 each); 50/60 and 55/60 in real Minecraft, identical to the simulator | simulator; real game |
+| Neo jumps learned from demonstrations (a separate neo policy) | 29.0% of 210 held-out level 6-8 courses with a neo (0% before); 11/31 neo courses in real Minecraft, identical to the simulator | simulator; real game |
+
+The one hand-designed course the final policy misses is the neo course. Neo jumps are not in
+its training. The neo policy (`runs/neo-dagger3`) does not finish it either: it passes the first
+neo (from a 2x2 block) and falls at the second, after 3 of 11 jumps, in the simulator, offline
+and in real Minecraft (`runs/neo-offline-final`, `runs/neo-live-final`).
 
 Details, figures, the reward ablation and the other experiments:
-[results/README.md](results/README.md). 3D replays of the real-game runs: open
-`results/replay_viewer.html` in a browser. Ghost races of ten training stages on the same
-unseen course: `results/theatre.html` (Overview camera), rendered to 1080p MP4 in
-`results/videos/` by `scripts/render_videos.py`. Final policy in Git:
-`results/final_policy.pt` (weights, for `run.cmd offline` / `run.cmd live --checkpoint`) and
-`results/final_policy.json` (the exported network the bot loads).
+[results/README.md](results/README.md). 3D replays of the first final policy's real-game runs (`runs/live2-*`): open
+`results/replay_viewer.html` in a browser. Ghost races of ten training stages of a separate
+short run (`runs/progress-demo`, 400 iterations, not a final policy) on the same unseen course:
+`results/theatre.html` (Overview camera), rendered to 1080p MP4 in `results/videos/` by
+`scripts/render_videos.py`. The first-person showcase videos and the planner videos there were
+made with the first final policy; `real_minecraft_neo_level7.mp4` and
+`replay_137_neo_policy_level_7_course_5.mp4` show the neo policy, and
+`replay_295_learned_no_course_list_level_5_course_1.mp4` the learned no-route model.
+Final policy in Git: `results/final_policy.pt` (weights, for `run.cmd offline` /
+`run.cmd live --checkpoint`) and
+`results/final_policy.json` (the exported network the bot loads). The first final policy
+(`obstacles-ft`, discount 0.99) is `results/final_policy_v1.pt` and `.json`.
 
 ## How it works
 

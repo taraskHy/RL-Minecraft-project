@@ -3,13 +3,14 @@
 One page for everyone on the team: what works, what is running, what is open.
 Updated and pushed regularly; the newest results can reach
 [results/README.md](results/README.md) first. The main results are in that
-README (generated from the run files); the rest, including the neo numbers,
-come from the files in `runs/`, `results/` and `configs/`. [results/DATA.md](results/DATA.md) lists most of
-the data; it was last updated on 28 October at 00:05, so newer data
-(`results/videos/`, `results/planner/`, the live2, planner, noroute and film
-games) is not in it yet.
+README (generated from the run files); the rest come from the files in
+`runs/`, `results/` and `configs/` (one GPU note comes from
+`docs/overnight_plan.md`). [results/DATA.md](results/DATA.md) lists most of
+the data: training runs, policies, the route planner and neo files, the game
+folders (including the v2, planner, noroute, neo and film games) and the
+videos.
 
-**Last updated:** 28 October 2026, 02:00.
+**Last updated:** 28 October 2026, 12:40.
 
 ## The project
 
@@ -20,39 +21,56 @@ the `codex/*` branches.
 
 How it works, in one paragraph: a Mineflayer bot moves with a physics library
 called prismarine-physics. We ported that library to the GPU (it matches the
-real one to 1e-14 blocks), generate endless random parkour courses at six
-difficulty levels, and train a neural network with PPO on 16,384 parallel
-games that share a pool of 8,192 courses (about 170,000 game ticks per second,
-network updates included). The trained network then drives
-the Mineflayer bot on a real Minecraft server. Details: `docs/design.md`.
+real one to 1.4e-14 blocks over 99,000 ticks, `results/physics_parity.json`),
+generate endless random parkour courses at six difficulty levels, and train a
+neural network with PPO on 16,384 parallel games that share a pool of 8,192
+courses (about 170,000 game ticks per second, network updates included). The
+trained network then drives the Mineflayer bot on a real Minecraft server.
+Details: `docs/design.md`.
 
 ## Results
 
-**Real Minecraft (1.21.4 server), final policy, courses never seen in training:**
+**Final policy since 28 October 10:41:** `obstacles-g995`, iteration 699:
+the main recipe with discount 0.995 (`main-g995`, 3,000 iterations) plus the
+1,000-iteration obstacle fine-tune. It beat the first final policy
+(`obstacles-ft`, discount 0.99) on the validation courses, 97.6% to 96.6%.
 
-| Courses | Completed | Same as the simulator? |
-| --- | --- | --- |
-| standard, 10 jumps, all levels | **59 / 60** | yes, every course and tick count |
-| with obstacles (head-hitter beams, decoy pillars) | **58 / 60** | yes |
-| hand-designed (tour, stairs, sprint) | **3 / 3** | yes |
+**Real Minecraft (1.21.4 server), courses never seen in training:**
 
-The server corrected the bot's position 0 times in 123 episodes; replaying the
-recorded moves in the simulator reproduces every real trajectory to 2e-14
-blocks.
+| Courses | Final policy | First policy | Same as the simulator? |
+| --- | --- | --- | --- |
+| standard, up to 10 jumps, all levels | **59 / 60** | 59 / 60 | yes, every course and tick count |
+| with obstacles (head-hitter beams, decoy pillars) | **57 / 60** | 58 / 60 | yes |
+| hand-designed (tour, stairs, sprint, neo) | **3 / 4** | 3 / 4 | yes |
+
+Both policies fail the neo course; neither trained on neos. The offline bot
+(prismarine-physics, no server) also agrees with the simulator on every
+course. The server corrected the bot's position 0 times in 124 episodes per
+policy; replaying the recorded moves in the simulator reproduces every real
+trajectory to 2.1e-14 blocks. On these 60-course samples the two policies are
+within noise; the 1,200-course simulator test sets show the new one ahead.
 
 **Simulator, 1,200 held-out courses per test set:**
 
-- Final policy: **97.1%** of standard courses (hardest level 90.5%) and
-  **93.6%** with obstacles.
-- Training from scratch (main run, 2.6 hours): success goes from 0% (the
-  untrained bot falls off the first block; mean reward -5.4) to 95.5% (mean
-  reward +53); falls drop from 100% to about 5%. See
-  `results/figures/training_main-s0.png` (success, reward, losses, entropy,
-  KL and learning rate, every iteration).
-- Every possible jump type (levels 0-5) is made from a standing start, all but
-  one at all 16 tested angles (that one at 15 of 16).
-- New course styles: 15-jump courses 95%, any start direction 97%, single
-  blocks 91%, a turn at every jump 90%.
+- Final policy: **98.4%** of standard courses (hardest level 93.5%) and
+  **95.2%** with obstacles (hardest level 81.0%). First policy: 97.1%
+  (90.5%) and 93.6% (75.5%).
+- Training from scratch (first main run `main-s0`, 2.6 hours): success in
+  training episodes goes from 0% (mean reward -5.4) to 95.4% (mean reward
+  +53), and falls drop from 100% to about 5%; the last checkpoint completes
+  95.5% of the held-out test courses. Every iteration:
+  `results/figures/training_main-s0.png`.
+- Every jump type of levels 0-5 is made from a standing start, all but one at
+  all 16 tested angles (that one at 14 of 16); hardest level 99.1% (first
+  policy 99.6%). Of the 49 jump types no scripted strategy makes, the bot
+  makes 3 at some angles (first policy 4).
+- Course styles outside training (100 courses per level each): 15-jump
+  courses 96.5%, a turn at every jump 94.2%, any start direction 96.7%,
+  single blocks 93.0%.
+
+**Hyperparameters** (9 settings, one at a time, 0.52 B ticks each; report
+7.3): only discount 0.995 beat the defaults by more than 3 points on
+validation, in all three seeds (95.2%, 95.8% and 95.2% against 91.8%).
 
 **Our reward ideas, tested (3 seeds each, `results/figures/ablation_curves.png`):**
 
@@ -68,111 +86,163 @@ blocks.
 **Problems we found and fixed** (good presentation material):
 
 - PPO collapsed three times in the first runs (success 75-80% to about 15%
-  within two updates):
-  fixed with a KL stop, dual clipping and a KL-adaptive learning rate
-  (`results/figures/training__v1_unstable_main-s0.png` shows the collapse).
+  within two updates): fixed with a KL stop, dual clipping and a KL-adaptive
+  learning rate (`results/figures/training__v1_unstable_main-s0.png`).
 - Minecraft centres whole-number `/tp` coordinates on the block, which broke
   the first live run: the bot now sends decimals.
 - The double-neo search started the player inside the wall (Minecraft lets
-  you walk out of a block you overlap), so its first "proofs" were invalid;
+  you walk out of a block you overlap), so its first landings were invalid;
   starts inside blocks are now rejected and tested.
 
 ## Harder jumps (neo, double neo, 4-block)
 
-- **Single neos are possible** (a tick-by-tick search lands 16 of 18 layouts),
-  but very tight: in the search, only 1 in 2,000 to 1 in 16,000 sampled
-  action sequences landed one.
-- **No double or triple neo was found** in Minecraft's physics as
-  Mineflayer runs it: 0 of 64 layouts landed (36 from standing, 28 with a
-  3-4 block run-up), searched with the same tool that found the single neos,
-  so we treat them as impossible.
-- **4-block jumps with a run-up:** the trained bot makes some that no
-  scripted strategy makes (12-38% of start angles).
-- **Neo training** (`runs/advanced-ft3`, levels 0-8): the bot completes 99%
-  of easy courses and 83% overall, but levels 6 and 7 (the levels with neo
-  jumps) stayed flat at about 70% and 30% for 850 iterations. Diagnosis
-  (`results/runs/advanced-ft3/jump_eval_advanced.json`): the bot makes
-  none of the 13 neo jump types. On 11 of them it **does not fall: it
-  refuses to jump** and stands still until the 10-second stall limit,
-  every time. Standing still cost less reward than a
-  likely fall (-5), so refusing was the rational choice under our reward.
-  This is a good presentation point about reward design.
-- **Stall penalty tried** (`--reward-stall 5`: a stall ends the episode as
-  a failure, like a fall; `runs/neo-stall`, 1,000 iterations): still 0 of
-  13 neo types; refusals drop from 95% to 89%, the rest are now falls.
-  Exploration is the real problem: random tries almost never find the
-  curved run a neo needs. Next idea: learn from the search's successful
-  move sequences (demonstrations).
+- **Single neos are possible** but tight: a tick-by-tick search lands 16 of 18
+  layouts, and only 1 in 2,000 to 1 in 16,000 sampled action sequences land
+  one. The one-block-wide takeoff our generator puts before a neo is our
+  simplification; parkour has no such rule. From a 2x2 takeoff the
+  demonstration search (below) lands neos when the landing is next to the
+  wall's open end, never when it is two lanes away (simulator,
+  `results/neo/wide_takeoff_search.json`). `courses._place(wide_neo=True)`
+  allows wide takeoffs in hand-designed and DAgger training courses; the
+  default generator and every test set are unchanged.
+- **No double or triple neo was found** (0 of 64 layouts: 36 from standing,
+  28 with a 3-4 block run-up). We treat them as impossible; this is not a
+  proof.
+- **4-block jumps with a run-up:** the level 0-8 policy (`advanced-ft3`)
+  makes some that no scripted strategy makes (12-38% of start angles).
+- **Refusal:** the level 0-8 policy (`advanced-ft3`) made none of the 13
+  single-neo types (standing start, 16 angles, simulator,
+  `results/neo/jump_eval_advanced-ft3.json`). On 11 it stood still until the
+  stall limit every time, because standing still cost less reward than a
+  likely fall (-5). A stall penalty (`runs/neo-stall`) still gave 0 of 13:
+  random tries almost never find the curved run a neo needs. A good
+  presentation point about reward design.
+- **Demonstrations:** a cross-entropy search in the bot's own action space
+  (`parkour/neo_demos.py`) collected 50,706 verified landing sequences on all
+  16 landable layouts, both wall sides; training used 12,800. Imitation plus
+  PPO (`runs/neo-bc`) then made all 13 single-neo types, 54.8% on average
+  (standing start, 16 angles, simulator).
+- **DAgger** (`parkour/neo_dagger.py`): at each neo takeoff the policy
+  reaches on a training course, a search looks for a landing from its exact
+  state (it found one from 84 to 93% of them, simulator,
+  `results/neo/neo_dagger_r*.txt`), and those steps become new imitation
+  pairs. Two fixes on the way:
+  noisy search labels collapsed a first attempt before round 1 (held-out
+  success on levels 0-8 dropped to 59%, from 86.5% for `neo-bc`, simulator),
+  so the search now starts from the policy's own action probabilities and
+  keeps the bot's choice wherever the neo still lands, and the imitation
+  weight went from 1 to 0.3; and round 1 counted one-block-up jumps as neo
+  takeoffs (rounds 2 and 3 count only wall blocks).
+
+Simulator, 210 held-out test courses of levels 6-8 that contain a neo (337
+neo jumps; `results/neo/`):
+
+| Neo policy | Courses completed | Neo jumps passed, of those reached |
+| --- | --- | --- |
+| stall penalty only (`neo-stall`) | 0.0% | 0.0% |
+| + imitation (`neo-bc`) | 23.3% | 36.1% |
+| + DAgger round 1 | 29.5% | 43.4% |
+| + DAgger round 2 (best checkpoint) | 30.0% | 46.9% |
+| + DAgger round 3 (**chosen** on validation) | 29.0% | 43.3% |
+
+- Rounds 2 and 3 level off at about 30%. The neo policy is round 3's
+  checkpoint (`runs/neo-dagger3/checkpoints/best.pt`), which won on the
+  validation neo courses (34.4% against 33.0% for round 2). From a standing
+  start it lands single neos 60.6% of the time, all 13 types (round 1: 70.2%).
+  By number of neos in the course: one 56/129, two 3/47, three 2/25, four or
+  more 0/9 (test courses, simulator, `results/neo/by_neo_count.json`).
+- **Real Minecraft:** on the neo course set (`configs/neo_live_courses.json`:
+  30 held-out test courses with a neo, plus the showcase neo course) the neo
+  policy completed 11/31 offline and 11/31 in real Minecraft, the same
+  courses as the simulator, 0 server corrections. Every course it completed
+  has one neo. It fails the showcase neo course: it passes the first neo
+  (from a 2x2 block) and falls at the second neo, after 3 of the 11 jumps,
+  the same in the simulator, offline and in real Minecraft
+  (`results/games/neo-live-final`, `neo-offline-final`).
+- The neo policy and the final policy are separate networks: the neo policy
+  is a fine-tune of the discount-0.99 line on levels 0-8; the final policy
+  is trained on levels 0-5 with obstacles.
 
 ## No course list: the bot finds its own route
 
 Requested from the side chat: run the trained bot on maps where nobody gives
 it the list of platforms. A **greedy route planner** (`parkour/planner.py`,
 same code in `bridge/planner.js`) looks at the blocks around the bot after
-every landing, finds the platforms, and picks the next three; the existing
-final policy jumps to them, no retraining. Only the goal position is given.
+every landing, finds the platforms, and picks the next three; the final
+policy jumps to them, no retraining. Only the goal position is given.
 
-| Unseen courses | Course list given | Planner |
-| --- | --- | --- |
-| 1,200 standard, simulator | 97.1% | **89.6%** |
-| 1,200 with obstacles, simulator | 93.6% | **86.2%** |
-| 60 standard, **real Minecraft** | 59/60 | **52/60** |
-| 60 with obstacles, **real Minecraft** | 58/60 | **53/60** |
-| 3 hand-designed, **real Minecraft** | 3/3 | **3/3** |
+| Unseen courses | Course list given | Planner | Planner, first policy |
+| --- | --- | --- | --- |
+| 1,200 standard, simulator | 98.4% | **90.9%** | 89.6% |
+| 1,200 with obstacles, simulator | 95.2% | **88.1%** | 86.2% |
+| 60 standard, **real Minecraft** | 59/60 | **50/60** | 52/60 |
+| 60 with obstacles, **real Minecraft** | 57/60 | **55/60** | 53/60 |
 
-Real Minecraft matches the simulator on every course, 0 server corrections.
-Most failures: the planner takes a shortcut to a later platform that is in
-reach, and that jump is harder. Videos: `real_minecraft_showcase_no_course_list.mp4`
-(first person) and `replay_233_*` / `replay_240_*` (the plan drawn as
-numbered cyan platforms). Report section 7.11.
+For both policies, real Minecraft and the offline bot match the simulator on
+every course, 0 server corrections. If a drop onto any later, lower platform
+counts as a landing (the fall rule named `remaining`, evaluation only), the
+planner makes 94.5% and 91.4% in the simulator. With the first policy it also
+completed the three hand-designed courses without a neo (tour, stairs,
+sprint) in real Minecraft, 0 server corrections; it was not run on the neo
+course. Most failures (first policy, simulator, report 7.11: 104 of 125
+standard, 116 of 165 obstacles) come after a shortcut: the planner skips
+ahead to a later platform in reach. Some of those jumps are harder, and 40
+of the 125 standard failures come from the fall rule: it calls a fall while
+the bot is above the lower platform it chose
+(`results/planner/sim_test_*_v1.json`). Videos, first
+policy: `real_minecraft_showcase_no_course_list.mp4` (first person) and
+`replay_233_*` / `replay_240_*` (the plan drawn as numbered cyan platforms).
 
 **Learned model that finds its route itself** (`runs/noroute-v2`, 3.2 hours
 of training; wide block scan, memory of its last three landings, platform
 list and progress hidden): 85.4% of standard and 70.9% of obstacle courses
-in the simulator; in real Minecraft 55/60 standard and 37/60 obstacle
-courses, matching the simulator, 0 corrections. Better than the earlier
-no-route arm (82.4%) but below the planner on every large test set, and
-obstacles fool it (10 of its 23 obstacle-course falls end on top of one: 6
-on a beam, 4 on a decoy pillar). So: **the planner is the "runs on a new map"
-model**; the learned one is the research comparison (report 7.12). Video:
-`replay_295_learned_*` (level 5, a course the planner failed).
+in the simulator; in real Minecraft 55/60 and 37/60, matching the simulator,
+0 corrections. It beats the earlier no-route arm (82.4%) and stays below the
+planner on every large test set. Obstacles fool it: 10 of its 23 falls on the
+60 obstacle courses in real Minecraft end on top of one (6 on a beam, 4 on a
+decoy pillar). So the planner is the model for new maps; the learned one is
+the research comparison (report 7.12). Video: `replay_295_learned_*` (level 5,
+a course the planner failed).
 
 ## Running now
 
-1. **Neos from demonstrations** (requested from the side chat): a search
-   in the bot's own action space collects thousands of successful neo
-   move sequences; then training with an imitation loss next to PPO.
-2. Hyperparameter study: all 9 settings done; gamma 0.995 led on
-   validation (95.2% and 95.8% in two seeds against a defaults mean of
-   91.8%); a third seed is finishing.
-3. Only two training runs fit on the GPU at once now (a third spills out
-   of GPU memory and makes all of them 8 times slower).
-4. **GPU temperature watchdog** (user rule, 28 Oct 07:47): above 65 C every
-   GPU job is suspended (no state lost) and resumed below 58 C; each pause
-   is logged in `runs/gpu_watchdog.log`. At start the GPU was at 42-47 C.
+Nothing is training, and no Minecraft server is running.
+
+- **GPU temperature watchdog** (user rule, since 28 Oct 07:47):
+  `scripts/gpu_watchdog.py` checks the GPU every 10 s, suspends the
+  project's GPU jobs above 65 C (no state lost) and resumes them below 58 C.
+  Its log (`runs/gpu_watchdog.log`) shows no pause so far. It does not cover
+  `parkour.neo_dagger` or the live bot.
+- Only two training runs fit on the GPU at once (a third spills out of GPU
+  memory and makes all of them about 8 times slower, as noted in
+  `docs/overnight_plan.md`).
 
 ## For the presentation
 
 - **Videos** (`results/videos/`, 1080p MP4):
-  - `ghost_race_00_tour.mp4` and `ghost_race_01..06`: ten training stages
-    of the same agent (untrained to 400 updates) run one unseen course at
-    once, seen from above. The untrained bot falls at once; later stages get
-    further; the trained ones reach the goal. Level 5 is hard: no stage
-    gets past the first jump (nine fall there; the 10-update stage jumps in
-    place on the start platform until the 10-second stall limit).
-  - `real_minecraft_showcase.mp4` (35 s): the bot's own first-person view
-    in **real Minecraft 1.21.4** on three hand-designed courses it never saw
-    (`real_minecraft_tour/stairs/sprint.mp4` separately). All completed, 0
-    server corrections.
+  - `real_minecraft_neo_level7.mp4` (new): first person, real Minecraft; the
+    neo policy completes a held-out level-7 course with one neo (164 ticks,
+    0 server corrections).
+  - `ghost_race_00_tour.mp4` and `ghost_race_01..06`: ten training stages of
+    one agent (demo run `progress-demo`, untrained to 400 updates) run one
+    unseen course at once, seen from above. Later stages get further; on
+    level 5 no stage gets past the first jump.
+  - `real_minecraft_showcase.mp4` (35 s, first final policy): the bot's own
+    view in **real Minecraft 1.21.4** on three hand-designed courses it never
+    saw (`real_minecraft_tour/stairs/sprint.mp4` separately). All completed,
+    0 server corrections.
+  - No course list: see the section above.
+- **Policy files:** `results/final_policy.pt` (final, discount 0.995) and
+  `results/final_policy.json` (the exported network the bot loads); the first
+  final policy is `results/final_policy_v1.pt` / `.json`. The neo policy is
+  `runs/neo-dagger3/checkpoints/best.pt` (local only; `runs/` is not in Git).
 - Pages (open in a browser): `results/theatre.html` (Minecraft-style 3D
-  replays and the ghost races, Overview camera), `results/replay_viewer.html`
-  (real-game replays), `results/progress.html` (learning progress),
-  `results/neo_preview.html` (neo attempts).
-- Figures: `results/figures/`. Data: `results/DATA.md`;
-  `python -m parkour.report` copies every run's training and evaluation logs to
-  `results/runs/` (now in Git too: before 28 October 01:50 a `.gitignore`
-  rule kept them out of GitHub). The last copy was at 07:55, so anything
-  logged after that is only in `runs/` so far.
+  replays and the ghost races), `results/replay_viewer.html` (real-game
+  replays), `results/progress.html` (learning progress),
+  `results/neo_preview.html` (early neo attempts).
+- Figures: `results/figures/`. `python -m parkour.report` copies every run's
+  training and evaluation logs to `results/runs/` (in Git); the last copy was
+  at 11:34.
 - Make new videos: `scripts/render_videos.py` (ghost races) and
   `scripts/film_pov.py` (real Minecraft, first person).
 - Watch it live: `run.cmd live --checkpoint results\final_policy.pt --out
@@ -181,27 +251,41 @@ model**; the learned one is the research comparison (report 7.12). Video:
 
 ## Open problems anyone can pick up
 
-1. More block types: slabs, ladders, ice and fences need physics ports
+1. Neo courses: DAgger levels off at about 30% of held-out neo courses, and
+   courses with two or more neos are rarely completed (5 of 81 test courses
+   in the simulator, `results/neo/by_neo_count.json`). The showcase neo
+   course is still unsolved.
+2. One policy for everything: the neo policy and the final policy are
+   separate networks, and nobody has tried to merge them yet.
+3. More block types: slabs, ladders, ice and fences need physics ports
    (prismarine-physics has them) and new course pieces.
-2. Hand-built maps: extract the platform chain from a region of a real map.
-3. The report: `docs/report_draft.md` needs the latest neo results, the
-   discussion and the conclusion.
+4. Hand-built maps: extract the platform chain from a region of a real map.
+5. The report: `docs/report_draft.md` still needs the discussion written
+   out (section 8 is still a list of points to develop); the conclusion
+   (section 9) has a first draft.
 
 ## Update log
 
-- **28 Oct 2026, 02:00:** ghost-race and real-Minecraft first-person
-  videos; double and triple neos shown impossible; neo plateau diagnosed
-  (the bot refuses tight neos) and a stall-penalty fix in training; the
-  archived run logs pushed to GitHub.
-
+- **28 Oct 2026, 12:40:** hyperparameter study finished. Discount 0.995,
+  trained at full length, became the final policy at 10:41 (simulator test
+  98.4% and 95.2% against 97.1% and 93.6%) and was re-run offline, in real
+  Minecraft (59/60, 57/60, 3/4) and with the planner. Neos learned from
+  demonstrations and DAgger: 0% to 29.0% of held-out neo courses in the
+  simulator, 11/31 neo courses in real Minecraft, a first-person neo video. An
+  audit checked 829 claims in the documents against the data (60 errors fixed,
+  14 disputed claims resolved; `results/audit_claims.json`); physics parity
+  re-run. GPU temperature watchdog running since 07:47.
+- **28 Oct 2026, 02:00:** ghost-race and real-Minecraft first-person videos;
+  double and triple neos searched (none found); neo refusal diagnosed and a
+  stall penalty tried; run logs pushed to GitHub.
 - **28 Oct 2026, 00:10:** all training data, evaluation logs and game
   recordings (real and offline, every tick) archived in `results/`; training
   curve figures; GitHub push working. Neo training running.
-- **27 Oct 2026, 23:45:** EULA accepted; first real-Minecraft runs: 59/60,
-  58/60 (obstacles) and 3/3, identical to the simulator. Neo, double-neo,
+- **27 Oct 2026, 23:45:** EULA accepted; first real-Minecraft runs (59/60,
+  58/60 with obstacles, 3/3), identical to the simulator. Neo, double-neo,
   momentum and wide jumps added.
 - **27 Oct 2026, 23:00:** ablation (15 runs), obstacle fine-tune and no-route
-  runs finished; the obstacle-trained policy is the final policy.
+  runs finished; the obstacle-trained policy became the first final policy.
 - **27 Oct 2026, evening:** main run finished (95.5% held-out); PPO
   stabilised after early collapses.
 - **27 Oct 2026, afternoon:** new direction (parkour). Simulator, physics
