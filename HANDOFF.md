@@ -123,11 +123,11 @@ Concrete work, most important first. Nothing here needs new research.
    session, 28 Oct):** `PlannerConfig.value_pick = K` (opt-in, default 0 =
    unchanged) lets the policy's own critic choose among the K cheapest next
    platforms (each extended greedily into a chain). Simulator only: the bot
-   has no critic, so `bridge/planner.js` is unchanged. Not yet measured;
-   evaluate on the validation family only (`python -m parkour.planner
-   --family 2 --value-pick 4`), and run `tests/test_planner.py` (the
-   default path was refactored into `options()` + `choose()` and must still
-   match the bot's plans exactly).
+   has no critic, so `bridge/planner.js` is unchanged. The refactor keeps
+   the default plans identical to the bot's (`tests/test_planner.py`
+   passes, including the Python/JavaScript parity test). Being measured on
+   the validation family only (`python -m parkour.planner --family 2
+   --value-pick 4`).
 5. **Learned no-route model and obstacles:** 10 of its 23 obstacle-course
    falls end on top of an obstacle (6 on a beam, 4 on a decoy pillar).
 6. **More block types:** slabs, ladders, ice, fences and water need physics
@@ -200,11 +200,21 @@ plays in real time). Log:
 `runs/gpu_watchdog.log`. If the watchdog is ever killed while jobs are
 paused: `python scripts/gpu_watchdog.py --resume-all`.
 
-**Anywhere else** (a cloud container, another model's sandbox): no GPU, no
-torch, no `runs/`, no Minecraft server. What works there: reading and
-editing documents, analysing the files in `results/`, and
-`python -m parkour.handoff` (standard library only). Training, evaluation
-and live runs happen on the PC.
+**Anywhere else** (a cloud container, another model's sandbox): no GPU,
+no `runs/`, no Minecraft server, but the test suite and CPU evaluations
+(planner, jump and stress checks with the checkpoints in `results/`) do
+run. Setup used on 28 Oct in a Linux cloud container (Python 3.13, Node 22):
+
+```text
+python3 -m venv VENV && VENV/bin/pip install torch==2.11.0 numpy==2.5.4 matplotlib==3.11.2 pytest==9.1.1
+cd bridge && CI=true npx -y pnpm@11.25.0 install --frozen-lockfile --ignore-scripts --store-dir ../.local/pnpm-store
+mkdir -p .local/runtime/node && ln -s "$(which node)" .local/runtime/node/node.exe   # tests look for node.exe
+VENV/bin/python -m pytest tests -q        # 36 passed, 1 skipped (CUDA) on 28 Oct
+```
+
+PyPI's torch wheel is the CUDA build (about 3 GB with its dependencies)
+but runs on the CPU; `download.pytorch.org` was blocked there. Training
+needs the PC's GPU.
 
 ## 7. Key facts learned
 
@@ -271,18 +281,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `106bb78` (2026-10-28 13:09, branch `claude/pensive-knuth-biwj11`): Team status: the report in Word and PDF, 20 pages
+Generated on top of commit `47450e0` (2026-10-28 13:10, branch `claude/pensive-knuth-biwj11`): Report 7.11: the better policy fixes the planner's jumps, not its routes
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 10 |
+| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 11 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `106bb78` 2026-10-28 13:09 | 0 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 3 |
-| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 15 |
-| `docs/report_draft.md` | updated together with this snapshot | 0 |
-| `results/README.md` | `6170803` 2026-10-28 11:40 | 12 |
-| `results/DATA.md` | `7f74e24` 2026-10-28 13:09 | 1 |
+| `TEAM_STATUS.md` | `106bb78` 2026-10-28 13:09 | 1 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 4 |
+| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 16 |
+| `docs/report_draft.md` | `47450e0` 2026-10-28 13:10 | 0 |
+| `results/README.md` | `6170803` 2026-10-28 11:40 | 13 |
+| `results/DATA.md` | `7f74e24` 2026-10-28 13:09 | 2 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
