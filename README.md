@@ -17,14 +17,21 @@ real Minecraft server, on new courses.
 
 ## Results so far
 
+Final policy (discount 0.995, `results/final_policy.pt`):
+
 | What | Result | Where measured |
 | --- | --- | --- |
-| Unseen 10-jump courses, all 6 levels (1,200) | 97.1% (hardest level 90.5%) | simulator |
-| Unseen courses with obstacles (1,200) | 93.6% | simulator |
-| All 194 jump types of levels 0-5 from a standing start (wide and neo jumps not part of this test) | all made (hardest level 99.6%) | simulator |
-| The bot's JavaScript on Mineflayer's physics engine | 59/60 standard, 58/60 obstacle, 3/3 hand-designed; identical to the simulator | prismarine-physics, no server |
+| Unseen 10-jump courses, all 6 levels (1,200) | 98.4% (hardest level 93.5%) | simulator |
+| Unseen courses with obstacles (1,200) | 95.2% | simulator |
+| All 194 jump types of levels 0-5 from a standing start (wide and neo jumps not part of this test) | all made (hardest level 99.1%) | simulator |
+| The bot's JavaScript on Mineflayer's physics engine | 59/60 standard, 57/60 obstacle, 3/4 hand-designed (misses the neo course); identical to the simulator | prismarine-physics, no server |
 | Physics port against the real library | 1.4e-14 blocks over 99,000 ticks (`results/physics_parity.json`) | Node + prismarine-physics |
-| **Real Minecraft 1.21.4 server** | **59/60 standard, 58/60 obstacle, 3/3 hand-designed; identical to the simulator, 0 server corrections** | real game, Mineflayer bot |
+| **Real Minecraft 1.21.4 server** | **59/60 standard, 57/60 obstacle, 3/4 hand-designed; identical to the simulator, 0 server corrections** | real game, Mineflayer bot |
+| No course list: route planner + final policy | 90.9% standard, 88.1% obstacles; 50/60 and 55/60 in real Minecraft | simulator, real game |
+| Neo jumps: separate neo policy (imitation + DAgger) | 29.0% of 210 held-out neo courses (from 0%); 11/31 neo courses in real Minecraft | simulator, real game |
+
+The first final policy (discount 0.99, `results/final_policy_v1.pt`) made 97.1% and
+93.6% in the simulator and 59/60, 58/60 and 3/3 in real Minecraft.
 
 Details, figures, the reward ablation and the other experiments:
 [results/README.md](results/README.md). 3D replays of the real-game runs: open
