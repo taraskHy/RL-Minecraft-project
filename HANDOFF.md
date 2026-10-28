@@ -48,7 +48,7 @@ results of the cloud session on branch `claude/pensive-knuth-biwj11`
 | First final policy (discount 0.99) | `results/final_policy_v1.*` = `runs/obstacles-ft` | 97.1%, 93.6% | 59/60, 58/60, 3/3 |
 | **New map, no course list**: greedy route planner + final policy | `parkour/planner.py` = `bridge/planner.js` | 90.9% standard, 88.1% obstacles; **retuned** (`cost=distance, align=2.0`, chosen on validation): 92.3%, 90.5% | retuned: 51/60, 56/60, identical to offline and simulator, 0 corrections; now default (old configuration: 50/60, 55/60) |
 | Learned no-route model (research comparison) | `runs/noroute-v2` | 85.4%, 70.9% | 55/60, 37/60 |
-| **Neo policy** (imitation + 3 DAgger rounds) | `runs/neo-dagger3` best, **only on the PC** (not in Git) | 61/210 (29.0%) held-out level 6-8 courses with a neo; 97/224 neo jumps passed | 11/31 neo course set (`configs/neo_live_courses.json`), same as offline and the simulator |
+| **Neo policy** (imitation + 3 DAgger rounds) | `results/neo_policy.pt` / `.json`, exported from `runs/neo-dagger3` best and shipped in Git | 61/210 (29.0%) held-out level 6-8 courses with a neo; 97/224 neo jumps passed | 11/31 neo course set (`configs/neo_live_courses.json`), same as offline and the simulator |
 
 More facts that hold now:
 
@@ -170,7 +170,7 @@ Concrete work, most important first. Nothing here needs new research.
    comes from `results/` or the run files; Arial 12, 1.5 spacing,
    one-inch margins, 8 to 20 pages without the references. Still to do: a
    read-through by the team.
-4. **Ship the neo policy in Git** (it is nearly a one-policy candidate,
+4. **Completed on PC:** `results/neo_policy.pt` / `.json` and provenance are shipped; final policy files retained. Original request: **ship the neo policy in Git** (it is nearly a one-policy candidate,
    section 4, item 2): it exists
    only as `runs/neo-dagger3/checkpoints/best.pt` on the PC. Export it next
    to the final policy (for example `results/neo_policy.pt` / `.json`)
@@ -515,18 +515,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `8978bd2` (2026-10-28 22:26, branch `main`): Merge random-neo validation evidence and archive checkpoint progress
+Generated on top of commit `8420095` (2026-10-28 22:37, branch `main`): Keep training queue alive through file locks and merge assist approach fix
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 52 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 54 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 10 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 27 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 10 |
-| `results/README.md` | `37ede6e` 2026-10-28 20:16 | 6 |
-| `results/DATA.md` | `408de3d` 2026-10-28 22:10 | 10 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 12 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 29 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 12 |
+| `results/README.md` | `37ede6e` 2026-10-28 20:16 | 8 |
+| `results/DATA.md` | `408de3d` 2026-10-28 22:10 | 12 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -552,7 +552,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `full-s1` | 999 | 0.52 | - | - | - | 94.2 | - |
 | `full-s2` | 999 | 0.52 | 949 | 93.0 | 93.1 | 91.9 | - |
 | `g995-adv` | 149 | 0.08 | 99 | 81.8 | - | - | - |
-| `g995-ice` | 149 | 0.08 | 99 | 96.8 | - | - | - |
+| `g995-ice` | 199 | 0.10 | 99 | 96.8 | - | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
 | `hp-envs4096` | 3999 | 0.52 | 3599 | 93.7 | 94.2 | 92.0 | - |
@@ -684,6 +684,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **28 Oct 2026, 22:41, Codex heartbeat on training PC:** merged documentation-only cloud commit `45e5e09`; its four validation counts match the archived CPU simulator evidence. Updated the abilities-plan queue row to the actual PC queue and corrected stale neo-export wording. No executable code changed since the 91-passing full CPU suite; focused `run.cmd test -k HeldOutFingerprints` passed 2 checks and 12 subtests (`runs/heartbeat-plan-docs-tests.txt`). Archived ice iteration 199 validation 96.67% (simulator, families 2/5); its best remains iteration 99, with no test evaluation. Exactly two trainers, one repaired queue, one watchdog and one keep-awake helper remain active.
 
 - **28 Oct 2026, 22:37, Codex heartbeat on training PC:** repaired queue persistence after Windows denied an atomic state-file replacement (`runs/queue-20261028-220659.stderr.log`). Both trainers continued uninterrupted; restored only the manager at 22:29, retaining their process IDs and existing state. Transient replace locks retry; persistent write errors preserve the prior file and live inventory for the next loop; unreadable config prevents new launches. Two regression checks cover transient/persistent locks. Merged cloud approach-planning refinement `758eadd`; full CPU suite: 91 passed, 1 CUDA test skipped, 12 subtests passed (`runs/heartbeat-queue-recovery-tests.txt`). Archived iteration-149 simulator validation: advanced 79.39% on nine levels, ice 96.25% on six; validation-selected best remains iteration 99 for both. Test sets remain unreported until completion.
 
