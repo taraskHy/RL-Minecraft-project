@@ -1,0 +1,3 @@
+iteration,env_steps,minutes,fps,episodes,success,fell,truncated,ep_len,ep_return,progress,reward_per_tick,frontier,pi_loss,v_loss,entropy,kl,clipfrac,bc_loss,lr,updates,stopped,train_success_L0,train_success_L1,train_success_L2,train_success_L3,train_success_L4,train_success_L5
+0,524288,0.1,91575,521,0.7735,0.2265,0.0,55.0307,25.1038,0.8319,0.3549,0,-0.0048599,1.9644339,2.1320512,0.0119234,0.1185126,0.0,0.0001333,128,0,0.808,0.756,,,,
+1,1048576,0.16,129145,5638,0.9876,0.0124,0.0,96.0756,44.4834,0.9923,0.4647,1,0.0023252,0.7999742,2.7454748,0.0166627,0.1488285,0.0,1e-05,128,0,0.969,0.987,,,,

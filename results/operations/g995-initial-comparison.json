@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-10-29T01:10:46",
-  "ready": false,
+  "updated_at": "2026-10-29T01:24:17",
+  "ready": true,
   "measured": "Simulator; validation families2/5, final test families1/4; common levels0-5 use identical held-out courses.",
   "selection": "Checkpoints chosen only by validation. This file reads archived results without evaluation.",
   "baseline": {
@@ -18,7 +18,7 @@
   },
   "runs": {
     "g995-adv": {
-      "completed": false,
+      "completed": true,
       "selected_iteration": 99,
       "validation_success": 0.8177777777777778,
       "validation_level_count": 9,
@@ -26,8 +26,16 @@
       "validation_common_delta_pp": -1.4166666666666772,
       "sources": [
         "results\\runs\\g995-adv\\summary.json",
-        "results\\runs\\g995-adv\\eval_val_log.csv"
-      ]
+        "results\\runs\\g995-adv\\eval_val_log.csv",
+        "results\\runs\\g995-adv\\eval_log.csv",
+        "results\\runs\\g995-adv\\eval_obstacles_log.csv"
+      ],
+      "standard_success": 0.8227777777777778,
+      "obstacle_success": 0.7872222222222223,
+      "standard_common_0_5_success": 0.9741666666666666,
+      "obstacle_common_0_5_success": 0.945,
+      "standard_common_delta_pp": -1.000000000000012,
+      "obstacle_common_delta_pp": -0.7500000000000062
     },
     "g995-ice": {
       "completed": true,
@@ -49,5 +57,7 @@
       "standard_common_delta_pp": -0.9166666666666767,
       "obstacle_common_delta_pp": -0.7500000000000062
     }
-  }
+  },
+  "notification_delivered_at": "2026-10-29T01:25:40",
+  "notification_channel": "Current chat commentary, followed by completion notification in final response"
 }

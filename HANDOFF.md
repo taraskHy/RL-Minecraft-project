@@ -388,7 +388,7 @@ evening; an older watchdog copy skipped every planner service). Log:
 `runs/gpu_watchdog.log`. If the watchdog is ever killed while jobs are
 paused: `python scripts/gpu_watchdog.py --resume-all`.
 
-**Current PC instruction (29 Oct, 00:51):** the user now permits 100% GPU use, superseding the 70% compute/aggregate-memory target. Initial order was `g995-adv` and `g995-ice` together, then `g995-extra`, with at most two trainers. Ice has completed and the queue now runs advanced plus extra. The shared throttle and all trainer memory, duty and thread flags were removed; the initial runs resumed from their own checkpoints 699/799. Keep thermal pause above 65 C/resume below 58 C and keep-awake. Preserve the existing rollout shape and recipe. If the user says gaming has resumed, use another checkpoint-safe transition with their requested gaming flags; do not stop their game.
+**Current PC instruction (29 Oct, 00:51):** the user now permits 100% GPU use, superseding the 70% compute/aggregate-memory target. Initial order was `g995-adv` and `g995-ice` together, then `g995-extra`, with at most two trainers. Both initial runs have completed; the queue now runs extra plus ice seed 1. The shared throttle and all trainer memory, duty and thread flags were removed; the initial runs resumed from their own checkpoints 699/799. Keep thermal pause above 65 C/resume below 58 C and keep-awake. Preserve the existing rollout shape and recipe. If the user says gaming has resumed, use another checkpoint-safe transition with their requested gaming flags; do not stop their game.
 
 **Earlier gaming guidance.** The user plays on the same GPU. On
 28 Oct they first asked for "a safe buffer", then (same evening) "you can
@@ -497,7 +497,7 @@ The first startup attempts hit Windows shared-memory spill (the dense ice fricti
 - `runs/training_control.json`: a change in `gaming` requests each job to stop cleanly at its next 50-update checkpoint and resume under the same run name. `gaming=true` adds duty 0.9 and threads 8; memory is controlled separately by `memory_fraction_per_job` (set it to 0.75 for the user's original gaming recipe, or their newer requested cap). `gaming=false` plus memory fraction 0 removes all three limits. `hold=true` prevents new starts. Do not launch a second queue.
 - `--test-once` validates every 50 iterations and tests only the selected best at completion. Resume restores iteration, optimizer, learning rate and validation best; simulator episodes/course pool restart, so it is not bit-identical continuation. Completed tested runs get a new name for further training.
 - Current watchdog command: `python scripts/gpu_watchdog.py --hot 65 --cool 58 --every 1` (default duty 1, utilization target 0). After forcibly stopping an older watchdog, resume its suspended project jobs before starting the replacement. Keep `scripts/keep_awake.py` running. The five-minute native heartbeat has the same unrestricted-GPU instruction and monitors progress/publication; the local queue fills training slots immediately.
-- Pending notification: after both `g995-adv` and `g995-ice` finish, send the user their selected validation scores, final tests and comparison against the existing final policy on common levels 0-5. Ice is finished; advanced is still running. The partial comparison is `results/operations/g995-initial-comparison.json`; mark the combined notification delivered in this session log only after sending it.
+- Combined advanced/ice completion notification delivered on 29 Oct at about 01:24 Israel time. Both initial runs are complete; full comparison and delivery record are in `results/operations/g995-initial-comparison.json`. Do not repeat this notification. Continue extra and validation-selected seeds.
 - Neo policy now shipped as `results/neo_policy.pt` and `.json`; hashes in `results/neo_policy_provenance.json`. Final policy files retained.
 - Normal Windows test run after the second merge: 85 passed, 8 subtests (`runs/pc-final-merge-tests.txt`). CPU assist parity now pins the subprocess service to CPU (device-specific search RNG differs from CUDA).
 
@@ -548,18 +548,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `a03fe02` (2026-10-29 01:15, branch `main`): Archive advanced 899 and first extra validation results
+Generated on top of commit `dc7f47a` (2026-10-29 01:19, branch `main`): Archive advanced 949 and extra 99 validation results
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 94 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 95 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 52 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 69 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 52 |
-| `results/README.md` | `0856810` 2026-10-29 00:44 | 8 |
-| `results/DATA.md` | `9b48bda` 2026-10-29 00:34 | 10 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 53 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 70 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 53 |
+| `results/README.md` | `0856810` 2026-10-29 00:44 | 9 |
+| `results/DATA.md` | `9b48bda` 2026-10-29 00:34 | 11 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -584,8 +584,8 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `final-v2` | 499 | 0.26 | 499 | 89.6 | 88.5 | 88.5 | 88.1 |
 | `full-s1` | 999 | 0.52 | - | - | - | 94.2 | - |
 | `full-s2` | 999 | 0.52 | 949 | 93.0 | 93.1 | 91.9 | - |
-| `g995-adv` | 949 | 0.50 | 99 | 81.8 | - | - | - |
-| `g995-extra` | 99 | 0.05 | 99 | 73.3 | - | - | - |
+| `g995-adv` | 999 | 0.52 | 99 | 81.8 | 82.3 | - | - |
+| `g995-extra` | 149 | 0.08 | 149 | 76.7 | - | - | - |
 | `g995-ice` | 999 | 0.52 | 449 | 97.3 | 97.5 | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
@@ -719,6 +719,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **29 Oct 2026, 01:25, Codex heartbeat on training PC:** both requested initial runs completed 1,000 iterations. Delivered the combined validation/test comparison in this chat; do not repeat that notification. Advanced selected checkpoint 99 on nine-level validation 81.78% (common levels 0-5: 96.17%); final tests across nine levels: 82.28% standard / 78.72% obstacles. On the identical common levels 0-5: 97.42% standard / 94.50% obstacles. Ice selected checkpoint 449 on six-level validation 97.33%; final tests 97.50% / 94.50%. Existing final policy (checkpoint 699): validation 97.58%, tests 98.42% / 95.25%. Thus advanced trails the baseline on common tests by 1.00 / 0.75 percentage points and ice by 0.92 / 0.75 points. All numbers are simulator results, validation families 2/5 and test families 1/4; each new run has exactly one test row per split, and selected iterations match validation maxima. Evidence: `results/operations/g995-initial-comparison.json` with source files. No tests were repeated and the existing final-policy files remain unchanged. The queue automatically started g995-ice-s1 beside g995-extra, selected from common validation (ice 97.33% versus advanced 96.17%), never test results. Extra new validation best 149: 76.71% across twelve levels. Exactly two unrestricted trainers, one queue, one thermal watchdog (65/58 C) and one keep-awake are healthy; current telemetry 83% busy, 5791/16303 MiB, 41.58 C. Native monitor updated to record delivered notification and continue extra/seeds. Report/handoff refreshed; no executable changes, so prior checks remain applicable.
 
 - **29 Oct 2026, 01:19, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-adv iteration 949: 81.22%, selected best 99 (81.78%); g995-extra iteration 99: 73.29%, selected best 99 (73.29%). Advanced covers nine levels and extra twelve; overall scores are not directly comparable. Summaries and selected validation maxima match their CSVs; both active test logs remain empty, while ice retains exactly one final standard/obstacle test row. Two unrestricted trainers and the existing queue, thermal watchdog (65/58 C), and keep-awake are healthy. GPU sample: 71% busy, 5350/16303 MiB, 40.23 C. No new cloud commits or executable changes; prior checks remain applicable. Report/handoff refreshed and results published. Combined advanced/ice completion notification remains pending until advanced finishes.
 
