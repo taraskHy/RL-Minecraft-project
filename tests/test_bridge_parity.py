@@ -18,11 +18,11 @@ from parkour.paths import BRIDGE, NODE
 def record_states(n_envs=64, steps=120, seed=0, shaped=False):
     levels = C.load_levels()
     rng = np.random.default_rng(seed)
-    if shaped:  # courses whose level-6 jumps land on slabs, soul sand, posts, ...
-        from parkour.feasibility import shape_specs
-        levels = levels + [shape_specs()]
-        cs = [C.generate(rng, levels, 6, 8) for i in range(32)]
-        assert all(c.shapes for c in cs)
+    if shaped:  # courses whose level-6 jumps land on slabs, soul sand, posts, ... or climb ladders
+        from parkour.feasibility import ladder_specs, shape_specs
+        levels = levels + [shape_specs(), ladder_specs()]
+        cs = [C.generate(rng, levels, 6 + i % 2, 8) for i in range(32)]
+        assert all(c.shapes for c in cs[::2]) and all(len(c.ladders) for c in cs[1::2])
     else:
         # Half the courses carry obstacles (beams and pillars), so the scan sees non-platform blocks.
         cs = [C.generate(rng, levels, i % len(levels), 8, obstacle_prob=0.6 if i % 2 else 0.0) for i in range(32)]
@@ -64,12 +64,15 @@ def record_states(n_envs=64, steps=120, seed=0, shaped=False):
                 mx, mz = (f[0] + f[1]) / 2, (f[2] + f[3]) / 2
                 for x, z in ((mx, mz), (f[0] - 0.29, mz), (f[1] + 0.29, mz), (mx, f[2] - 0.29), (mx, f[3] + 0.29)):
                     rows.append((ci, k, [x, top, z]))
+            for x, y, z, _ in c.ladders.tolist():  # climbing: feet inside a ladder cell
+                k = int(np.argmin([abs(p[4] - y) for p in c.platforms.tolist()]))
+                rows.append((ci, k, [x + 0.5, y + 0.3, z + 0.5]))
         n = len(rows)
         st = physics.PlayerState.at(torch.tensor([r[2] for r in rows], dtype=torch.float64),
                                     (torch.rand(n, generator=g, dtype=torch.float64) * 2 - 1) * np.pi)
         st.on_ground = torch.ones(n, dtype=torch.bool)
         course = torch.tensor([r[0] for r in rows])
-        cp = torch.tensor([r[1] - int(torch.randint(0, 2, (1,), generator=g)) for r in rows])
+        cp = torch.tensor([max(0, r[1] - int(torch.randint(0, 2, (1,), generator=g))) for r in rows])
         last = torch.stack([torch.randint(0, d, (n,), generator=g) for d in (3, 3, 2, 2, 7)], -1)
         o = env.obs_fn(pool, course, st, cp, last)
         stand = standing_on(pool, st, course)
@@ -108,7 +111,8 @@ class BridgeParity(unittest.TestCase):
             inp = os.path.join(d, "in.json")
             with open(inp, "w") as f:
                 json.dump({"policy": pol, "courses": [{"platforms": c.platforms.tolist(), "extra": c.extra.tolist(),
-                                                       "shapes": {str(k): v for k, v in c.shapes.items()}}
+                                                       "shapes": {str(k): v for k, v in c.shapes.items()},
+                                                       "ladders": c.ladders.tolist()}
                                                       for c in pool.courses],
                            "cases": cases}, f)
             out = subprocess.run([str(NODE), str(BRIDGE / "obs_parity.js"), inp], capture_output=True, text=True,

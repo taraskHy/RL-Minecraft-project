@@ -19,6 +19,7 @@ const solids = input.courses.map(c => {
     for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) set.add(`${x},${y},${z}`)
   }
   for (const [x, y, z] of c.extra || []) set.add(`${x},${y},${z}`)
+  for (const [x, y, z] of c.ladders || []) set.add(`${x},${y},${z}`)
   return set
 })
 // Shaped platforms: geometry and the shape top of every shaped cell (1 for full blocks).

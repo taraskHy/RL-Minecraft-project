@@ -269,7 +269,7 @@ def train(cfg: TrainConfig) -> Path:
         pick = np.random.default_rng([2026, 3, cfg.seed]).choice(len(demos), n_demo, replace=False)
         train_courses[:n_demo] = [demo_course(demos[i], cfg.demo_level) for i in pick]
     pool = CoursePool(train_courses, dev, C.GRID, ice=cfg.ice_prob > 0 or any(sp.ice or sp.bounce for L in levels for sp in L),
-                      shapes=any(bool(sp.block) for L in levels for sp in L))
+                      shapes=any(bool(sp.block) or sp.ladder for L in levels for sp in L))
     test_pool = CoursePool(tests, dev, C.GRID)
     obstacle_pool = CoursePool(obstacle_tests, dev, C.GRID) if obstacle_tests else None
     val_pool = CoursePool(vals, dev, C.GRID)

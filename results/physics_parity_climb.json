@@ -1,19 +1,19 @@
 {
  "method": "parkour.parity.compare with ladders and vines: random_case(np.random.default_rng(13), ticks=200, climb=0.6) x 300 (ladders against the sides of raised blocks, vines in the air beside them), the simulator with World(climb=..., shape=ladder boxes) against prismarine-physics 1.11.1 through Node with the real ladder and vine block states (Minecraft 1.21.4: climbing also by jumping), same 1e-7 collision tolerance, CPU",
- "ladders_per_case": 7.0,
- "vines_per_case": 6.9,
+ "ladders_per_case": 6.6,
+ "vines_per_case": 6.8,
  "result": {
   "cases": 300,
   "ticks": 60000,
-  "max_pos_err": 1.4210854715202004e-14,
+  "max_pos_err": 7.105427357601002e-15,
   "max_vel_err": 1.1102230246251565e-16,
   "flag_mismatch_ticks": 0,
-  "exact_pos_ticks": 58328,
+  "exact_pos_ticks": 58394,
   "diverged_cases": 0
  },
  "effect_of_climbing": {
-  "cases_changed": 75,
+  "cases_changed": 48,
   "cases": 300,
-  "largest_position_change_blocks": 16.195
+  "largest_position_change_blocks": 7.012
  }
 }

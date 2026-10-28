@@ -35,7 +35,7 @@ const ICE = mcData.blocksByName.ice.id
 const SLIME = mcData.blocksByName.slime_block.id
 const AIR = mcData.blocksByName.air.id
 
-function makeWorld (platforms, extra, ice, shapes, slime) {
+function makeWorld (platforms, extra, ice, shapes, slime, ladders) {
   const solid = new Set()
   const icy = new Set()
   const bouncy = new Set()
@@ -54,6 +54,10 @@ function makeWorld (platforms, extra, ice, shapes, slime) {
     }
   }
   for (const [x, y, z] of extra || []) solid.add(`${x},${y},${z}`)
+  for (const [x, y, z, f] of ladders || []) { // ladders: solid thin boxes the physics climbs (by block type)
+    solid.add(`${x},${y},${z}`)
+    shaped.set(`${x},${y},${z}`, Block.fromStateId(STATES['ladder_' + ['north', 'east', 'south', 'west'][f]], 0))
+  }
   const isSolid = (x, y, z) => solid.has(`${x},${y},${z}`)
   const topOf = (x, y, z) => { const b = shaped.get(`${x},${y},${z}`); return b ? Math.max(...b.shapes.map(q => q[4])) : 1 }
   const world = {
@@ -88,7 +92,7 @@ const service = assistConfig
 async function main () {
   let ok = 0
   for (const [index, c] of courses.entries()) {
-    const { world, isSolid, topOf } = makeWorld(c.platforms, c.extra, c.ice, c.shapes, c.slime)
+    const { world, isSolid, topOf } = makeWorld(c.platforms, c.extra, c.ice, c.shapes, c.slime, c.ladders)
     const physics = Physics(mcData, world)
     const e = entityAt(c.spawn, c.spawn_yaw)
     for (let t = 0; t < Number(args.settle); t++) physics.simulatePlayer(e, world)

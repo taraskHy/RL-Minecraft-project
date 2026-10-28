@@ -32,7 +32,7 @@ import numpy as np
 import torch
 
 from . import physics
-from .courses import Course, MAX_PLATFORMS, path_remaining, shape_geometry
+from .courses import LADDER_FACING, Course, MAX_PLATFORMS, path_remaining, shape_geometry
 
 ACTION_DIMS = (3, 3, 2, 2, 7)  # move (back/none/forward), strafe (left/none/right), jump, sprint, yaw step
 YAW_STEPS_DEG = (-20.0, -6.0, -1.5, 0.0, 1.5, 6.0, 20.0)
@@ -139,13 +139,19 @@ class CoursePool:
             for i, c in enumerate(courses):
                 self._set_slime(self.slime, i, c)
             self.slime = self.slime.to(device)
+        self.climb = None
+        if any(len(c.ladders) for c in courses) if shapes is None else shapes:  # ladders: climbable thin boxes
+            self.climb = torch.zeros(solid.shape, dtype=torch.bool)
+            for i, c in enumerate(courses):
+                self._set_climb(self.climb, i, c)
+            self.climb = self.climb.to(device)
         self.shape_grid = None
-        if any(c.shapes for c in courses) if shapes is None else shapes:
+        if any(c.shapes or len(c.ladders) for c in courses) if shapes is None else shapes:
             self.shape_grid = torch.zeros(solid.shape, dtype=torch.uint8)
             for i, c in enumerate(courses):
                 self._set_shapes(self.shape_grid, i, c)
             self.shape_grid = self.shape_grid.to(device)
-        self.world = physics.World(solid.to(device), self.slip, self.shape_grid, self.slime)
+        self.world = physics.World(solid.to(device), self.slip, self.shape_grid, self.slime, self.climb)
         self.plat = plat.to(device)
         self.rem = rem.to(device)
         self.n = n.to(device)
@@ -189,6 +195,14 @@ class CoursePool:
         for k, name in course.shapes.items():
             x0, x1, z0, z1, y = (int(v) for v in course.platforms[k])
             grid[index, x0:x1 + 1, y, z0:z1 + 1] = physics.shape_id(name)
+        for x, y, z, f in np.asarray(course.ladders, dtype=np.int64).reshape(-1, 4):
+            grid[index, x, y, z] = physics.shape_id("ladder_" + LADDER_FACING[f])
+
+    @staticmethod
+    def _set_climb(grid: torch.Tensor, index: int, course: Course) -> None:
+        grid[index] = False
+        for x, y, z, _ in np.asarray(course.ladders, dtype=np.int64).reshape(-1, 4):
+            grid[index, x, y, z] = True
 
     def _set_geometry(self, index: int, course: Course) -> None:
         """Tops, footprints and centres of shaped platforms (others keep the whole-block values)."""
@@ -229,8 +243,12 @@ class CoursePool:
         self.foot[index] = torch.stack((pf[:, 0], pf[:, 1] + 1, pf[:, 2], pf[:, 3] + 1), -1)
         if self.shape_grid is not None:
             self._set_shapes(self.shape_grid, index, course)  # the world reads this tensor's memory
-        elif course.shapes:
+        elif course.shapes or len(course.ladders):
             raise ValueError("this pool has no shape grid; build it with shapes=True")
+        if self.climb is not None:
+            self._set_climb(self.climb, index, course)
+        elif len(course.ladders):
+            raise ValueError("this pool has no climb grid; build it with shapes=True")
         self._set_geometry(index, course)
         self._set_extra(index, course)
         if self.slip is not None:

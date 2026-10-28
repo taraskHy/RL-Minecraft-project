@@ -101,7 +101,7 @@ def random_case(rng: np.random.Generator, ticks: int = 120, size: int = 14, ice:
             if b not in blocks or b in taken or b == start or rng.random() >= climb:
                 continue
             f = int(rng.integers(4))
-            dx, dz = ((0, 1), (-1, 0), (0, -1), (1, 0))[f]  # the side the ladder faces, away from its wall
+            dx, dz = ((0, -1), (1, 0), (0, 1), (-1, 0))[f]  # facing north, east, south, west: away from block b
             beside = (b[0] + dx, b[1], b[2] + dz)
             if beside in blocks or beside in used:
                 continue

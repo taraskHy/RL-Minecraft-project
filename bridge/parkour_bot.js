@@ -225,6 +225,10 @@ async function runCourse (c, index) {
     const [x0, x1, z0, z1, y] = c.platforms[Number(k)]
     await chatCommand(`/fill ${x0 + OX} ${y + OY} ${z0 + OZ} ${x1 + OX} ${y + OY} ${z1 + OZ} ${stateString(name)}`)
   }
+  const ladders = c.ladders || [] // after their walls (the obstacle cells): a ladder needs a block behind it
+  for (const [x, y, z, f] of ladders) {
+    await chatCommand(`/setblock ${x + OX} ${y + OY} ${z + OZ} ${stateString('ladder_' + ['north', 'east', 'south', 'west'][f])}`)
+  }
   if (args.style === 'rainbow') {
     // A beacon beam rising beside the goal, from a beacon far below the course (beams have no collision).
     const used = new Set()
@@ -255,9 +259,14 @@ async function runCourse (c, index) {
     const b = bot.blockAt(new Vec3(x0 + OX, y + OY, z0 + OZ), false)
     return !!b && b.stateId === SHAPES[name].state
   }), 10000, 'shaped blocks')
+  await waitFor(() => ladders.every(([x, y, z, f]) => {
+    const b = bot.blockAt(new Vec3(x + OX, y + OY, z + OZ), false)
+    return !!b && b.stateId === SHAPES['ladder_' + ['north', 'east', 'south', 'west'][f]].state
+  }), 10000, 'ladders')
   const cells = []
   for (const [x0, x1, z0, z1, y] of c.platforms) for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) cells.push([x, y, z])
   cells.push(...extra)
+  cells.push(...ladders.map(([x, y, z]) => [x, y, z]))
   const wanted = new Set(cells.map(k => k.join(',')))
   const stale = previous.filter(k => !wanted.has(k.join(',')))
   await waitFor(() => stale.every(([x, y, z]) => !isSolid(x, y, z)), 10000, 'previous course cleared')
