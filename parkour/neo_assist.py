@@ -429,7 +429,7 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
     length = torch.zeros(n, dtype=torch.int64, device=device)
     prog = torch.zeros(n, dtype=torch.float64, device=device)
     reached = [set() for _ in range(n)]
-    events = []  # one per search: course, kind, takeoff, target platform, tick, found, plan ticks, rounds
+    events = []  # one per search: course, kind, takeoff, target, tick, after_plan (a plan landed this tick), found, ...
     plans = {"played": 0, "landed_as_planned": 0}
     search_seconds = 0.0
     with torch.no_grad():
@@ -505,8 +505,8 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
                     c = int(cp[i])
                     k = c + 1 if kind == "approach" else c
                     events.append({"course": i, "kind": kind, "takeoff": k, "target": arrivals[j]["target"], "tick": t + 1,
-                                   "found": bool(found[j]), "plan_ticks": len(found[j][0]) if found[j] else 0,
-                                   "rounds": rounds[j]})
+                                   "after_plan": bool(ended[i]), "found": bool(found[j]),
+                                   "plan_ticks": len(found[j][0]) if found[j] else 0, "rounds": rounds[j]})
                     if kind == "approach":
                         tried_before[i, c] = True
                     else:
@@ -613,6 +613,7 @@ def main(argv=None):
     ap.add_argument("--threads", type=int, default=0)
     ap.add_argument("--out", default="")
     ap.add_argument("--tag", default="")
+    ap.add_argument("--details", default="", help="also write every course's outcome and every search to this JSON file")
     ap.add_argument("--serve", action="store_true", help="plan for the bots: JSON lines on stdin/stdout (see serve)")
     ap.add_argument("--courses-file", default="", help="with --serve: the courses the bot plays")
     ap.add_argument("--device", default="", help="cpu or cuda (default: cuda if available); the bots' planner service "
@@ -653,6 +654,9 @@ def main(argv=None):
     out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, "a") as fh:
         fh.write(json.dumps(row) + "\n")
+    if a.details:
+        Path(a.details).parent.mkdir(parents=True, exist_ok=True)
+        Path(a.details).write_text(json.dumps({"row": row, "per_course": res["per_course"], "events": res["events"]}))
     print(json.dumps(row, indent=1))
 
 

@@ -227,8 +227,9 @@ def load_levels(path: Path | None = None, advanced: bool = False, extra: bool = 
 
     With ``advanced``, the neo and momentum levels from
     ``configs/jump_levels_advanced.json`` follow the six basic levels. With
-    ``extra``, the head-hitter and ice levels of ``configs/jump_levels_extra.json``
-    follow those (so their level numbers depend on ``advanced``).
+    ``extra``, the levels of ``configs/jump_levels_extra.json`` (head hitters,
+    ice run-ups, shaped blocks, slime bounces, ladder climbs) follow those (so
+    their level numbers depend on ``advanced``).
     """
     path = path or CONFIGS / "jump_levels.json"
     data = json.loads(Path(path).read_text())
