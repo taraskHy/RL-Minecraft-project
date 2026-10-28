@@ -338,7 +338,8 @@ def new_abilities(out: Path) -> list:
             j = json.loads(je.read_text())
             lines += ["| Level | Kinds | Mean success alone | Kinds never made |", "| --- | --- | --- | --- |"]
             for name, v in j["by_level"].items():
-                lines.append(f"| {name} | {v['specs']} | {pct(v['mean_policy_success'])} | {v['specs_policy_never']} |")
+                label = "no scripted landing" if name == "impossible" else name
+                lines.append(f"| {label} | {v['specs']} | {pct(v['mean_policy_success'])} | {v['specs_policy_never']} |")
             lines.append("")
         for f, c in previews:
             settings = c.get("assist_configs") or {"": c.get("assist_config", {})}
