@@ -16,7 +16,9 @@ With no landing found the policy keeps control, and with ``--retries`` the
 search runs again every ``--retry-every`` ticks while the bot still stands
 on the takeoff (a bot that stopped there can often be planned from the
 standstill; ``--retry-horizon`` gives those plans more ticks, to walk back
-before the jump). With ``--approach H`` the search also runs when the bot
+before the jump). With ``--brake T`` the bot first stops on the takeoff
+(``brake_plan``: "back" for up to 6 ticks, then no keys, T ticks in all,
+checked with the physics) and the retry runs as soon as it stands still. With ``--approach H`` the search also runs when the bot
 first stands on the platform before a neo's takeoff, for a plan of up to H
 ticks over both jumps, so the bot reaches the takeoff in a state the neo can
 be made from (without a landing the takeoff search runs as usual). With
@@ -84,6 +86,7 @@ class AssistConfig:
     prior: float = 0.0  # weight of the policy's own action probabilities in the search's start
     retries: int = 0  # extra searches while the bot still stands on the takeoff without a plan
     retry_every: int = 10  # ticks between them
+    brake: int = 0  # >0: after a search without a landing, first stop on the takeoff (brake_plan, this many ticks), then retry
     batch: int = 1  # arrival states searched together; 1: every search has its own seed (the bots reproduce it)
     seed: int = 0
 
@@ -103,6 +106,35 @@ def plan_once(model, pool: CoursePool, rules: "Rules", arrival: dict, kind: str,
     seed = request_seed(cfg.seed, arrival["course"], arrival["cp"], kind, attempt)
     f, r = search(pool, rules, [arrival], device, cfg, seed, pr, horizon)
     return (f[0][0] if f[0] else None), r[0]
+
+
+BRAKE_BACK_TICKS = 6  # brake_plan holds "back" for 0 to this many ticks
+
+
+def brake_plan(pool: CoursePool, rules: "Rules", arrival: dict, ticks: int, device):
+    """Keys that stop the bot on its takeoff: "back" for the first k ticks (k = 0, 1, ... 6), then none, ``ticks``
+    in all. The first sequence after which the exact physics has the bot standing still on the platform it
+    stands on now (horizontal speed below 0.001), never on an obstacle; None if none does."""
+    ks = list(range(min(BRAKE_BACK_TICKS, ticks) + 1))
+    seqs = np.zeros((len(ks), ticks, 5), dtype=np.int64)
+    seqs[:, :, 0] = 1  # move: none
+    seqs[:, :, 1] = 1  # strafe: none
+    seqs[:, :, 4] = YAW_STEPS_DEG.index(0.0)  # no turn
+    for j, k in enumerate(ks):
+        seqs[j, :k, 0] = 0  # back
+    s = _state_rows([arrival] * len(ks), device)
+    course = torch.full((len(ks),), arrival["course"], device=device)
+    acts = torch.as_tensor(seqs, device=device)
+    steps = torch.tensor(YAW_STEPS_DEG, dtype=torch.float64, device=device) * (math.pi / 180)
+    alive = torch.ones(len(ks), dtype=torch.bool, device=device)
+    for t in range(ticks):
+        y = s.yaw + steps[acts[:, t, 4]]
+        s.yaw = torch.remainder(y + math.pi, 2 * math.pi) - math.pi
+        s = physics.simulate(pool.world, course, s, action_to_controls(acts[:, t]))
+        alive &= ~rules.on_obstacle(s, course)
+    still = standing_on(pool, s, course)[:, arrival["cp"]] & (torch.linalg.norm(s.vel[:, [0, 2]], dim=-1) < 1e-3)
+    ok = torch.nonzero(alive & still).flatten().tolist()
+    return seqs[ok[0]] if ok else None
 
 
 def horizons(cfg: "AssistConfig") -> dict:
@@ -442,6 +474,7 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
     plan_len = torch.zeros(n, dtype=torch.int64, device=device)
     plan_pos = torch.zeros(n, dtype=torch.int64, device=device)
     plan_t = torch.full((n,), -1, dtype=torch.int64, device=device)  # the platform a plan ends on
+    braking = torch.zeros(n, dtype=torch.bool, device=device)  # the queued actions are a brake_plan
     rows = torch.arange(n, device=device)
     finished = torch.zeros(n, dtype=torch.bool, device=device)
     success = torch.zeros(n, dtype=torch.bool, device=device)
@@ -450,7 +483,7 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
     prog = torch.zeros(n, dtype=torch.float64, device=device)
     reached = [set() for _ in range(n)]
     events = []  # one per search: course, kind, takeoff, target, tick, after_plan (a plan landed this tick), found, ...
-    plans = {"played": 0, "landed_as_planned": 0}
+    plans = {"played": 0, "landed_as_planned": 0, "brakes": 0}
     search_seconds = 0.0
     with torch.no_grad():
         for t in range(max_ticks):
@@ -468,8 +501,10 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
             length = torch.where(first, info["ep_len"], length)
             prog = torch.where(first, info["progress_frac"], prog)
             ended = active & (plan_pos >= plan_len)  # a plan's last action was just played
+            retry_now = ended & braking  # a brake just ended: retry at once
+            braking &= ~ended
             if bool(ended.any()):
-                for i in torch.nonzero(ended).flatten().tolist():
+                for i in torch.nonzero(ended & ~retry_now).flatten().tolist():
                     plans["played"] += 1
                     ok = bool(info["success"][i]) if bool(first[i]) else int(env.cp[i]) >= int(plan_t[i])
                     plans["landed_as_planned"] += int(ok)
@@ -487,7 +522,7 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
             n_try = tries[rows, cp]
             kinds = {"takeoff": free & plan_at[rows, cp] & (n_try == 0),
                      "retry": (free & plan_at[rows, cp] & (n_try > 0) & (n_try <= cfg.retries)
-                               & (t - last_try >= cfg.retry_every) & (env.stall + hz["retry"] < stall_ticks)),
+                               & ((t - last_try >= cfg.retry_every) | retry_now) & (env.stall + hz["retry"] < stall_ticks)),
                      "approach": free & before[rows, cp] & ~tried_before[rows, cp] if cfg.approach else None}
             for kind, mask in kinds.items():
                 want = [] if mask is None else torch.nonzero(mask).flatten().tolist()
@@ -526,7 +561,7 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
                     k = c + 1 if kind == "approach" else c
                     events.append({"course": i, "kind": kind, "takeoff": k, "target": arrivals[j]["target"], "tick": t + 1,
                                    "after_plan": bool(ended[i]), "found": bool(found[j]),
-                                   "plan_ticks": len(found[j][0]) if found[j] else 0, "rounds": rounds[j]})
+                                   "plan_ticks": len(found[j][0]) if found[j] else 0, "rounds": rounds[j], "braked": False})
                     if kind == "approach":
                         tried_before[i, c] = True
                     else:
@@ -538,6 +573,15 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
                         plan_len[i] = len(seq)
                         plan_pos[i] = 0
                         plan_t[i] = arrivals[j]["target"]
+                    elif cfg.brake and kind != "approach" and int(tries[i, c]) <= cfg.retries:
+                        seq = brake_plan(pool, rules, arrivals[j], cfg.brake, device)
+                        if seq is not None:
+                            plan[i, :len(seq)] = torch.as_tensor(seq, device=device)
+                            plan_len[i] = len(seq)
+                            plan_pos[i] = 0
+                            braking[i] = True
+                            plans["brakes"] += 1
+                            events[-1]["braked"] = True
                 if log:
                     log({"tick": t + 1, "kind": kind, "searched": len(want), "found": sum(bool(f) for f in found),
                          "seconds": round(dt, 1), "unfinished": int((~finished).sum())})
@@ -585,6 +629,8 @@ def summarize(res: dict) -> dict:
                 out["searches"][kind] = {"n": len(e), "found": sum(x["found"] for x in e)}
         out["plans_played"] = res["plans"]["played"]
         out["plans_landed_as_planned"] = res["plans"]["landed_as_planned"]
+        if res["plans"].get("brakes"):
+            out["brakes"] = res["plans"]["brakes"]
         out["search_seconds"] = res["search_seconds"]
         out["seconds_per_search"] = round(res["search_seconds"] / len(ev), 2)
     return out
@@ -596,8 +642,10 @@ def serve(model, courses: list[C.Course], cfg: AssistConfig, device, inp=None, o
     Request: {"index": course index in ``courses``, "cp", "target", "kind",
     "attempt", "state": {"pos", "vel", "yaw", "onGround", "jumpTicks",
     "collidedH"}, "lastAction"}. Answer: {"plan": [[move, strafe, jump,
-    sprint, yaw], ...] or null, "rounds", "seconds"}. The search is the one
-    ``evaluate_assisted`` runs with ``batch`` 1 (same seed for the same request).
+    sprint, yaw], ...] or null, "rounds", "brake": the brake_plan to play
+    before the retry when there is no plan and ``brake`` is set (else null),
+    "seconds"}. The search is the one ``evaluate_assisted`` runs with
+    ``batch`` 1 (same seed for the same request).
     """
     inp = inp or sys.stdin
     out = out or sys.stdout
@@ -616,9 +664,14 @@ def serve(model, courses: list[C.Course], cfg: AssistConfig, device, inp=None, o
                    "last_action": [int(v) for v in req["lastAction"]]}
             t0 = time.time()
             k = arr["cp"] + 1 if req["kind"] == "approach" else arr["cp"]
-            seq, rounds = plan_once(model, pool, rules, arr, req["kind"], int(req.get("attempt", 0)), cfg,
+            attempt = int(req.get("attempt", 0))
+            seq, rounds = plan_once(model, pool, rules, arr, req["kind"], attempt, cfg,
                                     plan_horizon(courses[arr["course"]], k, req["kind"], cfg), device)
+            brake = None
+            if seq is None and cfg.brake and req["kind"] != "approach" and attempt + 1 <= cfg.retries:
+                brake = brake_plan(pool, rules, arr, cfg.brake, device)
             out.write(json.dumps({"plan": None if seq is None else seq.tolist(), "rounds": rounds,
+                                  "brake": None if brake is None else brake.tolist(),
                                   "seconds": round(time.time() - t0, 3)}) + "\n")
             out.flush()
 

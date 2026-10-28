@@ -162,7 +162,8 @@ function planThenAct (ep) {
       const geom = ep.geom ? ep.geom.map(([x0, x1, z0, z1, top]) => [x0 + OX, x1 + OX, z0 + OZ, z1 + OZ, top + OY]) : null
       const world = { getBlock: p => bot.blockAt(p, false) }
       const verified = !!r.plan && A.verifyPlan(Physics(bot.registry, world), world, here, r.plan, plats, q.cp, q.target, extra, geom)
-      const a = ep.resume(verified ? r.plan : null, { found: !!r.plan, verified, rounds: r.rounds, seconds: r.seconds })
+      const brake = !r.plan && r.brake && A.verifyPlan(Physics(bot.registry, world), world, here, r.brake, plats, q.cp, q.cp, extra, geom, true) ? r.brake : null
+      const a = ep.resume(verified ? r.plan : null, { found: !!r.plan, verified, rounds: r.rounds, seconds: r.seconds }, brake)
       planning = false
       if (a === null) endEpisode()
       else applyAction(a)

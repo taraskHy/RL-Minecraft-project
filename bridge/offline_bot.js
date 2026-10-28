@@ -113,7 +113,8 @@ async function main () {
         const q = ep.pending
         const r = await service.plan({ index, cp: q.cp, target: q.target, kind: q.kind, attempt: q.attempt, state: q.state, lastAction: q.lastAction })
         const verified = !!r.plan && A.verifyPlan(physics, world, q.state, r.plan, c.platforms, q.cp, q.target, c.extra, ep.geom)
-        a = ep.resume(verified ? r.plan : null, { found: !!r.plan, verified, rounds: r.rounds, seconds: r.seconds })
+        const brake = !r.plan && r.brake && A.verifyPlan(physics, world, q.state, r.brake, c.platforms, q.cp, q.cp, c.extra, ep.geom, true) ? r.brake : null
+        a = ep.resume(verified ? r.plan : null, { found: !!r.plan, verified, rounds: r.rounds, seconds: r.seconds }, brake)
       }
       if (a === null) break
       const k = P.controls(a)

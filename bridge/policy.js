@@ -368,12 +368,17 @@ class Episode {
     return this._act(s)
   }
 
-  // After PLAN: play ``plan`` (a list of actions) or, with null, let the policy act.
-  resume (plan, info = {}) {
+  // After PLAN: play ``plan`` (a list of actions) or, with null, let the policy act; with no plan, a
+  // ``brake`` (assist.js: keys that stop the bot on the takeoff) is played and the retry follows it.
+  resume (plan, info = {}, brake = null) {
     const req = this.pending
     this.pending = null
-    this.assistLog.push({ kind: req.kind, cp: req.cp, takeoff: req.takeoff, tick: req.tick, ...info, played: !!plan })
+    this.assistLog.push({ kind: req.kind, cp: req.cp, takeoff: req.takeoff, tick: req.tick, ...info, played: !!plan, braked: !plan && !!brake })
     if (plan) this.queue = plan.map(a => a.slice())
+    else if (brake) {
+      this.queue = brake.map(a => a.slice())
+      this.assist.braked = true
+    }
     return this._act(req.state)
   }
 

@@ -16,7 +16,7 @@ const YAW_STEPS_DEG = [-20.0, -6.0, -1.5, 0.0, 1.5, 6.0, 20.0]
 
 // AssistConfig's defaults (parkour/neo_assist.py) for the fields the trigger rules read, so a partial
 // --assist JSON behaves as in Python (tests/test_neo_assist.py checks they agree).
-const DEFAULTS = { horizon: 32, retry_horizon: 0, retries: 0, retry_every: 10, approach: 0 }
+const DEFAULTS = { horizon: 32, retry_horizon: 0, retries: 0, retry_every: 10, approach: 0, brake: 0 }
 
 // When to plan, per episode: AssistConfig fields (snake_case, as parkour/neo_assist.py writes them).
 // targets[i]: the platform a plan from takeoffs[i] ends on (neo_assist.plan_target; default the next one).
@@ -31,15 +31,18 @@ class Assist {
     this.triedBefore = new Set()
     this.lastTry = -1e9
     this.retryHorizon = cfg.retry_horizon || cfg.horizon
+    this.braked = false // a brake plan is playing: the first request after it may retry at once
   }
 
   // The request after this tick's rules, or null (no plan may be playing).
   request (s, cp, stall, ticks, stallLimit) {
+    const braked = this.braked
+    this.braked = false
     if (!s.onGround) return null
     const n = this.tries.get(cp) || 0
     if (this.planned.has(cp)) {
       if (n === 0) return this._take('takeoff', cp, this.target.get(cp), 0, ticks)
-      if (n <= this.cfg.retries && ticks - this.lastTry >= this.cfg.retry_every && stall + this.retryHorizon < stallLimit) {
+      if (n <= this.cfg.retries && (ticks - this.lastTry >= this.cfg.retry_every || braked) && stall + this.retryHorizon < stallLimit) {
         return this._take('retry', cp, this.target.get(cp), n, ticks)
       }
       return null
@@ -126,8 +129,9 @@ function wrapYaw (yaw) {
 // obstacles and above the lowest platform from cp to the target (less 1 block), and stand on the
 // target after its last action, as the search required. e: the bot's state now ({pos, vel, yaw,
 // onGround, jumpTicks, collidedH}); geom: the Episode's platform geometry on shaped courses (tops
-// and standing areas of the shapes, as CoursePool.top / .foot), else full blocks.
-function verifyPlan (physics, world, e, plan, platforms, cp, target, extra, geom = null) {
+// and standing areas of the shapes, as CoursePool.top / .foot), else full blocks. still: a brake
+// plan (target = cp), which must also end with the bot standing still (horizontal speed < 0.001).
+function verifyPlan (physics, world, e, plan, platforms, cp, target, extra, geom = null, still = false) {
   const q = geom || platforms.map(p => [p[0], p[1] + 1, p[2], p[3] + 1, p[4] + 1])
   let lo = Infinity
   for (let j = cp; j <= target; j++) lo = Math.min(lo, q[j][4])
@@ -145,7 +149,8 @@ function verifyPlan (physics, world, e, plan, platforms, cp, target, extra, geom
     const s = { pos: [c.pos.x, c.pos.y, c.pos.z], onGround: c.onGround }
     if (onObstacle(s, extra) || s.pos[1] <= lo - 1.0) return false
   }
-  return standsOn({ pos: [c.pos.x, c.pos.y, c.pos.z], onGround: c.onGround }, q[target])
+  return standsOn({ pos: [c.pos.x, c.pos.y, c.pos.z], onGround: c.onGround }, q[target]) &&
+    (!still || Math.hypot(c.vel.x, c.vel.z) < 1e-3)
 }
 
 module.exports = { Assist, DEFAULTS, PlannerService, serviceArgs, verifyPlan }

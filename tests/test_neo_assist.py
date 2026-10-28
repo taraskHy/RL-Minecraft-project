@@ -2,6 +2,7 @@
 and the offline bot with the planner service plays exactly like the simulator."""
 import dataclasses
 import json
+import math
 import os
 import subprocess
 import sys
@@ -15,8 +16,9 @@ from parkour import courses as C
 from parkour import physics
 from parkour.env import CoursePool, on_obstacle
 from parkour.live import load_model
-from parkour.neo_assist import (AssistConfig, Rules, courses_from_file, evaluate_assisted, official_neo_courses,
-                                 plan_target, planned_takeoffs, random_neo_courses, spec_from_key, specs_from_keys)
+from parkour.neo_assist import (AssistConfig, Rules, brake_plan, courses_from_file, evaluate_assisted,
+                                 official_neo_courses, plan_target, planned_takeoffs, random_neo_courses, spec_from_key,
+                                 specs_from_keys)
 from parkour.neo_dagger import neo_takeoffs
 from parkour.paths import BRIDGE, CONFIGS, NODE, ROOT
 from parkour.train import evaluate
@@ -78,6 +80,34 @@ def extra_kind_courses():
         rng = np.random.default_rng([7, i])
         out += [C.generate(rng, C.load_levels() + [kind], 6, 5, seed=j) for j in range(2)]
     return out
+
+
+class Brakes(unittest.TestCase):
+    def test_brake_stops_the_bot_on_its_takeoff(self):
+        c = official_neo_courses(2)[0]
+        pool = CoursePool([c], "cpu", C.GRID)
+        rules = Rules(pool)
+        x0, x1, z0, z1, y = (int(v) for v in c.platforms[0])
+        moving = {"course": 0, "cp": 0, "pos": [(x0 + x1 + 1) / 2, y + 1.0, (z0 + z1 + 1) / 2], "vel": [0.12, 0.0, 0.0],
+                  "yaw": -math.pi / 2, "on_ground": True, "jump_ticks": 0, "collided_h": False, "collided_v": False}
+        seq = brake_plan(pool, rules, moving, 14, "cpu")
+        self.assertIsNotNone(seq)
+        self.assertEqual(seq.shape, (14, 5))
+        self.assertTrue((seq[:, 2] == 0).all() and (seq[:, 3] == 0).all())  # no jump, no sprint
+        over = dict(moving, pos=[x1 + 1.25, y + 1.0, (z0 + z1 + 1) / 2], vel=[0.6, 0.0, 0.0])  # too fast at the edge
+        self.assertIsNone(brake_plan(pool, rules, over, 14, "cpu"))
+
+    def test_failed_searches_brake_and_retry(self):
+        model = load_model(ROOT / "results" / "final_policy.pt", "cpu")
+        cs = official_neo_courses(2)[:6]
+        res = evaluate_assisted(model, CoursePool(cs, "cpu", C.GRID), "cpu",
+                                AssistConfig(samples=64, iterations=3, jumps="advanced", retries=1, brake=14))
+        braked = [e for e in res["events"] if e["braked"]]
+        self.assertGreater(len(braked), 0)
+        for e in braked:  # a retry from the same takeoff right after the brake's 14 ticks
+            self.assertTrue(any(r["kind"] == "retry" and r["course"] == e["course"] and r["takeoff"] == e["takeoff"]
+                                and r["tick"] == e["tick"] + 14 for r in res["events"]))
+        self.assertEqual(res["plans"]["landed_as_planned"], res["plans"]["played"])
 
 
 class AssistExtraKinds(unittest.TestCase):
@@ -147,6 +177,12 @@ class AssistBotParity(unittest.TestCase):
     def test_same_on_shaped_slime_and_ladder_courses(self):
         self.check(AssistConfig(samples=256, iterations=8, jumps="all"), extra_kind_courses())
 
+    def test_same_with_brakes_and_retries(self):
+        res, bot = self.check(AssistConfig(samples=64, iterations=3, jumps="advanced", retries=1, brake=14),
+                              official_neo_courses(2)[:6])
+        self.assertGreater(res["plans"]["brakes"], 0)
+        self.assertEqual(sum(x.get("braked", False) for x in bot), res["plans"]["brakes"])
+
     def check(self, cfg, cs):
         from parkour.live import SETTLE_TICKS
         model = load_model(ROOT / "results" / "final_policy.pt", "cpu")
@@ -171,6 +207,7 @@ class AssistBotParity(unittest.TestCase):
         self.assertEqual(sum(x["found"] for x in bot), sum(e["found"] for e in res["events"]))
         self.assertTrue(all(x["verified"] == x["found"] for x in bot))  # prismarine-physics agrees with every plan
         self.assertGreater(sum(x["played"] for x in bot), 0)
+        return res, bot
 
 
 if __name__ == "__main__":
