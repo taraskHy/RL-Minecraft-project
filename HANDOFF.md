@@ -108,7 +108,12 @@ More facts that hold now:
     on the takeoff, a Python planner service searches, prismarine-physics
     checks the plan, the bot plays it); the offline bot matches the
     simulator exactly when both search on the same device
-    (`tests/test_neo_assist.py`). Not yet run in real Minecraft.
+    (`tests/test_neo_assist.py`). On the neo course set
+    (`configs/neo_live_courses.json`, where the neo policy made 11/31) the
+    final policy with the planner (every jump, brake and retry) makes 25/31
+    in the offline bot, the same courses as the simulator
+    (`results/games/neo-assist-offline-all-brake`). Not yet run in real
+    Minecraft.
   - *Head hitters and ice run-ups*: new jump kinds (a run-up under a 2-high
     roof, a tunnel, an ice runway), feasibility-checked
     (`configs/jump_feasibility_extra.json`), in opt-in levels

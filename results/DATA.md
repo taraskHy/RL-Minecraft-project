@@ -62,6 +62,7 @@ JavaScript on Mineflayer's physics engine without a server. Every folder's
 | `planner-live`, `planner-live-obstacles`, `planner-offline`, `planner-offline-obstacles` | first final policy + route planner, no course list: 52/60, 53/60 |
 | `noroute-live`, `noroute-live-obstacles`, `noroute-offline`, `noroute-offline-obstacles` | learned no-route model `noroute-v2`: 55/60, 37/60 |
 | `neo-live-final`, `neo-offline-final` | neo policy `neo-dagger3` on the neo course set (`configs/neo_live_courses.json`): 11/31 |
+| `neo-assist-offline-all-brake` | the final policy with the planning assist (`parkour.live --offline --assist '{"jumps": "all", "retries": 1, "brake": 14, "retry_horizon": 48}'`, planner service on the CPU) on the same neo course set: 25/31, the simulator 25/31 with the same outcome on every course; 366 requests, 350 plans, all confirmed by prismarine-physics |
 | `neo-full`, `cheat-check` | an early neo checkpoint (`runs/neo-ck.pt`, source run not recorded) on the neo course set (1/31) and on one test course (0/1) |
 | `neo-preview__bot` | the first neo attempts during neo training: stalls at the wall and falls |
 | `film-*` | single-course real-Minecraft runs recorded for the first-person videos (`scripts/film_pov.py`); `film-neo_level7-*` is the neo video |

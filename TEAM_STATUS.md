@@ -161,9 +161,11 @@ its CPU; the training for them is queued for the PC
   with the stop-and-search-again 119. A plan over the two jumps before each
   neo is being measured; then the
   test courses, once. The offline bot (prismarine-physics, the live bot's
-  engine) reproduces the simulator exactly with this planner; the live bot
-  has it too (it stands still on the takeoff while the planner thinks), not
-  yet run on a real server.
+  engine) reproduces the simulator exactly with this planner: on the 31
+  neo-set courses the neo policy made 11 of in real Minecraft, the final
+  policy with the planner makes 25 offline, the same courses as in the
+  simulator. The live bot has it too (it stands still on the takeoff while
+  the planner thinks), not yet run on a real server.
 - **Head hitters and ice run-ups**: new jump kinds (a run-up under a
   2-high roof, a tunnel, an ice runway), checked possible by a scripted
   study. The final policy, never trained on them, makes 68% of the head
