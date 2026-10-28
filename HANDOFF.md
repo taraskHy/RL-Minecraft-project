@@ -296,27 +296,31 @@ started before that does not pause it until restarted. The live bot is left
 alone on purpose (it plays in real time). Log: `runs/gpu_watchdog.log`. If the watchdog is ever killed while jobs are
 paused: `python scripts/gpu_watchdog.py --resume-all`.
 
-**While the user games on the PC** (the user plays on the same GPU and asked
-for "a safe buffer", 28 Oct). Gaming-safe mode, added by the cloud session
-and not yet run on the PC: one GPU job at a time, capped and throttled.
+**While the user games on the PC.** The user plays on the same GPU. On
+28 Oct they first asked for "a safe buffer", then (same evening) "you can
+use more GPU, don't leave like a 40% margin". So: one training process at
+the normal size, using most of the GPU but not all of it (flags added by the
+cloud session, not yet run on the PC):
 
 ```text
-python scripts/gpu_watchdog.py --hot 60 --cool 52
-run.cmd train --run NAME ... --num-envs 8192 --gpu-mem-fraction 0.35 --gpu-duty 0.6 --threads 4
+python scripts/gpu_watchdog.py                      (the user's rule: pause above 65 C, resume below 58 C)
+run.cmd train --run NAME ... --gpu-mem-fraction 0.75 --gpu-duty 0.9 --threads 8
 ```
 
-`--gpu-mem-fraction 0.35` caps PyTorch at 35% of the 16 GB (an allocation
-above it stops the run with "CUDA out of memory": then lower `--num-envs`
-to 4096, do not raise the cap; resume from `runs/NAME/checkpoints/latest.pt`).
-`--gpu-duty 0.6` sleeps after every iteration so the GPU computes at most
-60% of the time; `--threads 4` leaves CPU cores to the game. All three are
-off by default. Half the environments means half the samples per update:
-compare such runs with each other, not with 16,384-environment runs. To
-stop GPU work completely while a game runs, start the watchdog with
-`--pause-while VALORANT-Win64-Shipping.exe` (program names as in Task
-Manager's details tab): it suspends the jobs while the game runs and resumes
-them after it closes and the GPU is below `--cool`. This watchdog version
-also pauses `parkour.neo_assist`; restart a copy started before it.
+`--gpu-mem-fraction 0.75` caps PyTorch at 75% of the 16 GB (12 GB; one
+16,384-environment run uses less than half the card, since two fit). An
+allocation above the cap stops the run with "CUDA out of memory": then
+resume from `runs/NAME/checkpoints/latest.pt` with a lower `--num-envs`.
+`--gpu-duty 0.9` sleeps after every iteration so the GPU computes at most
+90% of the time, a 10% margin for the game; `--threads 8` leaves CPU cores
+to it. All three are off by default, and with the default 16,384
+environments a run compares directly with every earlier run. If the game
+stutters anyway, lower the duty (0.8) before anything else. To stop GPU
+work completely while a game runs, start the watchdog with `--pause-while
+VALORANT-Win64-Shipping.exe` (program names as in Task Manager's details
+tab): it suspends the jobs while the game runs and resumes them after it
+closes and the GPU is below `--cool`. This watchdog version also pauses
+`parkour.neo_assist`; restart a copy started before it.
 
 **Anywhere else** (a cloud container, another model's sandbox): no GPU,
 no `runs/`, no Minecraft server, but the test suite and CPU evaluations
