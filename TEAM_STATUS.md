@@ -223,8 +223,10 @@ The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
    (prismarine-physics has them) and new course pieces.
 4. Hand-built maps: extract the platform chain from a region of a real map.
 5. The report: `docs/report_draft.md` is complete in draft (results with
-   the new final policy and the neo results, discussion, conclusion); it
-   needs a read-through, the page limit and the figures placed.
+   the new final policy and the neo results, discussion, conclusion,
+   figures). In the submission format (`results/report_draft.docx` and
+   `.pdf`, Arial 12, 1.5 spacing) it is 20 pages before the references,
+   exactly the limit. It needs a read-through by the team.
 
 ## Update log
 
