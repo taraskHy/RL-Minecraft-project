@@ -305,8 +305,8 @@ class Episode {
     this.geom = shapes && Object.keys(shapes).length ? platformGeometry(platforms, shapes) : null
     this.topOf = topOf
     if (this.geom && planner) throw new Error('the route planner does not support shaped platforms')
-    // With an assist ({config, takeoffs, targets, retryHorizons}), planned actions replace the policy's (see PLAN).
-    this.assist = assist ? new Assist(assist.config, assist.takeoffs, assist.targets, assist.retryHorizons) : null
+    // With an assist ({config, takeoffs, targets, retryHorizons, approach}), planned actions replace the policy's (see PLAN).
+    this.assist = assist ? new Assist(assist.config, assist.takeoffs, assist.targets, assist.retryHorizons, assist.approach) : null
     this.queue = []
     this.pending = null
     this.assistLog = []
@@ -369,7 +369,8 @@ class Episode {
   }
 
   // After PLAN: play ``plan`` (a list of actions) or, with null, let the policy act; with no plan, a
-  // ``brake`` (assist.js: keys that stop the bot on the takeoff) is played and the retry follows it.
+  // ``brake`` (assist.js: keys that stop the bot on the takeoff) is played and the retry follows it. An
+  // approach without a plan is followed by the takeoff's own request in the same tick (PLAN again).
   resume (plan, info = {}, brake = null) {
     const req = this.pending
     this.pending = null
@@ -378,6 +379,12 @@ class Episode {
     else if (brake) {
       this.queue = brake.map(a => a.slice())
       this.assist.braked = true
+    } else if (req.kind === 'approach') {
+      const next = this.assist.request(req.state, this.cp, this.stall, this.ticks, this.stallLimit)
+      if (next) {
+        this.pending = { ...next, tick: this.ticks, state: req.state, lastAction: req.lastAction }
+        return PLAN
+      }
     }
     return this._act(req.state)
   }

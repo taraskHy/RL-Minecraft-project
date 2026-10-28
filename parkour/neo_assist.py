@@ -20,9 +20,10 @@ before the jump). With ``--brake T`` the bot first stops on the takeoff
 (``brake_plan``: "back" for up to 6 ticks, then no keys, T ticks in all,
 checked with the physics) and the retry runs as soon as it stands still.
 With ``--approach H`` the search also runs when the bot first stands on the
-platform before a neo's takeoff, for a plan of up to H ticks over both
-jumps, so the bot reaches the takeoff in a state the neo can be made from
-(without a landing the takeoff search runs as usual). With
+platform before a planned takeoff (not planned itself) or before a neo's
+takeoff, for a plan of up to H ticks over both jumps, so the bot reaches
+the takeoff in a state the neo can be made from; without a landing, the
+platform's own takeoff search (``--jumps all``) runs in the same tick. With
 ``--jumps advanced`` the search also runs at wide (3 sideways) and run-up
 jumps (momentum, head hitters, ice), with ``--jumps all`` at every jump.
 
@@ -204,12 +205,23 @@ def courses_from_file(raw: list[dict]) -> list[C.Course]:
     return out
 
 
+def approach_platforms(course: C.Course, planned: list[int]) -> list[int]:
+    """Platforms from which a plan over the next two jumps is tried first (``--approach``): the one before
+    every planned takeoff that is not planned itself, and the one before every neo takeoff (with ``--jumps
+    all`` every platform is planned, and the jump onto a neo's takeoff decides where the neo starts from)."""
+    ps = set(planned)
+    neos = set(neo_takeoffs(course))
+    return sorted({k - 1 for k in ps if k >= 1 and (k - 1 not in ps or k in neos)})
+
+
 def assist_fields(course: C.Course, cfg: "AssistConfig") -> dict:
     """What the bots' trigger rules need of a course (bridge/assist.js): the planned takeoffs, the platform
-    each plan ends on, and the retry horizon of each takeoff (for the stall check before a retry)."""
+    each plan ends on, the retry horizon of each takeoff (for the stall check before a retry) and the
+    platforms where an approach plan is tried."""
     ks = planned_takeoffs(course, cfg.jumps)
     return {"assist_takeoffs": ks, "assist_targets": [plan_target(course, k) for k in ks],
-            "assist_retry_horizons": [plan_horizon(course, k, "retry", cfg) for k in ks]}
+            "assist_retry_horizons": [plan_horizon(course, k, "retry", cfg) for k in ks],
+            "assist_approach": approach_platforms(course, ks)}
 
 
 _KEY = re.compile(r"g(-?\d+)_dy(-?\d+)_l(-?\d+)_s(\d+)x(\d+)(?:_neo(\d)([RL])(?:w(\d+))?)?(?:_run(\d+))?"
@@ -506,13 +518,11 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
     planned = [planned_takeoffs(c, cfg.jumps) for c in pool.courses]
     neo = torch.zeros(n, C.MAX_PLATFORMS, dtype=torch.bool, device=device)  # neo takeoffs (the statistics)
     plan_at = torch.zeros_like(neo)  # takeoffs where the search runs
-    before = torch.zeros_like(neo)  # the platform before a planned takeoff, itself not one
+    before = torch.zeros_like(neo)  # where an approach plan is tried (approach_platforms)
     for i, ks in enumerate(takeoffs):
         neo[i, ks] = True
         plan_at[i, planned[i]] = True
-        for k in planned[i]:
-            if k >= 1 and k - 1 not in planned[i]:
-                before[i, k - 1] = True
+        before[i, approach_platforms(pool.courses[i], planned[i])] = True
     hz = horizons(cfg)
     H = max(list(hz.values()) + [BOUNCE_PLAN_HORIZON, LADDER_PLAN_HORIZON, cfg.brake])
     retry_h = torch.full((n, C.MAX_PLATFORMS), hz["retry"], dtype=torch.int64, device=device)  # stall check of a retry
@@ -570,13 +580,16 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
                 if t % 25 == 0 and bool(finished.all()):
                     break
                 continue
-            free = on & (plan_pos >= plan_len)
             n_try = tries[rows, cp]
-            kinds = {"takeoff": free & plan_at[rows, cp] & (n_try == 0),
-                     "retry": (free & plan_at[rows, cp] & (n_try > 0) & (n_try <= cfg.retries)
-                               & ((t - last_try >= cfg.retry_every) | retry_now) & (env.stall + retry_h[rows, cp] < stall_ticks)),
-                     "approach": free & before[rows, cp] & ~tried_before[rows, cp] if cfg.approach else None}
-            for kind, mask in kinds.items():
+            for kind in ("approach", "takeoff", "retry"):  # an approach first; without its plan, the takeoff's own
+                free = on & (plan_pos >= plan_len)  # search in the same tick (the bots do the same)
+                if kind == "approach":
+                    mask = free & before[rows, cp] & ~tried_before[rows, cp] if cfg.approach else None
+                elif kind == "takeoff":
+                    mask = free & plan_at[rows, cp] & (n_try == 0)
+                else:
+                    mask = (free & plan_at[rows, cp] & (n_try > 0) & (n_try <= cfg.retries)
+                            & ((t - last_try >= cfg.retry_every) | retry_now) & (env.stall + retry_h[rows, cp] < stall_ticks))
                 want = [] if mask is None else torch.nonzero(mask).flatten().tolist()
                 if not want:
                     continue
