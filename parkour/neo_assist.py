@@ -18,10 +18,11 @@ on the takeoff (a bot that stopped there can often be planned from the
 standstill; ``--retry-horizon`` gives those plans more ticks, to walk back
 before the jump). With ``--brake T`` the bot first stops on the takeoff
 (``brake_plan``: "back" for up to 6 ticks, then no keys, T ticks in all,
-checked with the physics) and the retry runs as soon as it stands still. With ``--approach H`` the search also runs when the bot
-first stands on the platform before a neo's takeoff, for a plan of up to H
-ticks over both jumps, so the bot reaches the takeoff in a state the neo can
-be made from (without a landing the takeoff search runs as usual). With
+checked with the physics) and the retry runs as soon as it stands still.
+With ``--approach H`` the search also runs when the bot first stands on the
+platform before a neo's takeoff, for a plan of up to H ticks over both
+jumps, so the bot reaches the takeoff in a state the neo can be made from
+(without a landing the takeoff search runs as usual). With
 ``--jumps advanced`` the search also runs at wide (3 sideways) and run-up
 jumps (momentum, head hitters, ice), with ``--jumps all`` at every jump.
 
@@ -215,7 +216,7 @@ def spec_from_key(key: str) -> C.JumpSpec:
 def planned_takeoffs(course: C.Course, jumps: str) -> list[int]:
     """Where the assist plans: neo takeoffs; (``advanced``) also wide and momentum jumps; (``all``) every jump.
 
-    A course read from a file needs its ``specs`` back first (``spec_from_key``, as ``parkour.live`` does)."""
+    A course read from a file needs its ``specs`` back first (``specs_from_keys``, as ``parkour.live`` does)."""
     if jumps == "neo":
         return neo_takeoffs(course)
     if jumps == "advanced":
@@ -466,7 +467,7 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
             if k >= 1 and k - 1 not in planned[i]:
                 before[i, k - 1] = True
     hz = horizons(cfg)
-    H = max(list(hz.values()) + [BOUNCE_PLAN_HORIZON, LADDER_PLAN_HORIZON])
+    H = max(list(hz.values()) + [BOUNCE_PLAN_HORIZON, LADDER_PLAN_HORIZON, cfg.brake])
     tries = torch.zeros(n, C.MAX_PLATFORMS, dtype=torch.int64, device=device)
     tried_before = torch.zeros_like(neo)
     last_try = torch.full((n,), -10**9, dtype=torch.int64, device=device)
@@ -482,7 +483,7 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
     length = torch.zeros(n, dtype=torch.int64, device=device)
     prog = torch.zeros(n, dtype=torch.float64, device=device)
     reached = [set() for _ in range(n)]
-    events = []  # one per search: course, kind, takeoff, target, tick, after_plan (a plan landed this tick), found, ...
+    events = []  # one per search: course, kind, takeoff, target, tick, after_plan (a plan or brake ended this tick), ...
     plans = {"played": 0, "landed_as_planned": 0, "brakes": 0}
     search_seconds = 0.0
     with torch.no_grad():
