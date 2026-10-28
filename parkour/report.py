@@ -253,7 +253,8 @@ def archive(out: Path) -> None:
                 shutil.copy2(run / f, dst / f)
         for f in ("episodes.jsonl", "server.log"):
             if (run / f).exists():
-                with open(run / f, "rb") as src, gzip.open(dst / (f + ".gz"), "wb", compresslevel=9) as gz:
+                # mtime=0: the same records give the same bytes, so re-archiving does not touch Git.
+                with open(run / f, "rb") as src, gzip.GzipFile(dst / (f + ".gz"), "wb", compresslevel=9, mtime=0) as gz:
                     shutil.copyfileobj(src, gz)
 
 

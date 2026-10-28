@@ -251,6 +251,46 @@ function labelSprite (text, color) {
   return sp
 }
 
+// ---------- the route planner's plan (runs without a course list) ----------
+// Each event [tick, platform stood on, next platforms] is what the bot planned after a landing.
+const PLAN_OPACITY = [0.5, 0.34, 0.22]
+let planGroup = null; let planShown = -1
+function clearPlan () { if (planGroup) scene.remove(planGroup); planGroup = null; planShown = -1 }
+function digitSprite (text) {
+  const cv = document.createElement('canvas'); cv.width = 64; cv.height = 64
+  const g = cv.getContext('2d')
+  g.fillStyle = 'rgba(8, 40, 52, 0.75)'; g.beginPath(); g.arc(32, 32, 28, 0, 2 * Math.PI); g.fill()
+  g.fillStyle = '#5be7ff'; g.font = '700 38px IBM Plex Sans, Segoe UI, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 32, 34)
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false }))
+  sp.scale.set(1.1, 1.1, 1)
+  return sp
+}
+function showPlan (run, tick) {
+  if (!run.plans || !run.plans.length) return
+  let k = -1
+  for (let i = 0; i < run.plans.length; i++) if (run.plans[i][0] <= tick) k = i
+  if (k === planShown) return
+  clearPlan(); planShown = k
+  if (k < 0) return
+  const [, here, chain] = run.plans[k]
+  planGroup = new THREE.Group()
+  const top = p => new THREE.Vector3((p[0] + p[1] + 1) / 2, p[4] + 1.08, (p[2] + p[3] + 1) / 2)
+  const route = new THREE.Line(new THREE.BufferGeometry().setFromPoints([top(here), ...chain.map(top)]),
+    new THREE.LineDashedMaterial({ color: '#5be7ff', dashSize: 0.35, gapSize: 0.2 }))
+  route.computeLineDistances(); planGroup.add(route)
+  chain.forEach((p, i) => {
+    const w = p[1] - p[0] + 1; const d = p[3] - p[2] + 1
+    const cx = (p[0] + p[1] + 1) / 2; const cz = (p[2] + p[3] + 1) / 2
+    const glow = new THREE.Mesh(new THREE.BoxGeometry(w + 0.12, 1.12, d + 0.12),
+      new THREE.MeshBasicMaterial({ color: '#5be7ff', transparent: true, opacity: PLAN_OPACITY[i] || 0.15, depthWrite: false }))
+    glow.position.set(cx, p[4] + 0.5, cz); planGroup.add(glow)
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w + 0.12, 1.12, d + 0.12)), new THREE.LineBasicMaterial({ color: '#5be7ff' }))
+    edges.position.copy(glow.position); planGroup.add(edges)
+    const tag = digitSprite(String(i + 1)); tag.position.set(cx, p[4] + 1.9, cz); planGroup.add(tag)
+  })
+  scene.add(planGroup)
+}
+
 // ---------- runners ----------
 let runners = [] // {run, model, label, trail, visible}
 function clearRunners () { for (const r of runners) { scene.remove(r.model); if (r.label) scene.remove(r.label); if (r.trail) scene.remove(r.trail) } runners = [] }
@@ -293,6 +333,7 @@ const RACE_COLORS = ['#d63b3b', '#ef7f22', '#e6c229', '#93c83e', '#2fae58', '#20
 let mode = (location.hash === '#replays' && DATA.replays && DATA.replays.length) ? 'replays' : (DATA.races && DATA.races.length ? 'race' : 'replays')
 let current = 0; let raceIdx = 0; let t = 0; let playing = true; let lastTime = null; let maxTicks = 1; let course = null
 const camPos = new THREE.Vector3(); const camLook = new THREE.Vector3()
+let camEase = 1 // render mode draws fewer frames per tick, so the camera follows faster
 
 function renderTabs () {
   const box = $('tabs'); box.innerHTML = ''
@@ -330,7 +371,7 @@ function renderList () {
   }
 }
 function start () {
-  clearRunners()
+  clearRunners(); clearPlan()
   $('race').hidden = mode !== 'race'
   $('namesBox').hidden = mode !== 'race'
   if (mode === 'race') {
@@ -378,7 +419,9 @@ function pose (snap) {
     $('hud').innerHTML = `<b>${DATA.races[raceIdx].name}</b><span>tick ${tick} · ${(tick / 20).toFixed(2)} s</span><span>${made} of ${runners.filter(r => r.visible).length} runners at the goal</span>`
   } else {
     const run = DATA.replays[current]; const s = stateOf(run, t)
-    $('hud').innerHTML = `<b>${run.label}</b><span>${run.real ? 'real Minecraft' : 'offline (Mineflayer physics)'}</span><span>tick ${s.tick} / ${run.yaw.length - 1} · ${(s.tick / 20).toFixed(2)} s</span><span>platform ${run.cpAt[s.tick]} / ${run.n - 1}</span>`
+    $('hud').innerHTML = `<b>${run.label}</b><span>${run.real ? 'real Minecraft' : 'offline (Mineflayer physics)'}</span><span>tick ${s.tick} / ${run.yaw.length - 1} · ${(s.tick / 20).toFixed(2)} s</span><span>platform ${run.cpAt[s.tick]} / ${run.n - 1}</span>` +
+      (run.plans ? '<span>no course list: route planned from the blocks it sees (numbered)</span>' : '')
+    showPlan(run, s.tick)
     const done = s.tick >= run.yaw.length - 1
     $('banner').hidden = !done; if (done) $('banner').textContent = RESULT[run.result]
   }
@@ -400,12 +443,12 @@ function pose (snap) {
   } else if (cm === 'follow') {
     const fx = -Math.sin(lead.yaw); const fz = -Math.cos(lead.yaw)
     const want = new THREE.Vector3(lead.x - fx * 6, lead.y + 3.6, lead.z - fz * 6); const look = new THREE.Vector3(lead.x + fx * 3, lead.y + 0.8, lead.z + fz * 3)
-    if (snap) { camPos.copy(want); camLook.copy(look) } else { camPos.lerp(want, 0.06); camLook.lerp(look, 0.1) }
+    if (snap) { camPos.copy(want); camLook.copy(look) } else { camPos.lerp(want, 0.06 * camEase); camLook.lerp(look, 0.1 * camEase) }
     camera.position.copy(camPos); camera.lookAt(camLook)
   } else if (cm === 'cinematic') {
     const a = performance.now() / 9000
     const want = new THREE.Vector3(lead.x + Math.cos(a) * 9, lead.y + 5, lead.z + Math.sin(a) * 9); const look = new THREE.Vector3(lead.x, lead.y + 1, lead.z)
-    if (snap) { camPos.copy(want); camLook.copy(look) } else { camPos.lerp(want, 0.05); camLook.lerp(look, 0.1) }
+    if (snap) { camPos.copy(want); camLook.copy(look) } else { camPos.lerp(want, 0.05 * camEase); camLook.lerp(look, 0.1 * camEase) }
     camera.position.copy(camPos); camera.lookAt(camLook)
   }
 }
@@ -455,19 +498,22 @@ document.addEventListener('keydown', e => {
 })
 if (DATA.races) DATA.races.forEach((r, i) => { const o = document.createElement('option'); o.value = String(i); o.textContent = r.name; $('race').appendChild(o) })
 new ResizeObserver(resize).observe($('box'))
-// Local video rendering: ?render=1&race=K steps the race frame by frame for a capture tool.
+// Local video rendering: ?render=1&race=K (or &replay=K) steps a race or a replay frame by
+// frame for a capture tool.
 const Q = new URLSearchParams(location.search)
 if (Q.get('render')) {
   document.body.classList.add('render')
-  mode = 'race'; raceIdx = Number(Q.get('race') || 0)
-  $('cam').value = Q.get('cam') || 'overview'
+  if (Q.get('replay') !== null) { mode = 'replays'; current = Number(Q.get('replay')) } else { mode = 'race'; raceIdx = Number(Q.get('race') || 0) }
+  $('cam').value = Q.get('cam') || (mode === 'race' ? 'overview' : 'follow')
   $('names').checked = Q.get('names') !== '0'
-  $('legend').hidden = false
+  $('legend').hidden = mode !== 'race'
   if (Q.get('caption')) { $('caption').hidden = false; $('caption').textContent = Q.get('caption') }
   start(); resize()
   playing = false
-  window.renderInfo = () => ({ maxTicks, race: DATA.races[raceIdx].name, runners: runners.length })
-  window.renderAt = tick => { t = Math.min(maxTicks, tick); pose(true); renderLegend(); renderer.render(scene, camera); return true }
+  camEase = 2.5
+  let rendered = false
+  window.renderInfo = () => ({ maxTicks, name: mode === 'race' ? DATA.races[raceIdx].name : DATA.replays[current].label, runners: runners.length })
+  window.renderAt = tick => { t = Math.min(maxTicks, tick); pose(!rendered); rendered = true; renderLegend(); renderer.render(scene, camera); return true }
   window.renderReady = true
 } else {
   renderTabs(); start(); resize(); requestAnimationFrame(frame)

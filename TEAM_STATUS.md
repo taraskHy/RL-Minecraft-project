@@ -96,9 +96,36 @@ blocks.
   curved run a neo needs. Next idea: learn from the search's successful
   move sequences (demonstrations).
 
+## No course list: the bot finds its own route
+
+Requested from the side chat: run the trained bot on maps where nobody gives
+it the list of platforms. A **greedy route planner** (`parkour/planner.py`,
+same code in `bridge/planner.js`) looks at the blocks around the bot after
+every landing, finds the platforms, and picks the next three; the existing
+final policy jumps to them, no retraining. Only the goal position is given.
+
+| Unseen courses | Course list given | Planner |
+| --- | --- | --- |
+| 1,200 standard, simulator | 97.1% | **89.6%** |
+| 1,200 with obstacles, simulator | 93.6% | **86.3%** |
+| 60 standard, **real Minecraft** | 59/60 | **52/60** |
+| 60 with obstacles, **real Minecraft** | 58/60 | **53/60** |
+| 3 hand-designed, **real Minecraft** | 3/3 | **3/3** |
+
+Real Minecraft matches the simulator on every course, 0 server corrections.
+Most failures: the planner takes a shortcut to a later platform that is in
+reach, and that jump is harder. Videos: `real_minecraft_showcase_no_course_list.mp4`
+(first person) and `replay_233_*` / `replay_240_*` (the plan drawn as
+numbered cyan platforms). Report section 7.11.
+
+**Next (training now):** a learned model that finds its route itself:
+wide block scan, memory of its last landings, no platform list
+(`runs/noroute-v2`, about 2.4 hours).
+
 ## Running now
 
-1. `neo-stall`: the stall-penalty fine-tune above.
+1. `noroute-v2`: the learned no-route model (wide scan and landing memory,
+   platforms and progress hidden, 3,000 iterations).
 2. Hyperparameter study (`configs/sweep_hparams.json`), one run at a time:
    3 of 9 finished.
 3. Only two training runs fit on the GPU at once now (a third spills out

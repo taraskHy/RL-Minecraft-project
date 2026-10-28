@@ -318,6 +318,62 @@ curved run a neo needs (in the search, 1 in 2,000 to 16,000 sampled action
 sequences landed one). Learning from the search's successful sequences
 (demonstrations) is the natural next step.
 
+### 7.11 Without the course list: a greedy route planner
+
+The policy is told the platform it stands on and the next three. To run it
+on a map without that list, a planner (`parkour/planner.py`, and the same
+code in `bridge/planner.js`) finds the platforms itself and fills the same
+four slots; the policy is not retrained. Only the goal's position is given
+(in the game, a beacon). After every landing the planner:
+
+1. **Perceives** the solid blocks within 12 blocks. A standable cell is a
+   solid block with two air blocks above it and air below it (platforms are
+   one-block slabs; the tops of walls and decoy pillars are columns, so they
+   are not platforms). Standable cells side by side at the same height form a
+   platform. A slab exactly 4 blocks above a platform it touches is a
+   head-hitter beam, not a target.
+2. **Remembers** the platforms it has stood on, and the ones its own plan
+   skipped when the bot landed further along.
+3. **Chooses** the next platform greedily: among unvisited platforms within
+   the jump limits of the feasibility study (longest possible gap for each
+   height change) and with a clear straight flight path, the one with the
+   lowest `-log(forgiveness) - 3 cos(angle to the goal)`, so easy jumps
+   towards the goal win. The rule repeats from the chosen platform for the
+   two slots after it.
+
+All settings were chosen on the validation courses; the test set was used
+once. Results (`results/planner/`, final policy):
+
+| Unseen courses | Course list given | Planner | Planner, "remaining" fall rule |
+| --- | --- | --- | --- |
+| 1,200 standard, simulator | 97.1% | 89.6% | 92.9% |
+| 1,200 with obstacles, simulator | 93.6% | 86.3% | 89.8% |
+| 60 standard, real Minecraft | 59/60 | 52/60 | |
+| 60 with obstacles, real Minecraft | 58/60 | 53/60 | |
+| 3 hand-designed, real Minecraft | 3/3 | 3/3 | |
+
+In real Minecraft and with the offline bot the planner made exactly the
+courses the simulator made, with 0 server corrections; replaying the
+recorded actions reproduced every trajectory to 2e-14 blocks, and a test
+checks that Python and the bot's JavaScript make identical plans.
+
+Failure modes (test sets, standard fall rule). Of the 125 failed standard
+courses, 104 failed after the plan left the course's order at some landing,
+almost always by skipping ahead: a later platform of the course is within
+reach and closer to the goal, so it is chosen over the course's next one;
+in the other 21 the plan followed the course and the jump itself failed. On
+obstacle courses: 116 after leaving the order, 45 jump failures and 4 runs
+where no reachable platform was in view. Most shortcuts succeed (on the tour
+course the bot finished in 128 ticks instead of 145), but they are not the
+jumps the course was built around, and some are harder. 40 of the 125
+standard failures are an artefact of our fall rule, which only looks at the
+platforms around the current one in course order: the bot is above the lower
+platform it chose when the rule calls a fall. Counting a drop onto any later
+platform as a landing (the "remaining" rule, evaluation only) gives the last
+column. Before the head-hitter rule, a third of the failures on obstacle
+courses were jumps aimed at a beam; decoy pillars are columns, so the
+planner never treats them as platforms.
+
 ## 8. Discussion and limitations
 
 Points to develop:

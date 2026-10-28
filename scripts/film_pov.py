@@ -1,6 +1,6 @@
 """Film the trained bot in real Minecraft from its own eyes.
 
-    python scripts/film_pov.py [--checkpoint results/final_policy.pt] [--names tour,stairs,sprint]
+    python scripts/film_pov.py [--checkpoint results/final_policy.pt] [--names tour,stairs,sprint] [--planner]
 
 For each named course of configs/showcase_courses.json: starts the local Minecraft server and
 the live bot (parkour.live, rainbow blocks, prismarine-viewer in first person), streams the
@@ -8,6 +8,8 @@ viewer from a headless Chrome (remote debugging on port 9333, see render_videos.
 the stream to the run itself using the bot's wall-clock marks. Writes
 results/videos/real_minecraft_<name>.mp4 and, for several courses, real_minecraft_showcase.mp4.
 The run's own record (episodes, replay check) stays in runs/film-<name>-<time>.
+With --planner the bot is not given the course: parkour.planner finds its route
+(files end in _no_course_list).
 """
 import argparse
 import json
@@ -40,7 +42,7 @@ def film(course: dict, a, out_dir: Path) -> Path | None:
     run = ROOT / "runs" / f"film-{name}-{time.strftime('%m%d-%H%M%S')}"
     live = subprocess.Popen([PYTHON, "-m", "parkour.live", "--checkpoint", a.checkpoint, "--out", str(run),
                              "--courses-file", str(course_file), "--style", "rainbow", "--web-viewer", str(a.viewer_port),
-                             "--first-person", "--hold", str(a.hold)],
+                             "--first-person", "--hold", str(a.hold)] + (["--planner"] if a.planner else []),
                             cwd=str(ROOT), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     viewer_up = threading.Event()
     marks = {}
@@ -82,7 +84,7 @@ def film(course: dict, a, out_dir: Path) -> Path | None:
         while j + 1 < len(times) and times[j + 1]["t"] <= t:
             j += 1
         shutil.copyfile(frames / times[j]["file"], seq / f"{k:05d}.jpg")
-    out = out_dir / f"real_minecraft_{name}.mp4"
+    out = out_dir / f"real_minecraft_{name}{'_no_course_list' if a.planner else ''}.mp4"
     subprocess.run([ffmpeg(), "-y", "-loglevel", "error", "-framerate", str(FPS), "-i", str(seq / "%05d.jpg"),
                     "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "20", "-preset", "slow", "-movflags", "+faststart",
                     str(out)], check=True)
@@ -99,8 +101,13 @@ def main():
     ap.add_argument("--names", default="tour,stairs,sprint")
     ap.add_argument("--viewer-port", type=int, default=3007)
     ap.add_argument("--hold", type=int, default=8000, help="ms on the start block while the viewer loads the world")
-    ap.add_argument("--caption", default="Real Minecraft 1.21.4 · the trained bot's own view · course “{name}”, never seen in training")
+    ap.add_argument("--caption", default="")
+    ap.add_argument("--planner", action="store_true", help="no course list: the route planner finds the platforms")
     a = ap.parse_args()
+    if not a.caption:
+        a.caption = ("Real Minecraft 1.21.4 · no course list: the bot finds its own route · course “{name}”"
+                     if a.planner else
+                     "Real Minecraft 1.21.4 · the trained bot's own view · course “{name}”, never seen in training")
     courses = {c["name"]: c for c in json.loads((ROOT / a.courses_file).read_text())["courses"]}
     out_dir = ROOT / "results" / "videos"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -108,10 +115,11 @@ def main():
     if len(made) > 1:
         lst = out_dir / "concat.txt"
         lst.write_text("".join(f"file '{p.name}'\n" for p in made))
+        show = out_dir / f"real_minecraft_showcase{'_no_course_list' if a.planner else ''}.mp4"
         subprocess.run([ffmpeg(), "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy",
-                        "-movflags", "+faststart", str(out_dir / "real_minecraft_showcase.mp4")], check=True, cwd=str(out_dir))
+                        "-movflags", "+faststart", str(show)], check=True, cwd=str(out_dir))
         lst.unlink()
-        print("wrote", out_dir / "real_minecraft_showcase.mp4")
+        print("wrote", show)
 
 
 if __name__ == "__main__":

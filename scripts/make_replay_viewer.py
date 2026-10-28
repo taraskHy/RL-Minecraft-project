@@ -53,6 +53,7 @@ def episodes_from(run: Path) -> list[dict]:
             "n": e["n"], "ticks": e["ticks"], "platforms": plats, "extra": c.get("extra", []), "mode": mode,
             "pos": [round(v, 3) for p in pos for v in p], "yaw": [round(v, 4) for v in yaw], "cpAt": cp_at,
             "ground": [1 if init.get("onGround") else 0] + [int(row[6]) for row in e["traj"]],
+            **({"plans": e["plans"]} if e.get("plans") else {}),
         })
     return out
 
