@@ -190,7 +190,7 @@ def specs_from_keys(keys: list[str], n_platforms: int) -> list[C.JumpSpec]:
             out.append(C.exit_spec(sp.block))
         if sp.bounce:
             out.append(C.bounce_exit(sp))
-    return out if len(out) == n_platforms - 1 else specs
+    return out if len(out) == n_platforms - 1 else []  # no specs rather than specs of the wrong jumps
 
 
 def courses_from_file(raw: list[dict]) -> list[C.Course]:
@@ -202,6 +202,14 @@ def courses_from_file(raw: list[dict]) -> list[C.Course]:
             c.specs = specs_from_keys(d["specs"], c.n)
         out.append(c)
     return out
+
+
+def assist_fields(course: C.Course, cfg: "AssistConfig") -> dict:
+    """What the bots' trigger rules need of a course (bridge/assist.js): the planned takeoffs, the platform
+    each plan ends on, and the retry horizon of each takeoff (for the stall check before a retry)."""
+    ks = planned_takeoffs(course, cfg.jumps)
+    return {"assist_takeoffs": ks, "assist_targets": [plan_target(course, k) for k in ks],
+            "assist_retry_horizons": [plan_horizon(course, k, "retry", cfg) for k in ks]}
 
 
 _KEY = re.compile(r"g(-?\d+)_dy(-?\d+)_l(-?\d+)_s(\d+)x(\d+)(?:_neo(\d)([RL])(?:w(\d+))?)?(?:_run(\d+))?"
@@ -507,6 +515,10 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
                 before[i, k - 1] = True
     hz = horizons(cfg)
     H = max(list(hz.values()) + [BOUNCE_PLAN_HORIZON, LADDER_PLAN_HORIZON, cfg.brake])
+    retry_h = torch.full((n, C.MAX_PLATFORMS), hz["retry"], dtype=torch.int64, device=device)  # stall check of a retry
+    for i, ks in enumerate(planned):
+        for k in ks:
+            retry_h[i, k] = plan_horizon(pool.courses[i], k, "retry", cfg)
     tries = torch.zeros(n, C.MAX_PLATFORMS, dtype=torch.int64, device=device)
     tried_before = torch.zeros_like(neo)
     last_try = torch.full((n,), -10**9, dtype=torch.int64, device=device)
@@ -562,7 +574,7 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
             n_try = tries[rows, cp]
             kinds = {"takeoff": free & plan_at[rows, cp] & (n_try == 0),
                      "retry": (free & plan_at[rows, cp] & (n_try > 0) & (n_try <= cfg.retries)
-                               & ((t - last_try >= cfg.retry_every) | retry_now) & (env.stall + hz["retry"] < stall_ticks)),
+                               & ((t - last_try >= cfg.retry_every) | retry_now) & (env.stall + retry_h[rows, cp] < stall_ticks)),
                      "approach": free & before[rows, cp] & ~tried_before[rows, cp] if cfg.approach else None}
             for kind, mask in kinds.items():
                 want = [] if mask is None else torch.nonzero(mask).flatten().tolist()

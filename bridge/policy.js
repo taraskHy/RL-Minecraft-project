@@ -305,8 +305,8 @@ class Episode {
     this.geom = shapes && Object.keys(shapes).length ? platformGeometry(platforms, shapes) : null
     this.topOf = topOf
     if (this.geom && planner) throw new Error('the route planner does not support shaped platforms')
-    // With an assist ({config, takeoffs, targets}), planned actions replace the policy's (see PLAN).
-    this.assist = assist ? new Assist(assist.config, assist.takeoffs, assist.targets) : null
+    // With an assist ({config, takeoffs, targets, retryHorizons}), planned actions replace the policy's (see PLAN).
+    this.assist = assist ? new Assist(assist.config, assist.takeoffs, assist.targets, assist.retryHorizons) : null
     this.queue = []
     this.pending = null
     this.assistLog = []

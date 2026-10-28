@@ -284,7 +284,7 @@ async function runCourse (c, index) {
     extra: c.extra || [],
     planner: args.planner ? JSON.parse(args.planner) : null,
     fallRule: args.fallRule,
-    assist: assistConfig ? { config: assistConfig, takeoffs: c.assist_takeoffs || [], targets: c.assist_targets || null } : null,
+    assist: assistConfig ? { config: assistConfig, takeoffs: c.assist_takeoffs || [], targets: c.assist_targets || null, retryHorizons: c.assist_retry_horizons || null } : null,
     shapes: c.shapes || null,
     topOf
   })
