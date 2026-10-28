@@ -16,9 +16,9 @@ from parkour import courses as C
 from parkour import physics
 from parkour.env import CoursePool, on_obstacle
 from parkour.live import load_model
-from parkour.neo_assist import (AssistConfig, Rules, brake_plan, courses_from_file, evaluate_assisted,
-                                 official_neo_courses, plan_target, planned_takeoffs, random_neo_courses, spec_from_key,
-                                 specs_from_keys)
+from parkour.neo_assist import (AssistConfig, Rules, brake_plan, courses_from_file, evaluate_assisted, jump_kind,
+                                 mixed_courses, official_neo_courses, plan_target, planned_takeoffs, random_neo_courses,
+                                 spec_from_key, specs_from_keys)
 from parkour.neo_dagger import neo_takeoffs
 from parkour.paths import BRIDGE, CONFIGS, NODE, ROOT
 from parkour.train import evaluate
@@ -70,6 +70,15 @@ class NeoAssist(unittest.TestCase):
         self.assertEqual(len(rnd), 20)
         self.assertGreater(np.mean([len(neo_takeoffs(c)) for c in rnd]), 2)
         self.assertEqual([c.to_json() for c in rnd[:5]], [c.to_json() for c in random_neo_courses(13, n=5)])
+        mixed = mixed_courses(15, n=40)
+        kinds = {jump_kind(c, k, neo_takeoffs(c)) for c in mixed for k in range(c.n - 1)}
+        self.assertTrue({"neo", "wide", "momentum", "run-up (roof or ice)", "basic"} <= kinds, kinds)
+        self.assertEqual([c.to_json() for c in mixed[:5]], [c.to_json() for c in mixed_courses(15, n=5)])
+
+    def test_a_ladder_wall_is_not_a_neo(self):
+        for h in (2, 3, 4, 5):
+            self.assertEqual(neo_takeoffs(C.single_jump(C.JumpSpec(1, h, 0, (1, 1), ladder=1))), [])
+        self.assertEqual(neo_takeoffs(C.single_jump(C.JumpSpec(1, 0, 0, (1, 1), neo=1))), [0])
 
 
 def extra_kind_courses():

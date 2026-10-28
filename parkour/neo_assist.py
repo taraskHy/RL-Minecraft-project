@@ -39,6 +39,10 @@ Course sets (``--set``):
             jumps are neos (the 32 single-neo jump types of levels 6 and 7),
             10 jumps each, from seed families 12 (test) and 13 (validation),
             which nothing else uses.
+  mixed     the same with every special kind instead of only neos (single
+            neos, wide and momentum jumps, head hitters, ice run-ups, shaped
+            blocks, slime bounces, ladder climbs; ``mixed_level``), families
+            14 (test) and 15 (validation).
 
 Settings are chosen on the validation families; the test families are run
 once with the chosen setting. Each run appends one JSON line to ``--out``
@@ -70,7 +74,9 @@ from .train import TEST_SEED_FAMILY, VALIDATION_FAMILY, held_out_courses
 
 RANDOM_TEST_FAMILY = 12
 RANDOM_VALIDATION_FAMILY = 13
-TEST_FAMILIES = (TEST_SEED_FAMILY, RANDOM_TEST_FAMILY)
+MIXED_TEST_FAMILY = 14
+MIXED_VALIDATION_FAMILY = 15
+TEST_FAMILIES = (TEST_SEED_FAMILY, RANDOM_TEST_FAMILY, MIXED_TEST_FAMILY)
 HEADS = ("move", "strafe", "jump", "sprint", "yaw")
 
 
@@ -238,7 +244,8 @@ def advanced_takeoffs(course: C.Course) -> list[int]:
 
 
 def jump_kind(course: C.Course, k: int, neos: list) -> str:
-    """The kind of the jump from platform k: neo, wide (3 sideways), momentum (run-up), other advanced, or basic."""
+    """The kind of the jump from platform k: neo, wide (3 sideways), momentum (run-up), run-up under a roof or
+    on ice, onto a shaped block, off one (its exit), onto a slime pad, off a pad, a ladder climb, other, or basic."""
     if k in neos:
         return "neo"
     sp = course.specs[k] if k < len(course.specs) else None
@@ -248,7 +255,17 @@ def jump_kind(course: C.Course, k: int, neos: list) -> str:
         return "momentum" if not (sp.ceiling or sp.ice) else "run-up (roof or ice)"
     if abs(sp.lateral) == 3:
         return "wide"
-    if sp.neo or sp.block or sp.bounce or sp.ladder:
+    if sp.block:
+        return "onto a shaped block"
+    if k in course.shapes:
+        return "off a shaped block"
+    if sp.bounce:
+        return "onto a slime pad"
+    if k in course.slime:
+        return "off a slime pad"
+    if sp.ladder:
+        return "ladder climb"
+    if sp.neo:
         return "other advanced"
     return "basic"
 
@@ -272,11 +289,33 @@ def official_neo_courses(family: int) -> list[C.Course]:
     return [c for c in hard if neo_takeoffs(c)]
 
 
+def mixed_level() -> list[C.JumpSpec]:
+    """Every special kind in one level, each group about equally likely: the single neos, the wide jumps and
+    the momentum jumps of the advanced levels 6-8, and each extra level (head hitters, hard head hitters, ice
+    run-ups, shaped blocks, slime bounces, ladder climbs). A group of n specs is repeated round(N / n) times,
+    N the largest group, since ``courses.generate`` draws a level's specs uniformly."""
+    adv = [s for L in C.load_levels(advanced=True)[6:] for s in L]
+    groups = [[s for s in adv if s.neo == 1], [s for s in adv if abs(s.lateral) == 3 and not s.neo and not s.runway],
+              [s for s in adv if s.runway and not s.neo]] + C.load_levels(extra=True)[6:]
+    groups = [g for g in groups if g]
+    most = max(len(g) for g in groups)
+    return [s for g in groups for s in g * max(1, round(most / len(g)))]
+
+
+def mixed_courses(family: int, n: int = 200, n_jumps: int = 10) -> list[C.Course]:
+    """Courses of level-0-5 jumps where half the jumps are of the special kinds (``mixed_level``)."""
+    levels = C.load_levels() + [mixed_level()]
+    rng = np.random.default_rng([2026, family, 6])
+    return [C.generate(rng, levels, 6, n_jumps, seed=i) for i in range(n)]
+
+
 def course_set(name: str, family: int) -> list[C.Course]:
     if name == "official":
         return official_neo_courses(family)
     if name == "random":
         return random_neo_courses(family)
+    if name == "mixed":
+        return mixed_courses(family)
     raise ValueError(name)
 
 
@@ -680,7 +719,7 @@ def serve(model, courses: list[C.Course], cfg: AssistConfig, device, inp=None, o
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--checkpoint", default=str(ROOT / "results" / "final_policy.pt"))
-    ap.add_argument("--set", choices=("official", "random"), default="official")
+    ap.add_argument("--set", choices=("official", "random", "mixed"), default="official")
     ap.add_argument("--family", type=int, default=VALIDATION_FAMILY)
     ap.add_argument("--off", action="store_true", help="the policy alone, for comparison")
     ap.add_argument("--courses", type=int, default=0, help="only the first N courses (quick checks)")
@@ -698,7 +737,8 @@ def main(argv=None):
     a = ap.parse_args(argv)
     if a.threads:
         torch.set_num_threads(a.threads)
-    valid = {"official": (TEST_SEED_FAMILY, VALIDATION_FAMILY), "random": (RANDOM_TEST_FAMILY, RANDOM_VALIDATION_FAMILY)}
+    valid = {"official": (TEST_SEED_FAMILY, VALIDATION_FAMILY), "random": (RANDOM_TEST_FAMILY, RANDOM_VALIDATION_FAMILY),
+             "mixed": (MIXED_TEST_FAMILY, MIXED_VALIDATION_FAMILY)}
     if a.family not in valid[a.set]:
         raise SystemExit(f"--set {a.set} has families {valid[a.set]} (test, validation)")
     cfg = AssistConfig(enabled=not a.off, **{k: getattr(a, k) for k in asdict(AssistConfig()) if k != "enabled"})
