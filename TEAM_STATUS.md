@@ -222,8 +222,9 @@ The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
 3. More block types: slabs, ladders, ice and fences need physics ports
    (prismarine-physics has them) and new course pieces.
 4. Hand-built maps: extract the platform chain from a region of a real map.
-5. The report: `docs/report_draft.md` needs the new final policy, the
-   imitation and DAgger neo results, the discussion and the conclusion.
+5. The report: `docs/report_draft.md` is complete in draft (results with
+   the new final policy and the neo results, discussion, conclusion); it
+   needs a read-through, the page limit and the figures placed.
 
 ## Update log
 

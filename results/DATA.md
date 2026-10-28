@@ -8,7 +8,8 @@ checkpoint).
 ## Training: every iteration of every run
 
 `results/runs/NAME/` for each training run (and `results/runs/_v1_unstable/`
-for the first three runs, discarded after PPO collapsed; kept as evidence):
+for the first three runs, discarded after PPO collapsed; kept as evidence;
+`final-v2` is an abandoned run that no result uses):
 
 | File | One row per | Columns (the ones you will want) |
 | --- | --- | --- |

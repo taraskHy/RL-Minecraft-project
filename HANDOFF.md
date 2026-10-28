@@ -64,6 +64,12 @@ More facts that hold now:
   impossible (search evidence, not a proof).
 - Physics port vs. the real library: 1.4e-14 blocks over 99,000 ticks
   (`results/physics_parity.json`).
+- `final-v2` (`results/runs/final-v2`) is an abandoned run: from scratch
+  with obstacles on 30% of jumps and a learning-rate cap of 3e-4 (the main
+  run used 1e-3), started 27 Oct 22:53, stopped after 534 of 3,000
+  iterations (44 minutes; last evaluation at 499: 88.5% standard, 88.1%
+  obstacles). No result uses it; why it stopped is not recorded (it ended
+  about when the neo levels were added, 23:25).
 - Two policies, not one: the final policy for levels 0-5 and obstacles, the
   neo policy for levels 6-8. Merging them was planned
   (`docs/overnight_plan.md`) but not done.
@@ -81,18 +87,14 @@ Concrete work, most important first. Nothing here needs new research.
    are written. Still to do: a read-through by the team, the 8-20 page limit
    (Arial 12, 1.5 spacing; the draft is about 6,500 words), and placing the
    figures (the draft names them, none are embedded).
-2. **`final-v2`** (`results/runs/final-v2`: 3,000 iterations planned, stopped
-   at 499, discount 0.99, obstacles 30%) is not described in any document.
-   Ask the PC session or the user what it was, then document it or mark it
-   aborted.
-3. **Ship the neo policy in Git** if the team will present it: it exists
+2. **Ship the neo policy in Git** if the team will present it: it exists
    only as `runs/neo-dagger3/checkpoints/best.pt` on the PC. Export it next
    to the final policy (for example `results/neo_policy.pt` / `.json`)
    without replacing `results/final_policy.*`.
-4. **Restart the GPU watchdog on the PC** after merging this branch: it
+3. **Restart the GPU watchdog on the PC** after merging this branch: it
    now also pauses `parkour.neo_dagger`, but the copy already running uses
    the old job list.
-5. Keep `TEAM_STATUS.md` and this file in step with each new result.
+4. Keep `TEAM_STATUS.md` and this file in step with each new result.
 
 ## 4. Open problems (unsolved, up for grabs)
 
@@ -254,18 +256,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `b12f894` (2026-10-28 12:57, branch `claude/pensive-knuth-biwj11`): Report 7.10-7.12: neos learned from demonstrations and DAgger; planner with both policies
+Generated on top of commit `70379e1` (2026-10-28 12:58, branch `claude/pensive-knuth-biwj11`): Report sections 8 and 9: discussion, limitations and conclusion
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 3 |
+| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 4 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `a37dea9` 2026-10-28 12:26 | 3 |
-| `README.md` | `a37dea9` 2026-10-28 12:26 | 3 |
-| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 8 |
-| `docs/report_draft.md` | updated together with this snapshot | 0 |
-| `results/README.md` | `6170803` 2026-10-28 11:40 | 5 |
-| `results/DATA.md` | `60924b6` 2026-10-28 12:52 | 2 |
+| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
+| `README.md` | `a37dea9` 2026-10-28 12:26 | 4 |
+| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 9 |
+| `docs/report_draft.md` | `70379e1` 2026-10-28 12:58 | 0 |
+| `results/README.md` | `6170803` 2026-10-28 11:40 | 6 |
+| `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
