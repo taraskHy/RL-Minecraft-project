@@ -1,0 +1,5 @@
+{
+ "method": "Validation success (seed family 2, 100 courses per level, deterministic policy) of the defaults' checkpoints at iteration 999. full-s1 and full-s2 kept that checkpoint (latest.pt of a 1,000-iteration run); main-s0 ran 3,000 iterations, so its iteration-999 checkpoint does not exist.",
+ "full-s1": 0.93,
+ "full-s2": 0.9067
+}

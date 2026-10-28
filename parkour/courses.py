@@ -226,16 +226,24 @@ def _neo_wall(prev: np.ndarray, new: np.ndarray, heading: int, spec: JumpSpec, r
     return [(int(x), y, int(along)) for x in range(x0, x1 + 1) for y in ys]
 
 
-def _place(platforms: list, extras: list, heading: int, spec: JumpSpec, grid=GRID):
-    """Platforms and wall cells for ``spec`` after ``platforms[-1]``, or None if it does not fit."""
+def _place(platforms: list, extras: list, heading: int, spec: JumpSpec, grid=GRID, wide_neo: bool = False):
+    """Platforms and wall cells for ``spec`` after ``platforms[-1]``, or None if it does not fit.
+
+    With ``wide_neo`` a neo may also follow a takeoff wider than one block, as long as the
+    landing reaches the wall's open end (otherwise it lies two or more lanes behind the wall,
+    which no search could land).
+    """
     prev = platforms[-1]
     added = []
     if spec.neo:
-        # A neo takes off from a block one wide across the jump, as in the feasibility study:
-        # from a wider platform the wall would span it all and the curve around it would grow.
+        # A simplification of the generator, not a parkour rule: by default neos are only placed
+        # after a takeoff one block wide across the jump. The wall spans the takeoff's whole
+        # width, so from a wider takeoff the landing could end up two lanes from the wall's open
+        # end, which is impossible (like a double neo). ``wide_neo`` allows wide takeoffs when
+        # the landing reaches the open end (parkour.neo_demos finds such 2x2-takeoff neos).
         hx, _ = HEADINGS[heading]
         across = (prev[3] - prev[2] + 1) if hx != 0 else (prev[1] - prev[0] + 1)
-        if across != 1:
+        if across != 1 and not wide_neo:
             return None
     if spec.runway:
         run = _platform_after(prev, heading, JumpSpec(1, 0, 0, (spec.runway, 1)))
@@ -249,6 +257,18 @@ def _place(platforms: list, extras: list, heading: int, spec: JumpSpec, grid=GRI
         return None
     added.append(new)
     cells = []
+    if spec.neo and wide_neo:
+        hx, hz = HEADINGS[heading]
+        if hx != 0:
+            open_dir = spec.side * hx  # +1: the wall's open end is towards +z
+            lo, hi = min(prev[2], new[2]), max(prev[3], new[3])
+            if (open_dir > 0 and new[3] != hi) or (open_dir < 0 and new[2] != lo):
+                return None
+        else:
+            open_dir = -spec.side * hz  # +1: towards +x
+            lo, hi = min(prev[0], new[0]), max(prev[1], new[1])
+            if (open_dir > 0 and new[1] != hi) or (open_dir < 0 and new[0] != lo):
+                return None
     if spec.neo:
         # Taller than every platform from two before the takeoff to the target: none can reach its top.
         top = max(int(p[4]) for p in (platforms[-3:] + added))
@@ -318,7 +338,8 @@ def load_beam_ok(path: Path | None = None) -> set:
 
 def generate(rng: np.random.Generator, levels: list[list[JumpSpec]], level: int, n_jumps: int,
              grid=GRID, turn_prob: float = 0.25, start_size: int | None = None, seed: int = 0,
-             yaw_noise: float = math.radians(60), obstacle_prob: float = 0.0, beam_ok: set | None = None) -> Course:
+             yaw_noise: float = math.radians(60), obstacle_prob: float = 0.0, beam_ok: set | None = None,
+             wide_neo: bool = False) -> Course:
     """One random course whose jumps come from ``levels[:level + 1]``.
 
     Half of the jumps come from ``level`` itself and half from easier levels,
@@ -360,7 +381,7 @@ def generate(rng: np.random.Generator, levels: list[list[JumpSpec]], level: int,
             if spec.neo or spec.runway:
                 if len(platforms) + 1 + (1 if spec.runway else 0) > MAX_PLATFORMS:
                     continue
-                placed_parts = _place(platforms, extras, h, spec, grid)
+                placed_parts = _place(platforms, extras, h, spec, grid, wide_neo=wide_neo)
                 if placed_parts is None:
                     continue
                 new_platforms, wall = placed_parts
@@ -437,7 +458,7 @@ def from_specs(steps: list, start=(4, 12, 30), start_size: int = 3, heading: int
     for spec, turn in steps:
         heading = (heading + turn) % 4
         if spec.neo or spec.runway:
-            placed = _place(platforms, extras, heading, spec)
+            placed = _place(platforms, extras, heading, spec, wide_neo=True)
             if placed is None:
                 raise ValueError(f"{spec.key()} does not fit after platform {len(platforms) - 1}")
             platforms.extend(placed[0])

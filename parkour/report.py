@@ -353,7 +353,10 @@ def main(argv=None):
                   "| Run | Iteration | Validation success | Test success | L4 | L5 |", "| --- | --- | --- | --- | --- | --- |"]
         ref = curves.get("full") or []
         if ref:
-            lines.append(f"| defaults (`full`, {len(ref)} seeds) | 999 | - | {pct(np.mean([e['success'][-1] for e in ref]))} | "
+            dv = out / "hparams_defaults_validation.json"
+            dval = [v for k, v in json.loads(dv.read_text()).items() if k != "method"] if dv.exists() else []
+            vtxt = f"{pct(np.mean(dval))} ({len(dval)} seeds)" if dval else "-"
+            lines.append(f"| defaults (`full`, {len(ref)} seeds) | 999 | {vtxt} | {pct(np.mean([e['success'][-1] for e in ref]))} | "
                          f"{pct(np.mean([e['success_L4'][-1] for e in ref]))} | {pct(np.mean([e['success_L5'][-1] for e in ref]))} |")
         for r in hp_runs:
             e = read_eval(r)

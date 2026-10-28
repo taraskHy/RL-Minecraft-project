@@ -85,6 +85,8 @@ class TrainConfig:
     bc_batch: int = 4096
     demo_courses: int = 0
     demo_level: int = 6
+    bc_pairs: str = ""  # comma-separated .pt files of (observation, action) pairs (parkour.neo_dagger)
+    wide_neo: bool = False  # training courses may place neos after wide takeoffs (courses._place)
     obstacle_prob: float = 0.0  # chance per jump of a head-hitter beam or a decoy pillar
     advanced: bool = False  # add levels 6-8: neos, double neos, momentum and wide jumps
     save_at: str = ""  # comma-separated update counts at which to keep a snapshot (0 = untrained)
@@ -126,7 +128,7 @@ class CourseFactory:
         while len(out) < k:
             L = len(out) % n_levels
             c = C.generate(rng, self.levels, L, int(rng.integers(self.cfg.jumps_min, self.cfg.jumps_max + 1)),
-                           turn_prob=self.cfg.turn_prob, obstacle_prob=self.cfg.obstacle_prob)
+                           turn_prob=self.cfg.turn_prob, obstacle_prob=self.cfg.obstacle_prob, wide_neo=self.cfg.wide_neo)
             if c.n >= 3 and course_hash(c) not in self.exclude:
                 out.append(c)
         return out
@@ -288,9 +290,19 @@ def train(cfg: TrainConfig) -> Path:
     shadow = RunningNorm(model.obs_dim).to(dev)
     shadow.load_state_dict(model.norm.state_dict())
     demo_obs = demo_act = None
-    if demos and cfg.bc_coef > 0:
-        demo_obs, demo_act = demo_dataset(demos, cfg.extended_obs, dev)
-        print(json.dumps({"demonstrations": len(demos), "bc_pairs": int(demo_obs.shape[0]), "demo_courses": n_demo}), flush=True)
+    if cfg.bc_coef > 0 and (demos or cfg.bc_pairs):
+        parts_o, parts_a = [], []
+        if demos:
+            o, a_ = demo_dataset(demos, cfg.extended_obs, dev)
+            parts_o.append(o)
+            parts_a.append(a_)
+        for f in (x for x in cfg.bc_pairs.split(",") if x):
+            d = torch.load(f, map_location=dev, weights_only=False)
+            parts_o.append(d["obs"].to(dev))
+            parts_a.append(d["act"].to(dev))
+        demo_obs, demo_act = torch.cat(parts_o), torch.cat(parts_a)
+        print(json.dumps({"demonstrations": len(demos), "bc_pairs": int(demo_obs.shape[0]),
+                          "pair_files": cfg.bc_pairs, "demo_courses": n_demo}), flush=True)
 
     snapshots = {int(v) for v in cfg.save_at.split(",") if v.strip()}
 

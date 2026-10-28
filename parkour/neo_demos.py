@@ -43,9 +43,9 @@ ELITE = 0.05
 GRID = (40, 16, 40)
 
 
-def neo_course(spec: C.JumpSpec, heading: int) -> C.Course:
-    """Takeoff (1x1), the neo, then an easy 3x3 platform, so the target is not the goal."""
-    base = C.single_jump(spec, takeoff=(1, 1), grid=GRID, heading=heading)
+def neo_course(spec: C.JumpSpec, heading: int, takeoff: tuple = (1, 1)) -> C.Course:
+    """Takeoff (1x1 unless given), the neo, then an easy 3x3 platform, so the target is not the goal."""
+    base = C.single_jump(spec, takeoff=takeoff, grid=GRID, heading=heading)
     after = C._platform_after(base.platforms[1], heading, C.JumpSpec(1, 0, 0, (3, 3)))
     plats = np.concatenate([base.platforms, after[None, :]])
     return C.Course(plats, base.spawn.copy(), base.spawn_yaw, specs=[spec], extra=base.extra)
@@ -71,7 +71,10 @@ def search(course: C.Course, device, seed: int, yaw_bias: float, iterations: int
     for it in range(iterations):
         acts = {k: torch.multinomial(v, n, replacement=True, generator=gen).T for k, v in p.items()}  # (n, T) each
         st = start_mu + start_sd * torch.randn(n, 3, device=device, dtype=torch.float64, generator=gen)
-        st[:, :2] = st[:, :2].clamp(-0.29, 0.29)  # feet over the 1x1 takeoff block
+        # Feet anywhere over the takeoff platform.
+        p0 = course.platforms[0]
+        st[:, 0] = st[:, 0].clamp(-((p0[1] - p0[0] + 1) / 2 - 0.21), (p0[1] - p0[0] + 1) / 2 - 0.21)
+        st[:, 1] = st[:, 1].clamp(-((p0[3] - p0[2] + 1) / 2 - 0.21), (p0[3] - p0[2] + 1) / 2 - 0.21)
         pos = pool.spawn[cidx].clone()
         pos[:, 0] += st[:, 0]
         pos[:, 2] += st[:, 1]
