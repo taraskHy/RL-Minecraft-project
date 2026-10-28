@@ -35,10 +35,12 @@ Read next: [TEAM_STATUS.md](TEAM_STATUS.md) (the team's page),
   `main`; pushing works from the PC (the user signed in there). Never
   force-push. Push and update TEAM_STATUS after each result.
 
-## 2. Current state (28 Oct 2026, commit `a7a426c`)
+## 2. Current state (28 Oct 2026)
 
-Every number below is in `results/README.md` or `results/neo/`, and says where
-it was measured.
+Training results up to the PC's last commit (`a7a426c`), plus the CPU
+results of the cloud session on branch `claude/pensive-knuth-biwj11`
+(planner retuning). Every number below is in `results/README.md`,
+`results/neo/` or `results/planner/`, and says where it was measured.
 
 | What | File / run | Simulator (1,200 held-out courses) | Real Minecraft 1.21.4 |
 | --- | --- | --- | --- |
@@ -93,7 +95,7 @@ Concrete work, most important first. Nothing here needs new research.
    complete (7.3-7.9 report the final policy with the first one in
    brackets; 7.10 has the imitation + DAgger results; 7.11-7.12 give both
    policies' planner numbers); sections 8 (discussion) and 9 (conclusion)
-   are written; figures 1-5 are embedded (from `results/figures/`).
+   are written; figures 1-4 are embedded (from `results/figures/`).
    `scripts/report_docx.py --pdf` writes `results/report_draft.docx` / `.pdf`
    in the submission format (needs pandoc, python-docx, LibreOffice; not on
    the PC by default): **20 pages before the references, exactly the
@@ -182,10 +184,12 @@ run.cmd test                                             all checks, physics par
 run.cmd train --run NAME [--init-from CKPT] [--gamma 0.995] ...   PPO training; flags = TrainConfig fields
 run.cmd offline --checkpoint CKPT --out runs\NAME        the bot's JavaScript on prismarine-physics, no server
 run.cmd live --checkpoint CKPT --out runs\NAME [--viewer NAME]   real Minecraft (EULA accepted on this PC)
+run.cmd live ... --planner [--planner-config JSON]       no course list: the route planner picks the platforms
 python -m parkour.planner --checkpoint results/final_policy.pt [--obstacles] [--family 2]   tune on 2, report 1
 python -m parkour.jumpeval --checkpoint CKPT --out FILE [--advanced]   every jump type alone
 python -m parkour.stress --checkpoint CKPT --out FILE    course styles outside training
 run.cmd report                                           refresh results/ (and this file's snapshot)
+python scripts/report_docx.py --pdf                      the report as .docx/.pdf, with its page count
 ```
 
 ## 6. Machine and environment
@@ -208,11 +212,10 @@ holds it awake while training runs.
 resume when cool. `scripts/gpu_watchdog.py` runs in the background: every
 10 s it reads nvidia-smi; above 65 C it suspends the project's GPU jobs by
 name (train, neo_demos, neo_dagger, cem, planner, jumpeval, stress,
-feasibility, cem_momentum_neo; suspended, so no state is lost) and resumes them below
-58 C. Since 28 Oct afternoon it also covers `parkour.neo_dagger` (restart
-the watchdog to pick that up); the live bot is left alone on purpose (it
-plays in real time). Log:
-`runs/gpu_watchdog.log`. If the watchdog is ever killed while jobs are
+feasibility, cem_momentum_neo; suspended, so no state is lost) and resumes
+them below 58 C. `neo_dagger` was added on 28 Oct afternoon: a watchdog
+started before that does not pause it until restarted. The live bot is left
+alone on purpose (it plays in real time). Log: `runs/gpu_watchdog.log`. If the watchdog is ever killed while jobs are
 paused: `python scripts/gpu_watchdog.py --resume-all`.
 
 **Anywhere else** (a cloud container, another model's sandbox): no GPU,
@@ -278,8 +281,11 @@ needs the PC's GPU.
 - Neo work: `runs/advanced-ft3` (levels 0-8 fine-tune), `runs/neo-stall`,
   `runs/neo-bc`, `runs/neo-dagger`, `-dagger2`, `-dagger3`; evaluations and
   evidence in `results/neo/` (written by `scripts/neo_evidence.py`).
-- Route planner results: `results/planner/` and the `planner-*`,
-  `v2-planner-*` games.
+- Route planner results: `results/planner/` (`*_tuned.json`: the retuned
+  setting; `validation_tuning.jsonl`: every variant tried on validation)
+  and the `planner-*`, `v2-planner-*`, `v2-tuned-planner-*` games.
+- Report in the submission format: `results/report_draft.docx` / `.pdf`,
+  written by `scripts/report_docx.py --pdf` from `docs/report_draft.md`.
 - Claim audit: `results/audit_claims.json` (829 claims checked against the
   run files on 28 Oct).
 - Sweeps: `scripts/sweep.py configs/<sweep>.json --slots N` (skips finished
@@ -296,18 +302,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `67c91ee` (2026-10-28 13:11, branch `claude/pensive-knuth-biwj11`): Test the planner's value_pick option; how to run the tests in a cloud sandbox
+Generated on top of commit `b05becd` (2026-10-28 13:52, branch `claude/pensive-knuth-biwj11`): Retuned route planner: 92.3% and 90.5% of the test courses without the course list
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 12 |
+| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 13 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 5 |
-| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 17 |
-| `docs/report_draft.md` | updated together with this snapshot | 0 |
-| `results/README.md` | `6170803` 2026-10-28 11:40 | 14 |
-| `results/DATA.md` | updated together with this snapshot | 0 |
+| `TEAM_STATUS.md` | `b05becd` 2026-10-28 13:52 | 0 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 6 |
+| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 18 |
+| `docs/report_draft.md` | `b05becd` 2026-10-28 13:52 | 0 |
+| `results/README.md` | `6170803` 2026-10-28 11:40 | 15 |
+| `results/DATA.md` | `b05becd` 2026-10-28 13:52 | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
