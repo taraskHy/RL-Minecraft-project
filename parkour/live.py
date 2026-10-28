@@ -33,7 +33,7 @@ from . import courses as C
 from . import physics
 from .env import YAW_STEPS_DEG, CoursePool, action_to_controls
 from .model import ActorCritic
-from .paths import BRIDGE, NODE
+from .paths import BRIDGE, NODE, ROOT
 from .train import evaluate, held_out_courses, obstacle_courses
 
 SETTLE_TICKS = 10
@@ -113,20 +113,40 @@ def main(argv=None):
                     help="no course list for the policy: a greedy planner finds platforms in the blocks around the bot")
     ap.add_argument("--planner-config", default="{}", help="JSON overrides of parkour.planner.PlannerConfig")
     ap.add_argument("--fall-rule", default="local", choices=("local", "remaining"))
+    ap.add_argument("--assist", default="",
+                    help="JSON overrides of parkour.neo_assist.AssistConfig ('{}': defaults): the bot plans its neos "
+                         "with a Python search from its exact state, checks each plan with prismarine-physics, plays it")
     a = ap.parse_args(argv)
 
     out = Path(a.out).resolve()
     out.mkdir(parents=True, exist_ok=False)
     if a.courses_file:
-        courses = [C.Course.from_json(d) for d in json.loads(Path(a.courses_file).read_text())["courses"]]
+        raw = json.loads(Path(a.courses_file).read_text())["courses"]
+        courses = [C.Course.from_json(d) for d in raw]
     else:
         courses = pick_courses(a.per_level, obstacles=a.obstacles)
-    (out / "courses.json").write_text(json.dumps({"courses": [c.to_json() for c in courses]}))
+        raw = [c.to_json() for c in courses]
+    course_json = [c.to_json() for c in courses]
+    assist_cfg = None
+    if a.assist:
+        if a.planner:
+            raise SystemExit("--assist needs the course list (not --planner)")
+        from .neo_assist import AssistConfig, planned_takeoffs
+        assist_cfg = AssistConfig(**{"batch": 1, **json.loads(a.assist)})
+        if assist_cfg.batch != 1:
+            raise SystemExit("the bots reproduce only searches with batch 1")
+        for c, d, r in zip(courses, course_json, raw):
+            d["assist_takeoffs"] = planned_takeoffs(c, assist_cfg.jumps, r.get("specs"))
+    (out / "courses.json").write_text(json.dumps({"courses": course_json}))
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     model = load_model(Path(a.checkpoint).resolve(), dev)
     model.export(out / "policy.json", {"checkpoint": str(a.checkpoint)})
     episodes_path = out / "episodes.jsonl"
 
+    assist_args = []
+    if assist_cfg is not None:
+        assist_args = ["--assist", json.dumps(dataclasses.asdict(assist_cfg)), "--assist-python", sys.executable,
+                       "--assist-checkpoint", str(Path(a.checkpoint).resolve()), "--assist-root", str(ROOT)]
     planner_json = ""
     if a.planner:
         from .planner import PlannerConfig
@@ -137,7 +157,7 @@ def main(argv=None):
         subprocess.run([str(NODE), str(BRIDGE / "offline_bot.js"), "--policy", str(out / "policy.json"),
                         "--courses", str(out / "courses.json"), "--out", str(episodes_path),
                         "--settle", str(SETTLE_TICKS), "--stall", str(a.stall), "--planner", planner_json,
-                        "--fall-rule", a.fall_rule], check=True, cwd=str(BRIDGE))
+                        "--fall-rule", a.fall_rule] + assist_args, check=True, cwd=str(BRIDGE))
     else:
         from .server import COURSE_ORIGIN, SPAWN_PAD, Server
         with open(out / "server.log", "w") as slog, Server(a.port, log=slog):
@@ -146,6 +166,7 @@ def main(argv=None):
                    "--origin", ",".join(map(str, COURSE_ORIGIN)), "--pad", ",".join(map(str, SPAWN_PAD)),
                    "--stall", str(a.stall), "--style", a.style, "--web-viewer", str(a.web_viewer), "--hold", str(a.hold),
                    "--first-person", "true" if a.first_person else "false", "--planner", planner_json, "--fall-rule", a.fall_rule]
+            cmd += assist_args
             if a.viewer:
                 cmd += ["--viewer", a.viewer]
                 print(f"Join 127.0.0.1:{a.port} in Minecraft Java 1.21.4 as {a.viewer} to watch.", flush=True)
@@ -158,6 +179,10 @@ def main(argv=None):
     if a.planner:
         from .planner import evaluate_planned
         sim = evaluate_planned(model, pool, dev, planner_cfg, a.stall, settle=SETTLE_TICKS, fall_rule=a.fall_rule)["per_course"]
+    elif assist_cfg is not None:
+        from .neo_assist import evaluate_assisted
+        pc = evaluate_assisted(model, pool, dev, assist_cfg, a.stall, settle=SETTLE_TICKS, fall_rule=a.fall_rule)["per_course"]
+        sim = {"success": [c["success"] for c in pc], "ticks": [c["ticks"] for c in pc]}
     else:
         sim = evaluate(model, pool, dev, a.stall, deterministic=True, settle=SETTLE_TICKS, per_course=True,
                        fall_rule=a.fall_rule)["per_course"]
@@ -187,6 +212,12 @@ def main(argv=None):
         "replay_exact_episodes": sum(e is not None and e < 1e-6 for e in errs),
         "by_level": by_level, "episodes": rows,
     }
+    if assist_cfg is not None:
+        log = [x for ep in episodes for x in ep.get("assist", [])]
+        summary["assist"] = {"config": dataclasses.asdict(assist_cfg), "requests": len(log),
+                             "found": sum(bool(x.get("found")) for x in log), "verified": sum(bool(x.get("verified")) for x in log),
+                             "played": sum(bool(x.get("played")) for x in log),
+                             "planner_seconds": round(sum(x.get("seconds") or 0 for x in log), 1)}
     (out / "summary.json").write_text(json.dumps(summary, indent=1))
     lines = [f"# {summary['mode']}", "", f"Checkpoint `{a.checkpoint}`, {len(rows)} courses "
              f"({'from ' + a.courses_file if a.courses_file else 'held-out' + (' with obstacles' if a.obstacles else '') + ', 10 jumps each'}).", "",

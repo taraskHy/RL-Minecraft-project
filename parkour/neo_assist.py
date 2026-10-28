@@ -42,6 +42,8 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
+import sys
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -51,10 +53,9 @@ import torch
 
 from . import courses as C
 from . import physics
-from .env import (OBS_DIM_EXT, STAND_EPS, YAW_STEPS_DEG, CoursePool, EnvConfig, ParkourEnv, action_to_controls,
+from .env import (OBS_DIM_EXT, STAND_EPS, YAW_STEPS_DEG, CoursePool, EnvConfig, Observer, ParkourEnv, action_to_controls,
                   standing_on)
 from .live import load_model
-from .env import Observer
 from .neo_dagger import ELITE, HORIZON, neo_takeoffs
 from .paths import ROOT
 from .train import TEST_SEED_FAMILY, VALIDATION_FAMILY, held_out_courses
@@ -78,8 +79,56 @@ class AssistConfig:
     prior: float = 0.0  # weight of the policy's own action probabilities in the search's start
     retries: int = 0  # extra searches while the bot still stands on the takeoff without a plan
     retry_every: int = 10  # ticks between them
-    batch: int = 32  # arrival states searched together
+    batch: int = 1  # arrival states searched together; 1: every search has its own seed (the bots reproduce it)
     seed: int = 0
+
+
+KIND_CODE = {"takeoff": 0, "retry": 1, "approach": 2}
+
+
+def request_seed(seed: int, course: int, cp: int, kind: str, attempt: int) -> int:
+    """The search seed of one request: the same in the simulator and in the bots' planner service."""
+    return seed * 1_000_003 + course * 4099 + cp * 67 + KIND_CODE[kind] * 7 + attempt
+
+
+def plan_once(model, pool: CoursePool, rules: "Rules", arrival: dict, kind: str, attempt: int, cfg: "AssistConfig",
+              horizon: int, device):
+    """One search from one state: (the first landing's actions or None, rounds used)."""
+    pr = policy_prior(model, pool, [arrival], device, horizon) if cfg.prior > 0 else None
+    seed = request_seed(cfg.seed, arrival["course"], arrival["cp"], kind, attempt)
+    f, r = search(pool, rules, [arrival], device, cfg, seed, pr, horizon)
+    return (f[0][0] if f[0] else None), r[0]
+
+
+def horizons(cfg: "AssistConfig") -> dict:
+    return {"takeoff": cfg.horizon, "retry": cfg.retry_horizon or cfg.horizon, "approach": cfg.approach}
+
+
+_KEY = re.compile(r"g(-?\d+)_dy(-?\d+)_l(-?\d+)_s(\d+)x(\d+)(?:_neo(\d)([RL])(?:w(\d+))?)?(?:_run(\d+))?$")
+
+
+def spec_from_key(key: str) -> C.JumpSpec:
+    """The JumpSpec a course file names by ``JumpSpec.key()``."""
+    m = _KEY.match(key)
+    if not m:
+        raise ValueError(key)
+    g, dy, lat, a, b, neo, side, wall, run = m.groups()
+    return C.JumpSpec(int(g), int(dy), int(lat), (int(a), int(b)), int(neo or 0), 1 if side != "L" else -1,
+                      int(run or 0), int(wall or 1))
+
+
+def planned_takeoffs(course: C.Course, jumps: str, spec_keys: list | None = None) -> list[int]:
+    """Where the assist plans: neo takeoffs, or (``advanced``) also wide and momentum jumps.
+
+    ``spec_keys`` (a course file's "specs") stand in for ``course.specs`` of a course read from a file."""
+    if jumps == "neo":
+        return neo_takeoffs(course)
+    if jumps != "advanced":
+        raise ValueError(jumps)
+    if spec_keys is not None and not course.specs:
+        course = C.Course(course.platforms, course.spawn, course.spawn_yaw, course.level, course.seed,
+                          specs=[spec_from_key(k) for k in spec_keys], name=course.name, extra=course.extra, ice=course.ice)
+    return advanced_takeoffs(course)
 
 
 def advanced_takeoffs(course: C.Course) -> list[int]:
@@ -275,7 +324,7 @@ def _arrival(env: ParkourEnv, i: int) -> dict:
 
 
 def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_ticks: int = 200,
-                      max_ticks: int = 4000, settle: int = 0, log=None) -> dict:
+                      max_ticks: int = 4000, settle: int = 0, log=None, fall_rule: str = "local") -> dict:
     """First episode on every course of ``pool`` with the neo assist (``cfg.enabled``) or without it.
 
     With the assist off this is ``train.evaluate(..., per_course=True)`` course by course.
@@ -283,7 +332,7 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
     n = pool.size
     if cfg.enabled and cfg.prior > 0:
         assert model.obs_dim != OBS_DIM_EXT, "the search prior uses the 255-number observation"
-    env = ParkourEnv(pool, EnvConfig(num_envs=n, stall_ticks=stall_ticks, max_ticks=max_ticks,
+    env = ParkourEnv(pool, EnvConfig(num_envs=n, stall_ticks=stall_ticks, max_ticks=max_ticks, fall_rule=fall_rule,
                                      extended_obs=model.obs_dim == OBS_DIM_EXT), sampler=None)
     obs = env.reset_all(torch.arange(n, device=device))
     if settle:
@@ -295,12 +344,7 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
         obs = env.observe()
     rules = Rules(pool)
     takeoffs = [neo_takeoffs(c) for c in pool.courses]
-    if cfg.jumps == "neo":
-        planned = takeoffs
-    elif cfg.jumps == "advanced":
-        planned = [advanced_takeoffs(c) for c in pool.courses]
-    else:
-        raise ValueError(cfg.jumps)
+    planned = [planned_takeoffs(c, cfg.jumps) for c in pool.courses]
     neo = torch.zeros(n, C.MAX_PLATFORMS, dtype=torch.bool, device=device)  # neo takeoffs (the statistics)
     plan_at = torch.zeros_like(neo)  # takeoffs where the search runs
     before = torch.zeros_like(neo)  # the platform before a planned takeoff, itself not one
@@ -310,8 +354,8 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
         for k in planned[i]:
             if k >= 1 and k - 1 not in planned[i]:
                 before[i, k - 1] = True
-    horizons = {"takeoff": cfg.horizon, "retry": cfg.retry_horizon or cfg.horizon, "approach": cfg.approach}
-    H = max(horizons.values())
+    hz = horizons(cfg)
+    H = max(hz.values())
     tries = torch.zeros(n, C.MAX_PLATFORMS, dtype=torch.int64, device=device)
     tried_before = torch.zeros_like(neo)
     last_try = torch.full((n,), -10**9, dtype=torch.int64, device=device)
@@ -365,7 +409,7 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
             n_try = tries[rows, cp]
             kinds = {"takeoff": free & plan_at[rows, cp] & (n_try == 0),
                      "retry": (free & plan_at[rows, cp] & (n_try > 0) & (n_try <= cfg.retries)
-                               & (t - last_try >= cfg.retry_every) & (env.stall + horizons["retry"] < stall_ticks)),
+                               & (t - last_try >= cfg.retry_every) & (env.stall + hz["retry"] < stall_ticks)),
                      "approach": free & before[rows, cp] & ~tried_before[rows, cp] if cfg.approach else None}
             for kind, mask in kinds.items():
                 want = [] if mask is None else torch.nonzero(mask).flatten().tolist()
@@ -377,12 +421,19 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
                     for arr in arrivals:
                         arr["target"] = arr["cp"] + 2
                 found, rounds = [], []
-                for b in range(0, len(arrivals), cfg.batch):
-                    part = arrivals[b:b + cfg.batch]
-                    pr = policy_prior(model, pool, part, device, horizons[kind]) if cfg.prior > 0 else None
-                    f, r = search(pool, rules, part, device, cfg, cfg.seed + 1009 * t + b, pr, horizons[kind])
-                    found += f
-                    rounds += r
+                if cfg.batch <= 1:
+                    for i, arr in zip(want, arrivals):
+                        attempt = 0 if kind == "approach" else int(tries[i, int(cp[i])])
+                        seq, r = plan_once(model, pool, rules, arr, kind, attempt, cfg, hz[kind], device)
+                        found.append([] if seq is None else [seq])
+                        rounds.append(r)
+                else:  # searches batched per tick (faster on a GPU); the bots cannot reproduce these seeds
+                    for b in range(0, len(arrivals), cfg.batch):
+                        part = arrivals[b:b + cfg.batch]
+                        pr = policy_prior(model, pool, part, device, hz[kind]) if cfg.prior > 0 else None
+                        f, r = search(pool, rules, part, device, cfg, cfg.seed + 1009 * t + b, pr, hz[kind])
+                        found += f
+                        rounds += r
                 dt = time.time() - t0
                 search_seconds += dt
                 for j, i in enumerate(want):
@@ -449,6 +500,39 @@ def summarize(res: dict) -> dict:
     return out
 
 
+def serve(model, courses: list[C.Course], cfg: AssistConfig, device, inp=None, out=None) -> None:
+    """The bots' planner: one JSON request per line in, one plan per line out.
+
+    Request: {"index": course index in ``courses``, "cp", "target", "kind",
+    "attempt", "state": {"pos", "vel", "yaw", "onGround", "jumpTicks",
+    "collidedH"}, "lastAction"}. Answer: {"plan": [[move, strafe, jump,
+    sprint, yaw], ...] or null, "rounds", "seconds"}. The search is the one
+    ``evaluate_assisted`` runs with ``batch`` 1 (same seed for the same request).
+    """
+    inp = inp or sys.stdin
+    out = out or sys.stdout
+    pool = CoursePool(courses, device, C.GRID)
+    rules = Rules(pool)
+    hz = horizons(cfg)
+    with torch.no_grad():
+        for line in inp:
+            if not line.strip():
+                continue
+            req = json.loads(line)
+            st = req["state"]
+            arr = {"course": int(req["index"]), "cp": int(req["cp"]), "target": int(req["target"]),
+                   "pos": [float(v) for v in st["pos"]], "vel": [float(v) for v in st["vel"]], "yaw": float(st["yaw"]),
+                   "on_ground": bool(st["onGround"]), "jump_ticks": int(st["jumpTicks"]),
+                   "collided_h": bool(st.get("collidedH", False)), "collided_v": False,
+                   "last_action": [int(v) for v in req["lastAction"]]}
+            t0 = time.time()
+            seq, rounds = plan_once(model, pool, rules, arr, req["kind"], int(req.get("attempt", 0)), cfg, hz[req["kind"]],
+                                    device)
+            out.write(json.dumps({"plan": None if seq is None else seq.tolist(), "rounds": rounds,
+                                  "seconds": round(time.time() - t0, 3)}) + "\n")
+            out.flush()
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--checkpoint", default=str(ROOT / "results" / "final_policy.pt"))
@@ -459,6 +543,8 @@ def main(argv=None):
     ap.add_argument("--threads", type=int, default=0)
     ap.add_argument("--out", default="")
     ap.add_argument("--tag", default="")
+    ap.add_argument("--serve", action="store_true", help="plan for the bots: JSON lines on stdin/stdout (see serve)")
+    ap.add_argument("--courses-file", default="", help="with --serve: the courses the bot plays")
     for k, v in asdict(AssistConfig()).items():
         if k != "enabled":
             ap.add_argument("--" + k.replace("_", "-"), type=type(v), default=v)
@@ -470,6 +556,10 @@ def main(argv=None):
         raise SystemExit(f"--set {a.set} has families {valid[a.set]} (test, validation)")
     cfg = AssistConfig(enabled=not a.off, **{k: getattr(a, k) for k in asdict(AssistConfig()) if k != "enabled"})
     dev = "cuda" if torch.cuda.is_available() else "cpu"
+    if a.serve:
+        courses = [C.Course.from_json(d) for d in json.loads(Path(a.courses_file).read_text())["courses"]]
+        serve(load_model(Path(a.checkpoint), dev), courses, cfg, dev)
+        return
     courses = course_set(a.set, a.family)
     if a.courses:
         courses = courses[:a.courses]
