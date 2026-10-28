@@ -94,6 +94,7 @@ class TrainConfig:
     obstacle_prob: float = 0.0  # chance per jump of a head-hitter beam or a decoy pillar
     ice_prob: float = 0.0  # chance per platform after the start of being ice (training courses only)
     advanced: bool = False  # add levels 6-8: neos, double neos, momentum and wide jumps
+    extra: bool = False  # add the head-hitter and ice run-up levels (configs/jump_levels_extra.json) after those
     save_at: str = ""  # comma-separated update counts at which to keep a snapshot (0 = untrained)
 
 
@@ -249,7 +250,7 @@ def train(cfg: TrainConfig) -> Path:
     cfg_dict = dataclasses.asdict(cfg)
     (out / "config.json").write_text(json.dumps(cfg_dict, indent=1))
 
-    levels = C.load_levels(advanced=cfg.advanced)
+    levels = C.load_levels(advanced=cfg.advanced, extra=cfg.extra)
     n_levels = len(levels)
     tests = held_out_courses(levels, cfg.eval_per_level, cfg.eval_jumps)
     test_hashes = {course_hash(c) for c in tests}
@@ -267,7 +268,7 @@ def train(cfg: TrainConfig) -> Path:
     if n_demo:
         pick = np.random.default_rng([2026, 3, cfg.seed]).choice(len(demos), n_demo, replace=False)
         train_courses[:n_demo] = [demo_course(demos[i], cfg.demo_level) for i in pick]
-    pool = CoursePool(train_courses, dev, C.GRID, ice=cfg.ice_prob > 0)
+    pool = CoursePool(train_courses, dev, C.GRID, ice=cfg.ice_prob > 0 or any(sp.ice for L in levels for sp in L))
     test_pool = CoursePool(tests, dev, C.GRID)
     obstacle_pool = CoursePool(obstacle_tests, dev, C.GRID) if obstacle_tests else None
     val_pool = CoursePool(vals, dev, C.GRID)

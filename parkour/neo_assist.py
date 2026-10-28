@@ -104,7 +104,8 @@ def horizons(cfg: "AssistConfig") -> dict:
     return {"takeoff": cfg.horizon, "retry": cfg.retry_horizon or cfg.horizon, "approach": cfg.approach}
 
 
-_KEY = re.compile(r"g(-?\d+)_dy(-?\d+)_l(-?\d+)_s(\d+)x(\d+)(?:_neo(\d)([RL])(?:w(\d+))?)?(?:_run(\d+))?$")
+_KEY = re.compile(r"g(-?\d+)_dy(-?\d+)_l(-?\d+)_s(\d+)x(\d+)(?:_neo(\d)([RL])(?:w(\d+))?)?(?:_run(\d+))?"
+                  r"(?:_hh(\d))?(?:_ice(\d))?$")
 
 
 def spec_from_key(key: str) -> C.JumpSpec:
@@ -112,9 +113,9 @@ def spec_from_key(key: str) -> C.JumpSpec:
     m = _KEY.match(key)
     if not m:
         raise ValueError(key)
-    g, dy, lat, a, b, neo, side, wall, run = m.groups()
+    g, dy, lat, a, b, neo, side, wall, run, hh, ice = m.groups()
     return C.JumpSpec(int(g), int(dy), int(lat), (int(a), int(b)), int(neo or 0), 1 if side != "L" else -1,
-                      int(run or 0), int(wall or 1))
+                      int(run or 0), int(wall or 1), int(hh or 0), int(ice or 0))
 
 
 def planned_takeoffs(course: C.Course, jumps: str, spec_keys: list | None = None) -> list[int]:
@@ -132,7 +133,8 @@ def planned_takeoffs(course: C.Course, jumps: str, spec_keys: list | None = None
 
 
 def advanced_takeoffs(course: C.Course) -> list[int]:
-    """Takeoffs of the jumps the advanced levels added: neos, wide jumps (3 sideways) and momentum jumps (run-up).
+    """Takeoffs of the jumps the advanced and extra levels added: neos, wide jumps (3 sideways) and run-up
+    jumps (momentum, head hitters, ice).
 
     Neos by the wall rule (``neo_takeoffs``), the others by the course's jump
     specs (``specs[k]`` is the jump from platform k to k + 1)."""
