@@ -19,12 +19,12 @@ file in `results/` and says where it was measured.
 | Stage | What | Status |
 | --- | --- | --- |
 | 0 | Held-out fingerprint guard; gaming-safe GPU flags (`--gpu-mem-fraction`, `--gpu-duty`, `--threads`, watchdog `--pause-while`) | done |
-| A | Neo assist: an exact-model search at every neo takeoff, in the simulator (`parkour/neo_assist.py`) | next |
+| A | Neo assist: an exact-model search at every neo takeoff, in the simulator (`parkour/neo_assist.py`) and both bots (`bridge/assist.js`, `parkour.live --assist`) | built; validation sweep running, test run after it |
 | A2 | The assist on random courses made of ordinary jumps plus neos (new seed families 12 test, 13 validation) | planned |
 | Q | PC training queue with gaming-safe settings (`configs/sweep_new_skills.json`), each recipe smoke-tested on the CPU | planned |
-| B | Head hitters (2-high ceilings) and ice jumps as new jump kinds, new levels after 8, feasibility-checked | planned |
+| B | Head hitters (2-high roofs over a runway, tunnels) and ice run-ups as new jump kinds, opt-in levels, feasibility-checked | done (zero-shot results in `results/extra/`; training is for the PC) |
 | E1 | Slime bounce (physics, opt-in, parity with prismarine-physics) | planned |
-| C | Block shapes in the physics (slabs, soul sand, fence and wall posts, ...), opt-in, parity | planned |
+| C | Block shapes in the physics (slabs, soul sand, fence and wall posts, ...), opt-in, parity | done (1.4e-14 blocks, `results/physics_parity_shapes.json`) |
 | D | Shaped platforms end to end (courses, observation, both bots) | planned |
 | E2 | Ladders and vines | if time |
 | F | A learned neo from DAgger rounds with the assist's search as expert (data here, training on the PC) | planned |

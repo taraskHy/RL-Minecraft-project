@@ -79,6 +79,34 @@ More facts that hold now:
   standard and 92.5% obstacles at levels 0-5 (final policy: 98.4, 95.2),
   while the final policy completes 0 of the 210 neo courses (levels 6/7/8:
   71.0/3.5/1.5% against the neo policy's 80.5/46.5/71.5%).
+- **New abilities (28 Oct evening, cloud session, CPU, simulator unless
+  said otherwise; plan and status in `docs/abilities_plan.md`):**
+  - *Neo assist* (`parkour/neo_assist.py`): when the bot first stands on a
+    neo's takeoff, a cross-entropy search with the exact physics plans its
+    actions from its exact state, and the bot plays the plan. Validation
+    (218 held-out neo courses, `results/neo/assist_validation.jsonl`): the
+    final policy alone completes 0 and passes 0 of the neo jumps it reaches;
+    with the assist it completes 49 and passes 131 of 179 reached neo jumps
+    (every played plan landed as searched). Most remaining failures are at
+    the momentum and wide jumps the final policy never learned; planning
+    those too (`--jumps advanced`) is being measured. Both bots have it
+    (`parkour.live --assist '{}'`: the bot pauses on the takeoff, a Python
+    planner service searches, prismarine-physics checks the plan, the bot
+    plays it); the offline bot matches the simulator exactly
+    (`tests/test_neo_assist.py`). Not yet run in real Minecraft.
+  - *Head hitters and ice run-ups*: new jump kinds (a run-up under a 2-high
+    roof, a tunnel, an ice runway), feasibility-checked
+    (`configs/jump_feasibility_extra.json`), in opt-in levels
+    (`configs/jump_levels_extra.json`, `run.cmd train --extra`). Zero-shot,
+    the final policy makes 68% / 22% / 49% of the head-hitter / hard
+    head-hitter / ice kinds alone, and completes 25.5% / 1.5% / 7.0% of
+    whole held-out courses of those levels; with the planner on every run-up
+    jump, 31/40, 38/40, 32/40 (`results/extra/`).
+  - *Block shapes in the physics*: `physics.World(shape=...)` collides with
+    the real boxes of slabs, stairs, soul sand, trapdoors, carpets, fence and
+    wall posts and more (`configs/block_shapes.json`, from prismarine-block);
+    parity with prismarine-physics 1.4e-14 blocks over 60,000 ticks
+    (`results/physics_parity_shapes.json`). Courses do not use shapes yet.
 - What is running on the PC right now cannot be known from outside it: the
   last commits record finished results only. Check the processes there.
 
@@ -134,7 +162,16 @@ Concrete work, most important first. Nothing here needs new research.
    evening): neo assist, head hitters, ice jumps, slime, block shapes.
    `docs/abilities_plan.md` lists the stages, their status and the design
    constraints found in the code; whatever needs training is queued for
-   the PC with the gaming-safe settings of section 6.
+   the PC with the gaming-safe settings of section 6. For the PC:
+   - the neo assist in real Minecraft: `run.cmd live --checkpoint
+     results\final_policy.pt --courses-file configs\neo_live_courses.json
+     --assist "{}" --out runs\neo-assist-live` (and `--offline` first; the
+     planner service runs on the PC's Python);
+   - train the new kinds: `run.cmd train --run extra-ft --init-from
+     results\final_policy.pt --extra --obstacle-prob 0.3 --gamma 0.995`
+     (levels 6-8 of that run are the head-hitter, hard head-hitter and ice
+     levels; pick on validation, then `parkour.jumpeval --extra` and
+     `scripts/extra_preview.py`).
 
 ## 4. Open problems (unsolved, up for grabs)
 
@@ -242,7 +279,8 @@ re-run the offline and real-Minecraft checks.
 
 | Part | Why | Guarded by |
 | --- | --- | --- |
-| `parkour/physics.py` | exact float64 port of prismarine-physics 1.11.1 (operand order kept) plus vanilla's 1e-7 `COLLISION_EPSILON`; the optional ice grid (`World(slip=...)`) is off unless passed | `tests/test_physics_parity.py` (also with ice), `test_corner_slip.py`, `test_inside_block.py` |
+| `parkour/physics.py` | exact float64 port of prismarine-physics 1.11.1 (operand order kept) plus vanilla's 1e-7 `COLLISION_EPSILON`; the optional ice grid (`World(slip=...)`) and shape grid (`World(shape=...)`) are off unless passed | `tests/test_physics_parity.py` (also with ice and shapes), `test_shapes.py`, `test_corner_slip.py`, `test_inside_block.py` |
+| `configs/block_shapes.json` | the collision boxes of the shaped blocks, written by `bridge/export_shapes.js` from prismarine-block | `node bridge/export_shapes.js --check` (in `test_physics_parity.py`) |
 | `bridge/physics_patch.js` | the same tolerance in the bot; must change together with `physics.py` | `tests/test_physics_parity.py` |
 | `bridge/policy.js` <-> `parkour/env.py` (observation, fall and stall rules), `bridge/planner.js` <-> `parkour/planner.py` | the bot mirrors the Python code; the 255-number observation is what every shipped policy expects | `tests/test_bridge_parity.py`, `test_extended_obs.py`, `test_planner.py` |
 | Seed families in `parkour/train.py` (training 0, test 1, validation 2, stress 3, obstacle test 4, obstacle validation 5) and default course generation in `parkour/courses.py` | every test number is on exactly these courses (`course_hash`); new course features are opt-in (like `wide_neo`) | `tests/test_courses.py` |
@@ -408,18 +446,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `af25aeb` (2026-10-28 14:50, branch `claude/pensive-knuth-biwj11`): Team status: ice platforms ready to train
+Generated on top of commit `2805259` (2026-10-28 17:25, branch `claude/pensive-knuth-biwj11`): Block shapes in the physics port (opt-in), exact against prismarine-physics
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 9 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 15 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `af25aeb` 2026-10-28 14:50 | 0 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 25 |
-| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 8 |
-| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 10 |
-| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 7 |
-| `results/DATA.md` | `f405271` 2026-10-28 14:45 | 3 |
+| `TEAM_STATUS.md` | `af25aeb` 2026-10-28 14:50 | 6 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 31 |
+| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 14 |
+| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 16 |
+| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 13 |
+| `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -580,15 +618,18 @@ Newest first. One entry per session; earlier history is in the
 - **28 Oct 2026, evening, Claude Code (cloud session, continued again,
   branch `claude/pensive-knuth-biwj11`, CPU only):** the user asked for
   more parkour abilities (other blocks, head hitters) and consistent neos
-  while they game on the PC's GPU ("leave a safe buffer"). This session
-  cannot reach the PC, so it builds and measures on the CPU and prepares
-  training for the PC. Plan and progress: `docs/abilities_plan.md`. Done:
-  held-out fingerprint guard (`tests/test_heldout_fingerprints.py`, the 8
-  test/validation sets are byte-identical to commit 6170803); gaming-safe
-  training flags `--gpu-mem-fraction`, `--gpu-duty`, `--threads` (off by
-  default) and `gpu_watchdog.py --pause-while GAME.exe` (section 6). Next:
-  the neo assist (stage A).
-
+  while they game on the PC's GPU (first "a safe buffer", then "don't leave
+  like a 40% margin"). This session cannot reach the PC, so it builds and
+  measures on the CPU and prepares training for the PC. Plan and progress:
+  `docs/abilities_plan.md`. Done: held-out fingerprint guard
+  (`tests/test_heldout_fingerprints.py`, the 8 test/validation sets are
+  byte-identical to commit 6170803); gaming flags `--gpu-mem-fraction`,
+  `--gpu-duty`, `--threads` and `gpu_watchdog.py --pause-while` (section 6:
+  75% memory, 90% duty); the neo assist in the simulator and both bots
+  (section 2); head-hitter and ice run-up jump kinds and levels; block
+  shapes in the physics with exact parity. Next: the assist on the test
+  sets with the setting chosen on validation, shaped platforms in courses
+  (stage D), slime, the PC training queue.
 - **28 Oct 2026, afternoon, Claude Code (cloud session, continued, branch
   `claude/pensive-knuth-biwj11`, CPU only):** the user asked this session
   to keep working on its own (no questions; they were away from the PC)

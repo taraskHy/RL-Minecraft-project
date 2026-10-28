@@ -1,0 +1,81 @@
+{
+ "measured": "simulator (float64 port of prismarine-physics), deterministic policy",
+ "checkpoint": "results/final_policy.pt",
+ "family": 1,
+ "levels": {
+  "6": "head hitter",
+  "7": "hard head hitter",
+  "8": "ice run-up"
+ },
+ "courses_per_level": 200,
+ "policy_alone": {
+  "head hitter": 25.5,
+  "hard head hitter": 1.5,
+  "ice run-up": 7.0
+ },
+ "policy_alone_fell": {
+  "head hitter": 74.5,
+  "hard head hitter": 96.0,
+  "ice run-up": 88.0
+ },
+ "assist_config": {
+  "enabled": true,
+  "samples": 1024,
+  "iterations": 25,
+  "keep": 1,
+  "horizon": 32,
+  "retry_horizon": 0,
+  "approach": 0,
+  "jumps": "advanced",
+  "prior": 0.0,
+  "retries": 0,
+  "retry_every": 10,
+  "batch": 1,
+  "seed": 0
+ },
+ "with_planner": {
+  "head hitter": {
+   "courses": 40,
+   "completed": 31,
+   "completed_policy_alone": 5,
+   "searches": {
+    "takeoff": {
+     "n": 161,
+     "found": 161
+    }
+   },
+   "plans_played": 161,
+   "plans_landed_as_planned": 161,
+   "seconds_per_search": 0.44
+  },
+  "hard head hitter": {
+   "courses": 40,
+   "completed": 38,
+   "completed_policy_alone": 1,
+   "searches": {
+    "takeoff": {
+     "n": 187,
+     "found": 187
+    }
+   },
+   "plans_played": 187,
+   "plans_landed_as_planned": 187,
+   "seconds_per_search": 0.44
+  },
+  "ice run-up": {
+   "courses": 40,
+   "completed": 32,
+   "completed_policy_alone": 1,
+   "searches": {
+    "takeoff": {
+     "n": 197,
+     "found": 197
+    }
+   },
+   "plans_played": 197,
+   "plans_landed_as_planned": 197,
+   "seconds_per_search": 0.72
+  }
+ },
+ "seconds": 343.8
+}

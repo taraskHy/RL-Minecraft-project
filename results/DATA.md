@@ -80,6 +80,8 @@ JavaScript on Mineflayer's physics engine without a server. Every folder's
 | `physics_parity.json` | the simulator against prismarine-physics 1.11.1: 99,000 ticks, largest error 1.4e-14 blocks |
 | `ice_preview.json` | the final policy on the standard test courses with every platform (or every platform after the start) made of ice: 95.6% / 96.5% against 98.4% (`scripts/ice_preview.py`) |
 | `physics_parity_ice.json` | the same check with ice blocks (optional slipperiness grid): 60,000 ticks, largest error 7.1e-15 blocks |
+| `physics_parity_shapes.json` | the same check with block shapes (optional shape grid: slabs, stairs, soul sand, carpets, trapdoors, fence and wall posts, ...; real block states on the Node side): 60,000 ticks, largest error 1.4e-14 blocks (`scripts/shape_parity.py`) |
+| `results/extra/` | head hitters and ice run-ups (the opt-in extra levels): `jump_eval_final_policy.json` every kind alone at 16 angles (`parkour.jumpeval --extra`); `course_preview_family1.json` whole held-out courses of those levels, the final policy alone and with the planner (`scripts/extra_preview.py`). Simulator only |
 | `hparams_defaults_validation.json` | the defaults' validation score for the hyperparameter table |
 | `audit_claims.json` | the audit of 829 claims in the documents against the run files (28 Oct) |
 | `level5_by_position.json` | failure rate by position in the course on 3,000 extra level-5 courses (seed family 11, analysis only; `scripts/level5_positions.py`) |
@@ -101,6 +103,7 @@ JavaScript on Mineflayer's physics engine without a server. Every folder's
 | `detector_check.json` | the first neo-takeoff detector against the fixed one |
 | `wide_takeoff_search.json` | which neos are landable from 2x2 and 3x3 takeoffs |
 | `one_policy_comparison.json` | the neo policies on levels 0-5 (the same courses as the standard test set) and the final policies on levels 6-8 and the 210 neo courses (`scripts/one_policy_check.py`) |
+| `assist_validation.jsonl`, `assist_test.jsonl` | the neo assist (`parkour.neo_assist`: a search from the bot's exact state at every neo takeoff): one JSON line per run and setting, validation (families 2, 13) and test (families 1, 12) courses, simulator |
 
 ## Videos (`results/videos/`, 1080p MP4)
 
