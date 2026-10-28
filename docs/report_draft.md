@@ -570,25 +570,82 @@ simulator on every course with 0 server corrections.
 
 ## 8. Discussion and limitations
 
-Points to develop:
+**Why the transfer is exact.** The bot computes its own movement with
+prismarine-physics and the server accepts it, so a simulator that reproduces
+prismarine-physics reproduces the game as the bot experiences it. That is
+why every real-game run matched the simulator course for course: 793
+real-game episodes over all our runs (`results/games/`), 0 server
+corrections. The claim is about a Mineflayer bot on a local server:
+prismarine-physics is a reimplementation of the vanilla client's movement,
+and we matched it, not the vanilla client, and we did not test network
+latency or a remote server.
 
-- Physics scope: full cubes and air only; slabs, ladders, ice, water and
+**Generalisation.** Procedural generation with disjoint seed families makes
+"unseen" measurable: the final policy completes 98.4% of the test courses and
+93 to 98% of course styles it never trained on. Level 5, the least forgiving
+jumps the feasibility study found possible, holds most of the remaining
+failures. The agent is told the platform chain, and that matters (82.4%
+without it at the same budget, section 7.6); a hand-written planner recovers
+most of it (90.9%), and a model that learns to find its own route does not
+yet beat the planner (section 7.12).
+
+**Reward terms interact with risk.** The fall penalty helped most on the
+hardest levels (level 5: 72.0% with it, 55.2% without), but on very tight
+jumps it taught the agent to refuse: a stall truncates the episode with a
+bootstrapped value, so standing still costs only the time penalty, while a
+jump that rarely lands mostly earns the fall penalty. Making the stall a
+failure did not fix this, because with discount 0.99 a penalty 200 ticks away
+counts about a seventh. Whether a stall counts as a failure is part of the
+reward design, not a detail of the environment.
+
+**Exploration has a limit.** Random tries land a single neo once in 2,000 to
+16,000 sampled action sequences, and PPO never found one. An expert that
+searches the exact simulator did, and imitating it, then asking it again
+from the states the learner really reaches (DAgger), took the neo courses
+from 0 to 29%. This works only because the simulator is exact and cheap
+enough to search from any state; with an approximate simulator the expert's
+sequences would not be guaranteed to land in the game. Courses with two or
+more neos are still almost never completed (5 of 81).
+
+**Hyperparameters.** Only the discount mattered by more than our bar (3
+points on validation), in all three seeds: with 0.995 the goal bonus still
+counts 37 to 55% at the start of a course instead of 13 to 30%.
+
+**Limitations.**
+
+- Physics scope: air and full cubes only; slabs, ladders, ice, water and
   fences are not ported (prismarine-physics has them).
-- The agent is told the platform chain; `noroute` measures how much that
-  matters, and sections 7.11 and 7.12 replace it with a hand-written planner
-  (better) and a learned model (wider scan and memory).
-- Course building and the start teleport use server commands (reset only).
-- Level 5 holds the least forgiving jumps the feasibility study found
-  possible. The study starts from rest, so it underestimates what chained
-  jumps allow.
-- Reward terms interact with risk: the fall penalty lets the curriculum reach
-  level 5 sooner and raises the hardest-level score, but on very tight jumps (single neos) it
-  teaches the agent to refuse. Whether a stall counts as a failure is part of
-  the reward design, not a detail of the environment (section 7.10).
+- Course building and the start teleport use server commands (the reset
+  only); during an episode the bot uses movement controls alone.
+- The feasibility study starts from rest, so it underestimates what chained
+  jumps allow: the policy makes 3 types it calls impossible, and some
+  4-block jumps from a run-up that no scripted strategy makes.
+- Double and triple neos are treated as impossible because the search found
+  none in 64 layouts; that is evidence, not a proof.
+- Sample sizes: the real-game sets have 60 courses, which resolves only large
+  differences; the ablation has 3 seeds per arm, and the hyperparameter study
+  one seed per setting except the discount.
+- There are two policies: the final policy for levels 0 to 5 and obstacles,
+  and the neo policy for levels 6 to 8. One policy for both was not tried.
+- All runs used one RTX 5080; the results are for that compute budget.
 
 ## 9. Conclusion
 
-*To be written.*
+A reinforcement-learning agent learned Minecraft parkour well enough to
+complete courses it had never seen: 98.4% of 1,200 held-out courses in
+simulation, and 59 of 60 in real Minecraft 1.21.4, where the game matched
+the simulator on every course. The key was a simulator that reproduces the
+bot's own physics engine to 1e-14 blocks, so the reality gap became rounding
+error and could be measured. On top of it, standard PPO with stabilising
+safeguards, procedurally generated courses and a forgiveness-based curriculum
+were enough. Of the reward terms we proposed, the height (fall) penalty
+mattered most and distance shaping made learning about three times faster.
+A simple route planner lets the same policy play without being told the
+platforms (90.9% in simulation, 50 and 55 of 60 in the game). The hardest
+jump, the neo, was beyond exploration and needed an expert: search
+demonstrations and DAgger took it from 0 to 29% of neo courses. Next steps
+are more block types, one policy that also makes neos, and courses taken from
+real hand-built maps.
 
 ## References
 
