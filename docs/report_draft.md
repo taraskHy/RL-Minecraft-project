@@ -22,6 +22,11 @@ Our contributions:
    the route information the agent receives (sections 5 to 7).
 4. A Mineflayer bridge that runs the trained network in real Minecraft, with
    a tick-by-tick check that the game and the simulator agree (section 6).
+5. Neo jumps, which exploration never found, learned from search
+   demonstrations and DAgger (section 7.10).
+6. A route planner that lets the same policy play without being told the
+   platforms, against a model that learns to find its own route (sections
+   7.11 and 7.12).
 
 ## 2. Related work
 
