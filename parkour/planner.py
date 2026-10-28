@@ -27,7 +27,8 @@ With ``value_pick`` K > 0 (simulator only; the bot has no critic), the K
 cheapest next platforms are each extended greedily into a chain, and the
 chain whose slots give the highest value under the policy's own critic, at
 the player's current state, is taken. ``drop`` adds a cost per block a jump
-goes down. Neither helped on the validation courses
+goes down; ``lookahead`` adds the cheapest onward jump. None of the three
+helped on the validation courses
 (results/planner/validation_tuning.jsonl); ``cost="distance", align=2.0``
 did, and is the setting recommended for the final policy (report 7.11).
 """
@@ -48,6 +49,7 @@ from . import physics
 from .env import PLATFORM_SLOTS, STAND_EPS, CoursePool, EnvConfig, ParkourEnv
 
 LOOKAHEAD = PLATFORM_SLOTS - 1
+LOOKAHEAD_DEAD_END = 10.0  # cfg.lookahead: extra cost of a platform with no jump on from it
 # From the feasibility study (configs/jump_feasibility.json, straight jumps from a 1x1 block):
 # the longest possible air gap for each height change, and the best forgiveness at each gap.
 MAX_GAP = {1: 3, 0: 4, -1: 4, -2: 4, -3: 5}
@@ -74,6 +76,7 @@ class PlannerConfig:
     head_hitters: bool = True  # a slab 4 blocks above a platform it touches is a head hitter, not a target
     value_pick: int = 0        # >0: of this many cheapest next platforms, take the chain the critic values most
     drop: float = 0.0          # added cost per block a jump goes down (0: off, as in the bot)
+    lookahead: bool = False    # rank next platforms by their cost plus the cheapest jump on from them
 
 
 class Platform:
@@ -206,7 +209,11 @@ def choose(platforms: list, current: Platform, visited: set, goal: tuple, cfg: P
         if first is not None and not chain:
             best = first
         else:
+            gcell = goal_cell(goal)
             for cost, p in options(platforms, frm, current, chain, visited, goal, cfg, is_solid):
+                if cfg.lookahead and not p.contains(gcell):
+                    onward = [c for c, _ in options(platforms, p, current, chain + [p], visited, goal, cfg, is_solid)]
+                    cost += min(onward) if onward else LOOKAHEAD_DEAD_END
                 if cost < best_cost - 1e-9:
                     best, best_cost = p, cost
         if best is None:

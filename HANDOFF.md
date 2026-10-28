@@ -183,8 +183,9 @@ Concrete work, most important first. Nothing here needs new research.
    that left it still succeeded. **Tried on 28 Oct (cloud session, CPU,
    validation only, `results/planner/validation_tuning.jsonl`):**
    critic-chosen routes (`value_pick`, opt-in, simulator only) are worse
-   (84.7-87.7% vs 92.5%); a drop penalty (`drop`) and retuning `align`
-   alone are within noise; hard limits on drop height break the planner
+   (84.7-87.7% vs 92.5%); a drop penalty (`drop`), a one-step lookahead
+   (`lookahead`: +0.5 standard, -0.6 obstacles) and retuning `align` alone
+   are within noise; hard limits on drop height break the planner
    (courses have real 3-block drops). **What worked:** `cost=distance,
    align=2.0`: validation 92.8 vs 91.3% and 89.0 vs 87.4% (1,800 courses
    each), test 92.3% and 90.5% (from 90.9 and 88.1), offline bot 51/60 and
@@ -361,18 +362,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `42701b2` (2026-10-28 14:36, branch `claude/pensive-knuth-biwj11`): Handoff: one clear session-log entry for the cloud session's work
+Generated on top of commit `6228744` (2026-10-28 14:37, branch `claude/pensive-knuth-biwj11`): Team status: the afternoon's results in the update log
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 3 |
-| `HANDOFF.md` | `42701b2` 2026-10-28 14:36 | 0 |
-| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 19 |
-| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 2 |
-| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 4 |
-| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 1 |
-| `results/DATA.md` | `8da16f5` 2026-10-28 14:31 | 2 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 4 |
+| `HANDOFF.md` | updated together with this snapshot | 0 |
+| `TEAM_STATUS.md` | `6228744` 2026-10-28 14:37 | 0 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 20 |
+| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 3 |
+| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 5 |
+| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 2 |
+| `results/DATA.md` | `8da16f5` 2026-10-28 14:31 | 3 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
