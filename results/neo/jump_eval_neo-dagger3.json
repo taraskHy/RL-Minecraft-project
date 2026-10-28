@@ -1,0 +1,3825 @@
+{
+ "checkpoint": "runs/neo-dagger3/checkpoints/best.pt",
+ "yaw_errors_deg": [
+  -60.0,
+  -52.0,
+  -44.0,
+  -36.0,
+  -28.0,
+  -20.0,
+  -12.0,
+  -4.0,
+  4.0,
+  12.0,
+  20.0,
+  28.0,
+  36.0,
+  44.0,
+  52.0,
+  60.0
+ ],
+ "by_level": {
+  "6": {
+   "specs": 61,
+   "mean_policy_success": 0.9324,
+   "specs_policy_never": 0
+  },
+  "7": {
+   "specs": 14,
+   "mean_policy_success": 0.7321,
+   "specs_policy_never": 0
+  },
+  "8": {
+   "specs": 3,
+   "mean_policy_success": 0.5417,
+   "specs_policy_never": 0
+  },
+  "impossible": {
+   "specs": 132,
+   "mean_policy_success": 0.0095,
+   "specs_policy_never": 126
+  }
+ },
+ "specs": [
+  {
+   "kind": "neo",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 1,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.00582,
+   "level": 6,
+   "policy_success": 0.6875,
+   "policy_fell": 0.1875,
+   "policy_stalled": 0.125
+  },
+  {
+   "kind": "neo",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 1,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.00556,
+   "level": 6,
+   "policy_success": 0.625,
+   "policy_fell": 0.3125,
+   "policy_stalled": 0.0625
+  },
+  {
+   "kind": "neo",
+   "gap": 1,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 1,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.00122,
+   "level": 7,
+   "policy_success": 0.8125,
+   "policy_fell": 0.1875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 1,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.00573,
+   "level": 6,
+   "policy_success": 0.8125,
+   "policy_fell": 0.125,
+   "policy_stalled": 0.0625
+  },
+  {
+   "kind": "neo",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 1,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.00365,
+   "level": 6,
+   "policy_success": 0.75,
+   "policy_fell": 0.125,
+   "policy_stalled": 0.125
+  },
+  {
+   "kind": "neo",
+   "gap": 2,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 1,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0625,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 1,
+   "wall_at": 2,
+   "runway": 0,
+   "forgiveness": 0.00694,
+   "level": 6,
+   "policy_success": 0.1875,
+   "policy_fell": 0.8125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 1,
+   "wall_at": 2,
+   "runway": 0,
+   "forgiveness": 0.00313,
+   "level": 6,
+   "policy_success": 0.5625,
+   "policy_fell": 0.4375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 2,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 1,
+   "wall_at": 2,
+   "runway": 0,
+   "forgiveness": 0.00043,
+   "level": 7,
+   "policy_success": 0.4375,
+   "policy_fell": 0.5625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 1,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.00104,
+   "level": 7,
+   "policy_success": 0.4375,
+   "policy_fell": 0.5,
+   "policy_stalled": 0.0625
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 1,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 1,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0625
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 1,
+   "wall_at": 2,
+   "runway": 0,
+   "forgiveness": 0.00382,
+   "level": 6,
+   "policy_success": 0.4375,
+   "policy_fell": 0.5625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 1,
+   "wall_at": 2,
+   "runway": 0,
+   "forgiveness": 0.0013,
+   "level": 7,
+   "policy_success": 0.625,
+   "policy_fell": 0.375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 1,
+   "wall_at": 2,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0625,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 1,
+   "wall_at": 3,
+   "runway": 0,
+   "forgiveness": 0.00781,
+   "level": 6,
+   "policy_success": 0.75,
+   "policy_fell": 0.25,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 1,
+   "wall_at": 3,
+   "runway": 0,
+   "forgiveness": 0.00113,
+   "level": 7,
+   "policy_success": 0.75,
+   "policy_fell": 0.25,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 1,
+   "wall_at": 3,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 2,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0625
+  },
+  {
+   "kind": "neo",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 2,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.8125,
+   "policy_stalled": 0.1875
+  },
+  {
+   "kind": "neo",
+   "gap": 1,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 2,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.3125,
+   "policy_stalled": 0.6875
+  },
+  {
+   "kind": "neo",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 2,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.75,
+   "policy_stalled": 0.25
+  },
+  {
+   "kind": "neo",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 2,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.8125,
+   "policy_stalled": 0.1875
+  },
+  {
+   "kind": "neo",
+   "gap": 2,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 2,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.5625,
+   "policy_stalled": 0.4375
+  },
+  {
+   "kind": "neo",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 2,
+   "wall_at": 2,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 2,
+   "wall_at": 2,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 2,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 2,
+   "wall_at": 2,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 2,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.8125,
+   "policy_stalled": 0.1875
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 2,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.875,
+   "policy_stalled": 0.125
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 2,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.625,
+   "policy_stalled": 0.375
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 2,
+   "wall_at": 2,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 2,
+   "wall_at": 2,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 2,
+   "wall_at": 2,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 2,
+   "wall_at": 3,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 2,
+   "wall_at": 3,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 2,
+   "wall_at": 3,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0625
+  },
+  {
+   "kind": "neo",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 3,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.75,
+   "policy_stalled": 0.25
+  },
+  {
+   "kind": "neo",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 3,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.4375,
+   "policy_stalled": 0.5625
+  },
+  {
+   "kind": "neo",
+   "gap": 1,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 3,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.125,
+   "policy_stalled": 0.875
+  },
+  {
+   "kind": "neo",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 3,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.75,
+   "policy_stalled": 0.25
+  },
+  {
+   "kind": "neo",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 3,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.375,
+   "policy_stalled": 0.625
+  },
+  {
+   "kind": "neo",
+   "gap": 2,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 3,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.3125,
+   "policy_stalled": 0.6875
+  },
+  {
+   "kind": "neo",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 3,
+   "wall_at": 2,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 3,
+   "wall_at": 2,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 2,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 3,
+   "wall_at": 2,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0625
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 3,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.5625,
+   "policy_stalled": 0.4375
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 3,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 1.0
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 3,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.5,
+   "policy_stalled": 0.5
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 3,
+   "wall_at": 2,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 3,
+   "wall_at": 2,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0625
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 3,
+   "wall_at": 2,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0625
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 3,
+   "wall_at": 3,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 3,
+   "wall_at": 3,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "neo",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 3,
+   "wall_at": 3,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.875,
+   "policy_stalled": 0.125
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0372,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.03621,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.03398,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.03026,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.00818,
+   "level": 7,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.00893,
+   "level": 7,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.01042,
+   "level": 7,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.00942,
+   "level": 7,
+   "policy_success": 0.4375,
+   "policy_fell": 0.5625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0625
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.1875,
+   "policy_stalled": 0.8125
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.875,
+   "policy_stalled": 0.125
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.75,
+   "policy_stalled": 0.25
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 2,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.03125,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.03125,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.02654,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.02232,
+   "level": 6,
+   "policy_success": 0.9375,
+   "policy_fell": 0.0625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.01042,
+   "level": 7,
+   "policy_success": 0.3125,
+   "policy_fell": 0.6875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.01042,
+   "level": 7,
+   "policy_success": 0.5,
+   "policy_fell": 0.5,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.00496,
+   "level": 8,
+   "policy_success": 0.5625,
+   "policy_fell": 0.4375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.00074,
+   "level": 8,
+   "policy_success": 0.3125,
+   "policy_fell": 0.6875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.8125,
+   "policy_stalled": 0.1875
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.75,
+   "policy_stalled": 0.25
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.875,
+   "policy_stalled": 0.125
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0625
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.875,
+   "policy_stalled": 0.125
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 3,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.00521,
+   "level": 7,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.00521,
+   "level": 7,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.00521,
+   "level": 7,
+   "policy_success": 0.9375,
+   "policy_fell": 0.0625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.00496,
+   "level": 8,
+   "policy_success": 0.75,
+   "policy_fell": 0.25,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.1875,
+   "policy_fell": 0.8125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.375,
+   "policy_fell": 0.625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.3125,
+   "policy_fell": 0.6875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0625
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.5625,
+   "policy_stalled": 0.4375
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.8125,
+   "policy_stalled": 0.1875
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0625
+  },
+  {
+   "kind": "momentum",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0625
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "momentum",
+   "gap": 6,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 4,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 0,
+   "dy": -2,
+   "lateral": 3,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.15278,
+   "level": 6,
+   "policy_success": 0.875,
+   "policy_fell": 0.125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 0,
+   "dy": -2,
+   "lateral": 3,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.19668,
+   "level": 6,
+   "policy_success": 0.9375,
+   "policy_fell": 0.0625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 0,
+   "dy": -2,
+   "lateral": 3,
+   "size": [
+    3,
+    3
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.88517,
+   "level": 6,
+   "policy_success": 0.9375,
+   "policy_fell": 0.0625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 0,
+   "dy": -1,
+   "lateral": 3,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.15253,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 0,
+   "dy": -1,
+   "lateral": 3,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.19395,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 0,
+   "dy": -1,
+   "lateral": 3,
+   "size": [
+    3,
+    3
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.87897,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 0,
+   "dy": 0,
+   "lateral": 3,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.14955,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 0,
+   "dy": 0,
+   "lateral": 3,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.16146,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 0,
+   "dy": 0,
+   "lateral": 3,
+   "size": [
+    3,
+    3
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.38219,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 0,
+   "dy": 1,
+   "lateral": 3,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.10516,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 0,
+   "dy": 1,
+   "lateral": 3,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.09598,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 0,
+   "dy": 1,
+   "lateral": 3,
+   "size": [
+    3,
+    3
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.2686,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 3,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.15451,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 3,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.20114,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 3,
+   "size": [
+    3,
+    3
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.82044,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 3,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.14906,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 3,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.18527,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 3,
+   "size": [
+    3,
+    3
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.6942,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 3,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.13591,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 3,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.15079,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 3,
+   "size": [
+    3,
+    3
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.31225,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 1,
+   "dy": 1,
+   "lateral": 3,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.07986,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 1,
+   "dy": 1,
+   "lateral": 3,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.08433,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 1,
+   "dy": 1,
+   "lateral": 3,
+   "size": [
+    3,
+    3
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.2438,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 3,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.125,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 3,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.15079,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 3,
+   "size": [
+    3,
+    3
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.21503,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 3,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.11582,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 3,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.13219,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 3,
+   "size": [
+    3,
+    3
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.19792,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 3,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.09053,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 3,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.09301,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 3,
+   "size": [
+    3,
+    3
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.15848,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 2,
+   "dy": 1,
+   "lateral": 3,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.03274,
+   "level": 6,
+   "policy_success": 0.875,
+   "policy_fell": 0.125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 2,
+   "dy": 1,
+   "lateral": 3,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.03522,
+   "level": 6,
+   "policy_success": 0.5,
+   "policy_fell": 0.5,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 2,
+   "dy": 1,
+   "lateral": 3,
+   "size": [
+    3,
+    3
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.08978,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 3,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.06721,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 3,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.06895,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 3,
+   "size": [
+    3,
+    3
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.08209,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 3,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.05506,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 3,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.05506,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 3,
+   "size": [
+    3,
+    3
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.06771,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 3,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.02679,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 3,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.02728,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 3,
+   "size": [
+    3,
+    3
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.03869,
+   "level": 6,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "wide",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 3,
+   "size": [
+    1,
+    1
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0625
+  },
+  {
+   "kind": "wide",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 3,
+   "size": [
+    2,
+    2
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.5625,
+   "policy_stalled": 0.4375
+  },
+  {
+   "kind": "wide",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 3,
+   "size": [
+    3,
+    3
+   ],
+   "neo": 0,
+   "wall_at": 1,
+   "runway": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.25,
+   "policy_fell": 0.75,
+   "policy_stalled": 0.0
+  }
+ ]
+}

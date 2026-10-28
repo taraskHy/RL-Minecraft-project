@@ -31,7 +31,7 @@ seed 0 is the first 1000 iterations of the main run (identical settings).
 
 ## Every jump type
 
-Checkpoint `runs/obstacles-ft/checkpoints/best.pt`. Each jump type starts from rest on a 1x1
+Checkpoint `results/final_policy.pt`. Each jump type starts from rest on a 1x1
 block, with 16 start angles from -60 to +60 degrees off the target.
 
 ![jumps](figures/jumps.png)
@@ -43,8 +43,8 @@ block, with 16 start angles from -60 to +60 degrees off the target.
 | 2 | 34 | 100.0 | 0 |
 | 3 | 22 | 100.0 | 0 |
 | 4 | 27 | 100.0 | 0 |
-| 5 | 14 | 99.6 | 0 |
-| impossible | 49 | 2.7 | 45 |
+| 5 | 14 | 99.1 | 0 |
+| impossible | 49 | 3.6 | 46 |
 
 ## Hyperparameters (one at a time around the defaults, seed 0)
 
@@ -68,17 +68,17 @@ reference is the `full` arm (defaults), mean over its seeds. All runs see 0.52 B
 
 ## Course styles outside the training distribution
 
-Checkpoint `runs/obstacles-ft/checkpoints/best.pt`, 100 new courses per level and condition (`python -m parkour.stress`).
+Checkpoint `results/final_policy.pt`, 100 new courses per level and condition (`python -m parkour.stress`).
 
 | Condition | All levels | L0 | L1 | L2 | L3 | L4 | L5 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| standard | 97.5 | 99.0 | 100.0 | 100.0 | 100.0 | 95.0 | 91.0 |
-| long | 95.2 | 99.0 | 99.0 | 100.0 | 98.0 | 97.0 | 78.0 |
-| zigzag | 90.3 | 93.0 | 96.0 | 94.0 | 97.0 | 94.0 | 68.0 |
-| straight | 98.5 | 99.0 | 100.0 | 100.0 | 100.0 | 100.0 | 92.0 |
-| any_start_yaw | 96.7 | 100.0 | 99.0 | 98.0 | 98.0 | 99.0 | 86.0 |
-| single_blocks | 91.2 | 87.0 | 97.0 | 95.0 | 98.0 | 97.0 | 73.0 |
-| obstacles | 95.3 | 99.0 | 98.0 | 94.0 | 97.0 | 99.0 | 85.0 |
+| standard | 98.3 | 100.0 | 100.0 | 99.0 | 100.0 | 96.0 | 95.0 |
+| long | 96.5 | 100.0 | 100.0 | 98.0 | 99.0 | 98.0 | 84.0 |
+| zigzag | 94.2 | 98.0 | 98.0 | 96.0 | 98.0 | 95.0 | 80.0 |
+| straight | 98.3 | 100.0 | 97.0 | 100.0 | 100.0 | 98.0 | 95.0 |
+| any_start_yaw | 96.7 | 99.0 | 100.0 | 100.0 | 96.0 | 96.0 | 89.0 |
+| single_blocks | 93.0 | 94.0 | 97.0 | 95.0 | 100.0 | 97.0 | 75.0 |
+| obstacles | 96.3 | 98.0 | 98.0 | 97.0 | 99.0 | 98.0 | 88.0 |
 
 ## Obstacles (head-hitter beams and decoy pillars)
 
@@ -102,17 +102,24 @@ courses). "Remaining" counts a drop onto any later, lower platform as a landing,
 
 | Test set | Fall rule | Course list given | Planner | L0 | L1 | L2 | L3 | L4 | L5 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| standard (1200) | local | 97.1 | 89.6 | 94.0 | 91.0 | 92.0 | 94.0 | 90.5 | 76.0 |
-| standard (1200) | remaining | 97.1 | 92.9 | 98.5 | 94.5 | 96.0 | 96.5 | 93.0 | 79.0 |
-| obstacles (1200) | local | 93.6 | 86.2 | 90.5 | 85.5 | 86.5 | 90.5 | 88.5 | 76.0 |
-| obstacles (1200) | remaining | 93.6 | 89.8 | 92.0 | 92.0 | 91.5 | 94.0 | 90.5 | 79.0 |
+| standard (1200) | local | 98.4 | 90.9 | 94.0 | 91.5 | 94.0 | 94.0 | 93.0 | 79.0 |
+| standard (1200) | remaining | 98.4 | 94.5 | 98.5 | 95.0 | 97.5 | 97.0 | 95.5 | 83.5 |
+| obstacles (1200) | local | 95.2 | 88.1 | 95.0 | 89.0 | 87.5 | 90.5 | 88.5 | 78.0 |
+| obstacles (1200) | remaining | 95.2 | 91.4 | 96.5 | 94.5 | 92.0 | 94.0 | 90.5 | 81.0 |
+
+With the first final policy the planner made 89.6 (standard) and 86.2 (obstacles) on the
+same test sets (`results/planner/sim_test_*_v1.json`).
 
 | Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |
 | --- | --- | --- | --- | --- | --- | --- |
-| planner-offline | offline (prismarine-physics, no server) | 52/60 | 86.7 | 100.0 | 0 | 7.1e-15 |
-| planner-offline-obstacles | offline (prismarine-physics, no server) | 53/60 | 88.3 | 100.0 | 0 | 3.6e-15 |
-| planner-live | live (Minecraft 1.21.4 server) | 52/60 | 86.7 | 100.0 | 0 | 2.1e-14 |
-| planner-live-obstacles | live (Minecraft 1.21.4 server) | 53/60 | 88.3 | 100.0 | 0 | 2.1e-14 |
+| v2-planner-offline | offline (prismarine-physics, no server) | 50/60 | 83.3 | 100.0 | 0 | 7.1e-15 |
+| v2-planner-offline-obstacles | offline (prismarine-physics, no server) | 55/60 | 91.7 | 100.0 | 0 | 7.1e-15 |
+| v2-planner-live | live (Minecraft 1.21.4 server) | 50/60 | 83.3 | 100.0 | 0 | 2.1e-14 |
+| v2-planner-live-obstacles | live (Minecraft 1.21.4 server) | 55/60 | 91.7 | 100.0 | 0 | 2.1e-14 |
+| planner-offline (first final policy) | offline (prismarine-physics, no server) | 52/60 | 86.7 | 100.0 | 0 | 7.1e-15 |
+| planner-offline-obstacles (first final policy) | offline (prismarine-physics, no server) | 53/60 | 88.3 | 100.0 | 0 | 3.6e-15 |
+| planner-live (first final policy) | live (Minecraft 1.21.4 server) | 52/60 | 86.7 | 100.0 | 0 | 2.1e-14 |
+| planner-live-obstacles (first final policy) | live (Minecraft 1.21.4 server) | 53/60 | 88.3 | 100.0 | 0 | 2.1e-14 |
 
 ## Learned no-route model `noroute-v2`
 
@@ -133,27 +140,61 @@ Checkpoint chosen on the validation courses: iteration 2849 (validation 83.2).
 | noroute-live | live (Minecraft 1.21.4 server) | 55/60 | 91.7 | 100.0 | 0 | 2.1e-14 |
 | noroute-live-obstacles | live (Minecraft 1.21.4 server) | 37/60 | 61.7 | 100.0 | 0 | 2.1e-14 |
 
+## Final policy: discount 0.995
+
+The hyperparameter study's only setting that beat the defaults by more than 3 points on validation
+(discount 0.995, all three seeds) was trained with the main run's recipe (`main-g995`, 3,000
+iterations) and the same obstacle fine-tune (`obstacles-g995`, 1,000 iterations). Chosen on validation
+against the first final policy (`obstacles-ft`); since then `results/final_policy.pt` (the first one is
+`results/final_policy_v1.pt`).
+
+| Policy | Iteration | Validation | Test, standard | L5 | Test, obstacles | Obstacles L5 |
+| --- | --- | --- | --- | --- | --- | --- |
+| first final policy `obstacles-ft` (discount 0.99) | 999 | 96.6 | 97.1 | 90.5 | 93.6 | 75.5 |
+| final policy `obstacles-g995` (discount 0.995) | 699 | 97.6 | 98.4 | 93.5 | 95.2 | 81.0 |
+
+The bot with the final policy, on the same 60 + 60 held-out courses as before and the four
+hand-designed courses (the neo course is not in its training):
+
+| Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |
+| --- | --- | --- | --- | --- | --- | --- |
+| v2-offline | offline (prismarine-physics, no server) | 59/60 | 98.3 | 100.0 | 0 | 7.1e-15 |
+| v2-offline-obstacles | offline (prismarine-physics, no server) | 57/60 | 95.0 | 100.0 | 0 | 7.1e-15 |
+| v2-offline-showcase | offline (prismarine-physics, no server) | 3/4 | 75.0 | 100.0 | 0 | 0.0e+00 |
+| v2-live | live (Minecraft 1.21.4 server) | 59/60 | 98.3 | 100.0 | 0 | 2.1e-14 |
+| v2-live-obstacles | live (Minecraft 1.21.4 server) | 57/60 | 95.0 | 100.0 | 0 | 2.1e-14 |
+| v2-live-showcase | live (Minecraft 1.21.4 server) | 3/4 | 75.0 | 100.0 | 0 | 2.1e-14 |
+
+## Neo jumps: learning from demonstrations
+
+Held-out test courses of levels 6-8 that contain a neo: 210 courses, 337 neo jumps.
+Neo jumps passed counts the neo jumps the bot reached and got past. Round 3's checkpoint was chosen
+on the validation family's neo courses.
+
+| Neo policy | Courses completed | Neo jumps passed / reached |
+| --- | --- | --- |
+| stall penalty only (neo-stall) | 0/210 (0.0) | 0/202 (0.0) |
+| + imitation (neo-bc) | 49/210 (23.3) | 82/227 (36.1) |
+| + DAgger round 1 (neo-dagger) | 62/210 (29.5) | 99/228 (43.4) |
+| + DAgger round 2 (neo-dagger2, best) | 63/210 (30.0) | 112/239 (46.9) |
+| + DAgger round 2 (neo-dagger2, last) | 74/210 (35.2) | 115/239 (48.1) |
+| + DAgger round 3 (neo-dagger3, chosen on validation) | 61/210 (29.0) | 97/224 (43.3) |
+
+The neo policy on the neo course set (`configs/neo_live_courses.json`: the first 10 held-out test
+courses with a neo of levels 6, 7 and 8, and the showcase neo course):
+
+| Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |
+| --- | --- | --- | --- | --- | --- | --- |
+| neo-offline-final | offline (prismarine-physics, no server) | 11/31 | 35.5 | 100.0 | 0 | 7.1e-15 |
+| neo-live-final | live (Minecraft 1.21.4 server) | 11/31 | 35.5 | 100.0 | 0 | 2.1e-14 |
+
 ## Offline check
 
-### Offline JavaScript bot on prismarine-physics (final policy: obstacles-ft)
+### Offline JavaScript bot on prismarine-physics (final policy: discount 0.995, obstacles-g995)
 
+### offline (prismarine-physics, no server)
 
-Checkpoint `runs/obstacles-ft/checkpoints/best.pt`, 60 courses (held-out, 10 jumps each).
-
-| Level | Courses | Success here | Success in simulator (same courses) |
-| --- | --- | --- | --- |
-| 0 | 10 | 90% | 90% |
-| 1 | 10 | 100% | 100% |
-| 2 | 10 | 100% | 100% |
-| 3 | 10 | 100% | 100% |
-| 4 | 10 | 100% | 100% |
-| 5 | 10 | 100% | 100% |
-
-Overall: 98% here, 98% in the simulator; outcomes agree on 100% of courses.
-Replaying the recorded actions in the simulator: largest position difference 7.11e-15 blocks; 60 of 60 episodes within 1e-6 blocks on every tick.
-
-
-Checkpoint `runs/obstacles-ft/checkpoints/best.pt`, 60 courses (held-out with obstacles, 10 jumps each).
+Checkpoint `results/final_policy.pt`, 60 courses (held-out, 10 jumps each).
 
 | Level | Courses | Success here | Success in simulator (same courses) |
 | --- | --- | --- | --- |
@@ -162,44 +203,13 @@ Checkpoint `runs/obstacles-ft/checkpoints/best.pt`, 60 courses (held-out with ob
 | 2 | 10 | 100% | 100% |
 | 3 | 10 | 100% | 100% |
 | 4 | 10 | 100% | 100% |
-| 5 | 10 | 80% | 80% |
+| 5 | 10 | 90% | 90% |
 
-Overall: 97% here, 97% in the simulator; outcomes agree on 100% of courses.
+Overall: 98% here, 98% in the simulator; outcomes agree on 100% of courses.
 Replaying the recorded actions in the simulator: largest position difference 7.11e-15 blocks; 60 of 60 episodes within 1e-6 blocks on every tick.
 
 
-Checkpoint `runs/obstacles-ft/checkpoints/best.pt`, 3 courses (from configs/showcase_courses.json).
-
-| Level | Courses | Success here | Success in simulator (same courses) |
-| --- | --- | --- | --- |
-| 0 | 3 | 100% | 100% |
-
-Overall: 100% here, 100% in the simulator; outcomes agree on 100% of courses.
-Replaying the recorded actions in the simulator: largest position difference 1.78e-15 blocks; 3 of 3 episodes within 1e-6 blocks on every tick.
-
-
-
-## Live check
-
-### Real Minecraft 1.21.4 server (final policy: obstacles-ft)
-
-Mineflayer bot with vanilla's 1e-7 collision tolerance (bridge/physics_patch.js) on a local void-world server; every episode played in real time. Server corrections (position resets): 0 in all 124 episodes. The neo course in the showcase is new and this policy never trained on neos (it stalls at the first one).
-
-
-Checkpoint `results/final_policy.pt`, 60 courses (held-out, 10 jumps each).
-
-| Level | Courses | Success here | Success in simulator (same courses) |
-| --- | --- | --- | --- |
-| 0 | 10 | 90% | 90% |
-| 1 | 10 | 100% | 100% |
-| 2 | 10 | 100% | 100% |
-| 3 | 10 | 100% | 100% |
-| 4 | 10 | 100% | 100% |
-| 5 | 10 | 100% | 100% |
-
-Overall: 98% here, 98% in the simulator; outcomes agree on 100% of courses.
-Replaying the recorded actions in the simulator: largest position difference 2.13e-14 blocks; 60 of 60 episodes within 1e-6 blocks on every tick.
-
+### offline (prismarine-physics, no server)
 
 Checkpoint `results/final_policy.pt`, 60 courses (held-out with obstacles, 10 jumps each).
 
@@ -209,12 +219,67 @@ Checkpoint `results/final_policy.pt`, 60 courses (held-out with obstacles, 10 ju
 | 1 | 10 | 100% | 100% |
 | 2 | 10 | 100% | 100% |
 | 3 | 10 | 100% | 100% |
-| 4 | 10 | 100% | 100% |
+| 4 | 10 | 90% | 90% |
 | 5 | 10 | 80% | 80% |
 
-Overall: 97% here, 97% in the simulator; outcomes agree on 100% of courses.
+Overall: 95% here, 95% in the simulator; outcomes agree on 100% of courses.
+Replaying the recorded actions in the simulator: largest position difference 7.11e-15 blocks; 60 of 60 episodes within 1e-6 blocks on every tick.
+
+
+### offline (prismarine-physics, no server)
+
+Checkpoint `results/final_policy.pt`, 4 courses (from configs/showcase_courses.json).
+
+| Level | Courses | Success here | Success in simulator (same courses) |
+| --- | --- | --- | --- |
+| 0 | 4 | 75% | 75% |
+
+Overall: 75% here, 75% in the simulator; outcomes agree on 100% of courses.
+Replaying the recorded actions in the simulator: largest position difference 0.00e+00 blocks; 4 of 4 episodes within 1e-6 blocks on every tick.
+
+
+
+## Live check
+
+### Real Minecraft 1.21.4 server (final policy: discount 0.995, obstacles-g995)
+
+Mineflayer bot with vanilla's 1e-7 collision tolerance (bridge/physics_patch.js) on a local void-world server; every episode played in real time. Server corrections (position resets): 0 in all 124 episodes. The showcase's neo course is not in this policy's training (it fails there).
+
+### live (Minecraft 1.21.4 server)
+
+Checkpoint `results/final_policy.pt`, 60 courses (held-out, 10 jumps each).
+
+| Level | Courses | Success here | Success in simulator (same courses) |
+| --- | --- | --- | --- |
+| 0 | 10 | 100% | 100% |
+| 1 | 10 | 100% | 100% |
+| 2 | 10 | 100% | 100% |
+| 3 | 10 | 100% | 100% |
+| 4 | 10 | 100% | 100% |
+| 5 | 10 | 90% | 90% |
+
+Overall: 98% here, 98% in the simulator; outcomes agree on 100% of courses.
 Replaying the recorded actions in the simulator: largest position difference 2.13e-14 blocks; 60 of 60 episodes within 1e-6 blocks on every tick.
 
+
+### live (Minecraft 1.21.4 server)
+
+Checkpoint `results/final_policy.pt`, 60 courses (held-out with obstacles, 10 jumps each).
+
+| Level | Courses | Success here | Success in simulator (same courses) |
+| --- | --- | --- | --- |
+| 0 | 10 | 100% | 100% |
+| 1 | 10 | 100% | 100% |
+| 2 | 10 | 100% | 100% |
+| 3 | 10 | 100% | 100% |
+| 4 | 10 | 90% | 90% |
+| 5 | 10 | 80% | 80% |
+
+Overall: 95% here, 95% in the simulator; outcomes agree on 100% of courses.
+Replaying the recorded actions in the simulator: largest position difference 2.13e-14 blocks; 60 of 60 episodes within 1e-6 blocks on every tick.
+
+
+### live (Minecraft 1.21.4 server)
 
 Checkpoint `results/final_policy.pt`, 4 courses (from configs/showcase_courses.json).
 

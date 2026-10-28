@@ -258,6 +258,21 @@ def archive(out: Path) -> None:
                     shutil.copyfileobj(src, gz)
 
 
+def game_row(out: Path, name: str, label: str | None = None) -> str | None:
+    sp = out / "games" / name / "summary.json"
+    if not sp.exists():
+        return None
+    s = json.loads(sp.read_text())
+    eps = s["episodes"]
+    return (f"| {label or name} | {s['mode']} | {sum(e['result'] == 'success' for e in eps)}/{len(eps)} | "
+            f"{pct(s['sim_success_same_courses'])} | {pct(s['outcome_agreement'])} | "
+            f"{sum(e.get('server_corrections') or 0 for e in eps)} | {s['replay_max_pos_err']:.1e} |")
+
+
+GAME_HEADER = ["| Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |",
+               "| --- | --- | --- | --- | --- | --- | --- |"]
+
+
 def pct(v):
     return "-" if v is None or (isinstance(v, float) and np.isnan(v)) else f"{v * 100:.1f}"
 
@@ -428,19 +443,17 @@ def main(argv=None):
                 lines.append(f"| {label} ({d['courses']}) | {rule} | {pct(g['success'])} | {pct(p['success'])} | "
                              + " | ".join(pct(p["per_level"][str(L)]["success"]) for L in range(6)) + " |")
         lines.append("")
-        games = out / "games"
-        rows = []
-        for name in ("planner-offline", "planner-offline-obstacles", "planner-live", "planner-live-obstacles"):
-            sp = games / name / "summary.json"
-            if sp.exists():
-                s = json.loads(sp.read_text())
-                eps = s["episodes"]
-                rows.append(f"| {name} | {s['mode']} | {sum(e['result'] == 'success' for e in eps)}/{len(eps)} | "
-                            f"{pct(s['sim_success_same_courses'])} | {pct(s['outcome_agreement'])} | "
-                            f"{sum(e.get('server_corrections') or 0 for e in eps)} | {s['replay_max_pos_err']:.1e} |")
+        rows = [r for r in (game_row(out, n) for n in ("v2-planner-offline", "v2-planner-offline-obstacles", "v2-planner-live",
+                                                       "v2-planner-live-obstacles")) if r]
+        rows += [r for r in (game_row(out, n, n + " (first final policy)") for n in (
+            "planner-offline", "planner-offline-obstacles", "planner-live", "planner-live-obstacles")) if r]
+        v1 = [(out / "planner" / f"sim_test_{k}_v1.json") for k in ("standard", "obstacles")]
+        if all(f.exists() for f in v1):
+            a_, b_ = (json.loads(f.read_text())["local"]["planner_route"]["success"] for f in v1)
+            lines += [f"With the first final policy the planner made {pct(a_)} (standard) and {pct(b_)} (obstacles) on the",
+                      "same test sets (`results/planner/sim_test_*_v1.json`).", ""]
         if rows:
-            lines += ["| Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |",
-                      "| --- | --- | --- | --- | --- | --- | --- |"] + rows + [""]
+            lines += GAME_HEADER + rows + [""]
 
     nr = RUNS / "noroute-v2" / "summary.json"
     if nr.exists():
@@ -459,20 +472,62 @@ def main(argv=None):
                   "| --- | --- | " + " | ".join("---" for _ in range(6)) + " |",
                   f"| standard (1200) | {pct(float(t['success']))} | " + " | ".join(pct(float(t[f'success_L{L}'])) for L in range(6)) + " |",
                   f"| obstacles (1200) | {pct(float(o['success']))} | " + " | ".join(pct(float(o[f'success_L{L}'])) for L in range(6)) + " |", ""]
-        rows = []
-        for name in ("noroute-offline", "noroute-offline-obstacles", "noroute-live", "noroute-live-obstacles"):
-            sp = out / "games" / name / "summary.json"
-            if sp.exists():
-                s_ = json.loads(sp.read_text())
-                eps = s_["episodes"]
-                rows.append(f"| {name} | {s_['mode']} | {sum(e['result'] == 'success' for e in eps)}/{len(eps)} | "
-                            f"{pct(s_['sim_success_same_courses'])} | {pct(s_['outcome_agreement'])} | "
-                            f"{sum(e.get('server_corrections') or 0 for e in eps)} | {s_['replay_max_pos_err']:.1e} |")
+        rows = [r for r in (game_row(out, n) for n in ("noroute-offline", "noroute-offline-obstacles", "noroute-live",
+                                                       "noroute-live-obstacles")) if r]
         if rows:
-            lines += ["| Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |",
-                      "| --- | --- | --- | --- | --- | --- | --- |"] + rows + [""]
+            lines += GAME_HEADER + rows + [""]
 
-    for name in ("offline", "live"):
+    # The final policy since 28 October: discount 0.995 (section "Hyperparameters").
+    v2 = RUNS / "obstacles-g995" / "summary.json"
+    v1 = RUNS / "obstacles-ft" / "summary.json"
+    if v2.exists() and v1.exists():
+        lines += ["## Final policy: discount 0.995", "",
+                  "The hyperparameter study's only setting that beat the defaults by more than 3 points on validation",
+                  "(discount 0.995, all three seeds) was trained with the main run's recipe (`main-g995`, 3,000",
+                  "iterations) and the same obstacle fine-tune (`obstacles-g995`, 1,000 iterations). Chosen on validation",
+                  "against the first final policy (`obstacles-ft`); since then `results/final_policy.pt` (the first one is",
+                  "`results/final_policy_v1.pt`).", "",
+                  "| Policy | Iteration | Validation | Test, standard | L5 | Test, obstacles | Obstacles L5 |",
+                  "| --- | --- | --- | --- | --- | --- | --- |"]
+        for name, path in (("first final policy `obstacles-ft` (discount 0.99)", v1), ("final policy `obstacles-g995` (discount 0.995)", v2)):
+            b = json.loads(path.read_text())["best"]
+            run = path.parent
+            t = {int(r["iteration"]): r for r in csv.DictReader(open(run / "eval_log.csv"))}[b["iteration"]]
+            o = {int(r["iteration"]): r for r in csv.DictReader(open(run / "eval_obstacles_log.csv"))}[b["iteration"]]
+            lines.append(f"| {name} | {b['iteration']} | {pct(b['validation_success'])} | {pct(float(t['success']))} | "
+                         f"{pct(float(t['success_L5']))} | {pct(float(o['success']))} | {pct(float(o['success_L5']))} |")
+        lines.append("")
+        rows = [r for r in (game_row(out, n) for n in ("v2-offline", "v2-offline-obstacles", "v2-offline-showcase",
+                                                       "v2-live", "v2-live-obstacles", "v2-live-showcase")) if r]
+        if rows:
+            lines += ["The bot with the final policy, on the same 60 + 60 held-out courses as before and the four",
+                      "hand-designed courses (the neo course is not in its training):", ""] + GAME_HEADER + rows + [""]
+
+    # Neo jumps: learning from demonstrations.
+    ne = out / "neo" / "course_eval.json"
+    n3 = out / "neo" / "round3_eval.json"
+    if ne.exists():
+        d = json.loads(ne.read_text())
+        lines += ["## Neo jumps: learning from demonstrations", "",
+                  f"Held-out test courses of levels 6-8 that contain a neo: {d['courses']} courses, {d['neo_jumps']} neo jumps.",
+                  "Neo jumps passed counts the neo jumps the bot reached and got past. Round 3's checkpoint was chosen",
+                  "on the validation family's neo courses.", "",
+                  "| Neo policy | Courses completed | Neo jumps passed / reached |", "| --- | --- | --- |"]
+        for name, r in d["results"].items():
+            lines.append(f"| {name} | {r['courses']}/{d['courses']} ({pct(r['courses'] / d['courses'])}) | "
+                         f"{r['neo_passed']}/{r['neo_reached']} ({pct(r['neo_passed'] / max(r['neo_reached'], 1))}) |")
+        if n3.exists():
+            for key, (cs, n, passed, reached) in json.loads(n3.read_text()).items():
+                if key.startswith("test") and "neo-dagger3" in key and "best" in key:
+                    lines.append(f"| + DAgger round 3 (neo-dagger3, chosen on validation) | {cs}/{n} ({pct(cs / n)}) | "
+                                 f"{passed}/{reached} ({pct(passed / max(reached, 1))}) |")
+        lines.append("")
+        rows = [r for r in (game_row(out, n) for n in ("neo-offline-final", "neo-live-final")) if r]
+        if rows:
+            lines += ["The neo policy on the neo course set (`configs/neo_live_courses.json`: the first 10 held-out test",
+                      "courses with a neo of levels 6, 7 and 8, and the showcase neo course):", ""] + GAME_HEADER + rows + [""]
+
+    for name in ("offline", "live", "offline_v1", "live_v1"):
         p = out / f"{name}_summary.md"
         if p.exists():
             lines += [f"## {name.capitalize()} check", "", p.read_text().replace("# ", "### ", 1), ""]

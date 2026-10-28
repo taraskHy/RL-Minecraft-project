@@ -1,0 +1,31 @@
+{
+ "courses": 210,
+ "neo_jumps": 337,
+ "results": {
+  "stall penalty only (neo-stall)": {
+   "courses": 0,
+   "neo_reached": 202,
+   "neo_passed": 0
+  },
+  "+ imitation (neo-bc)": {
+   "courses": 49,
+   "neo_reached": 227,
+   "neo_passed": 82
+  },
+  "+ DAgger round 1 (neo-dagger)": {
+   "courses": 62,
+   "neo_reached": 228,
+   "neo_passed": 99
+  },
+  "+ DAgger round 2 (neo-dagger2, best)": {
+   "courses": 63,
+   "neo_reached": 239,
+   "neo_passed": 112
+  },
+  "+ DAgger round 2 (neo-dagger2, last)": {
+   "courses": 74,
+   "neo_reached": 239,
+   "neo_passed": 115
+  }
+ }
+}

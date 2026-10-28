@@ -1,0 +1,38 @@
+{
+ "validation runs/neo-dagger2/checkpoints/best.pt": [
+  72,
+  218,
+  124,
+  249
+ ],
+ "validation runs/neo-dagger3/checkpoints/best.pt": [
+  75,
+  218,
+  130,
+  250
+ ],
+ "validation runs/neo-dagger3/checkpoints/latest.pt": [
+  69,
+  218,
+  119,
+  246
+ ],
+ "test runs/neo-dagger2/checkpoints/best.pt": [
+  63,
+  210,
+  112,
+  239
+ ],
+ "test runs/neo-dagger3/checkpoints/best.pt": [
+  61,
+  210,
+  97,
+  224
+ ],
+ "test runs/neo-dagger3/checkpoints/latest.pt": [
+  62,
+  210,
+  98,
+  229
+ ]
+}

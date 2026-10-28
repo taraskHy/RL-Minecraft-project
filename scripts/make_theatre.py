@@ -50,7 +50,8 @@ def main():
     for d in [ROOT / "runs" / n for n in ("live2-showcase", "live2-final", "live2-obstacles")] + sorted(ROOT.glob("runs/neo-live*")):
         if (d / "episodes.jsonl").exists():
             for e in V.episodes_from(d):
-                replays.append(run_of(e, e["title"], "live" in e["mode"]))
+                label = ("Neo policy: " + e["title"].replace(" (obstacles)", "")) if d.name.startswith("neo-live") else e["title"]
+                replays.append(run_of(e, label, "live" in e["mode"]))
     for d in sorted(ROOT.glob("runs/planner-live*")):
         if (d / "episodes.jsonl").exists():
             for e in V.episodes_from(d):

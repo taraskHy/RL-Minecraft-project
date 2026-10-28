@@ -1,22 +1,25 @@
-# Real Minecraft 1.21.4 server (final policy: obstacles-ft)
+# Real Minecraft 1.21.4 server (final policy: discount 0.995, obstacles-g995)
 
-Mineflayer bot with vanilla's 1e-7 collision tolerance (bridge/physics_patch.js) on a local void-world server; every episode played in real time. Server corrections (position resets): 0 in all 124 episodes. The neo course in the showcase is new and this policy never trained on neos (it stalls at the first one).
+Mineflayer bot with vanilla's 1e-7 collision tolerance (bridge/physics_patch.js) on a local void-world server; every episode played in real time. Server corrections (position resets): 0 in all 124 episodes. The showcase's neo course is not in this policy's training (it fails there).
 
+### live (Minecraft 1.21.4 server)
 
 Checkpoint `results/final_policy.pt`, 60 courses (held-out, 10 jumps each).
 
 | Level | Courses | Success here | Success in simulator (same courses) |
 | --- | --- | --- | --- |
-| 0 | 10 | 90% | 90% |
+| 0 | 10 | 100% | 100% |
 | 1 | 10 | 100% | 100% |
 | 2 | 10 | 100% | 100% |
 | 3 | 10 | 100% | 100% |
 | 4 | 10 | 100% | 100% |
-| 5 | 10 | 100% | 100% |
+| 5 | 10 | 90% | 90% |
 
 Overall: 98% here, 98% in the simulator; outcomes agree on 100% of courses.
 Replaying the recorded actions in the simulator: largest position difference 2.13e-14 blocks; 60 of 60 episodes within 1e-6 blocks on every tick.
 
+
+### live (Minecraft 1.21.4 server)
 
 Checkpoint `results/final_policy.pt`, 60 courses (held-out with obstacles, 10 jumps each).
 
@@ -26,12 +29,14 @@ Checkpoint `results/final_policy.pt`, 60 courses (held-out with obstacles, 10 ju
 | 1 | 10 | 100% | 100% |
 | 2 | 10 | 100% | 100% |
 | 3 | 10 | 100% | 100% |
-| 4 | 10 | 100% | 100% |
+| 4 | 10 | 90% | 90% |
 | 5 | 10 | 80% | 80% |
 
-Overall: 97% here, 97% in the simulator; outcomes agree on 100% of courses.
+Overall: 95% here, 95% in the simulator; outcomes agree on 100% of courses.
 Replaying the recorded actions in the simulator: largest position difference 2.13e-14 blocks; 60 of 60 episodes within 1e-6 blocks on every tick.
 
+
+### live (Minecraft 1.21.4 server)
 
 Checkpoint `results/final_policy.pt`, 4 courses (from configs/showcase_courses.json).
 
