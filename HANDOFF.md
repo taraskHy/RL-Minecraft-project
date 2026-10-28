@@ -478,18 +478,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `8adb005` (2026-10-28 18:22, branch `claude/pensive-knuth-biwj11`): Design notes: the new blocks in the physics and the opt-in extensions
+Generated on top of commit `322310c` (2026-10-28 19:16, branch `claude/pensive-knuth-biwj11`): neo_pipeline: note that smoke runs land in runs/ and must not be archived
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 25 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 36 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `7ed4c1b` 2026-10-28 18:20 | 2 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 41 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 0 |
-| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 26 |
-| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 23 |
-| `results/DATA.md` | updated together with this snapshot | 0 |
+| `TEAM_STATUS.md` | `7ed4c1b` 2026-10-28 18:20 | 13 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 52 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 11 |
+| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 37 |
+| `results/README.md` | updated together with this snapshot | 0 |
+| `results/DATA.md` | `e2381cc` 2026-10-28 18:29 | 9 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 

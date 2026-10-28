@@ -300,6 +300,8 @@ def new_abilities(out: Path) -> list:
         for r in runs:
             ckpt = Path(r["checkpoint"]).stem
             setting = "policy alone" if not r["assist"] else (r.get("tag") or "assist").split(";")[0]
+            if r["assist"] and r["config"].get("batch", 1) != 1:  # searches batched: other random draws, not the bots'
+                setting += f" (batch {r['config']['batch']})"
             jumps = r["config"]["jumps"] if r["assist"] else ""
             plans = (f"{r['plans_landed_as_planned']}/{r['plans_played']}" if r.get("plans_played") is not None else "")
             lines.append(f"| {r['split']} | {r['set']} (family {r['family']}) | `{ckpt}` | {setting} | {jumps} | "
