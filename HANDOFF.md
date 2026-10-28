@@ -531,18 +531,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `9b48bda` (2026-10-29 00:34, branch `main`): Merge extra-jump diagnostics and clarify report labels
+Generated on top of commit `0856810` (2026-10-29 00:44, branch `main`): Merge mixed-course policy baseline and clarify dataset labels
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 84 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 86 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 42 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 59 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 42 |
-| `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | `9b48bda` 2026-10-29 00:34 | 0 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 44 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 61 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 44 |
+| `results/README.md` | `0856810` 2026-10-29 00:44 | 0 |
+| `results/DATA.md` | `9b48bda` 2026-10-29 00:34 | 2 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -567,8 +567,8 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `final-v2` | 499 | 0.26 | 499 | 89.6 | 88.5 | 88.5 | 88.1 |
 | `full-s1` | 999 | 0.52 | - | - | - | 94.2 | - |
 | `full-s2` | 999 | 0.52 | 949 | 93.0 | 93.1 | 91.9 | - |
-| `g995-adv` | 599 | 0.31 | 99 | 81.8 | - | - | - |
-| `g995-ice` | 699 | 0.37 | 449 | 97.3 | - | - | - |
+| `g995-adv` | 649 | 0.34 | 99 | 81.8 | - | - | - |
+| `g995-ice` | 749 | 0.39 | 449 | 97.3 | - | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
 | `hp-envs4096` | 3999 | 0.52 | 3599 | 93.7 | 94.2 | 92.0 | - |
@@ -701,6 +701,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **29 Oct 2026, 00:47, Codex heartbeat on training PC:** archived new simulator validation progress (families 2/5): g995-adv: iteration 649, validation 80.61%, selected best iteration 99; g995-ice: iteration 749, validation 94.50%, selected best iteration 449. Advanced covers nine levels and ice six, so overall scores are not directly comparable. Verified each summary against its validation CSV and the selected validation maximum; test logs remain header-only and no completion/test result exists. Report and handoff refreshed. Exactly two trainers and the existing queue, thermal/duty watchdog and keep-awake helper remain healthy. No executable changes; prior tests remain applicable.
 
 - **29 Oct 2026, 00:43, Codex heartbeat on training PC:** merged cloud baseline `1752c13`: the shipped final policy without assistance completes 37/200 mixed simulator validation courses (family 15, ordinary and special jump kinds). Verified checkpoint hash and aggregate count consistency; no per-course detail file accompanies this result. The mixed dataset matches its pinned fingerprint. Added the mixed family definitions to the report; three integrity tests and 26 subtests pass (93 deselected; `runs/heartbeat-mixed-baseline-tests.txt`). Archived training validation (families 2/5): g995-adv iteration 599: 80.17%, selected best 99; g995-ice iteration 699: 95.00%, selected best 449. Advanced uses nine levels and ice six; checkpoints remain selected only on validation, and training test logs are header-only. Report/handoff refreshed; two trainers and the existing queue/watchdog/keep-awake remain active.
 
