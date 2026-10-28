@@ -10,7 +10,7 @@ the data: training runs, policies, the route planner and neo files, the game
 folders (including the v2, planner, noroute, neo and film games) and the
 videos.
 
-**Last updated:** 29 Oct 2026, 01:15, training PC: cloud merged through `5f22b61`; advanced899 and extra49 validation archived; combined initial-run completion notification pending.
+**Last updated:** 29 Oct 2026, 01:19, training PC: advanced949 and extra99 validation archived; combined initial-run completion notification pending.
 
 ## The project
 
@@ -318,6 +318,8 @@ The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
 5. The report discussion and conclusion are drafted. The cloud DOCX/PDF exports predate this merged source; rebuild and check pagination before submission.
 
 ## Update log
+
+- **29 Oct 2026, 01:19, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-adv iteration 949: 81.22%, selected best 99 (81.78%); g995-extra iteration 99: 73.29%, selected best 99 (73.29%). Advanced covers nine levels and extra twelve; overall scores are not directly comparable. Summaries and selected validation maxima match their CSVs; both active test logs remain empty, while ice retains exactly one final standard/obstacle test row. Two unrestricted trainers and the existing queue, thermal watchdog (65/58 C), and keep-awake are healthy. GPU sample: 71% busy, 5350/16303 MiB, 40.23 C. No new cloud commits or executable changes; prior checks remain applicable. Report/handoff refreshed and results published. Combined advanced/ice completion notification remains pending until advanced finishes.
 
 - **29 Oct 2026, 01:15, Codex heartbeat on training PC:** merged cloud documentation commit `5f22b61`, retaining its cloud CPU session entry and the PC session history. Archived simulator validation (families 2/5): g995-adv iteration 899: 81.17%, best remains iteration 99 at 81.78%; g995-extra first checkpoint 49: 59.625%, selected best 49. Advanced covers nine levels and extra twelve, so these overall scores are not directly comparable. Verified archived summaries against their validation CSVs and validation-selected maxima; both active runs have no test rows. Ice remains completed and reported once. Two unrestricted trainers, one queue, one thermal watchdog (65/58 C) and one keep-awake remain healthy; current GPU sample was 76% busy, 5349/16303 MiB, 38.38 C. No executable changes; the prior full CPU suite and 13 focused restart checks remain applicable. Report/handoff refreshed. Combined advanced/ice completion notification remains pending until advanced finishes.
 

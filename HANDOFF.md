@@ -548,18 +548,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `bf01c50` (2026-10-29 01:13, branch `main`): Merge remote-tracking branch 'origin/claude/pensive-knuth-biwj11'
+Generated on top of commit `a03fe02` (2026-10-29 01:15, branch `main`): Archive advanced 899 and first extra validation results
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 93 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 94 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 51 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 68 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 51 |
-| `results/README.md` | `0856810` 2026-10-29 00:44 | 7 |
-| `results/DATA.md` | `9b48bda` 2026-10-29 00:34 | 9 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 52 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 69 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 52 |
+| `results/README.md` | `0856810` 2026-10-29 00:44 | 8 |
+| `results/DATA.md` | `9b48bda` 2026-10-29 00:34 | 10 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -584,8 +584,8 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `final-v2` | 499 | 0.26 | 499 | 89.6 | 88.5 | 88.5 | 88.1 |
 | `full-s1` | 999 | 0.52 | - | - | - | 94.2 | - |
 | `full-s2` | 999 | 0.52 | 949 | 93.0 | 93.1 | 91.9 | - |
-| `g995-adv` | 899 | 0.47 | 99 | 81.8 | - | - | - |
-| `g995-extra` | 49 | 0.03 | 49 | 59.6 | - | - | - |
+| `g995-adv` | 949 | 0.50 | 99 | 81.8 | - | - | - |
+| `g995-extra` | 99 | 0.05 | 99 | 73.3 | - | - | - |
 | `g995-ice` | 999 | 0.52 | 449 | 97.3 | 97.5 | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
@@ -719,6 +719,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **29 Oct 2026, 01:19, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-adv iteration 949: 81.22%, selected best 99 (81.78%); g995-extra iteration 99: 73.29%, selected best 99 (73.29%). Advanced covers nine levels and extra twelve; overall scores are not directly comparable. Summaries and selected validation maxima match their CSVs; both active test logs remain empty, while ice retains exactly one final standard/obstacle test row. Two unrestricted trainers and the existing queue, thermal watchdog (65/58 C), and keep-awake are healthy. GPU sample: 71% busy, 5350/16303 MiB, 40.23 C. No new cloud commits or executable changes; prior checks remain applicable. Report/handoff refreshed and results published. Combined advanced/ice completion notification remains pending until advanced finishes.
 
 - **29 Oct 2026, 01:15, Codex heartbeat on training PC:** merged cloud documentation commit `5f22b61`, retaining its cloud CPU session entry and the PC session history. Archived simulator validation (families 2/5): g995-adv iteration 899: 81.17%, best remains iteration 99 at 81.78%; g995-extra first checkpoint 49: 59.625%, selected best 49. Advanced covers nine levels and extra twelve, so these overall scores are not directly comparable. Verified archived summaries against their validation CSVs and validation-selected maxima; both active runs have no test rows. Ice remains completed and reported once. Two unrestricted trainers, one queue, one thermal watchdog (65/58 C) and one keep-awake remain healthy; current GPU sample was 76% busy, 5349/16303 MiB, 38.38 C. No executable changes; the prior full CPU suite and 13 focused restart checks remain applicable. Report/handoff refreshed. Combined advanced/ice completion notification remains pending until advanced finishes.
 
