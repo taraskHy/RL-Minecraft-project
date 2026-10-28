@@ -69,6 +69,10 @@ class EnvConfig:
     stall_ticks: int = 200  # truncate after this long without reaching a new platform
     max_ticks: int = 3000
     reward: RewardConfig = field(default_factory=RewardConfig)
+    # "local": a fall is being more than FALL_MARGIN below platforms cp-1..cp+2 (training and all
+    # results). "remaining": below every platform from cp-1 to the goal, so dropping onto a later,
+    # lower platform (a shortcut a route planner may take) is not a fall. Evaluation only.
+    fall_rule: str = "local"
 
 
 MAX_EXTRA = 256
@@ -213,17 +217,8 @@ class Observer:
         nplat = pool.n[course]
         valid = j < nplat[:, None]
         jc = j.clamp(max=MAX_PLATFORMS - 1)
-        p = pool.plat[course[:, None], jc].to(torch.float64)  # (N, S, 5)
-        x0, x1, z0, z1 = p[..., 0], p[..., 1] + 1, p[..., 2], p[..., 3] + 1
-        cxs = torch.stack((x0, x1, x1, x0), -1).reshape(n, -1)
-        czs = torch.stack((z0, z0, z1, z1), -1).reshape(n, -1)
-        cf, cr = rel(cxs, czs)
-        corners = torch.stack((cf, cr), -1).reshape(n, PLATFORM_SLOTS, 8) / 4.0
-        dtop = ((p[..., 4] + 1) - pos[:, 1:2]) / 2.0
-        is_goal = (j == nplat[:, None] - 1)
-        vf = valid.to(torch.float64)
-        slots = torch.cat((vf[..., None], (is_goal & valid).to(torch.float64)[..., None],
-                           corners.clamp(-10, 10) * vf[..., None], (dtop * vf)[..., None]), -1).reshape(n, -1)
+        p = pool.plat[course[:, None], jc]  # (N, S, 5)
+        slots = self.slots(s, p, valid, j == nplat[:, None] - 1)
 
         # Height scan.
         px = pos[:, 0:1] + self.scan_a * fx[:, None] + self.scan_b * rx[:, None]
@@ -247,6 +242,26 @@ class Observer:
         goal = torch.stack((gf[:, 0] / 20, gr[:, 0] / 20, (g[:, 1] - pos[:, 1]) / 10,
                             cp.to(torch.float64) / (nplat - 1).clamp(min=1).to(torch.float64)), -1)
         return torch.cat((proprio, act, slots, scan, goal), -1).to(torch.float32)
+
+    def slots(self, s: physics.PlayerState, p: torch.Tensor, valid: torch.Tensor, is_goal: torch.Tensor) -> torch.Tensor:
+        """(N, S * 11) slot features of platforms ``p`` (N, S, 5); also used by the route planner."""
+        n = p.shape[0]
+        pos = s.pos
+        sy, cy = torch.sin(s.yaw), torch.cos(s.yaw)
+        fx, fz = -sy, -cy
+        rx, rz = cy, -sy
+        p = p.to(torch.float64)
+        x0, x1, z0, z1 = p[..., 0], p[..., 1] + 1, p[..., 2], p[..., 3] + 1
+        cxs = torch.stack((x0, x1, x1, x0), -1).reshape(n, -1)
+        czs = torch.stack((z0, z0, z1, z1), -1).reshape(n, -1)
+        dx = cxs - pos[:, 0:1]
+        dz = czs - pos[:, 2:3]
+        cf, cr = dx * fx[:, None] + dz * fz[:, None], dx * rx[:, None] + dz * rz[:, None]
+        corners = torch.stack((cf, cr), -1).reshape(n, PLATFORM_SLOTS, 8) / 4.0
+        dtop = ((p[..., 4] + 1) - pos[:, 1:2]) / 2.0
+        vf = valid.to(torch.float64)
+        return torch.cat((vf[..., None], (is_goal & valid).to(torch.float64)[..., None],
+                          corners.clamp(-10, 10) * vf[..., None], (dtop * vf)[..., None]), -1).reshape(n, -1)
 
 
 class LevelSampler:
@@ -331,7 +346,7 @@ class ParkourEnv:
         self.yaw_steps = torch.tensor(YAW_STEPS_DEG, dtype=torch.float64, device=self.device) * (math.pi / 180)
         self.no_action = torch.tensor([1, 1, 0, 0, 3], device=self.device)
         self.k_range = torch.arange(MAX_PLATFORMS, device=self.device)
-        self.fall_range = torch.arange(-1, 3, device=self.device)
+        self.fall_range = torch.arange(-1, 3 if config.fall_rule == "local" else MAX_PLATFORMS, device=self.device)
         self.course = torch.zeros(self.n, dtype=torch.int64, device=self.device)
         self.state = physics.PlayerState.at(torch.zeros(self.n, 3, dtype=torch.float64, device=self.device),
                                             torch.zeros(self.n, dtype=torch.float64, device=self.device))

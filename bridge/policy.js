@@ -5,6 +5,7 @@
 // checks both against the Python code.
 
 const fs = require('fs')
+const { GreedyPlanner } = require('./planner')
 
 const SCAN_FORWARD = Array.from({ length: 14 }, (_, i) => -1.0 + 0.5 * i)
 const SCAN_LATERAL = Array.from({ length: 7 }, (_, i) => -1.5 + 0.5 * i)
@@ -19,6 +20,7 @@ const YAW_STEPS_DEG = [-20.0, -6.0, -1.5, 0.0, 1.5, 6.0, 20.0]
 const ACTION_DIMS = [3, 3, 2, 2, 7]
 const OBS_DIM = 6 + 5 + PLATFORM_SLOTS * 11 + SCAN_FORWARD.length * SCAN_LATERAL.length * 2 + 4
 const NO_ACTION = [1, 1, 0, 0, 3]
+const GRID = [64, 32, 64] // parkour.courses.GRID: the planner only looks inside the course area
 
 function clamp (x, lo, hi) { return Math.min(hi, Math.max(lo, x)) }
 
@@ -28,6 +30,16 @@ function centre (p) { return [(p[0] + p[1] + 1) / 2, p[4] + 1, (p[2] + p[3] + 1)
 // platforms: [[x0,x1,z0,z1,y], ...] in the same coordinates as s.pos
 // isSolid(x, y, z): integer cell -> boolean
 function observe (s, lastAction, platforms, cp, isSolid) {
+  const n = platforms.length
+  const slots = []
+  for (let k = 0; k < PLATFORM_SLOTS && cp + k < n; k++) slots.push({ p: platforms[cp + k], goal: cp + k === n - 1 })
+  return observeSlots(s, lastAction, slots, centre(platforms[n - 1]), cp / Math.max(n - 1, 1), isSolid)
+}
+
+// The observation with explicit platform slots ([{p, goal}], current platform first; missing
+// slots are empty), goal centre and progress: what observe() builds from the course, or what
+// the route planner builds from the blocks it sees.
+function observeSlots (s, lastAction, slots, g, progress, isSolid) {
   const out = new Float64Array(OBS_DIM)
   let o = 0
   const [px, py, pz] = s.pos
@@ -52,14 +64,12 @@ function observe (s, lastAction, platforms, cp, isSolid) {
   out[o++] = lastAction[3]
   out[o++] = YAW_STEPS_DEG[lastAction[4]] / 20
 
-  const n = platforms.length
   for (let k = 0; k < PLATFORM_SLOTS; k++) {
-    const j = cp + k
-    if (j >= n) { o += 11; continue }
-    const p = platforms[j]
+    if (k >= slots.length) { o += 11; continue }
+    const p = slots[k].p
     const x0 = p[0]; const x1 = p[1] + 1; const z0 = p[2]; const z1 = p[3] + 1
     out[o++] = 1
-    out[o++] = j === n - 1 ? 1 : 0
+    out[o++] = slots[k].goal ? 1 : 0
     const cxs = [x0, x1, x1, x0]
     const czs = [z0, z0, z1, z1]
     for (let c = 0; c < 4; c++) {
@@ -89,11 +99,10 @@ function observe (s, lastAction, platforms, cp, isSolid) {
     }
   }
 
-  const g = centre(platforms[n - 1])
   out[o++] = relF(g[0], g[2]) / 20
   out[o++] = relR(g[0], g[2]) / 20
   out[o++] = (g[1] - py) / 10
-  out[o++] = cp / Math.max(n - 1, 1)
+  out[o++] = progress
   return out
 }
 
@@ -110,10 +119,12 @@ function standingOn (s, platforms) {
   return best
 }
 
-function fellBelow (s, platforms, cp) {
+// rule 'local': below platforms cp-1..cp+2 (as in training); 'remaining': below every platform
+// from cp-1 to the goal (EnvConfig.fall_rule).
+function fellBelow (s, platforms, cp, rule = 'local') {
   const last = platforms.length - 1
   let lo = Infinity
-  for (let j = cp - 1; j <= cp + 2; j++) {
+  for (let j = cp - 1; j <= (rule === 'local' ? cp + 2 : last); j++) {
     if (j >= 0 && j <= last) lo = Math.min(lo, platforms[j][4] + 1)
   }
   return s.pos[1] < lo - FALL_MARGIN
@@ -205,8 +216,16 @@ function onObstacle (s, extra) {
 }
 
 class Episode {
-  constructor (policy, platforms, isSolid, { stall = 200, maxTicks = 3000, extra = null } = {}) {
+  constructor (policy, platforms, isSolid, { stall = 200, maxTicks = 3000, extra = null, planner = null, fallRule = 'local' } = {}) {
     this.extra = extra
+    this.fallRule = fallRule
+    // With a planner config, the policy's platform slots come from the blocks around the bot
+    // (bridge/planner.js); the course list is only used to score the episode.
+    this.planner = null
+    if (planner) {
+      const inGrid = (x, y, z) => x >= 0 && x < GRID[0] && y >= 0 && y < GRID[1] && z >= 0 && z < GRID[2] && isSolid(x, y, z)
+      this.planner = new GreedyPlanner(inGrid, centre(platforms[platforms.length - 1]), planner)
+    }
     this.policy = policy
     this.platforms = platforms
     this.isSolid = isSolid
@@ -231,17 +250,22 @@ class Episode {
       const k = standingOn(s, this.platforms)
       if (k > this.cp) { this.cp = k; this.stall = 0 } else this.stall++
       const success = this.cp >= this.platforms.length - 1
-      const fell = !success && (fellBelow(s, this.platforms, this.cp) || onObstacle(s, this.extra))
+      const fell = !success && (fellBelow(s, this.platforms, this.cp, this.fallRule) || onObstacle(s, this.extra))
       const truncated = !success && !fell && (this.stall >= this.stallLimit || this.ticks >= this.maxTicks)
       if (success || fell || truncated) {
         this.result = success ? 'success' : fell ? 'fell' : 'truncated'
         return null
       }
+      if (this.planner) this.planner.update(s.pos, s.onGround, this.ticks)
     } else {
       this.started = true
       this.init = s
+      if (this.planner) this.planner.start(s.pos)
     }
-    const a = this.policy.act(observe(s, this.lastAction, this.platforms, this.cp, this.isSolid))
+    const obs = this.planner
+      ? observeSlots(s, this.lastAction, this.planner.slots(), centre(this.platforms[this.platforms.length - 1]), this.planner.progress, this.isSolid)
+      : observe(s, this.lastAction, this.platforms, this.cp, this.isSolid)
+    const a = this.policy.act(obs)
     this.actions.push(a)
     this.lastAction = a
     return a
@@ -257,12 +281,13 @@ class Episode {
       ticks: this.ticks,
       init: this.init,
       actions: this.actions,
-      traj: this.traj
+      traj: this.traj,
+      ...(this.planner ? { plans: this.planner.events } : {})
     }
   }
 }
 
 module.exports = {
-  observe, standingOn, fellBelow, onObstacle, Policy, Episode, controls, wrapYaw, centre,
+  observe, observeSlots, standingOn, fellBelow, onObstacle, Policy, Episode, controls, wrapYaw, centre,
   OBS_DIM, ACTION_DIMS, NO_ACTION, YAW_STEPS_DEG
 }

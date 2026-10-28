@@ -4,6 +4,7 @@
 // the course blocks. It checks the whole JavaScript side end to end.
 //
 //   node offline_bot.js --policy P.json --courses C.json --out episodes.jsonl [--settle 10]
+//                       [--planner '{"radius": 12}'] [--fall-rule local|remaining]
 
 const fs = require('fs')
 require('./physics_patch') // vanilla collision tolerance, as in the simulator
@@ -12,7 +13,7 @@ const { Physics } = require('prismarine-physics')
 const mcData = require('minecraft-data')('1.21.4')
 const P = require('./policy')
 
-const args = { settle: 10, stall: 200, maxTicks: 3000 }
+const args = { settle: 10, stall: 200, maxTicks: 3000, planner: '', fallRule: 'local' }
 for (let i = 2; i < process.argv.length; i += 2) {
   args[process.argv[i].replace(/^--/, '').replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = process.argv[i + 1]
 }
@@ -55,7 +56,9 @@ courses.forEach((c, index) => {
   const physics = Physics(mcData, world)
   const e = entityAt(c.spawn, c.spawn_yaw)
   for (let t = 0; t < Number(args.settle); t++) physics.simulatePlayer(e, world)
-  const ep = new P.Episode(policy, c.platforms, isSolid, { stall: Number(args.stall), maxTicks: Number(args.maxTicks), extra: c.extra || [] })
+  const ep = new P.Episode(policy, c.platforms, isSolid, {
+    stall: Number(args.stall), maxTicks: Number(args.maxTicks), extra: c.extra || [], planner: args.planner ? JSON.parse(args.planner) : null, fallRule: args.fallRule
+  })
   for (;;) {
     const s = { pos: [e.pos.x, e.pos.y, e.pos.z], vel: [e.vel.x, e.vel.y, e.vel.z], yaw: e.yaw, onGround: e.onGround, jumpTicks: e.jumpTicks, collidedH: e.isCollidedHorizontally }
     const a = ep.step(s)

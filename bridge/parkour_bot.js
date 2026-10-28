@@ -18,7 +18,7 @@ const { Vec3 } = require('vec3')
 const P = require('./policy')
 
 function parseArgs (argv) {
-  const a = { port: 25570, host: '127.0.0.1', origin: '0,80,0', pad: '-20,100,-20', stall: 200, maxTicks: 3000, username: 'ParkourBot', viewer: '', style: 'stone', webViewer: 0, hold: 0 }
+  const a = { port: 25570, host: '127.0.0.1', origin: '0,80,0', pad: '-20,100,-20', stall: 200, maxTicks: 3000, username: 'ParkourBot', viewer: '', style: 'stone', webViewer: 0, hold: 0, planner: '', fallRule: 'local' }
   for (let i = 2; i < argv.length; i += 2) {
     const k = argv[i].replace(/^--/, '').replace(/-([a-z])/g, (_, c) => c.toUpperCase())
     a[k] = argv[i + 1]
@@ -200,7 +200,9 @@ async function runCourse (c, index) {
   corrections = 0
   const t0 = Date.now()
   if (args.webViewer) log(`film: start ${index} ${t0}`) // wall-clock marks for cutting a video
-  const ep = new P.Episode(policy, c.platforms, isSolid, { stall: args.stall, maxTicks: args.maxTicks, extra: c.extra || [] })
+  const ep = new P.Episode(policy, c.platforms, isSolid, {
+    stall: args.stall, maxTicks: args.maxTicks, extra: c.extra || [], planner: args.planner ? JSON.parse(args.planner) : null, fallRule: args.fallRule
+  })
   await new Promise(resolve => { finish = resolve; episode = ep })
   episode = null
   if (args.webViewer) log(`film: end ${index} ${Date.now()}`)

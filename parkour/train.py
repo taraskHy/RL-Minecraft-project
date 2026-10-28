@@ -123,14 +123,14 @@ class CourseFactory:
 
 
 def evaluate(model: ActorCritic, pool: CoursePool, device, stall_ticks: int, deterministic: bool = True,
-             max_ticks: int = 4000, settle: int = 0, per_course: bool = False) -> dict:
+             max_ticks: int = 4000, settle: int = 0, per_course: bool = False, fall_rule: str = "local") -> dict:
     """First episode on every course of ``pool``.
 
     ``settle`` ticks without input are simulated before the policy starts, as
     the live bot stands on the start block after its teleport.
     """
     n = pool.size
-    env = ParkourEnv(pool, EnvConfig(num_envs=n, stall_ticks=stall_ticks, max_ticks=max_ticks), sampler=None)
+    env = ParkourEnv(pool, EnvConfig(num_envs=n, stall_ticks=stall_ticks, max_ticks=max_ticks, fall_rule=fall_rule), sampler=None)
     obs = env.reset_all(torch.arange(n, device=device))
     if settle:
         idle = torch.zeros(n, 6, dtype=torch.bool, device=device)

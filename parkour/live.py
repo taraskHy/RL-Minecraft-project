@@ -18,6 +18,7 @@ Results: OUT/episodes.jsonl (every tick), OUT/summary.json, OUT/summary.md.
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 import math
 import subprocess
@@ -108,6 +109,10 @@ def main(argv=None):
     ap.add_argument("--web-viewer", type=int, default=0, help="serve a textured 3D view of the bot on this port")
     ap.add_argument("--hold", type=int, default=0, help="extra milliseconds on the start block before each course")
     ap.add_argument("--first-person", action="store_true", help="web viewer from the bot's eyes")
+    ap.add_argument("--planner", action="store_true",
+                    help="no course list for the policy: a greedy planner finds platforms in the blocks around the bot")
+    ap.add_argument("--planner-config", default="{}", help="JSON overrides of parkour.planner.PlannerConfig")
+    ap.add_argument("--fall-rule", default="local", choices=("local", "remaining"))
     a = ap.parse_args(argv)
 
     out = Path(a.out).resolve()
@@ -122,11 +127,17 @@ def main(argv=None):
     model.export(out / "policy.json", {"checkpoint": str(a.checkpoint)})
     episodes_path = out / "episodes.jsonl"
 
+    planner_json = ""
+    if a.planner:
+        from .planner import PlannerConfig
+        planner_cfg = PlannerConfig(**json.loads(a.planner_config))
+        planner_json = json.dumps(dataclasses.asdict(planner_cfg))
     t0 = time.time()
     if a.offline:
         subprocess.run([str(NODE), str(BRIDGE / "offline_bot.js"), "--policy", str(out / "policy.json"),
                         "--courses", str(out / "courses.json"), "--out", str(episodes_path),
-                        "--settle", str(SETTLE_TICKS), "--stall", str(a.stall)], check=True, cwd=str(BRIDGE))
+                        "--settle", str(SETTLE_TICKS), "--stall", str(a.stall), "--planner", planner_json,
+                        "--fall-rule", a.fall_rule], check=True, cwd=str(BRIDGE))
     else:
         from .server import COURSE_ORIGIN, SPAWN_PAD, Server
         with open(out / "server.log", "w") as slog, Server(a.port, log=slog):
@@ -134,7 +145,7 @@ def main(argv=None):
                    "--courses", str(out / "courses.json"), "--out", str(episodes_path), "--port", str(a.port),
                    "--origin", ",".join(map(str, COURSE_ORIGIN)), "--pad", ",".join(map(str, SPAWN_PAD)),
                    "--stall", str(a.stall), "--style", a.style, "--web-viewer", str(a.web_viewer), "--hold", str(a.hold),
-                   "--first-person", "true" if a.first_person else "false"]
+                   "--first-person", "true" if a.first_person else "false", "--planner", planner_json, "--fall-rule", a.fall_rule]
             if a.viewer:
                 cmd += ["--viewer", a.viewer]
                 print(f"Join 127.0.0.1:{a.port} in Minecraft Java 1.21.4 as {a.viewer} to watch.", flush=True)
@@ -144,7 +155,12 @@ def main(argv=None):
     episodes = [json.loads(line) for line in episodes_path.read_text().splitlines() if line.strip()]
     rep = replay(courses, episodes)
     pool = CoursePool(courses, dev, C.GRID)
-    sim = evaluate(model, pool, dev, a.stall, deterministic=True, settle=SETTLE_TICKS, per_course=True)["per_course"]
+    if a.planner:
+        from .planner import evaluate_planned
+        sim = evaluate_planned(model, pool, dev, planner_cfg, a.stall, settle=SETTLE_TICKS, fall_rule=a.fall_rule)["per_course"]
+    else:
+        sim = evaluate(model, pool, dev, a.stall, deterministic=True, settle=SETTLE_TICKS, per_course=True,
+                       fall_rule=a.fall_rule)["per_course"]
 
     rows = []
     for ep, r in zip(episodes, rep):
