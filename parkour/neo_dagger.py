@@ -27,7 +27,8 @@ choice at that state is put back whenever the neo still lands with it. What
 is left are only the corrections that matter: clean labels for imitation.
 
 A takeoff is a neo's when the straight line between its centre and the next
-platform's centre passes through a block at body height (the wall).
+platform's centre passes through a wall block (a block that is not part of a
+platform) at body height.
 """
 from __future__ import annotations
 
@@ -53,7 +54,8 @@ ELITE = 0.05
 
 def neo_takeoffs(course: C.Course) -> list[int]:
     """Platform indices whose jump to the next platform goes around a wall."""
-    solid = {tuple(int(v) for v in b) for b in course.blocks()}
+    # Only non-platform blocks count: the line to a higher platform ends inside that platform.
+    solid = {tuple(int(v) for v in b) for b in np.asarray(course.extra).reshape(-1, 3)}
     out = []
     p = course.platforms
     for k in range(len(p) - 1):
