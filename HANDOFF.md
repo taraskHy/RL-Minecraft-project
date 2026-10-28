@@ -175,11 +175,22 @@ Concrete work, most important first. Nothing here needs new research.
      results\final_policy.pt --courses-file configs\neo_live_courses.json
      --assist "{}" --out runs\neo-assist-live` (and `--offline` first; the
      planner service runs on the PC's Python);
-   - train the new kinds: `run.cmd train --run extra-ft --init-from
-     results\final_policy.pt --extra --obstacle-prob 0.3 --gamma 0.995`
-     (levels 6-8 of that run are the head-hitter, hard head-hitter and ice
-     levels; pick on validation, then `parkour.jumpeval --extra` and
-     `scripts/extra_preview.py`).
+   - train the new kinds and the neo levels on the discount-0.995 policy,
+     one run at a time with the gaming flags: `python scripts/sweep.py
+     configs\sweep_new_skills.json --slots 1` (`extra-ft`: the extra levels
+     after the basic ones, uniform curriculum; `advanced-g995`: levels 6-8).
+     Pick on validation, then `parkour.jumpeval --extra`,
+     `scripts/extra_preview.py` and the standard and obstacle test sets.
+   - a learned neo on top of `advanced-g995` (the neo-dagger recipe, now with
+     the assist's faster search): `python -m parkour.neo_dagger --checkpoint
+     runs\advanced-g995\checkpoints\best.pt --out runs\neo995_r1.pt --prior
+     0.5 --expert assist`, then `run.cmd train --run neo995-r1 --init-from
+     runs\advanced-g995\checkpoints\best.pt --advanced --obstacle-prob 0.3
+     --gamma 0.995 --reward-stall 5 --bc-coef 0.3 --bc-pairs runs\neo995_r1.pt
+     --wide-neo --lr 3e-4 --lr-max 3e-4 --iterations 500` (neo-dagger3's
+     settings), more rounds from its `best.pt`, each chosen on the
+     validation neo courses (`parkour.neo_assist --set official --family 2
+     --off`).
 
 ## 4. Open problems (unsolved, up for grabs)
 
