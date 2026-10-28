@@ -410,6 +410,35 @@ def main(argv=None):
                          + " | ".join(pct(obs_o[f'success_L{L}'][i]) for L in lv) + " |")
         lines.append("")
 
+    plan_std, plan_obs = out / "planner" / "sim_test_standard.json", out / "planner" / "sim_test_obstacles.json"
+    if plan_std.exists() and plan_obs.exists():
+        lines += ["## Without the course list: greedy route planner", "",
+                  "The final policy, unchanged, with its platform slots filled by `parkour.planner` from the blocks",
+                  "within 12 blocks of the bot (only the goal position is given; settings chosen on the validation",
+                  "courses). \"Remaining\" counts a drop onto any later, lower platform as a landing, not a fall.", "",
+                  "| Test set | Fall rule | Course list given | Planner | " + " | ".join(f"L{L}" for L in range(6)) + " |",
+                  "| --- | --- | --- | --- | " + " | ".join("---" for _ in range(6)) + " |"]
+        for label, path in (("standard", plan_std), ("obstacles", plan_obs)):
+            d = json.loads(path.read_text())
+            for rule in ("local", "remaining"):
+                g, p = d[rule]["given_route"], d[rule]["planner_route"]
+                lines.append(f"| {label} ({d['courses']}) | {rule} | {pct(g['success'])} | {pct(p['success'])} | "
+                             + " | ".join(pct(p["per_level"][str(L)]["success"]) for L in range(6)) + " |")
+        lines.append("")
+        games = out / "games"
+        rows = []
+        for name in ("planner-offline", "planner-offline-obstacles", "planner-live", "planner-live-obstacles"):
+            sp = games / name / "summary.json"
+            if sp.exists():
+                s = json.loads(sp.read_text())
+                eps = s["episodes"]
+                rows.append(f"| {name} | {s['mode']} | {sum(e['result'] == 'success' for e in eps)}/{len(eps)} | "
+                            f"{pct(s['sim_success_same_courses'])} | {pct(s['outcome_agreement'])} | "
+                            f"{sum(e.get('server_corrections') or 0 for e in eps)} | {s['replay_max_pos_err']:.1e} |")
+        if rows:
+            lines += ["| Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |",
+                      "| --- | --- | --- | --- | --- | --- | --- |"] + rows + [""]
+
     for name in ("offline", "live"):
         p = out / f"{name}_summary.md"
         if p.exists():

@@ -56,6 +56,9 @@ reference is the `full` arm (defaults), mean over its seeds. All runs see 0.52 B
 | defaults (`full`, 3 seeds) | 999 | - | 93.3 | 94.7 | 72.0 |
 | `hp-ent0.001` | 999 | 94.3 | 94.1 | 97.0 | 70.5 |
 | `hp-ent0.02` | 999 | 91.0 | 91.5 | 94.0 | 64.0 |
+| `hp-gamma0.98` | 999 | 89.2 | 90.4 | 93.0 | 58.0 |
+| `hp-gamma0.995` | 999 | 95.2 | 95.0 | 97.5 | 76.0 |
+| `hp-net-small` | 249 of 1000 (running) | 85.7 | 87.0 | 92.5 | 32.5 |
 
 ## Course styles outside the training distribution
 
@@ -84,6 +87,26 @@ Before fine-tuning, the main policy completed 46.8% of new obstacle courses
 | first (iteration 49) | obstacles | 89.7 | 98.5 | 95.5 | 93.5 | 97.0 | 94.0 | 59.5 |
 | last (iteration 999) | standard | 97.1 | 99.0 | 97.5 | 98.5 | 100.0 | 97.0 | 90.5 |
 | last (iteration 999) | obstacles | 93.6 | 97.5 | 97.5 | 96.0 | 97.5 | 97.5 | 75.5 |
+
+## Without the course list: greedy route planner
+
+The final policy, unchanged, with its platform slots filled by `parkour.planner` from the blocks
+within 12 blocks of the bot (only the goal position is given; settings chosen on the validation
+courses). "Remaining" counts a drop onto any later, lower platform as a landing, not a fall.
+
+| Test set | Fall rule | Course list given | Planner | L0 | L1 | L2 | L3 | L4 | L5 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| standard (1200) | local | 97.1 | 89.6 | 94.0 | 91.0 | 92.0 | 94.0 | 90.5 | 76.0 |
+| standard (1200) | remaining | 97.1 | 92.9 | 98.5 | 94.5 | 96.0 | 96.5 | 93.0 | 79.0 |
+| obstacles (1200) | local | 93.6 | 86.2 | 90.5 | 85.5 | 86.5 | 90.5 | 88.5 | 76.0 |
+| obstacles (1200) | remaining | 93.6 | 89.8 | 92.0 | 92.0 | 91.5 | 94.0 | 90.5 | 79.0 |
+
+| Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |
+| --- | --- | --- | --- | --- | --- | --- |
+| planner-offline | offline (prismarine-physics, no server) | 52/60 | 86.7 | 100.0 | 0 | 7.1e-15 |
+| planner-offline-obstacles | offline (prismarine-physics, no server) | 53/60 | 88.3 | 100.0 | 0 | 3.6e-15 |
+| planner-live | live (Minecraft 1.21.4 server) | 52/60 | 86.7 | 100.0 | 0 | 2.1e-14 |
+| planner-live-obstacles | live (Minecraft 1.21.4 server) | 53/60 | 88.3 | 100.0 | 0 | 2.1e-14 |
 
 ## Offline check
 

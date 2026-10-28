@@ -107,7 +107,7 @@ final policy jumps to them, no retraining. Only the goal position is given.
 | Unseen courses | Course list given | Planner |
 | --- | --- | --- |
 | 1,200 standard, simulator | 97.1% | **89.6%** |
-| 1,200 with obstacles, simulator | 93.6% | **86.3%** |
+| 1,200 with obstacles, simulator | 93.6% | **86.2%** |
 | 60 standard, **real Minecraft** | 59/60 | **52/60** |
 | 60 with obstacles, **real Minecraft** | 58/60 | **53/60** |
 | 3 hand-designed, **real Minecraft** | 3/3 | **3/3** |

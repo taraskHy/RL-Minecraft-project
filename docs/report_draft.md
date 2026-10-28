@@ -347,7 +347,7 @@ once. Results (`results/planner/`, final policy):
 | Unseen courses | Course list given | Planner | Planner, "remaining" fall rule |
 | --- | --- | --- | --- |
 | 1,200 standard, simulator | 97.1% | 89.6% | 92.9% |
-| 1,200 with obstacles, simulator | 93.6% | 86.3% | 89.8% |
+| 1,200 with obstacles, simulator | 93.6% | 86.2% | 89.8% |
 | 60 standard, real Minecraft | 59/60 | 52/60 | |
 | 60 with obstacles, real Minecraft | 58/60 | 53/60 | |
 | 3 hand-designed, real Minecraft | 3/3 | 3/3 | |
