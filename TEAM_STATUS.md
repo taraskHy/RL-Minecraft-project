@@ -134,7 +134,10 @@ blocks.
   7 and 8, plus the hand-designed neo course) it completes **11 / 31** in real Minecraft,
   exactly as offline and in the simulator, 0 server corrections. Video:
   `real_minecraft_neo_level7.mp4`. The neo policy is separate from the
-  final policy (`runs/neo-dagger3`, on the training PC).
+  final policy (`runs/neo-dagger3`, on the training PC), but nearly does
+  both jobs: on the same level 0-5 test courses it completes 96.5% (final
+  policy 98.4%) and 92.5% with obstacles (95.2%), while the final policy
+  completes none of the 210 neo courses.
 
 ## No course list: the bot finds its own route
 

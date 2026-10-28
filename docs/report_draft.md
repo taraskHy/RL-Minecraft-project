@@ -471,9 +471,13 @@ corrections (video `real_minecraft_neo_level7.mp4`).
 The neo is the one skill in this project that PPO did not find by itself.
 Exploration had to be replaced by an expert that searches, and the expert had
 to be asked from the states the learner really visits, as DAgger prescribes
-(Ross et al., 2011). The neo policy is a separate policy from the final one:
-it is built on the discount-0.99 line of runs and was not run through the
-checks of sections 7.4 to 7.9.
+(Ross et al., 2011). The neo policy is separate from the final one (it is
+built on the discount-0.99 runs), but it is close to being one policy for
+everything: levels 0 to 5 of its test set are exactly the standard test
+courses, where it completes 96.5% (obstacles: 92.5%), 1.9 and 2.7 points
+below the final policy, while the final policy completes none of the 210 neo
+courses (levels 6, 7, 8: 71.0, 3.5, 1.5% against 80.5, 46.5, 71.5%;
+`results/neo/one_policy_comparison.json`).
 
 ### 7.11 Without the course list: a greedy route planner
 
@@ -673,7 +677,8 @@ counts 37 to 55% at the start of a course instead of 13 to 30%.
   differences; the ablation has 3 seeds per arm, and the hyperparameter study
   one seed per setting except the discount.
 - There are two policies: the final policy for levels 0 to 5 and obstacles,
-  and the neo policy for levels 6 to 8. One policy for both was not tried.
+  and the neo policy, 2 to 3 points behind it there but far ahead on levels
+  6 to 8. A neo fine-tune of the discount-0.995 policy was not tried.
 - All runs used one RTX 5080; the results are for that compute budget.
 
 ## 9. Conclusion

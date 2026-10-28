@@ -98,6 +98,7 @@ JavaScript on Mineflayer's physics engine without a server. Every folder's
 | `label_agreement.json` | how often DAgger labels agree with the bot, before and after simplification |
 | `detector_check.json` | the first neo-takeoff detector against the fixed one |
 | `wide_takeoff_search.json` | which neos are landable from 2x2 and 3x3 takeoffs |
+| `one_policy_comparison.json` | the neo policies on levels 0-5 (the same courses as the standard test set) and the final policies on levels 6-8 and the 210 neo courses (`scripts/one_policy_check.py`) |
 
 ## Videos (`results/videos/`, 1080p MP4)
 

@@ -73,8 +73,12 @@ More facts that hold now:
   obstacles). No result uses it; why it stopped is not recorded (it ended
   about when the neo levels were added, 23:25).
 - Two policies, not one: the final policy for levels 0-5 and obstacles, the
-  neo policy for levels 6-8. Merging them was planned
-  (`docs/overnight_plan.md`) but not done.
+  neo policy for levels 6-8. The neo policy is close to being both
+  (`results/neo/one_policy_comparison.json`, simulator, identical courses:
+  levels 0-5 of the advanced test set are the standard test courses): 96.5%
+  standard and 92.5% obstacles at levels 0-5 (final policy: 98.4, 95.2),
+  while the final policy completes 0 of the 210 neo courses (levels 6/7/8:
+  71.0/3.5/1.5% against the neo policy's 80.5/46.5/71.5%).
 - What is running on the PC right now cannot be known from outside it: the
   last commits record finished results only. Check the processes there.
 
@@ -115,7 +119,8 @@ Concrete work, most important first. Nothing here needs new research.
    comes from `results/` or the run files; Arial 12, 1.5 spacing,
    one-inch margins, 8 to 20 pages without the references. Still to do: a
    read-through by the team.
-4. **Ship the neo policy in Git** if the team will present it: it exists
+4. **Ship the neo policy in Git** (it is nearly a one-policy candidate,
+   section 4, item 2): it exists
    only as `runs/neo-dagger3/checkpoints/best.pt` on the PC. Export it next
    to the final policy (for example `results/neo_policy.pt` / `.json`)
    without replacing `results/final_policy.*`.
@@ -138,10 +143,13 @@ Concrete work, most important first. Nothing here needs new research.
    Untried directions: more DAgger rounds with more arrival states, a
    separate neo skill the main policy hands over to, a curriculum of neo
    tightness. Keep picking checkpoints on the validation family.
-2. **One policy for everything:** the final policy fails the neo course,
-   and the neo policy was never run through the final policy's checks (the
-   60 + 60 offline and real-Minecraft courses, the stress tests). Whether
-   one policy can do both is open.
+2. **One policy for everything:** the neo policy is 1.9 (standard) and 2.7
+   (obstacles) points behind the final policy on levels 0-5, mostly at level
+   5 (85.5 vs 93.5%, 70.5 vs 81.0%), and far ahead on levels 6-8 (section 2).
+   It is built on the discount-0.99 runs; the obvious try is the same neo
+   recipe (imitation + DAgger, `parkour/neo_dagger.py`) starting from the
+   discount-0.995 final policy (GPU). Not yet done either: the neo policy on
+   the 60 + 60 real-Minecraft courses and the stress tests (PC).
 3. **Hardest level:** level 5 is 93.5% standard and 81.0% with obstacles;
    most remaining failures of the final policy are there. Where exactly
    (`scripts/jump_failures.py` -> `results/jump_failures.json`, simulator,
@@ -342,18 +350,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `b85b254` (2026-10-28 14:21, branch `claude/pensive-knuth-biwj11`): level5_pause_test.py: imports in the scripts' usual style
+Generated on top of commit `fbc60eb` (2026-10-28 14:22, branch `claude/pensive-knuth-biwj11`): Handoff: how the PC session merges this branch
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 20 |
+| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 21 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `b05becd` 2026-10-28 13:52 | 7 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 13 |
-| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 25 |
-| `docs/report_draft.md` | `568763d` 2026-10-28 14:05 | 4 |
-| `results/README.md` | `6170803` 2026-10-28 11:40 | 22 |
-| `results/DATA.md` | `b905bb1` 2026-10-28 14:21 | 1 |
+| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 14 |
+| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 26 |
+| `docs/report_draft.md` | updated together with this snapshot | 0 |
+| `results/README.md` | `6170803` 2026-10-28 11:40 | 23 |
+| `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -368,7 +376,7 @@ Simulator, held-out test sets (1,200 courses each), checkpoint picked on the val
 
 ### Training runs (`results/runs/*/summary.json`)
 
-Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`best.pt`); runs without one predate validation selection. Runs trained on levels 0-8 (`advanced-*`, `neo-*`) are evaluated on levels 0-8, the others on levels 0-5, so the two groups are not comparable.
+Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`best.pt`); runs without one predate validation selection. Runs trained on levels 0-8 (`advanced-*`, `neo-*`) are evaluated on levels 0-8, the others on levels 0-5, so their overall numbers differ in kind; per level they compare (levels 0-5 are the same courses in both).
 
 | Run | Last iteration | Game ticks (B) | Picked: iteration | validation | test | Last: test | Last: obstacles |
 | --- | --- | --- | --- | --- | --- | --- | --- |
