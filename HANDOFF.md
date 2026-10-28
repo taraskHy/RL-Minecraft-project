@@ -116,7 +116,10 @@ Concrete work, most important first. Nothing here needs new research.
    most remaining failures of the final policy are there.
 4. **Planner shortcuts:** most planner failures take a shortcut to a later
    platform that is in reach, and that jump is harder
-   (`results/planner/`, report 7.11). **Experiment in progress (cloud
+   (`results/planner/`, report 7.11). With the final policy 98 of the 109
+   failed standard courses are route failures (jump failures fell from 21
+   to 11, route failures only from 104 to 98), so the planner, not the
+   policy, is what limits the "no course list" score. **Experiment in progress (cloud
    session, 28 Oct):** `PlannerConfig.value_pick = K` (opt-in, default 0 =
    unchanged) lets the policy's own critic choose among the K cheapest next
    platforms (each extended greedily into a chain). Simulator only: the bot
@@ -268,18 +271,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `79e84d9` (2026-10-28 13:06, branch `claude/pensive-knuth-biwj11`): Report: embed figures 1-5 with captions
+Generated on top of commit `106bb78` (2026-10-28 13:09, branch `claude/pensive-knuth-biwj11`): Team status: the report in Word and PDF, 20 pages
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 8 |
+| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 10 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `80097c6` 2026-10-28 12:59 | 3 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 1 |
-| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 13 |
-| `docs/report_draft.md` | `79e84d9` 2026-10-28 13:06 | 0 |
-| `results/README.md` | `6170803` 2026-10-28 11:40 | 10 |
-| `results/DATA.md` | updated together with this snapshot | 0 |
+| `TEAM_STATUS.md` | `106bb78` 2026-10-28 13:09 | 0 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 3 |
+| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 15 |
+| `docs/report_draft.md` | updated together with this snapshot | 0 |
+| `results/README.md` | `6170803` 2026-10-28 11:40 | 12 |
+| `results/DATA.md` | `7f74e24` 2026-10-28 13:09 | 1 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 

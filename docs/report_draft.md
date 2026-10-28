@@ -532,8 +532,13 @@ The better policy helps the planner in the simulator (+1.3 and +1.9 points)
 and on the real obstacle courses (55 against 53), while on the 60 real
 standard courses it made two fewer (50 against 52), a difference that 60
 courses cannot resolve. Again the real game and the offline bot matched the
-simulator on every course, with 0 server corrections. The failure analysis
-below is for the first final policy.
+simulator on every course, with 0 server corrections. The better policy
+fixes jumps, not routes: of the planner's failed courses, those where the
+jump itself failed drop from 21 to 11 (standard) and from 45 to 29
+(obstacles), while those where the plan had left the course's order stay
+almost the same (104 to 98, 116 to 110). With the final policy, 98 of the
+109 failed standard courses are route failures. The analysis below is for
+the first final policy.
 
 Failure modes (test sets, standard fall rule). Of the 125 failed standard
 courses, 104 failed after the plan left the course's order at some landing,
