@@ -1,0 +1,495 @@
+"""Neo assist: an exact-model search at every neo takeoff (simulator only).
+
+    python -m parkour.neo_assist --checkpoint results/final_policy.pt --set official --family 2
+    python -m parkour.neo_assist --checkpoint results/final_policy.pt --set random --family 13 --prior 0.5
+    python -m parkour.neo_assist --checkpoint results/final_policy.pt --set official --family 2 --off
+
+The policy plays every course as in ``train.evaluate`` (deterministic, the
+first episode per course). The first time it stands on a neo's takeoff block
+(``neo_dagger.neo_takeoffs``: the line to the next platform passes through a
+wall block), a cross-entropy search from its exact state looks for a
+sequence of the policy's own discrete actions that lands on the neo's target
+without standing on an obstacle or falling: the search of
+``parkour.neo_dagger``, with the simulator as the model. A found sequence
+replaces the policy's actions until it has landed; then the policy plays on.
+With no landing found the policy keeps control, and with ``--retries`` the
+search runs again every ``--retry-every`` ticks while the bot still stands
+on the takeoff (a bot that stopped there can often be planned from the
+standstill; ``--retry-horizon`` gives those plans more ticks, to walk back
+before the jump). With ``--approach H`` the search also runs when the bot
+first stands on the platform before a neo's takeoff, for a plan of up to H
+ticks over both jumps, so the bot reaches the takeoff in a state the neo can
+be made from (without a landing the takeoff search runs as usual).
+
+This is planning with an exact model of the game's physics. It measures
+what the bot does when it plans its neos, not what the network learned. The
+bots (offline and real Minecraft) do not have it yet: docs/abilities_plan.md.
+
+Course sets (``--set``):
+  official  the held-out level 6-8 courses that contain a neo (family 1:
+            the 210 test courses, family 2: the 218 validation courses).
+  random    courses of ordinary jumps (levels 0-5) in which half of the
+            jumps are neos (the 32 single-neo jump types of levels 6 and 7),
+            10 jumps each, from seed families 12 (test) and 13 (validation),
+            which nothing else uses.
+
+Settings are chosen on the validation families; the test families are run
+once with the chosen setting. Each run appends one JSON line to ``--out``
+(default ``results/neo/assist_validation.jsonl`` or ``assist_test.jsonl``).
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import time
+from dataclasses import asdict, dataclass
+from pathlib import Path
+
+import numpy as np
+import torch
+
+from . import courses as C
+from . import physics
+from .env import (OBS_DIM_EXT, STAND_EPS, YAW_STEPS_DEG, CoursePool, EnvConfig, ParkourEnv, action_to_controls,
+                  standing_on)
+from .live import load_model
+from .env import Observer
+from .neo_dagger import ELITE, HORIZON, neo_takeoffs
+from .paths import ROOT
+from .train import TEST_SEED_FAMILY, VALIDATION_FAMILY, held_out_courses
+
+RANDOM_TEST_FAMILY = 12
+RANDOM_VALIDATION_FAMILY = 13
+TEST_FAMILIES = (TEST_SEED_FAMILY, RANDOM_TEST_FAMILY)
+HEADS = ("move", "strafe", "jump", "sprint", "yaw")
+
+
+@dataclass
+class AssistConfig:
+    enabled: bool = True
+    samples: int = 1024  # action sequences per arrival state and search round
+    iterations: int = 25  # search rounds at most
+    keep: int = 1  # stop an arrival's search after this many distinct landings (the first is played)
+    horizon: int = HORIZON  # ticks a plan from the takeoff may take
+    retry_horizon: int = 0  # ticks for retry plans (0: horizon)
+    approach: int = 0  # >0: also plan from the platform before a planned takeoff, over both jumps, in so many ticks
+    jumps: str = "neo"  # which jumps are planned: "neo", or "advanced" (also wide and momentum jumps, by spec)
+    prior: float = 0.0  # weight of the policy's own action probabilities in the search's start
+    retries: int = 0  # extra searches while the bot still stands on the takeoff without a plan
+    retry_every: int = 10  # ticks between them
+    batch: int = 32  # arrival states searched together
+    seed: int = 0
+
+
+def advanced_takeoffs(course: C.Course) -> list[int]:
+    """Takeoffs of the jumps the advanced levels added: neos, wide jumps (3 sideways) and momentum jumps (run-up).
+
+    Neos by the wall rule (``neo_takeoffs``), the others by the course's jump
+    specs (``specs[k]`` is the jump from platform k to k + 1)."""
+    ks = set(neo_takeoffs(course))
+    ks |= {k for k, sp in enumerate(course.specs) if abs(sp.lateral) == 3 or sp.runway > 0 or sp.neo}
+    return sorted(k for k in ks if k + 1 < course.n)
+
+
+def neo_level() -> list[C.JumpSpec]:
+    """The single-neo jump types of the advanced levels 6 and 7."""
+    adv = C.load_levels(advanced=True)
+    return [s for L in (6, 7) for s in adv[L] if s.neo == 1]
+
+
+def random_neo_courses(family: int, n: int = 200, n_jumps: int = 10) -> list[C.Course]:
+    """Courses of level-0-5 jumps where half the jumps are neos (generate's level mix with a neo-only level 6)."""
+    levels = C.load_levels() + [neo_level()]
+    rng = np.random.default_rng([2026, family, 6])
+    return [C.generate(rng, levels, 6, n_jumps, seed=i) for i in range(n)]
+
+
+def official_neo_courses(family: int) -> list[C.Course]:
+    """The held-out level 6-8 courses (200 per level, 10 jumps) that contain a neo."""
+    hard = held_out_courses(C.load_levels(advanced=True), 200, 10, family=family)[6 * 200:]
+    return [c for c in hard if neo_takeoffs(c)]
+
+
+def course_set(name: str, family: int) -> list[C.Course]:
+    if name == "official":
+        return official_neo_courses(family)
+    if name == "random":
+        return random_neo_courses(family)
+    raise ValueError(name)
+
+
+class Rules:
+    """``env.standing_on`` / ``env.on_obstacle`` for search rows that all play known courses.
+
+    ``on_obstacle`` compares the feet with every obstacle slot of the course
+    (256, mostly padding far outside the world); here only the slots that
+    hold a cell in some course of the pool are compared, which gives the same
+    answer (a padding slot can never be under the feet) at a fraction of the cost.
+    """
+
+    def __init__(self, pool: CoursePool):
+        self.pool = pool
+        used = (pool.extra[..., 0] > -10_000).sum(1)
+        self.extra = pool.extra[:, :max(1, int(used.max()))].to(torch.float64)
+
+    def on_obstacle(self, s: physics.PlayerState, course: torch.Tensor) -> torch.Tensor:
+        e = self.extra[course]
+        x, y, z = s.pos[:, 0:1], s.pos[:, 1:2], s.pos[:, 2:3]
+        w = physics.HALF_WIDTH
+        over = (x + w > e[..., 0]) & (x - w < e[..., 0] + 1) & (z + w > e[..., 2]) & (z - w < e[..., 2] + 1)
+        level = (y - (e[..., 1] + 1)).abs() < STAND_EPS
+        return s.on_ground & (over & level).any(dim=1)
+
+
+def _state_rows(arrivals: list[dict], device) -> physics.PlayerState:
+    t = lambda key, dt: torch.tensor([a[key] for a in arrivals], dtype=dt, device=device)  # noqa: E731
+    return physics.PlayerState(t("pos", torch.float64), t("vel", torch.float64), t("yaw", torch.float64),
+                               t("on_ground", torch.bool), t("jump_ticks", torch.int64), t("collided_h", torch.bool),
+                               t("collided_v", torch.bool))
+
+
+def policy_prior(model, pool: CoursePool, arrivals: list[dict], device, horizon: int) -> dict:
+    """The policy's action probabilities along its own deterministic play from each arrival, (A, T, K) per head.
+
+    ``neo_dagger.policy_prior`` with the horizon as a parameter."""
+    obs_fn = Observer(device)
+    s = _state_rows(arrivals, device)
+    cidx = torch.tensor([a["course"] for a in arrivals], device=device)
+    cp = torch.tensor([a["cp"] for a in arrivals], device=device)
+    last = torch.tensor([a["last_action"] for a in arrivals], device=device)
+    steps = torch.tensor(YAW_STEPS_DEG, dtype=torch.float64, device=device) * (math.pi / 180)
+    probs = {k: [] for k in HEADS}
+    with torch.no_grad():
+        for _ in range(horizon):
+            o = obs_fn(pool, cidx, s, cp, last)
+            logits = model.logits(model.norm(o))
+            acts = []
+            for k, lg in zip(HEADS, logits):
+                probs[k].append(torch.softmax(lg.float(), -1))
+                acts.append(lg.argmax(-1))
+            a = torch.stack(acts, -1)
+            y = s.yaw + steps[a[:, 4]]
+            s.yaw = torch.remainder(y + math.pi, 2 * math.pi) - math.pi
+            s = physics.simulate(pool.world, cidx, s, action_to_controls(a))
+            k = torch.arange(C.MAX_PLATFORMS, device=device)
+            cp = torch.maximum(cp, torch.where(standing_on(pool, s, cidx), k, torch.full_like(k, -1)).amax(1))
+            last = a
+    return {k: torch.stack(v, 1) for k, v in probs.items()}
+
+
+def search(pool: CoursePool, rules: Rules, arrivals: list[dict], device, cfg: AssistConfig, seed: int,
+           prior: dict | None = None, horizon: int = HORIZON) -> tuple[list, list]:
+    """Batched cross-entropy search (as ``neo_dagger.search``), each arrival stopping once it has ``keep`` landings.
+
+    An arrival may name a ``target`` platform further on than the next one
+    (approach plans); the fall rule then uses the lowest top from ``cp`` to
+    the target. Returns (found, rounds): per arrival a list of action
+    sequences (each cut at its landing tick) and the number of search rounds
+    it used.
+    """
+    gen = torch.Generator(device=device).manual_seed(seed)
+    A, S, T = len(arrivals), cfg.samples, horizon
+    steps = torch.tensor(YAW_STEPS_DEG, dtype=torch.float64, device=device) * (math.pi / 180)
+    init = _state_rows(arrivals, device)
+    course = torch.tensor([a["course"] for a in arrivals], device=device)
+    target = torch.tensor([a.get("target", a["cp"] + 1) for a in arrivals], device=device)
+    tops = torch.stack([pool.top[a["course"], a["cp"]:a.get("target", a["cp"] + 1) + 1].min() for a in arrivals])
+    goal = pool.centre[course, target]
+    p = {"move": torch.tensor([0.05, 0.15, 0.8], device=device).repeat(A, T, 1),
+         "strafe": torch.full((A, T, 3), 1 / 3, device=device),
+         "jump": torch.tensor([0.7, 0.3], device=device).repeat(A, T, 1),
+         "sprint": torch.tensor([0.2, 0.8], device=device).repeat(A, T, 1),
+         "yaw": torch.tensor([0.05, 0.1, 0.15, 0.4, 0.15, 0.1, 0.05], device=device).repeat(A, T, 1)}
+    if prior is not None and cfg.prior > 0:
+        for key in p:
+            p[key] = (cfg.prior * prior[key] + (1 - cfg.prior) * p[key]).clamp(min=0.01)
+            p[key] = p[key] / p[key].sum(-1, keepdim=True)
+    found = [[] for _ in range(A)]
+    seen = [set() for _ in range(A)]
+    rounds = [0] * A
+    k_elite = max(1, int(S * ELITE))
+    active = list(range(A))
+    for it in range(cfg.iterations):
+        act_idx = torch.tensor(active, device=device)
+        a_n = len(active)
+        n = a_n * S
+        rep = lambda x: x[act_idx].repeat_interleave(S, dim=0)  # noqa: E731
+        acts = {}
+        for key, v in p.items():
+            flat = v[act_idx].reshape(a_n * T, -1)
+            draw = torch.multinomial(flat, S, replacement=True, generator=gen)
+            acts[key] = draw.reshape(a_n, T, S).permute(0, 2, 1).reshape(n, T)
+        s = physics.PlayerState(rep(init.pos), rep(init.vel), rep(init.yaw), rep(init.on_ground), rep(init.jump_ticks),
+                                rep(init.collided_h), rep(init.collided_v))
+        cidx, tgt, top_r, goal_r = rep(course), rep(target), rep(tops), rep(goal)
+        alive = torch.ones(n, dtype=torch.bool, device=device)
+        landed = torch.zeros(n, dtype=torch.bool, device=device)
+        land_tick = torch.full((n,), T, dtype=torch.int64, device=device)
+        closest = torch.full((n,), 1e9, dtype=torch.float64, device=device)
+        for t in range(T):
+            y = s.yaw + steps[acts["yaw"][:, t]]
+            s.yaw = torch.remainder(y + math.pi, 2 * math.pi) - math.pi
+            a_t = torch.stack([acts[k][:, t] for k in HEADS], -1)
+            s = physics.simulate(pool.world, cidx, s, action_to_controls(a_t))
+            alive &= ~rules.on_obstacle(s, cidx) & (s.pos[:, 1] > top_r - 1.0)
+            now = standing_on(pool, s, cidx).gather(1, tgt[:, None]).squeeze(1) & alive & ~landed
+            land_tick = torch.where(now, torch.full_like(land_tick, t + 1), land_tick)
+            landed |= now
+            closest = torch.where(alive & ~landed, torch.minimum(closest, torch.linalg.norm(s.pos - goal_r, dim=-1)),
+                                  closest)
+        L = landed.cpu().numpy()
+        if L.any():
+            lt = land_tick.cpu().numpy()
+            stack = torch.stack([acts[k] for k in HEADS], -1).cpu().numpy()
+            for j in np.flatnonzero(L):
+                a = active[j // S]
+                if len(found[a]) >= cfg.keep:
+                    continue
+                seq = stack[j, :lt[j]]
+                b = seq.tobytes()
+                if b not in seen[a]:
+                    seen[a].add(b)
+                    found[a].append(seq)
+        for a in active:
+            rounds[a] = it + 1
+        score = (landed.double() * 100.0 - torch.where(landed, torch.zeros_like(closest), closest)).reshape(a_n, S)
+        top = torch.topk(score, k_elite, dim=1).indices
+        for key, v in p.items():
+            sel = acts[key].reshape(a_n, S, T).gather(1, top[:, :, None].expand(-1, -1, T))
+            freq = torch.nn.functional.one_hot(sel, v.shape[-1]).float().mean(1)
+            upd = (0.7 * freq + 0.3 * v[act_idx]).clamp(min=0.01)
+            v[act_idx] = upd / upd.sum(-1, keepdim=True)
+        active = [a for a in active if len(found[a]) < cfg.keep]
+        if not active:
+            break
+    return found, rounds
+
+
+def _arrival(env: ParkourEnv, i: int) -> dict:
+    s = env.state
+    return {"course": int(env.course[i]), "cp": int(env.cp[i]), "pos": s.pos[i].tolist(), "vel": s.vel[i].tolist(),
+            "yaw": float(s.yaw[i]), "on_ground": bool(s.on_ground[i]), "jump_ticks": int(s.jump_ticks[i]),
+            "collided_h": bool(s.collided_h[i]), "collided_v": bool(s.collided_v[i]),
+            "last_action": env.last_action[i].tolist()}
+
+
+def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_ticks: int = 200,
+                      max_ticks: int = 4000, settle: int = 0, log=None) -> dict:
+    """First episode on every course of ``pool`` with the neo assist (``cfg.enabled``) or without it.
+
+    With the assist off this is ``train.evaluate(..., per_course=True)`` course by course.
+    """
+    n = pool.size
+    if cfg.enabled and cfg.prior > 0:
+        assert model.obs_dim != OBS_DIM_EXT, "the search prior uses the 255-number observation"
+    env = ParkourEnv(pool, EnvConfig(num_envs=n, stall_ticks=stall_ticks, max_ticks=max_ticks,
+                                     extended_obs=model.obs_dim == OBS_DIM_EXT), sampler=None)
+    obs = env.reset_all(torch.arange(n, device=device))
+    if settle:
+        idle = torch.zeros(n, 6, dtype=torch.bool, device=device)
+        for _ in range(settle):
+            env.state = physics.simulate(pool.world, env.course, env.state, idle)
+        env.dist = env._distance(env.state.pos, env.course, env.cp)
+        env.reset_memory(torch.ones(n, dtype=torch.bool, device=device))
+        obs = env.observe()
+    rules = Rules(pool)
+    takeoffs = [neo_takeoffs(c) for c in pool.courses]
+    if cfg.jumps == "neo":
+        planned = takeoffs
+    elif cfg.jumps == "advanced":
+        planned = [advanced_takeoffs(c) for c in pool.courses]
+    else:
+        raise ValueError(cfg.jumps)
+    neo = torch.zeros(n, C.MAX_PLATFORMS, dtype=torch.bool, device=device)  # neo takeoffs (the statistics)
+    plan_at = torch.zeros_like(neo)  # takeoffs where the search runs
+    before = torch.zeros_like(neo)  # the platform before a planned takeoff, itself not one
+    for i, ks in enumerate(takeoffs):
+        neo[i, ks] = True
+        plan_at[i, planned[i]] = True
+        for k in planned[i]:
+            if k >= 1 and k - 1 not in planned[i]:
+                before[i, k - 1] = True
+    horizons = {"takeoff": cfg.horizon, "retry": cfg.retry_horizon or cfg.horizon, "approach": cfg.approach}
+    H = max(horizons.values())
+    tries = torch.zeros(n, C.MAX_PLATFORMS, dtype=torch.int64, device=device)
+    tried_before = torch.zeros_like(neo)
+    last_try = torch.full((n,), -10**9, dtype=torch.int64, device=device)
+    plan = torch.zeros(n, H, 5, dtype=torch.int64, device=device)
+    plan_len = torch.zeros(n, dtype=torch.int64, device=device)
+    plan_pos = torch.zeros(n, dtype=torch.int64, device=device)
+    plan_k = torch.full((n,), -1, dtype=torch.int64, device=device)  # the neo takeoff a plan is for
+    rows = torch.arange(n, device=device)
+    finished = torch.zeros(n, dtype=torch.bool, device=device)
+    success = torch.zeros(n, dtype=torch.bool, device=device)
+    fell = torch.zeros(n, dtype=torch.bool, device=device)
+    length = torch.zeros(n, dtype=torch.int64, device=device)
+    prog = torch.zeros(n, dtype=torch.float64, device=device)
+    reached = [set() for _ in range(n)]
+    events = []  # one per search: course, kind, neo takeoff, tick, found, plan ticks, rounds
+    plans = {"played": 0, "landed_as_planned": 0}
+    search_seconds = 0.0
+    with torch.no_grad():
+        for t in range(max_ticks):
+            a, _, _ = model.act(obs, deterministic=True)
+            active = plan_pos < plan_len
+            if bool(active.any()):
+                queued = plan[rows, plan_pos.clamp(max=H - 1)]
+                a = torch.where(active[:, None], queued, a)
+                plan_pos = plan_pos + active.to(torch.int64)
+            obs, _, _, _, _, info = env.step(a)
+            done = info["done"]
+            first = done & ~finished
+            success |= first & info["success"]
+            fell |= first & info["fell"]
+            length = torch.where(first, info["ep_len"], length)
+            prog = torch.where(first, info["progress_frac"], prog)
+            ended = active & (plan_pos >= plan_len)  # a plan's last action was just played
+            if bool(ended.any()):
+                for i in torch.nonzero(ended).flatten().tolist():
+                    plans["played"] += 1
+                    k = int(plan_k[i])
+                    ok = bool(info["success"][i]) if bool(first[i]) else int(env.cp[i]) > k
+                    plans["landed_as_planned"] += int(ok)
+            finished |= done
+            plan_len = torch.where(done, torch.zeros_like(plan_len), plan_len)
+            cp = env.cp
+            on = ~finished & env.state.on_ground
+            for i in torch.nonzero(on & neo[rows, cp]).flatten().tolist():
+                reached[i].add(int(cp[i]))
+            if not cfg.enabled:
+                if t % 25 == 0 and bool(finished.all()):
+                    break
+                continue
+            free = on & (plan_pos >= plan_len)
+            n_try = tries[rows, cp]
+            kinds = {"takeoff": free & plan_at[rows, cp] & (n_try == 0),
+                     "retry": (free & plan_at[rows, cp] & (n_try > 0) & (n_try <= cfg.retries)
+                               & (t - last_try >= cfg.retry_every) & (env.stall + horizons["retry"] < stall_ticks)),
+                     "approach": free & before[rows, cp] & ~tried_before[rows, cp] if cfg.approach else None}
+            for kind, mask in kinds.items():
+                want = [] if mask is None else torch.nonzero(mask).flatten().tolist()
+                if not want:
+                    continue
+                t0 = time.time()
+                arrivals = [_arrival(env, i) for i in want]
+                if kind == "approach":
+                    for arr in arrivals:
+                        arr["target"] = arr["cp"] + 2
+                found, rounds = [], []
+                for b in range(0, len(arrivals), cfg.batch):
+                    part = arrivals[b:b + cfg.batch]
+                    pr = policy_prior(model, pool, part, device, horizons[kind]) if cfg.prior > 0 else None
+                    f, r = search(pool, rules, part, device, cfg, cfg.seed + 1009 * t + b, pr, horizons[kind])
+                    found += f
+                    rounds += r
+                dt = time.time() - t0
+                search_seconds += dt
+                for j, i in enumerate(want):
+                    c = int(cp[i])
+                    k = c + 1 if kind == "approach" else c
+                    events.append({"course": i, "kind": kind, "takeoff": k, "tick": t + 1, "found": bool(found[j]),
+                                   "plan_ticks": len(found[j][0]) if found[j] else 0, "rounds": rounds[j]})
+                    if kind == "approach":
+                        tried_before[i, c] = True
+                    else:
+                        tries[i, c] += 1
+                        last_try[i] = t
+                    if found[j]:
+                        seq = torch.as_tensor(found[j][0], dtype=torch.int64, device=device)
+                        plan[i, :len(seq)] = seq
+                        plan_len[i] = len(seq)
+                        plan_pos[i] = 0
+                        plan_k[i] = k
+                if log:
+                    log({"tick": t + 1, "kind": kind, "searched": len(want), "found": sum(bool(f) for f in found),
+                         "seconds": round(dt, 1), "unfinished": int((~finished).sum())})
+            if t % 25 == 0 and bool(finished.all()):
+                break
+    lv = pool.level.cpu().numpy()
+    s, f, ln, pr = (x.cpu().numpy() for x in (success, fell, length, prog))
+    last = (pool.n - 1).cpu().numpy()
+    cp_final = np.rint(pr * last).astype(int)
+    per_course = []
+    for i in range(n):
+        ks = takeoffs[i]
+        per_course.append({"success": bool(s[i]), "fell": bool(f[i]), "ticks": int(ln[i]), "progress": float(pr[i]),
+                           "level": int(lv[i]), "neos": len(ks), "neos_reached": len(reached[i]),
+                           "neos_passed": sum(1 for k in ks if k in reached[i] and (s[i] or cp_final[i] > k)),
+                           "stopped_at": int(cp_final[i]) if not s[i] else None,
+                           "stopped_at_neo": bool(not s[i] and int(cp_final[i]) in ks)})
+    return {"per_course": per_course, "events": events, "plans": plans, "search_seconds": round(search_seconds, 1)}
+
+
+def summarize(res: dict) -> dict:
+    """Counts for one run: courses completed, neo jumps reached and passed, by neos per course, and the searches."""
+    pc = res["per_course"]
+    out = {"courses": len(pc), "completed": sum(c["success"] for c in pc), "fell": sum(c["fell"] for c in pc),
+           "neo_jumps": sum(c["neos"] for c in pc), "neo_jumps_reached": sum(c["neos_reached"] for c in pc),
+           "neo_jumps_passed": sum(c["neos_passed"] for c in pc),
+           "failed_at_a_neo": sum(c["stopped_at_neo"] for c in pc)}
+    by = {}
+    for c in pc:
+        key = str(c["neos"]) if c["neos"] < 5 else "5+"
+        b = by.setdefault(key, {"courses": 0, "completed": 0})
+        b["courses"] += 1
+        b["completed"] += int(c["success"])
+    out["by_neo_count"] = dict(sorted(by.items()))
+    ev = res["events"]
+    if ev:
+        out["searches"] = {}
+        for kind in ("takeoff", "retry", "approach"):
+            e = [x for x in ev if x["kind"] == kind]
+            if e:
+                out["searches"][kind] = {"n": len(e), "found": sum(x["found"] for x in e)}
+        out["plans_played"] = res["plans"]["played"]
+        out["plans_landed_as_planned"] = res["plans"]["landed_as_planned"]
+        out["search_seconds"] = res["search_seconds"]
+        out["seconds_per_search"] = round(res["search_seconds"] / len(ev), 2)
+    return out
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--checkpoint", default=str(ROOT / "results" / "final_policy.pt"))
+    ap.add_argument("--set", choices=("official", "random"), default="official")
+    ap.add_argument("--family", type=int, default=VALIDATION_FAMILY)
+    ap.add_argument("--off", action="store_true", help="the policy alone, for comparison")
+    ap.add_argument("--courses", type=int, default=0, help="only the first N courses (quick checks)")
+    ap.add_argument("--threads", type=int, default=0)
+    ap.add_argument("--out", default="")
+    ap.add_argument("--tag", default="")
+    for k, v in asdict(AssistConfig()).items():
+        if k != "enabled":
+            ap.add_argument("--" + k.replace("_", "-"), type=type(v), default=v)
+    a = ap.parse_args(argv)
+    if a.threads:
+        torch.set_num_threads(a.threads)
+    valid = {"official": (TEST_SEED_FAMILY, VALIDATION_FAMILY), "random": (RANDOM_TEST_FAMILY, RANDOM_VALIDATION_FAMILY)}
+    if a.family not in valid[a.set]:
+        raise SystemExit(f"--set {a.set} has families {valid[a.set]} (test, validation)")
+    cfg = AssistConfig(enabled=not a.off, **{k: getattr(a, k) for k in asdict(AssistConfig()) if k != "enabled"})
+    dev = "cuda" if torch.cuda.is_available() else "cpu"
+    courses = course_set(a.set, a.family)
+    if a.courses:
+        courses = courses[:a.courses]
+    model = load_model(Path(a.checkpoint), dev)
+    pool = CoursePool(courses, dev, C.GRID)
+    t0 = time.time()
+    res = evaluate_assisted(model, pool, dev, cfg, log=lambda d: print(json.dumps(d), flush=True))
+    test = a.family in TEST_FAMILIES
+    row = {"set": a.set, "family": a.family, "split": "test" if test else "validation",
+           "checkpoint": Path(a.checkpoint).as_posix().split("RL-Minecraft-project/")[-1], "assist": not a.off,
+           "config": asdict(cfg), "tag": a.tag, "measured": "simulator (float64 port of prismarine-physics), CPU",
+           **summarize(res), "seconds": round(time.time() - t0, 1)}
+    if a.courses:
+        row["first_courses_only"] = a.courses
+    out = Path(a.out) if a.out else ROOT / "results" / "neo" / ("assist_test.jsonl" if test else "assist_validation.jsonl")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with open(out, "a") as fh:
+        fh.write(json.dumps(row) + "\n")
+    print(json.dumps(row, indent=1))
+
+
+if __name__ == "__main__":
+    main()
