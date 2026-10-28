@@ -164,15 +164,15 @@ a { color: var(--sky); }
         <h2>The bot finds its own route</h2>
         <p>After every landing, a simple planner groups the blocks within 12 blocks into platforms, leaves out walls, pillars and head-hitter beams, and picks the next three: easy jumps toward the goal. The trained policy jumps to them, unchanged. Only the goal's position is given.</p>
         <div class="scroll"><table>
-          <thead><tr><th>Unseen courses</th><th>List given</th><th>Planner</th></tr></thead>
+          <thead><tr><th>Unseen courses</th><th>List given</th><th>Planner</th><th>Learned</th></tr></thead>
           <tbody>
-            <tr><td>1,200 standard, simulator</td><td>97.1%</td><td>89.6%</td></tr>
-            <tr><td>1,200 with obstacles, simulator</td><td>93.6%</td><td>86.2%</td></tr>
-            <tr><td>60 standard, real Minecraft</td><td>59/60</td><td>52/60</td></tr>
-            <tr><td>60 with obstacles, real Minecraft</td><td>58/60</td><td>53/60</td></tr>
+            <tr><td>1,200 standard, simulator</td><td>97.1%</td><td>89.6%</td><td>85.4%</td></tr>
+            <tr><td>1,200 with obstacles, simulator</td><td>93.6%</td><td>86.2%</td><td>70.9%</td></tr>
+            <tr><td>60 standard, real Minecraft</td><td>59/60</td><td>52/60</td><td>55/60</td></tr>
+            <tr><td>60 with obstacles, real Minecraft</td><td>58/60</td><td>53/60</td><td>37/60</td></tr>
           </tbody>
         </table></div>
-        <p class="muted">Most failures follow a shortcut: a later platform is in reach, so the planner skips ahead, and that jump is harder than the course's own next one.</p>
+        <p class="muted">Most planner failures follow a shortcut: a later platform is in reach, so it skips ahead, and that jump is harder than the course's own next one. The learned column is a model trained to find platforms itself from a wide block scan and a memory of its last landings. It is weaker, and decoy pillars fool it.</p>
       </div>
     </div>
   </section>

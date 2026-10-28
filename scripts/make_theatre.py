@@ -6,8 +6,9 @@ Ghost races: every snapshot of the progress run (runs/progress-demo-games)
 plays the same course at the same time, one coloured runner per training
 stage, from the untrained network to the trained one. Replays: the final
 policy's episodes in real Minecraft (runs/live2-*), any neo runs found
-under runs/neo-live*, and runs without a course list (runs/planner-live*),
-which show the route planner's plan.
+under runs/neo-live*, runs without a course list (runs/planner-live*),
+which show the route planner's plan, and the learned no-route model
+(runs/noroute-live*).
 """
 import json
 import sys
@@ -54,6 +55,10 @@ def main():
         if (d / "episodes.jsonl").exists():
             for e in V.episodes_from(d):
                 replays.append(run_of(e, "No course list: " + e["title"], "live" in e["mode"]))
+    for d in sorted(ROOT.glob("runs/noroute-live*")):
+        if (d / "episodes.jsonl").exists():
+            for e in V.episodes_from(d):
+                replays.append(run_of(e, "Learned, no course list: " + e["title"], "live" in e["mode"]))
     data = {
         "title": "Parkour bot theatre",
         "subtitle": "Ghost race: one runner per training stage on the same unseen course, from the untrained network to "

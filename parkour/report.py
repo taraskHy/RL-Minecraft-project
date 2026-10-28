@@ -439,6 +439,36 @@ def main(argv=None):
             lines += ["| Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |",
                       "| --- | --- | --- | --- | --- | --- | --- |"] + rows + [""]
 
+    nr = RUNS / "noroute-v2" / "summary.json"
+    if nr.exists():
+        best = json.loads(nr.read_text())["best"]
+        it = best["iteration"]
+        tl = list(csv.DictReader(open(RUNS / "noroute-v2" / "eval_log.csv")))
+        ol = list(csv.DictReader(open(RUNS / "noroute-v2" / "eval_obstacles_log.csv")))
+        t = next(r for r in tl if int(r["iteration"]) == it)
+        o = next(r for r in ol if int(r["iteration"]) == it)
+        lines += ["## Learned no-route model `noroute-v2`", "",
+                  "Trained from scratch for 3,000 iterations (1.57 B ticks, obstacles on 30% of jumps) without the",
+                  "platform slots or the progress input; instead a wide coarse block scan and its last three landing",
+                  "spots (`EnvConfig.extended_obs`). The route-based progress reward is used in training only.",
+                  f"Checkpoint chosen on the validation courses: iteration {it} (validation {pct(best['validation_success'])}).", "",
+                  "| Test set | All levels | " + " | ".join(f"L{L}" for L in range(6)) + " |",
+                  "| --- | --- | " + " | ".join("---" for _ in range(6)) + " |",
+                  f"| standard (1200) | {pct(float(t['success']))} | " + " | ".join(pct(float(t[f'success_L{L}'])) for L in range(6)) + " |",
+                  f"| obstacles (1200) | {pct(float(o['success']))} | " + " | ".join(pct(float(o[f'success_L{L}'])) for L in range(6)) + " |", ""]
+        rows = []
+        for name in ("noroute-offline", "noroute-offline-obstacles", "noroute-live", "noroute-live-obstacles"):
+            sp = out / "games" / name / "summary.json"
+            if sp.exists():
+                s_ = json.loads(sp.read_text())
+                eps = s_["episodes"]
+                rows.append(f"| {name} | {s_['mode']} | {sum(e['result'] == 'success' for e in eps)}/{len(eps)} | "
+                            f"{pct(s_['sim_success_same_courses'])} | {pct(s_['outcome_agreement'])} | "
+                            f"{sum(e.get('server_corrections') or 0 for e in eps)} | {s_['replay_max_pos_err']:.1e} |")
+        if rows:
+            lines += ["| Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |",
+                      "| --- | --- | --- | --- | --- | --- | --- |"] + rows + [""]
+
     for name in ("offline", "live"):
         p = out / f"{name}_summary.md"
         if p.exists():

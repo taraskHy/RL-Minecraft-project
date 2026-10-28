@@ -56,9 +56,14 @@ reference is the `full` arm (defaults), mean over its seeds. All runs see 0.52 B
 | defaults (`full`, 3 seeds) | 999 | - | 93.3 | 94.7 | 72.0 |
 | `hp-ent0.001` | 999 | 94.3 | 94.1 | 97.0 | 70.5 |
 | `hp-ent0.02` | 999 | 91.0 | 91.5 | 94.0 | 64.0 |
+| `hp-envs4096` | 599 of 4000 (running) | 84.5 | 83.1 | 90.0 | 31.5 |
 | `hp-gamma0.98` | 999 | 89.2 | 90.4 | 93.0 | 58.0 |
 | `hp-gamma0.995` | 999 | 95.2 | 95.0 | 97.5 | 76.0 |
-| `hp-net-small` | 249 of 1000 (running) | 85.7 | 87.0 | 92.5 | 32.5 |
+| `hp-gamma0.995-s1` | 499 of 1000 (running) | 91.7 | 91.4 | 94.0 | 58.5 |
+| `hp-kl0.005` | 999 | 89.7 | 90.8 | 95.0 | 52.5 |
+| `hp-kl0.02` | 999 | 92.2 | 91.8 | 94.5 | 62.0 |
+| `hp-net-large` | 999 | 94.5 | 95.4 | 93.5 | 83.5 |
+| `hp-net-small` | 999 | 92.5 | 91.3 | 93.5 | 56.0 |
 
 ## Course styles outside the training distribution
 
@@ -107,6 +112,25 @@ courses). "Remaining" counts a drop onto any later, lower platform as a landing,
 | planner-offline-obstacles | offline (prismarine-physics, no server) | 53/60 | 88.3 | 100.0 | 0 | 3.6e-15 |
 | planner-live | live (Minecraft 1.21.4 server) | 52/60 | 86.7 | 100.0 | 0 | 2.1e-14 |
 | planner-live-obstacles | live (Minecraft 1.21.4 server) | 53/60 | 88.3 | 100.0 | 0 | 2.1e-14 |
+
+## Learned no-route model `noroute-v2`
+
+Trained from scratch for 3,000 iterations (1.57 B ticks, obstacles on 30% of jumps) without the
+platform slots or the progress input; instead a wide coarse block scan and its last three landing
+spots (`EnvConfig.extended_obs`). The route-based progress reward is used in training only.
+Checkpoint chosen on the validation courses: iteration 2849 (validation 83.2).
+
+| Test set | All levels | L0 | L1 | L2 | L3 | L4 | L5 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| standard (1200) | 85.4 | 97.0 | 91.5 | 94.5 | 90.5 | 87.0 | 52.0 |
+| obstacles (1200) | 70.9 | 82.5 | 76.0 | 76.5 | 73.5 | 71.5 | 45.5 |
+
+| Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |
+| --- | --- | --- | --- | --- | --- | --- |
+| noroute-offline | offline (prismarine-physics, no server) | 55/60 | 91.7 | 100.0 | 0 | 7.1e-15 |
+| noroute-offline-obstacles | offline (prismarine-physics, no server) | 37/60 | 61.7 | 100.0 | 0 | 1.8e-15 |
+| noroute-live | live (Minecraft 1.21.4 server) | 55/60 | 91.7 | 100.0 | 0 | 2.1e-14 |
+| noroute-live-obstacles | live (Minecraft 1.21.4 server) | 37/60 | 61.7 | 100.0 | 0 | 2.1e-14 |
 
 ## Offline check
 

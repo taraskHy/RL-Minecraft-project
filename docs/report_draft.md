@@ -374,6 +374,41 @@ column. Before the head-hitter rule, a third of the failures on obstacle
 courses were jumps aimed at a beam; decoy pillars are columns, so the
 planner never treats them as platforms.
 
+### 7.12 A learned model that finds its route itself
+
+The planner is hand-written. As the research comparison we trained a policy
+that is never told the platforms (`runs/noroute-v2`): the platform slots and
+the progress input are hidden, and the observation gains a wide coarse block
+scan (from 4 blocks behind to 10 ahead and 6 to each side, one sample per
+block so no 1x1 platform falls between samples) and the bot's last three
+landing spots relative to itself, a short memory of where it has been. The
+route is still used in training, for the progress reward only (a privileged
+teacher signal); at play time the bot uses only what it sees and the goal
+direction. It trained from scratch for 3,000 iterations (1.57 B ticks, 3.2
+hours, obstacles on 30% of jumps); the checkpoint was chosen on the
+validation courses (iteration 2,849).
+
+| Unseen courses | Course list given | Planner (7.11) | Learned, no list | Earlier no-route arm (7.6) |
+| --- | --- | --- | --- | --- |
+| 1,200 standard, simulator | 97.1% | 89.6% | 85.4% | 82.4% |
+| level 5 of those | 90.5% | 76.0% | 52.0% | 43.0% |
+| 1,200 with obstacles, simulator | 93.6% | 86.2% | 70.9% | |
+| 60 standard, real Minecraft | 59/60 | 52/60 | 55/60 | |
+| 60 with obstacles, real Minecraft | 58/60 | 53/60 | 37/60 | |
+| 3 hand-designed, simulator | 3/3 | 3/3 | 1/3 | |
+
+The wider scan and the memory help (85.4% against 82.4% for the earlier
+no-route arm, which saw 5.5 blocks ahead and 1.5 to the side), but the
+simple planner on top of the route-trained policy is better on every large
+test set. The learned model's real-game score on the 60 standard courses
+(55/60, above the planner's 52/60) is within the noise of so small a sample.
+Its weak points are the hardest jumps and decoys: of its 23 falls on the
+real-game obstacle courses, 10 end standing on a pillar or beam, which the
+planner's perception rules exclude by construction. It completes only one of
+the three hand-designed courses (long chains with many turns and steady
+climbs, unlike the training courses). In the game it again matched the
+simulator on every course with 0 server corrections.
+
 ## 8. Discussion and limitations
 
 Points to develop:
@@ -381,7 +416,8 @@ Points to develop:
 - Physics scope: full cubes and air only; slabs, ladders, ice, water and
   fences are not ported (prismarine-physics has them).
 - The agent is told the platform chain; `noroute` measures how much that
-  matters.
+  matters, and sections 7.11 and 7.12 replace it with a hand-written planner
+  (better) and a learned model (wider scan and memory).
 - Course building and the start teleport use server commands (reset only).
 - Level 5 jumps need momentum; the feasibility study starts from rest, so it
   underestimates what chained jumps allow.

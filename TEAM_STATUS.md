@@ -118,14 +118,22 @@ reach, and that jump is harder. Videos: `real_minecraft_showcase_no_course_list.
 (first person) and `replay_233_*` / `replay_240_*` (the plan drawn as
 numbered cyan platforms). Report section 7.11.
 
-**Next (training now):** a learned model that finds its route itself:
-wide block scan, memory of its last landings, no platform list
-(`runs/noroute-v2`, about 2.4 hours).
+**Learned model that finds its route itself** (`runs/noroute-v2`, 3.2 hours
+of training; wide block scan, memory of its last three landings, platform
+list and progress hidden): 85.4% of standard and 70.9% of obstacle courses
+in the simulator; in real Minecraft 55/60 standard and 37/60 obstacle
+courses, matching the simulator, 0 corrections. Better than the earlier
+no-route arm (82.4%) but below the planner on every large test set, and
+decoy pillars fool it (10 of its 23 obstacle-course falls end on top of an
+obstacle). So: **the planner is the "runs on a new map" model**; the learned
+one is the research comparison (report 7.12). Video:
+`replay_295_learned_*` (level 5, a course the planner failed).
 
 ## Running now
 
-1. `noroute-v2`: the learned no-route model (wide scan and landing memory,
-   platforms and progress hidden, 3,000 iterations).
+1. Hyperparameter study: gamma 0.995 led on validation (95.2% against a
+   defaults mean of 91.8%, one seed); two more seeds are training to
+   confirm it before it changes anything.
 2. Hyperparameter study (`configs/sweep_hparams.json`), one run at a time:
    3 of 9 finished.
 3. Only two training runs fit on the GPU at once now (a third spills out
