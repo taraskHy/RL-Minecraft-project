@@ -41,6 +41,8 @@ AIRBORNE_INERTIA = 0.91
 AIRBORNE_ACCELERATION = 0.02
 AIR_SPRINT_ACCELERATION = AIRBORNE_ACCELERATION + AIRBORNE_ACCELERATION * 0.3
 AUTOJUMP_COOLDOWN = 10
+DEFAULT_SLIPPERINESS = 0.6
+ICE_SLIPPERINESS = 0.98  # ice and packed ice (blue ice: 0.989); only with World(slip=...)
 GROUND_INERTIA = 0.6 * 0.91  # default slipperiness * 0.91
 _INERTIA_CUBED = GROUND_INERTIA * GROUND_INERTIA * GROUND_INERTIA
 WALK_ACCELERATION = 0.1 * (0.1627714 / _INERTIA_CUBED)
@@ -64,15 +66,23 @@ class World:
     ``solid`` has shape (P, GX, GY, GZ). Cell (i, j, k) of course p is the
     block occupying [i, i+1) x [j, j+1) x [k, k+1). Everything outside the grid
     is air.
+
+    ``slip`` (optional, same shape, float) is each cell's slipperiness, read
+    under the player's feet for ground friction as prismarine-physics does
+    (ice 0.98). Without it every block has the default 0.6 and the simulation
+    is exactly the one all results so far were measured with.
     """
 
-    def __init__(self, solid: torch.Tensor):
+    def __init__(self, solid: torch.Tensor, slip: torch.Tensor | None = None):
         if solid.dim() != 4:
             raise ValueError("solid must have shape (P, GX, GY, GZ)")
         self.solid = solid.to(torch.bool).contiguous()
         self.shape = tuple(solid.shape[1:])
         self.flat = self.solid.view(-1)
         self.device = solid.device
+        if slip is not None and tuple(slip.shape) != tuple(solid.shape):
+            raise ValueError("slip must have the shape of solid")
+        self.slip = None if slip is None else slip.to(torch.float64).contiguous().view(-1)
 
     def lookup(self, course, ix, iy, iz):
         """Solid flags for integer cells; arguments broadcast together."""
@@ -80,6 +90,14 @@ class World:
         inside = (ix >= 0) & (ix < gx) & (iy >= 0) & (iy < gy) & (iz >= 0) & (iz < gz)
         index = ((course * gx + ix.clamp(0, gx - 1)) * gy + iy.clamp(0, gy - 1)) * gz + iz.clamp(0, gz - 1)
         return self.flat[index] & inside
+
+    def slipperiness(self, course, ix, iy, iz):
+        """Slipperiness of integer cells (the default outside the grid); needs ``slip``."""
+        gx, gy, gz = self.shape
+        inside = (ix >= 0) & (ix < gx) & (iy >= 0) & (iy < gy) & (iz >= 0) & (iz < gz)
+        index = ((course * gx + ix.clamp(0, gx - 1)) * gy + iy.clamp(0, gy - 1)) * gz + iz.clamp(0, gz - 1)
+        values = self.slip[index]
+        return torch.where(inside, values, torch.full_like(values, DEFAULT_SLIPPERINESS))
 
 
 @dataclass
@@ -290,6 +308,16 @@ def simulate(world: World, course: torch.Tensor, state: PlayerState, controls: t
                         torch.where(sprint, const(SPRINT_ACCELERATION), const(WALK_ACCELERATION)),
                         torch.where(sprint, const(AIR_SPRINT_ACCELERATION), const(AIRBORNE_ACCELERATION)))
     inertia = torch.where(ground, const(GROUND_INERTIA), const(AIRBORNE_INERTIA))
+    if world.slip is not None:
+        # The block under the feet centre (pos.offset(0, -1, 0)) sets the ground friction.
+        p = state.pos
+        under = world.slipperiness(course, torch.floor(p[:, 0]).to(torch.int64),
+                                   torch.floor(p[:, 1] - 1).to(torch.int64), torch.floor(p[:, 2]).to(torch.int64))
+        g_inertia = under * 0.91
+        g_speed = torch.where(sprint, const(0.1 + 0.1 * 0.3), const(0.1))
+        g_accel = g_speed * (0.1627714 / (g_inertia * g_inertia * g_inertia))
+        accel = torch.where(ground, g_accel, accel)
+        inertia = torch.where(ground, g_inertia, inertia)
 
     speed = torch.sqrt(strafe * strafe + forward * forward)
     k = accel / torch.clamp(speed, min=1.0)

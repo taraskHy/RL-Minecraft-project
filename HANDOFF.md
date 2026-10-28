@@ -195,6 +195,17 @@ Concrete work, most important first. Nothing here needs new research.
    falls end on top of an obstacle (6 on a beam, 4 on a decoy pillar).
 6. **More block types:** slabs, ladders, ice, fences and water need physics
    ports (prismarine-physics has them), parity tests and course pieces.
+   **Ice is ported (28 Oct, cloud session):** `physics.World(solid, slip)`
+   takes an optional per-cell slipperiness grid (ice 0.98), read under the
+   feet centre as prismarine-physics does; without it nothing changes. Parity
+   with the real library on fields where half the blocks are ice: 7.1e-15
+   blocks over 60,000 ticks, every flag equal (`results/physics_parity_ice.json`,
+   `tests/test_physics_parity.py::test_ice_cpu`); ice changes 297 of 300 of
+   those trajectories. Still needed before a policy can use ice: ice course
+   pieces (`parkour/courses.py`, opt-in), an observation of the block type
+   (the 255-number observation cannot see ice, so a new policy, trained on
+   the GPU), `bridge/policy.js` and the bot building ice blocks, and the
+   live checks.
 7. **Hand-built maps:** extract the platform chain from a region of a real
    map instead of generating courses.
 8. Double and triple neos: reopen only with a new search method; the
@@ -210,7 +221,7 @@ re-run the offline and real-Minecraft checks.
 
 | Part | Why | Guarded by |
 | --- | --- | --- |
-| `parkour/physics.py` | exact float64 port of prismarine-physics 1.11.1 (operand order kept) plus vanilla's 1e-7 `COLLISION_EPSILON` | `tests/test_physics_parity.py`, `test_corner_slip.py`, `test_inside_block.py` |
+| `parkour/physics.py` | exact float64 port of prismarine-physics 1.11.1 (operand order kept) plus vanilla's 1e-7 `COLLISION_EPSILON`; the optional ice grid (`World(slip=...)`) is off unless passed | `tests/test_physics_parity.py` (also with ice), `test_corner_slip.py`, `test_inside_block.py` |
 | `bridge/physics_patch.js` | the same tolerance in the bot; must change together with `physics.py` | `tests/test_physics_parity.py` |
 | `bridge/policy.js` <-> `parkour/env.py` (observation, fall and stall rules), `bridge/planner.js` <-> `parkour/planner.py` | the bot mirrors the Python code; the 255-number observation is what every shipped policy expects | `tests/test_bridge_parity.py`, `test_extended_obs.py`, `test_planner.py` |
 | Seed families in `parkour/train.py` (training 0, test 1, validation 2, stress 3, obstacle test 4, obstacle validation 5) and default course generation in `parkour/courses.py` | every test number is on exactly these courses (`course_hash`); new course features are opt-in (like `wide_neo`) | `tests/test_courses.py` |
@@ -350,18 +361,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `12c736a` (2026-10-28 14:26, branch `claude/pensive-knuth-biwj11`): One policy for everything: the neo policy is 2-3 points behind on levels 0-5
+Generated on top of commit `85b8f50` (2026-10-28 14:27, branch `claude/pensive-knuth-biwj11`): AGENTS.md: what runs in a sandbox, and not accepting the EULA for the user
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | updated together with this snapshot | 0 |
-| `HANDOFF.md` | `12c736a` 2026-10-28 14:26 | 0 |
-| `TEAM_STATUS.md` | `12c736a` 2026-10-28 14:26 | 0 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 15 |
-| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 27 |
-| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 0 |
-| `results/README.md` | `6170803` 2026-10-28 11:40 | 24 |
-| `results/DATA.md` | `12c736a` 2026-10-28 14:26 | 0 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 0 |
+| `HANDOFF.md` | updated together with this snapshot | 0 |
+| `TEAM_STATUS.md` | `12c736a` 2026-10-28 14:26 | 1 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 16 |
+| `docs/design.md` | updated together with this snapshot | 0 |
+| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 1 |
+| `results/README.md` | `6170803` 2026-10-28 11:40 | 25 |
+| `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 

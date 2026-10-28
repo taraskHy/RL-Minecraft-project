@@ -3,7 +3,8 @@
 // worlds and control sequences, and prints the trajectories as JSON.
 //
 // Input (file path argument, JSON):
-//   { "cases": [ { "blocks": [[x,y,z], ...], "pos": [x,y,z], "vel": [x,y,z],
+//   { "cases": [ { "blocks": [[x,y,z], ...], "ice": [[x,y,z], ...] (optional: which of the blocks are ice),
+//                  "pos": [x,y,z], "vel": [x,y,z],
 //                  "onGround": false, "jumpTicks": 0,
 //                  "ticks": [ { "yaw": 0.0, "c": [fwd, back, left, right, jump, sprint] }, ... ] } ] }
 // Output (stdout, JSON): { "cases": [ [ {pos, vel, onGround, jumpTicks, collH, collV}, ... ], ... ] }
@@ -15,18 +16,21 @@ const { Physics } = require('prismarine-physics')
 const mcData = require('minecraft-data')('1.21.4')
 
 const STONE = mcData.blocksByName.stone.id
+const ICE = mcData.blocksByName.ice.id
 const AIR = mcData.blocksByName.air.id
 
-function makeWorld (blocks) {
+function makeWorld (blocks, ice) {
   const solid = new Set(blocks.map(b => `${b[0]},${b[1]},${b[2]}`))
+  const icy = new Set((ice || []).map(b => `${b[0]},${b[1]},${b[2]}`))
   return {
     getBlock (p) {
       const x = Math.floor(p.x)
       const y = Math.floor(p.y)
       const z = Math.floor(p.z)
-      const isSolid = solid.has(`${x},${y},${z}`)
+      const key = `${x},${y},${z}`
+      const isSolid = solid.has(key)
       return {
-        type: isSolid ? STONE : AIR,
+        type: isSolid ? (icy.has(key) ? ICE : STONE) : AIR,
         shapes: isSolid ? [[0, 0, 0, 1, 1, 1]] : [],
         boundingBox: isSolid ? 'block' : 'empty',
         position: new Vec3(x, y, z),
@@ -68,7 +72,7 @@ function makeEntity (c) {
 }
 
 function runCase (c) {
-  const world = makeWorld(c.blocks)
+  const world = makeWorld(c.blocks, c.ice)
   const physics = Physics(mcData, world)
   const e = makeEntity(c)
   const out = []
