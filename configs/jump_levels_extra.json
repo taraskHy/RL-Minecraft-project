@@ -12186,6 +12186,55 @@
      "side": 1
     }
    ]
+  },
+  {
+   "name": "ladder climb",
+   "specs": [
+    {
+     "gap": 1,
+     "dy": 2,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "ladder": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": 3,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "ladder": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": 4,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "ladder": 1,
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": 5,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "ladder": 1,
+     "side": 1
+    }
+   ]
   }
  ]
 }

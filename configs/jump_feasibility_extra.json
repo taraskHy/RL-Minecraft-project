@@ -2,7 +2,7 @@
  "method": "single run-up jumps from rest at the back of the runway; run-up strategies (jump at the runway's edge, hops before it, release after). Shaped blocks: the straight strategies of the basic study from a 1x1 stone block onto the shaped target, and from the shaped block over the fixed exit jump (exit_forgiveness)",
  "strategies": 270,
  "horizon_ticks": 80,
- "seconds": 15631.5,
+ "seconds": 205.3,
  "specs": [
   {
    "kind": "roof",
@@ -11103,6 +11103,54 @@
    ],
    "bounce": 3,
    "forgiveness": 0.0253
+  },
+  {
+   "kind": "ladder",
+   "gap": 1,
+   "dy": 2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "ladder": 1,
+   "forgiveness": 0.16667
+  },
+  {
+   "kind": "ladder",
+   "gap": 1,
+   "dy": 3,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "ladder": 1,
+   "forgiveness": 0.11458
+  },
+  {
+   "kind": "ladder",
+   "gap": 1,
+   "dy": 4,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "ladder": 1,
+   "forgiveness": 0.06895
+  },
+  {
+   "kind": "ladder",
+   "gap": 1,
+   "dy": 5,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "ladder": 1,
+   "forgiveness": 0.05109
   }
  ]
 }
