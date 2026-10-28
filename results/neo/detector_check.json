@@ -1,0 +1,8 @@
+{
+ "courses": 1024,
+ "courses_with_a_real_neo": 599,
+ "takeoffs_detected": 2526,
+ "real_neo_takeoffs": 1090,
+ "share_real": 0.4315,
+ "method": "the courses of DAgger round 2 (neo_dagger seed 2) rebuilt; first detector (any block on the centre line at body height) against the fixed one (wall blocks only)"
+}

@@ -1,0 +1,514 @@
+{
+ "method": "Workflow audit-results-claims (28 October 2026): agents extracted every number and factual claim from TEAM_STATUS.md, README.md, HANDOFF.md, results/showcase.html, docs/report_draft.md and docs/design.md, checked them against the data files in batches, and two skeptics re-checked every claim flagged wrong. Fixed in commit ed915f0.",
+ "per_segment": [
+  {
+   "segment": "TEAM_STATUS.md (whole file)",
+   "claims": 156,
+   "correct": 125,
+   "wrong": 27,
+   "unverifiable": 4,
+   "pending": 0
+  },
+  {
+   "segment": "README.md and HANDOFF.md (both whole files)",
+   "claims": 103,
+   "correct": 83,
+   "wrong": 14,
+   "unverifiable": 6,
+   "pending": 0
+  },
+  {
+   "segment": "results/showcase.html (all visible text (the results page shown to the professor))",
+   "claims": 101,
+   "correct": 90,
+   "wrong": 10,
+   "unverifiable": 1,
+   "pending": 0
+  },
+  {
+   "segment": "docs/report_draft.md (lines 1-211 (sections 1 to 7.2))",
+   "claims": 133,
+   "correct": 110,
+   "wrong": 20,
+   "unverifiable": 3,
+   "pending": 0
+  },
+  {
+   "segment": "docs/report_draft.md (lines 212-347 (sections 7.3 to 7.10))",
+   "claims": 111,
+   "correct": 95,
+   "wrong": 13,
+   "unverifiable": 2,
+   "pending": 1
+  },
+  {
+   "segment": "docs/report_draft.md (lines 348-474 (sections 7.11 to 9))",
+   "claims": 106,
+   "correct": 92,
+   "wrong": 9,
+   "unverifiable": 5,
+   "pending": 0
+  },
+  {
+   "segment": "docs/design.md (whole file)",
+   "claims": 119,
+   "correct": 99,
+   "wrong": 18,
+   "unverifiable": 2,
+   "pending": 0
+  }
+ ],
+ "claims": 829,
+ "flagged_wrong": 111,
+ "confirmed_wrong": 60,
+ "disputed": 14,
+ "overturned": 37,
+ "confirmed": [
+  {
+   "doc": "TEAM_STATUS.md",
+   "lines": "4",
+   "quote": "Updated and pushed after every result.",
+   "correction": "Updated and pushed regularly, but it can lag behind the newest results (see `git log` and results/README.md). For example, the finished third seed of the discount-0.995 hyperparameter study (commit 4c302f9, hp-gamma0.995-s2: 95.2% validation, 95.6% test) is not on this page yet."
+  },
+  {
+   "doc": "TEAM_STATUS.md",
+   "lines": "4-5",
+   "quote": "Every number is in [results/README.md](results/README.md) (generated from the run files)",
+   "correction": "Most of the result numbers are in results/README.md, which is generated from the run files. The rest come from other files:\n- the neo-search, double-neo and neo-diagnosis figures from configs/jump_cem*.json and runs/*/jump_eval_advanced.json;\n- training times and mean rewards from runs/*/train_log.csv;\n- episode counts from results/games/*/summary.json.\n\nNote that README's live showcase is the 4-course run (3 of 4 completed, 124 live episodes in all), not the 3-course run shown here (3 of 3, 123 episodes)."
+  },
+  {
+   "doc": "TEAM_STATUS.md",
+   "lines": "5-6",
+   "quote": "every piece of data is listed in [results/DATA.md](results/DATA.md)",
+   "correction": "Most of the data is listed in [results/DATA.md](results/DATA.md), which was last updated at 00:05. Data added after that is not in it yet: results/planner/, results/videos/, the live2-*, planner-*, noroute-*, film-* and recheck-* games, and the stress, jump-eval and hyperparameter-validation JSON files."
+  },
+  {
+   "doc": "TEAM_STATUS.md",
+   "lines": "8",
+   "quote": "**Last updated:** 28 October 2026, 02:00.",
+   "correction": "**Last updated:** 28 October 2026, 07:48."
+  },
+  {
+   "doc": "TEAM_STATUS.md",
+   "lines": "20-21",
+   "quote": "train a neural network with PPO on 16,384 courses at\nonce",
+   "correction": "train a neural network with PPO on 16,384 games at once (16,384 parallel environments drawing from a pool of 8,192 courses, one eighth replaced every 20 iterations)"
+  },
+  {
+   "doc": "TEAM_STATUS.md",
+   "lines": "47",
+   "quote": "Every possible jump type is made from a standing start at every tested angle.",
+   "correction": "Every possible jump type (levels 0-5) is made from a standing start: all but one at all 16 tested angles. One level-5 type (3-block gap, 1 up, 1 sideways onto a single block) is made at 15 of 16, so level 5 averages 99.6%."
+  },
+  {
+   "doc": "TEAM_STATUS.md",
+   "lines": "64",
+   "quote": "PPO collapsed twice in the first runs",
+   "correction": "PPO collapsed three times in the first runs (once in main-s0 and twice in full-s1; success fell from about 75-80% to about 15-17% within two iterations of one bad update)"
+  },
+  {
+   "doc": "TEAM_STATUS.md",
+   "lines": "127-128",
+   "quote": "(10 of its 23 obstacle-course falls end on top of an\nobstacle)",
+   "correction": "obstacles fool it (10 of its 23 obstacle-course falls end on top of an obstacle: 6 on a head-hitter beam, 4 on a decoy pillar)"
+  },
+  {
+   "doc": "TEAM_STATUS.md",
+   "lines": "139",
+   "quote": "a third seed is finishing",
+   "correction": "Hyperparameter study: all 9 settings done; gamma 0.995 led on validation in all three seeds (95.2%, 95.8% and 95.2%, against a defaults mean of 91.8% over 2 seeds); the third seed (hp-gamma0.995-s2) finished all 1,000 iterations with 95.6% on the test set."
+  },
+  {
+   "doc": "TEAM_STATUS.md",
+   "lines": "142-143",
+   "quote": "above 65 C every\n   GPU job is suspended (no state lost) and resumed below 58 C",
+   "correction": "Above 65 C the watchdog suspends the project's listed GPU jobs (no state lost) and resumes them below 58 C. Those are training, neo demonstration collection, CEM, planner, jump, stress and feasibility runs. Live Minecraft runs are left running on purpose. The neo DAgger search (parkour.neo_dagger) is not on the list, so it is not paused."
+  },
+  {
+   "doc": "TEAM_STATUS.md",
+   "lines": "152-153",
+   "quote": "Level 5 is hard: every stage\n    falls at its first jump.",
+   "correction": "Level 5 is hard: no stage gets past the first jump. Nine of the ten stages fall there, and the 10-update stage stalls on the start platform until time runs out."
+  },
+  {
+   "doc": "TEAM_STATUS.md",
+   "lines": "162-163",
+   "quote": "every run's training\n  and evaluation logs are in `results/runs/`",
+   "correction": "Data: `results/DATA.md`. Every run's training and evaluation logs are copied into `results/runs/` whenever the report is regenerated (parkour/report.py; now in Git too: before 28 October 01:50 a `.gitignore` rule kept them out of GitHub). The last copy was made at 07:55, so it holds every run up to the end of the hyperparameter study. The neo imitation run (neo-bc, finished at 08:50) is only in `runs/` until the report is regenerated, and runs still going (main-g995, the neo DAgger round) are missing or only partly copied."
+  },
+  {
+   "doc": "TEAM_STATUS.md",
+   "lines": "167-168",
+   "quote": "`run.cmd live --checkpoint resultsinal_policy.pt --out\n  runs\\demo --viewer YourMinecraftName`",
+   "correction": "Watch it live: `run.cmd live --checkpoint results\\final_policy.pt --out runs\\demo --viewer YourMinecraftName` (the --out folder must not already exist; run `run.cmd accept-eula` once first), then join `127.0.0.1:25570` in Minecraft Java 1.21.4."
+  },
+  {
+   "doc": "TEAM_STATUS.md",
+   "lines": "176-177",
+   "quote": "`docs/report_draft.md` needs the hyperparameter section, the\n   neo results, the discussion and the conclusion.",
+   "correction": "The report: `docs/report_draft.md` needs the discussion (section 8 is still a list of points), the conclusion (section 9 is not written) and the neo imitation/DAgger results in 7.10. The hyperparameter section (7.3) is done."
+  },
+  {
+   "doc": "README.md",
+   "lines": "14",
+   "quote": "see [TEAM_STATUS.md](TEAM_STATUS.md) (one page, always current)",
+   "correction": "**Status:** see [TEAM_STATUS.md](TEAM_STATUS.md) (team status page, updated by hand and possibly behind; the latest numbers are in [results/README.md](results/README.md), generated from the run files)."
+  },
+  {
+   "doc": "README.md",
+   "lines": "24",
+   "quote": "Every possible jump type from a standing start | all made (hardest level 99.6%) | simulator",
+   "correction": "Every basic jump type (the 194 feasible types at levels 0-5: gaps up to 4, heights -3 to +1, sideways offsets up to 2) is made from a standing start (hardest level 99.6%). Wide (sideways-3) and neo jumps were not part of this test, and the final policy cannot do neos."
+  },
+  {
+   "doc": "README.md",
+   "lines": "62-63",
+   "quote": "takes about 6 minutes on an RTX 5080",
+   "correction": "A 300-iteration run (157 million game ticks) took 10-18 minutes in our runs on an RTX 5080 shared with other training runs (main-s0: 15.6 minutes). At the best throughput we measured (about 450 thousand ticks per second) the training alone is about 6 minutes, and about 7-8 minutes with the periodic evaluations."
+  },
+  {
+   "doc": "README.md",
+   "lines": "75-76",
+   "quote": "With `--viewer`, join `127.0.0.1:25570` in Minecraft Java 1.21.4 and your camera follows the bot through every course.",
+   "correction": "With `--viewer`, join `127.0.0.1:25570` in Minecraft Java 1.21.4. The bot switches you to spectator mode and, after the first course, attaches your camera to it, so it follows the bot from the second course on. You watch the first course with a free spectator camera."
+  },
+  {
+   "doc": "README.md",
+   "lines": "80-82",
+   "quote": "Every reported number comes from files under `runs/` or `results/`, and says whether it is the simulator, the offline JavaScript bot, or real Minecraft.",
+   "correction": "Every number in the results table except the physics-parity row comes from files under `runs/` or `results/` and says where it was measured: the simulator, the offline JavaScript bot, or real Minecraft. The parity figure comes from `tests/test_physics_parity.py` (Node + prismarine-physics) and is not stored in a results file. Separately, the \"about 6 minutes\" for a 300-iteration run should match the train logs, which show about 10-18 minutes (15.6 for main-s0)."
+  },
+  {
+   "doc": "HANDOFF.md",
+   "lines": "42-44",
+   "quote": "above 65 C it suspends every GPU job of the project (train, neo_demos, cem, planner, jumpeval, stress, feasibility; suspended, so no state is lost)",
+   "correction": "Above 65 C it suspends (does not kill, so no state is lost) the project's python processes running parkour.train, neo_demos, cem, planner, jumpeval, stress or feasibility, plus scripts/cem_momentum_neo.py, and resumes them below 58 C. It does not cover parkour.neo_dagger (the DAgger search, which runs on the GPU and was added after the watchdog) or the live bot (parkour.live, left alone on purpose)."
+  },
+  {
+   "doc": "HANDOFF.md",
+   "lines": "65-66",
+   "quote": "a single neo (wall flush with a 1-wide takeoff) is possible in all 18 layouts tried",
+   "correction": "Neos: a single neo (wall flush with a 1-wide takeoff) is possible in 16 of the 18 layouts tried. The search found no landing for gap 3, dy +1 with the wall at gap cell 1 or 3."
+  },
+  {
+   "doc": "HANDOFF.md",
+   "lines": "68-69",
+   "quote": "In courses a neo must take off from a 1-wide block.",
+   "correction": "The default course generator (and so every test and validation set) places a neo only after a 1-wide takeoff block. Hand-designed courses (from_specs, e.g. the showcase 'neo' course, whose first neo starts from a 2x2 block), the neo DAgger training courses and train --wide-neo allow a wider takeoff (wide_neo) as long as the landing reaches the wall's open end."
+  },
+  {
+   "doc": "results/showcase.html",
+   "lines": "105",
+   "quote": "After 10 and 20 updates it gets two and five platforms in, then stops and stands still.",
+   "correction": "After 10 and 20 updates it gets two and five platforms in, then makes no more progress: at 10 updates it stands still, and at 20 it keeps hopping on the spot until the 10-second (200-tick) stall limit ends the run."
+  },
+  {
+   "doc": "results/showcase.html",
+   "lines": "118",
+   "quote": "The dip at 1.0 B ticks was one bad update while the learning rate sat at its cap",
+   "correction": "The dip at 1.0 B ticks followed two updates in a row (iterations 1898 and 1899) that the KL limit cut short while the learning rate was at or near its 1e-3 cap; training success fell from 94% to 70% over three iterations, and test success recovered by the next evaluation."
+  },
+  {
+   "doc": "results/showcase.html",
+   "lines": "197",
+   "quote": "Everything here is generated from the run files in the project repository: numbers in results/README.md",
+   "correction": "Numbers come from the project's run files. The main tables are in results/README.md. The neo-search and jump-test figures come from configs/jump_cem*.json and runs/*/jump_eval_*.json, and training time and throughput come from the runs/main-s0 logs and config. The physics-parity figure (1.4e-14 blocks over 99,000 ticks) comes from the physics parity test (tests/test_physics_parity.py, documented in docs/), not from a run file. Raw logs are in results/runs/ (more complete in runs/) and videos in results/videos/."
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "71-73",
+   "quote": "runs the original library through Node on random block fields (pillars, steps, ceilings, gaps, edges) with random inputs, and compares every tick",
+   "correction": "`tests/test_physics_parity.py` runs prismarine-physics 1.11.1 through Node, with the same 1e-7 collision-tolerance patch that the simulator and the live bot use (bridge/physics_patch.js, vanilla's VoxelShape rule). It runs on random block fields (pillars, steps, ceilings, gaps, edges) with random inputs and compares every tick."
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "77-78",
+   "quote": "A 1.21 server reports its own sprinting speed modifier; prismarine-physics keeps it next to its own",
+   "correction": "A 1.21 server sends its own sprint modifier, and prismarine-physics 1.11.1 would keep it next to its own, because it strips only the old sprint UUID. With Mineflayer 4.39 and minecraft-data 3.117, though, the attribute is stored under an outdated 'generic.*' key (movement_speed, id 21, arrives as 'generic.step_height'). Prismarine-physics never reads it and already sprints at 1.3 times walking speed. The bot's removal of the server's movement-speed attribute never fires (its log line appears in none of the live logs)."
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "79",
+   "quote": "an unmodified bot sprints at 1.3 x 1.3 instead of 1.3 times walking speed",
+   "correction": "With these library versions an unmodified bot already sprints at 1.3 times walking speed. Mineflayer stores the server's movement-speed attribute under a protocol name (\"generic.*\") that prismarine-physics never reads (it looks for \"minecraft:movement_speed\"), so prismarine always uses its default speed plus its own sprint modifier. The double modifier (1.3 x 1.3) would happen only if those keys matched. The bot's step that removes the server-sent attribute is a safeguard that never ran in any live run."
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "80",
+   "quote": "The bot removes the server-sent movement-speed attribute before each tick",
+   "correction": "After every physics tick the bot runs a check that would delete a server-sent movement-speed attribute. In the recorded live runs it never found one: minecraft-data 3.117.0's 1.21.4 protocol mapper stores the server's movement_speed (id 21) under the key 'generic.step_height'. Neither this check nor prismarine-physics (which reads 'minecraft:movement_speed') sees it, so prismarine uses its default speed with its own sprint modifier. That matches the vanilla client and the simulator."
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "83",
+   "quote": "The environment step makes no host synchronisation",
+   "correction": "The environment step never reads values back from the GPU: it has no .item(), .cpu() or .tolist() calls and no Python branches on tensor values. One small blocking host-to-device copy remains, torch.tensor(WINDOW, device=dev) in physics._Cells, which runs twice per tick. Precomputing it once as a device constant would remove the step's last synchronisation. With 16,384 parallel courses, one RTX 5080 simulates about one million game ticks per second."
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "102-103",
+   "quote": "keeps one air block between platforms and keeps flight paths clear",
+   "correction": "keeps at least one air block between each new platform and every earlier platform except the one it is jumped from (consecutive platforms are as far apart as the jump's gap, which can be 0), and keeps each new jump's flight path clear of the platforms already placed; later platforms are not checked against earlier flight paths, so in 125 of the 1,200 test courses a later platform (almost always the next one) ends up inside an earlier jump's flight corridor"
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "103-104",
+   "quote": "Training courses have 5 to 12 jumps",
+   "correction": "Training courses are drawn with 5 to 12 jumps. A course ends early when no further jump fits, so about 0.4% have only 2 to 4."
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "104",
+   "quote": "test courses exactly 10",
+   "correction": "Training courses have 5 to 12 jumps; test courses are generated with 10 jumps (1,151 of the 1,200 have all 10; the other 49 end early, with 2 to 9 jumps, when the generator cannot place another jump)."
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "153-154",
+   "quote": "Our first runs made two catastrophic updates",
+   "correction": "Our first runs made three catastrophic updates, two in one run and one in another (approximate KL of 0.32, 1.3, and once an overflow to infinity; success fell from about 75-80% to 22-30% in one iteration and to about 15% in the next)."
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "154",
+   "quote": "approximate KL up to 1.3",
+   "correction": "Our first runs made three catastrophic updates (approximate KL of 0.3 and 1.3, and once overflowing to infinity; success falling from about 75-80% to 15-17% within two iterations)."
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "177-178",
+   "quote": "All numbers below are copied from `results/README.md`, which `python -m parkour.report` generates from the run files.",
+   "correction": "The tables and headline figures below come from results/README.md, which `python -m parkour.report` generates from the run files. The other figures come straight from the run files and configs named in each subsection: wall-clock times, learning-curve details, the neo search and single-jump tests, and the planner's failure modes. In 7.9, either match the README (0 server corrections in all 124 episodes; 59/60 standard, 58/60 obstacle and 3 of the 4 showcase courses, failing on the neo course the policy never trained on) or say that the 3-of-3 / 123-episode figures come from the earlier live-showcase run."
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "178-180",
+   "quote": "Simulator results are on the held-out test set (200 courses per level, 10 jumps each) with the deterministic policy unless stated otherwise.",
+   "correction": "Keep lines 178-180 as they are and flag the exception in 7.7: \"Before fine-tuning, the main policy completed 46.8% of new obstacle courses (stress test, 100 per level, against 96.7% of standard ones).\""
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "255-256",
+   "quote": "The weakest cases are level-5 jumps right after a turn (68%) and\nlevel-0 courses made of single blocks (87%)",
+   "correction": "The weakest case is level-5 courses with a turn at every jump (68%), followed by level 5 on single blocks (73%) and level 5 on 15-jump courses (78%). Below level 5, the weakest case is level-0 courses made of single blocks (87%), where stepping down onto a lone block tends to overshoot."
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "261-262",
+   "quote": "With the platform corners hidden (only its own state, the 98-point block\nscan and the goal direction)",
+   "correction": "With the platform slots hidden (corners, heights and flags of the current and next three platforms), it still sees its own state and previous action, the 98-point block scan, the goal's relative position and the fraction of platforms reached."
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "305-306",
+   "quote": "Double and triple neos (around two or three walls in one\njump) landed in none of 64 layouts",
+   "correction": "Double and triple neos (around a single wall whose end sticks out one or two blocks past the platforms' edge) landed in none of 64 layouts: 36 from a standing start and 28 with a 3 to 4 block run-up"
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "314-315",
+   "quote": "Levels 6 to 8 add single neos, 4-block jumps from a 3-block\nrun-up and wide diagonal jumps (`configs/jump_levels_advanced.json`)",
+   "correction": "Levels 6 to 8 add single neos, 4-block jumps from a 2- to 4-block run-up and wide diagonal jumps (`configs/jump_levels_advanced.json`)."
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "316-317",
+   "quote": "about 1,500 iterations in total",
+   "correction": "about 1,700 iterations in total (800 + 300 + 600 along the chained checkpoints; 1,767 logged)"
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "338-339",
+   "quote": "so refusing is never better than\ntrying",
+   "correction": "a stall now ends the episode as a failure with that penalty, so refusing no longer avoids it. Without discounting, a refusal (-5 plus 2.0 of time cost) is worse than a fall. With discount 0.99, though, a penalty 200 ticks away is worth only about 13% of its size (about -0.7), so refusing (about -1.5 from arrival) still beats an attempt that rarely lands (a fall about 25 ticks later is worth about -4.2)"
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "409-410",
+   "quote": "one sample per block so no 1x1 platform falls between samples",
+   "correction": "one sample per block, laid out in the bot's own frame (when the bot faces along a block axis every 1x1 cell in the scan area is sampled, but at diagonal headings some 1x1 cells fall between samples)"
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "412-413",
+   "quote": "The route is still used in training, for the progress reward only",
+   "correction": "The route is still used in training: in the reward (the progress term and the +1 landing bonus per new platform, both counted along the course order) and in the fall and stall rules (a privileged teacher signal); at play time the bot uses only what it sees and the goal direction."
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "427-428",
+   "quote": "The wider scan and the memory help (85.4% against 82.4% for the earlier no-route arm",
+   "correction": "The learned model reaches 85.4% against 82.4% for the earlier no-route arm (which saw 5.5 blocks ahead and 1.5 to the side), but it also trained three times as long (1.57 B against 0.52 B ticks), with the progress input hidden and obstacles on 30% of jumps. After the same 0.52 B ticks it scored 77.3%, and on the validation courses it is no better (83.2% at its best against 83.2% for the arm's mean), so these runs do not show that the wider scan and the memory help. Even so, the simple planner on top of the route-trained policy is better on every large test set."
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "435-436",
+   "quote": "(long chains with many turns and steady climbs, unlike the training courses)",
+   "correction": "(a 12-jump tour, an 11-jump staircase that climbs eight blocks in a row, and a 9-jump line of long flat sprint gaps; their length and number of turns are within the training range of 5 to 12 jumps with turn probability 0.25, and only the staircase's long steady climb is unlike the training courses)"
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "449",
+   "quote": "Level 5 jumps need momentum",
+   "correction": "Level 5 jumps are the least forgiving jumps that are still possible from a standing start (from rest on a 1x1 block, 0.03% to 1.5% of the scripted strategies land them; the final policy makes them 99.6% of the time). Jumps that need a run-up belong to the advanced levels 6 to 8. The feasibility study starts from rest, so it underestimates what chained jumps allow: some of the 49 types it rejects may be possible with momentum."
+  },
+  {
+   "doc": "docs/design.md",
+   "lines": "6-7",
+   "quote": "The player starts on platform 0 and must land on every platform in turn until it stands on the last one.",
+   "correction": "The player starts on platform 0 and must get through the platforms in order until it stands on the last one. Landing on a later platform also counts and skips the ones in between."
+  },
+  {
+   "doc": "docs/design.md",
+   "lines": "20-21",
+   "quote": "keeping every expression and its operand\norder in float64",
+   "correction": "`parkour/physics.py` ports that engine (version 1.11.1, the one Mineflayer 4.39.0 uses) to batched PyTorch, keeping the operand order of the JavaScript source in float64. It makes one deliberate change, made the same way in the bot (bridge/physics_patch.js): block collisions use vanilla Minecraft's 1e-7 tolerance (COLLISION_EPSILON). The parity test runs against this patched engine."
+  },
+  {
+   "doc": "docs/design.md",
+   "lines": "25-26",
+   "quote": "`tests/test_physics_parity.py`, run through Node on the real\nlibrary",
+   "correction": "Evidence (`tests/test_physics_parity.py`, run through Node on the real prismarine-physics 1.11.1 library with the same 1e-7 collision-tolerance patch, `bridge/physics_patch.js`, that the bot loads and that the simulator mirrors with `COLLISION_EPSILON`): ..."
+  },
+  {
+   "doc": "docs/design.md",
+   "lines": "26",
+   "quote": "on 24,000 random ticks on the CPU and 75,000 on the GPU",
+   "correction": "Evidence (`tests/test_physics_parity.py`, run through Node on the real library): on 7,200 random ticks on the CPU (60 cases of 120 ticks) and 18,000 on the GPU (120 cases of 150 ticks), in random block fields with pillars, steps, ceilings, gaps and edges, the largest position error was 1.4e-14 blocks and every on-ground, collision and jump-cooldown flag matched. (Also change the 99,000 total in README.md, docs/report_draft.md and results/showcase.html to 25,200, or rerun with 200 and 500 cases and keep that output.)"
+  },
+  {
+   "doc": "docs/design.md",
+   "lines": "31-32",
+   "quote": "a 1.21 server reports its own\nsprinting speed modifier, which prismarine-physics keeps next to its own",
+   "correction": "A 1.21 server sends the player's movement_speed attribute with its own 'minecraft:sprinting' modifier. Its id differs from prismarine-physics' UUID, so the two would stack (1.3 x 1.3) if prismarine-physics read that attribute. With the installed minecraft-data 3.117.0 it never does: the attribute decodes under the key 'generic.step_height' (an old id table), not 'minecraft:movement_speed'. So an unmodified bot already sprints at 1.3 times walking speed, as the vanilla client and the simulator do. The bot's removal of 'movement_speed' keys is only a safeguard and has no effect with this stack."
+  },
+  {
+   "doc": "docs/design.md",
+   "lines": "33",
+   "quote": "an unmodified bot sprints 1.3 x 1.3 times as fast as walking instead of 1.3",
+   "correction": "If prismarine-physics read the server's movement-speed attribute, the server's sprinting modifier would stack with prismarine's own and give 1.3 x 1.3 = 1.69 times walking speed. With the pinned versions (mineflayer 4.39.0, minecraft-data 3.117.0, prismarine-physics 1.11.1) it never reads it: the attribute arrives under a 'generic.*' key (in fact 'generic.step_height'), not 'minecraft:movement_speed'. So even an unmodified bot sprints at 1.3 times walking, the same as the vanilla client and the simulator. The bridge's removal step never fires."
+  },
+  {
+   "doc": "docs/design.md",
+   "lines": "34",
+   "quote": "The bot removes the server-sent movement-speed attribute before every tick",
+   "correction": "After each physics tick (so before the next one), the bot deletes any attribute whose key contains 'movement_speed'. With the installed minecraft-data (3.117.0), the 1.21.4 attribute IDs are stale: the server's movement-speed attribute (id 21) is stored under 'generic.step_height', so nothing is actually removed, and the removal log line never appears in any live run. It makes no difference: prismarine-physics looks for 'minecraft:movement_speed', never finds the server's attribute, and uses its default walk speed plus its own sprint modifier. That matches the vanilla client and the simulator (live replays match to 2e-14 blocks)."
+  },
+  {
+   "doc": "docs/design.md",
+   "lines": "92",
+   "quote": "chains 5 to 12 jumps (training) or exactly 10 (test)",
+   "correction": "`parkour/courses.py` asks for 5 to 12 jumps (training) or 10 (test), but a course ends early when a jump does not fit. 1,151 of the 1,200 test courses have all 10 jumps and the other 49 have 2 to 9. Training courses need at least 2 jumps (3 platforms)."
+  },
+  {
+   "doc": "docs/design.md",
+   "lines": "95",
+   "quote": "keep each flight path clear",
+   "correction": "...keep one air block from every other platform, and keep each new jump's flight path clear of the platforms already placed. Platforms placed later are not checked against earlier flight paths. About 1% of test jumps (132 of 11,850, in 125 of 1,200 courses) have a later platform inside their flight corridor, almost always the next platform. In 21 of these it sits in the gap itself."
+  },
+  {
+   "doc": "docs/design.md",
+   "lines": "104",
+   "quote": "200 courses per level (1,200), 10 jumps each",
+   "correction": "Held-out test set: 200 courses per level (1,200), each generated with a target of 10 jumps (1,151 have all 10; 49 end early with 2-9 jumps when the next platform does not fit), generated from a separate seed family, and checked to share no course with training."
+  },
+  {
+   "doc": "docs/design.md",
+   "lines": "120",
+   "quote": "twice made a catastrophic update",
+   "correction": "The first runs (kept in `runs/_v1_unstable`, not used for results) made a catastrophic update three times, once in main-s0 and twice in full-s1. The approximate KL between the old and new policy jumped from about 0.004 to 0.3, to 1.3, and once overflowed to infinity. Success fell from about 75-80% to 22-30% in the next iteration and to 15-17% within two to three iterations."
+  },
+  {
+   "doc": "docs/design.md",
+   "lines": "122-123",
+   "quote": "the run needed about 50\niterations to recover",
+   "correction": "...success fell from about 80% to 15% within a few iterations, and recovery took about 40-65 iterations in one run (main-s0) and about 100 in the other (full-s1, after the KL-1.3 update, still about 1-2 points below its earlier level when the log ended). Line 133 would then read: \"recovered within about 5 iterations, against 50 to 100 before the safeguards\"."
+  }
+ ],
+ "disputed_items": [
+  {
+   "doc": "TEAM_STATUS.md",
+   "lines": "21",
+   "quote": "(about a million game ticks per second)",
+   "correction": "(the GPU simulator alone steps about a million game ticks per second; training, with the network and PPO updates, ran at about 170,000 ticks per second in the main run: 1.57 billion ticks in 2.6 hours)"
+  },
+  {
+   "doc": "TEAM_STATUS.md",
+   "lines": "78-79",
+   "quote": "**Double and triple neos are impossible** in Minecraft's physics as\n  Mineflayer runs it",
+   "correction": "**No double or triple neo was found** in Minecraft's physics as Mineflayer runs it: 0 of 64 layouts landed (36 from standing, 28 with a 3-4 block run-up; 1-wide takeoffs, 1x1 landings, gaps 1-3, drops of at most 1 block). They were searched with the same tool that found the single neos. This is a failed search, not a proof that they are impossible."
+  },
+  {
+   "doc": "TEAM_STATUS.md",
+   "lines": "84-85",
+   "quote": "levels 6 and 7 (neo courses)",
+   "correction": "levels 6 and 7 (the advanced levels that add single neos to wide and run-up jumps; a neo appears in only 27% of level-6 and 66% of level-7 test courses)"
+  },
+  {
+   "doc": "TEAM_STATUS.md",
+   "lines": "182",
+   "quote": "double and triple neos shown impossible",
+   "correction": "double and triple neos not found in a search: 0 of 64 layouts landed (36 from standing, 28 with a 3-4 block run-up; 1-wide takeoffs, one side only). This is a search result, not a proof that they are impossible."
+  },
+  {
+   "doc": "TEAM_STATUS.md",
+   "lines": "189-190",
+   "quote": "first real-Minecraft runs: 59/60,\n  58/60 (obstacles) and 3/3, identical to the simulator",
+   "correction": "EULA accepted; after two aborted live attempts (whole-number /tp coordinates were centred on the block; the bot now sends decimals) and a 6/6 smoke test, the first full real-Minecraft evaluations gave 59/60, 58/60 (obstacles) and 3/3, identical to the simulator (same outcomes and tick counts, no server corrections)."
+  },
+  {
+   "doc": "HANDOFF.md",
+   "lines": "28",
+   "quote": "Windows 11, clock in JST",
+   "correction": "Windows 11 Pro, clock in Israel time (Windows zone \"Israel Standard Time\", UTC+2 since DST ended on 25 Oct; UTC+3 before that). Git Bash's `date` shows this as \"JST\", meaning Jerusalem Standard Time, not Japan Standard Time."
+  },
+  {
+   "doc": "results/showcase.html",
+   "lines": "114",
+   "quote": "16,384 courses run at once on one GPU",
+   "correction": "16,384 games run at once on one GPU, on courses drawn from a training pool of 8,192 (about a million game ticks per second)."
+  },
+  {
+   "doc": "results/showcase.html",
+   "lines": "151",
+   "quote": "still 0 of 13",
+   "correction": "The stall penalty alone still made 0 of 13 (refusals fell from 95% to 89% of failed tries). We then added learning from the search's successful move sequences (behaviour cloning, stall penalty kept, run neo-bc). The agent now makes all 13 neo types, on about 55% of the 16 start angles on average, and its test success is 74% on level 6 and 47% on level 7."
+  },
+  {
+   "doc": "results/showcase.html",
+   "lines": "175",
+   "quote": "decoy pillars fool it.",
+   "correction": "It is weaker, and obstacles fool it: of its 23 failures on the real-game obstacle courses, 10 end standing on an obstacle (6 on a head-hitter beam, 4 on a decoy pillar), and most of the rest are ordinary missed jumps."
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "22",
+   "quote": "on 99,000 random test ticks",
+   "correction": "\"to 1e-14 blocks on 25,200 random test ticks (7,200 on the CPU and 18,000 on the GPU, tests/test_physics_parity.py; section 3)\". Lines 73-74 and README/design.md need the same fix. To keep 99,000, re-run 24,000 CPU + 75,000 GPU ticks on the patched physics and save the output."
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "319",
+   "quote": "then stayed flat for about 850 iterations",
+   "correction": "reached about 70% on level 6 and 30% on level 7 (held-out 10-jump courses), then stayed flat: level 6 for about 850 iterations, and level 7, which climbed from 21% to about 30% over the first 200 of those, for about 700"
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "354",
+   "quote": "After every landing the planner:",
+   "correction": "After each landing on a new platform the planner (a landing on the platform it already stands on, or on a cell that is not a platform such as an obstacle top, keeps the old plan):"
+  },
+  {
+   "doc": "docs/report_draft.md",
+   "lines": "451-452",
+   "quote": "the fall penalty speeds up learning",
+   "correction": "Reward terms interact with risk: the fall penalty does not speed up early learning (both arms reach 80% test success at 0.05 B ticks, and without it the agent is level or slightly ahead for the first ~250 iterations). Instead it keeps the policy improving after the no-fall arm levels off near 91%, which raises the final score (93.3 vs 90.9%) and the hardest-level score (72.0 vs 55.2%), and the curriculum reaches level 5 sooner. On very tight jumps (single neos), though, it teaches the agent to refuse."
+  },
+  {
+   "doc": "docs/design.md",
+   "lines": "122",
+   "quote": "success\nfell from about 80% to 15% within one iteration",
+   "correction": "success fell from about 75-80% to about 15% within two to three iterations (to 22-30% after the first)"
+  }
+ ]
+}

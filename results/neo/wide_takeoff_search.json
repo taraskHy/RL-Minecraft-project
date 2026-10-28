@@ -1,0 +1,203 @@
+{
+ "method": "parkour.neo_demos.search (discrete CEM, 16,384 samples, 40 iterations, seed 0) then verify, one neo after a takeoff of the given size; the landing is 1x1",
+ "runs": [
+  {
+   "takeoff": "1x1",
+   "gap": 1,
+   "dy": 0,
+   "wall_at": 1,
+   "side": 1,
+   "landing_lanes_from_open_end": 1,
+   "landings_found": 200,
+   "of_wanted": 200,
+   "seconds": 3.9
+  },
+  {
+   "takeoff": "1x1",
+   "gap": 1,
+   "dy": 0,
+   "wall_at": 1,
+   "side": -1,
+   "landing_lanes_from_open_end": 1,
+   "landings_found": 200,
+   "of_wanted": 200,
+   "seconds": 3.8
+  },
+  {
+   "takeoff": "1x1",
+   "gap": 2,
+   "dy": 0,
+   "wall_at": 1,
+   "side": 1,
+   "landing_lanes_from_open_end": 1,
+   "landings_found": 200,
+   "of_wanted": 200,
+   "seconds": 3.7
+  },
+  {
+   "takeoff": "1x1",
+   "gap": 2,
+   "dy": 0,
+   "wall_at": 1,
+   "side": -1,
+   "landing_lanes_from_open_end": 1,
+   "landings_found": 200,
+   "of_wanted": 200,
+   "seconds": 3.8
+  },
+  {
+   "takeoff": "1x1",
+   "gap": 2,
+   "dy": -1,
+   "wall_at": 2,
+   "side": 1,
+   "landing_lanes_from_open_end": 1,
+   "landings_found": 200,
+   "of_wanted": 200,
+   "seconds": 2.9
+  },
+  {
+   "takeoff": "1x1",
+   "gap": 2,
+   "dy": -1,
+   "wall_at": 2,
+   "side": -1,
+   "landing_lanes_from_open_end": 1,
+   "landings_found": 200,
+   "of_wanted": 200,
+   "seconds": 2.8
+  },
+  {
+   "takeoff": "2x2",
+   "gap": 1,
+   "dy": 0,
+   "wall_at": 1,
+   "side": 1,
+   "landing_lanes_from_open_end": 1,
+   "landings_found": 200,
+   "of_wanted": 200,
+   "seconds": 4.6
+  },
+  {
+   "takeoff": "2x2",
+   "gap": 1,
+   "dy": 0,
+   "wall_at": 1,
+   "side": -1,
+   "landing_lanes_from_open_end": 2,
+   "landings_found": 0,
+   "of_wanted": 200,
+   "seconds": 15.6
+  },
+  {
+   "takeoff": "2x2",
+   "gap": 2,
+   "dy": 0,
+   "wall_at": 1,
+   "side": 1,
+   "landing_lanes_from_open_end": 1,
+   "landings_found": 200,
+   "of_wanted": 200,
+   "seconds": 5.7
+  },
+  {
+   "takeoff": "2x2",
+   "gap": 2,
+   "dy": 0,
+   "wall_at": 1,
+   "side": -1,
+   "landing_lanes_from_open_end": 2,
+   "landings_found": 0,
+   "of_wanted": 200,
+   "seconds": 15.5
+  },
+  {
+   "takeoff": "2x2",
+   "gap": 2,
+   "dy": -1,
+   "wall_at": 2,
+   "side": 1,
+   "landing_lanes_from_open_end": 1,
+   "landings_found": 200,
+   "of_wanted": 200,
+   "seconds": 4.6
+  },
+  {
+   "takeoff": "2x2",
+   "gap": 2,
+   "dy": -1,
+   "wall_at": 2,
+   "side": -1,
+   "landing_lanes_from_open_end": 2,
+   "landings_found": 0,
+   "of_wanted": 200,
+   "seconds": 15.5
+  },
+  {
+   "takeoff": "3x3",
+   "gap": 1,
+   "dy": 0,
+   "wall_at": 1,
+   "side": 1,
+   "landing_lanes_from_open_end": 2,
+   "landings_found": 0,
+   "of_wanted": 200,
+   "seconds": 15.3
+  },
+  {
+   "takeoff": "3x3",
+   "gap": 1,
+   "dy": 0,
+   "wall_at": 1,
+   "side": -1,
+   "landing_lanes_from_open_end": 2,
+   "landings_found": 0,
+   "of_wanted": 200,
+   "seconds": 15.5
+  },
+  {
+   "takeoff": "3x3",
+   "gap": 2,
+   "dy": 0,
+   "wall_at": 1,
+   "side": 1,
+   "landing_lanes_from_open_end": 2,
+   "landings_found": 0,
+   "of_wanted": 200,
+   "seconds": 15.5
+  },
+  {
+   "takeoff": "3x3",
+   "gap": 2,
+   "dy": 0,
+   "wall_at": 1,
+   "side": -1,
+   "landing_lanes_from_open_end": 2,
+   "landings_found": 0,
+   "of_wanted": 200,
+   "seconds": 15.5
+  },
+  {
+   "takeoff": "3x3",
+   "gap": 2,
+   "dy": -1,
+   "wall_at": 2,
+   "side": 1,
+   "landing_lanes_from_open_end": 2,
+   "landings_found": 0,
+   "of_wanted": 200,
+   "seconds": 15.5
+  },
+  {
+   "takeoff": "3x3",
+   "gap": 2,
+   "dy": -1,
+   "wall_at": 2,
+   "side": -1,
+   "landing_lanes_from_open_end": 2,
+   "landings_found": 0,
+   "of_wanted": 200,
+   "seconds": 15.7
+  }
+ ]
+}

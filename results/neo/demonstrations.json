@@ -1,0 +1,9 @@
+{
+ "collected": 50706,
+ "layout_sides": 32,
+ "per_layout_side_max": 1600,
+ "per_layout_side_min": 1350,
+ "used_for_training": 12800,
+ "seconds": 1186.0,
+ "method": "    python -m parkour.neo_demos [--out runs/neo_demos.json] [--per-run 400] [--seeds 3]"
+}

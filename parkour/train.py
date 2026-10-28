@@ -81,7 +81,8 @@ class TrainConfig:
     # where a demonstration starts (takeoff, the jump, an easy platform). Slots are never refreshed.
     demos: str = ""
     bc_coef: float = 0.0
-    bc_decay: bool = True  # the behaviour-cloning weight falls linearly to 0 over the run
+    bc_decay: bool = False  # with --bc-decay the behaviour-cloning weight falls linearly to 0 over the run
+    # (the CLI makes every bool flag default to off, so all neo runs used a constant weight)
     bc_batch: int = 4096
     demo_courses: int = 0
     demo_level: int = 6

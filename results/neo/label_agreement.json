@@ -1,0 +1,57 @@
+{
+ "method": "Share of imitation pairs whose action part equals the collecting policy's own argmax at that observation (move, strafe, jump, sprint, turn), and the policy's imitation loss on the pairs.",
+ "rounds": {
+  "round 1, unsimplified (collapsed run)": {
+   "pairs": 210199,
+   "collecting_policy": "runs/neo-bc/checkpoints/latest.pt",
+   "agree_move_strafe_jump_sprint_turn": [
+    0.8181,
+    0.4158,
+    0.6196,
+    0.8239,
+    0.1949
+   ],
+   "agree_all_parts": 0.0369,
+   "imitation_loss": 22.028
+  },
+  "round 1, simplified (neo-dagger)": {
+   "pairs": 99361,
+   "collecting_policy": "runs/neo-bc/checkpoints/latest.pt",
+   "agree_move_strafe_jump_sprint_turn": [
+    0.9742,
+    0.9335,
+    0.9867,
+    0.9926,
+    0.8942
+   ],
+   "agree_all_parts": 0.8436,
+   "imitation_loss": 2.637
+  },
+  "round 2 (neo-dagger2)": {
+   "pairs": 74444,
+   "collecting_policy": "runs/neo-dagger/checkpoints/latest.pt",
+   "agree_move_strafe_jump_sprint_turn": [
+    0.948,
+    0.8798,
+    0.9786,
+    0.9888,
+    0.8161
+   ],
+   "agree_all_parts": 0.7146,
+   "imitation_loss": 2.402
+  },
+  "round 3 (neo-dagger3)": {
+   "pairs": 78945,
+   "collecting_policy": "runs/neo-dagger2/checkpoints/best.pt",
+   "agree_move_strafe_jump_sprint_turn": [
+    0.9504,
+    0.8902,
+    0.9798,
+    0.9903,
+    0.8336
+   ],
+   "agree_all_parts": 0.7342,
+   "imitation_loss": 1.878
+  }
+ }
+}

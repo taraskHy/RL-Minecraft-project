@@ -1,0 +1,5 @@
+{"courses": 1024, "arrivals": 1167, "seconds": 12}
+{"searched": 64, "with_landing": 58, "seconds": 23}
+{"searched": 704, "with_landing": 618, "seconds": 133}
+{"simplified_sequences": 4054, "seconds": 298}
+{"arrivals": 1167, "with_landing": 1023, "sequences": 4054, "pairs": 78945, "seconds": 299}
