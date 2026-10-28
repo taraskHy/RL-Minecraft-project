@@ -57,6 +57,10 @@ run.cmd report            refresh results/ and the handoff snapshot
 run.cmd handoff           refresh only the handoff snapshot
 ```
 
-Without the PC (a cloud container or sandbox) there is no GPU, torch,
-`runs/` or Minecraft server: documents, analysis of `results/` and
-`python -m parkour.handoff` work; training and game runs do not.
+Without the PC (a cloud container or sandbox) there is no GPU, `runs/` or
+Minecraft server. Documents, `python -m parkour.handoff` and analysis of
+`results/` always work; with PyTorch from PyPI and the bridge packages
+(HANDOFF.md section 6 has the commands) the test suite and CPU evaluations
+with the checkpoints in `results/` run too. Training and real-game runs need
+the PC. A real Minecraft server also needs the user's EULA acceptance on
+that machine: do not accept it for them.

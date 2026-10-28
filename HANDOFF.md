@@ -350,18 +350,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `fbc60eb` (2026-10-28 14:22, branch `claude/pensive-knuth-biwj11`): Handoff: how the PC session merges this branch
+Generated on top of commit `12c736a` (2026-10-28 14:26, branch `claude/pensive-knuth-biwj11`): One policy for everything: the neo policy is 2-3 points behind on levels 0-5
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 21 |
-| `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 14 |
-| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 26 |
-| `docs/report_draft.md` | updated together with this snapshot | 0 |
-| `results/README.md` | `6170803` 2026-10-28 11:40 | 23 |
-| `results/DATA.md` | updated together with this snapshot | 0 |
+| `AGENTS.md` | updated together with this snapshot | 0 |
+| `HANDOFF.md` | `12c736a` 2026-10-28 14:26 | 0 |
+| `TEAM_STATUS.md` | `12c736a` 2026-10-28 14:26 | 0 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 15 |
+| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 27 |
+| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 0 |
+| `results/README.md` | `6170803` 2026-10-28 11:40 | 24 |
+| `results/DATA.md` | `12c736a` 2026-10-28 14:26 | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
