@@ -1,6 +1,6 @@
 """The extra jump kinds on whole courses: the final policy zero-shot, alone and with the planner.
 
-    python scripts/extra_preview.py [--per-level 200] [--assist-per-level 40] [--family 1]
+    python scripts/extra_preview.py [--per-level 200] [--assist-per-level 40] [--family 2|1]
 
 Courses, one set per level of configs/jump_levels_extra.json (head hitter,
 hard head hitter, ice run-up, shaped blocks, slime bounce, ladder climb):
@@ -9,9 +9,10 @@ jumps are of that kind and half from levels 0-5 (courses.generate's mix),
 10 jumps, held-out seed family 1 (test) or 2 (validation), the first
 --per-level courses.
 The policy was never trained on these kinds. With the planner
-(parkour.neo_assist, jumps "advanced": every run-up jump is planned from the
-bot's exact state) on the first --assist-per-level courses of each level,
-with the setting given by --assist (chosen on the neo validation courses).
+(parkour.neo_assist) on the first --assist-per-level courses of each level,
+once per --assist setting (default: jumps "advanced", every run-up jump
+planned from the bot's exact state; and jumps "all", every jump planned).
+Settings are compared on family 2 and reported on family 1.
 Writes results/extra/course_preview_family{F}.json. Simulator only.
 """
 import argparse
@@ -41,7 +42,8 @@ def main():
     ap.add_argument("--per-level", type=int, default=200)
     ap.add_argument("--assist-per-level", type=int, default=40)
     ap.add_argument("--family", type=int, default=1)
-    ap.add_argument("--assist", default='{"jumps": "advanced"}', help="AssistConfig overrides (JSON)")
+    ap.add_argument("--assist", action="append", help="AssistConfig overrides (JSON), one run per flag "
+                                                     "(default: jumps advanced, then jumps all)")
     ap.add_argument("--threads", type=int, default=0)
     a = ap.parse_args()
     if a.threads:
@@ -50,11 +52,12 @@ def main():
     basic = C.load_levels()
     model = load_model(Path(a.checkpoint), dev)
     t0 = time.time()
-    cfg = AssistConfig(**json.loads(a.assist))
+    settings = a.assist or ['{"jumps": "advanced"}', '{"jumps": "all"}']
+    cfgs = {s: AssistConfig(**json.loads(s)) for s in settings}
     out = {"measured": f"simulator (float64 port of prismarine-physics), deterministic policy, {dev.upper()}",
            "checkpoint": Path(a.checkpoint).name, "family": a.family, "arguments": vars(a),
            "courses_per_level": a.per_level, "policy_alone": {}, "policy_alone_fell": {},
-           "assist_config": cfg.__dict__, "with_planner": {}}
+           "assist_configs": {s: c.__dict__ for s, c in cfgs.items()}, "with_planner": {s: {} for s in settings}}
     for L in EXTRA:
         name = L["name"]
         table = basic + [[C._spec_from(d) for d in L["specs"]]]
@@ -66,15 +69,17 @@ def main():
         sub = courses[:a.assist_per_level]
         if not sub:
             continue
-        res = evaluate_assisted(model, CoursePool(sub, dev, C.GRID), dev, cfg)
-        s = summarize(res)
-        alone = evaluate(model, CoursePool(sub, dev, C.GRID), dev, 200, deterministic=True)["success"]
-        out["with_planner"][name] = {"courses": len(sub), "completed": s["completed"],
-                                     "completed_policy_alone": round(alone * len(sub)), "searches": s.get("searches"),
-                                     "plans_played": s.get("plans_played"),
-                                     "plans_landed_as_planned": s.get("plans_landed_as_planned"),
-                                     "seconds_per_search": s.get("seconds_per_search"), "failed_at": s.get("failed_at")}
-        print(json.dumps({name: out["with_planner"][name], "alone": out["policy_alone"][name]}), flush=True)
+        with torch.no_grad():
+            alone = evaluate(model, CoursePool(sub, dev, C.GRID), dev, 200, deterministic=True)["success"]
+        for setting, cfg in cfgs.items():
+            s = summarize(evaluate_assisted(model, CoursePool(sub, dev, C.GRID), dev, cfg))
+            out["with_planner"][setting][name] = {
+                "courses": len(sub), "completed": s["completed"], "completed_policy_alone": round(alone * len(sub)),
+                "searches": s.get("searches"), "plans_played": s.get("plans_played"),
+                "plans_landed_as_planned": s.get("plans_landed_as_planned"),
+                "seconds_per_search": s.get("seconds_per_search"), "failed_at": s.get("failed_at")}
+            print(json.dumps({name: out["with_planner"][setting][name], "setting": setting,
+                              "alone": out["policy_alone"][name]}), flush=True)
     out["seconds"] = round(time.time() - t0, 1)
     path = ROOT / "results" / "extra" / f"course_preview_family{a.family}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
