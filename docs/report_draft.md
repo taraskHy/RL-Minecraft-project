@@ -293,9 +293,11 @@ then stayed flat for about 850 iterations.
 
 **Diagnosis: the agent refuses.** We evaluated every advanced jump type alone
 from 16 start angles (`python -m parkour.jumpeval --advanced`, which splits a
-missed jump into falling and stalling). Of the 13 neo types the policy never
-makes, on 11 it stands still until the 200-tick stall limit in every attempt;
-on the other two it stalls in 94% and 44% of attempts and falls in the rest.
+missed jump into falling and stalling). The policy makes none of the 13
+single-neo types. On 11 of them it stands still until the 200-tick stall
+limit in every attempt; on the other two it stalls in 94% and 44% of
+attempts and falls in the rest. (Its level-6 and level-7 course scores come
+from the non-neo jumps those levels also contain.)
 Under our reward this is rational. A stall
 truncates the episode and the value of the last state is bootstrapped, so
 standing still costs only the time penalty (0.01 per tick), while a jump that
@@ -307,8 +309,14 @@ always tries, and it makes some that none of 4,032 scripted strategies makes
 
 **Fix.** An optional stall penalty (`--reward-stall`): a stall now ends the
 episode as a failure with that penalty, so refusing is never better than
-trying. *Result of the fine-tune with `--reward-stall 5`
-(`runs/neo-stall`): to be added.*
+trying. Fine-tuned for 1,000 iterations with `--reward-stall 5` from the
+plateaued policy (`runs/neo-stall`), it still makes none of the 13 neo types;
+refusals fall from 95% to 89% of the failed attempts and falls rise from 5%
+to 11%. Course scores stay flat (level 6: 68.5%, level 7: 33%). The penalty
+removes the reason to refuse, but random exploration almost never finds the
+curved run a neo needs (in the search, 1 in 2,000 to 16,000 sampled action
+sequences landed one). Learning from the search's successful sequences
+(demonstrations) is the natural next step.
 
 ## 8. Discussion and limitations
 

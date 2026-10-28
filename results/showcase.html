@@ -146,9 +146,9 @@ a { color: var(--sky); }
       </ul>
       <div class="panel">
         <h2 style="font-size:20px">Why neo training stalled</h2>
-        <p>Trained on neo courses, the agent reached about 70% on level 6 and 30% on level 7, then stayed flat for 850 updates. On 11 of the 13 neo jumps it never made, it did not fall: it stood still until the 10-second stall limit, every time.</p>
+        <p>Trained on neo courses, the agent reached about 70% on level 6 and 30% on level 7, then stayed flat for 850 updates. It made none of the 13 neo jump types. On 11 of them it did not fall: it stood still until the 10-second stall limit, every time.</p>
         <p>Standing still cost less reward than a likely fall, so refusing was the best choice under our reward. We added a stall penalty, so a refusal now counts as a failure.</p>
-        <p id="neo-status"><span class="tag run">training</span> Fine-tune with the stall penalty in progress.</p>
+        <p id="neo-status"><span class="tag no">still 0 of 13</span> With the penalty, refusals fell from 95% to 89% of failed tries, but random exploration almost never finds the curved run a neo needs. Next: learn from the search's successful move sequences.</p>
       </div>
     </div>
   </section>
