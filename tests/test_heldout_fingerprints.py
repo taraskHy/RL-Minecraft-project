@@ -36,6 +36,16 @@ ASSIST_SETS = {  # (parkour.neo_assist --set, family) -> sha1 prefix
     ("official", VALIDATION_FAMILY): "3c74d2621dc577a8",
     ("random", 12): "27d7547e0119a378",
     ("random", 13): "1e5e4aef0e5b9034",
+    ("mixed", 14): "3bcdee9264a4d5b5",  # these two depend on configs/jump_levels_extra.json (computed on d5943ca)
+    ("mixed", 15): "607d03c215c1921c",
+}
+EXTRA_PREVIEW_SETS = {  # scripts/extra_preview.py: levels 0-5 plus one extra level, 200 courses, (level, family) -> sha1
+    ("head hitter", 1): "507e74e214ef759c", ("head hitter", 2): "f3030cea3b9a0c02",
+    ("hard head hitter", 1): "9babc823bff87d6b", ("hard head hitter", 2): "277046ee621634fd",
+    ("ice run-up", 1): "8b08ab848f7616b2", ("ice run-up", 2): "510e18d892fe37d6",
+    ("shaped blocks", 1): "1e757e579f6a838d", ("shaped blocks", 2): "0f71db0f924a2fe2",
+    ("slime bounce", 1): "1e48cedfd73fd1c4", ("slime bounce", 2): "887bd5beee576ccf",
+    ("ladder climb", 1): "d277b61e223a9a5c", ("ladder climb", 2): "2ed471dc5890a76d",
 }
 
 
@@ -58,6 +68,16 @@ class HeldOutFingerprints(unittest.TestCase):
         for (name, family), digest in ASSIST_SETS.items():
             with self.subTest(set=name, family=family):
                 self.assertEqual(fingerprint(course_set(name, family)), digest)
+
+    def test_extra_preview_sets_are_unchanged(self):
+        from parkour.paths import CONFIGS
+        basic = C.load_levels()
+        levels = {L["name"]: [C._spec_from(d) for d in L["specs"]]
+                  for L in json.loads((CONFIGS / "jump_levels_extra.json").read_text())["levels"]}
+        for (name, family), digest in EXTRA_PREVIEW_SETS.items():
+            with self.subTest(level=name, family=family):
+                cs = held_out_courses(basic + [levels[name]], 200, 10, family=family)[6 * 200:]
+                self.assertEqual(fingerprint(cs), digest)
 
 
 if __name__ == "__main__":
