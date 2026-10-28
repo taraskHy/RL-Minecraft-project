@@ -24,7 +24,9 @@ Test families are never used here; report the chosen checkpoint on them once
 ``--gaming`` adds the training flags of HANDOFF section 6 (75% of GPU memory,
 GPU busy 90% of the time, 8 CPU threads); run scripts/gpu_watchdog.py too.
 Scores go to runs/{name}_validation.jsonl, one line per checkpoint.
-``--smoke`` shrinks every step to seconds (a CPU check that the chain runs).
+``--smoke`` shrinks every step to seconds (a CPU check that the chain runs);
+its runs land in runs/ like real ones, so move them away before
+``parkour.report`` (which archives every run there into results/runs/).
 """
 import argparse
 import json
