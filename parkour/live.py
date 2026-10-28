@@ -224,6 +224,7 @@ def main(argv=None):
         summary["assist"] = {"config": dataclasses.asdict(assist_cfg), "requests": len(log),
                              "found": sum(bool(x.get("found")) for x in log), "verified": sum(bool(x.get("verified")) for x in log),
                              "played": sum(bool(x.get("played")) for x in log),
+                             "braked": sum(bool(x.get("braked")) for x in log),
                              "planner_seconds": round(sum(x.get("seconds") or 0 for x in log), 1)}
     (out / "summary.json").write_text(json.dumps(summary, indent=1))
     lines = [f"# {summary['mode']}", "", f"Checkpoint `{a.checkpoint}`, {len(rows)} courses "
