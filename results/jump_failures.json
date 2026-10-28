@@ -1,0 +1,1111 @@
+{
+ "method": "held-out test sets (families 1 and 4), 200 courses per level, deterministic policy, simulator; the failed jump is the one after the last platform reached",
+ "checkpoint": "results/final_policy.pt",
+ "standard": {
+  "courses": 1200,
+  "failed": 19,
+  "by_level": {
+   "1": 3,
+   "3": 1,
+   "4": 2,
+   "5": 13
+  },
+  "by_jump_index": {
+   "1": 2,
+   "2": 2,
+   "3": 1,
+   "4": 2,
+   "6": 6,
+   "7": 3,
+   "8": 3
+  },
+  "by_result": {
+   "fell": 19
+  },
+  "jump_types": [
+   {
+    "type": "g3_dy1_l-2_s1x1",
+    "failures": 3,
+    "attempts": 51,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g2_dy-2_l1_s2x2",
+    "failures": 1,
+    "attempts": 18,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g3_dy1_l2_s3x3",
+    "failures": 2,
+    "attempts": 37,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g3_dy1_l1_s3x3",
+    "failures": 2,
+    "attempts": 42,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g4_dy0_l0_s2x2",
+    "failures": 2,
+    "attempts": 42,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g4_dy0_l0_s3x3",
+    "failures": 1,
+    "attempts": 31,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g2_dy-3_l-2_s1x1",
+    "failures": 1,
+    "attempts": 32,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g2_dy-3_l-2_s2x2",
+    "failures": 1,
+    "attempts": 33,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g3_dy1_l1_s2x2",
+    "failures": 1,
+    "attempts": 37,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g2_dy-2_l0_s1x1",
+    "failures": 1,
+    "attempts": 38,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g4_dy-1_l2_s2x2",
+    "failures": 1,
+    "attempts": 45,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g4_dy0_l-1_s3x3",
+    "failures": 1,
+    "attempts": 46,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g4_dy0_l1_s1x1",
+    "failures": 1,
+    "attempts": 48,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g3_dy1_l1_s1x1",
+    "failures": 1,
+    "attempts": 52,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   }
+  ],
+  "failed_courses": [
+   {
+    "course": 267,
+    "level": 1,
+    "jump": 7,
+    "type": "g2_dy-2_l0_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 296,
+    "level": 1,
+    "jump": 6,
+    "type": "g2_dy-2_l1_s2x2",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 312,
+    "level": 1,
+    "jump": 2,
+    "type": "g2_dy-3_l-2_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 734,
+    "level": 3,
+    "jump": 1,
+    "type": "g2_dy-3_l-2_s2x2",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 865,
+    "level": 4,
+    "jump": 6,
+    "type": "g3_dy1_l1_s3x3",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 891,
+    "level": 4,
+    "jump": 6,
+    "type": "g3_dy1_l1_s3x3",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1004,
+    "level": 5,
+    "jump": 6,
+    "type": "g3_dy1_l-2_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1017,
+    "level": 5,
+    "jump": 7,
+    "type": "g3_dy1_l1_s2x2",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1038,
+    "level": 5,
+    "jump": 8,
+    "type": "g3_dy1_l1_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1053,
+    "level": 5,
+    "jump": 1,
+    "type": "g3_dy1_l-2_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1074,
+    "level": 5,
+    "jump": 7,
+    "type": "g4_dy0_l-1_s3x3",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1084,
+    "level": 5,
+    "jump": 8,
+    "type": "g4_dy0_l0_s2x2",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1090,
+    "level": 5,
+    "jump": 6,
+    "type": "g4_dy-1_l2_s2x2",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1123,
+    "level": 5,
+    "jump": 4,
+    "type": "g4_dy0_l0_s2x2",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1133,
+    "level": 5,
+    "jump": 2,
+    "type": "g3_dy1_l2_s3x3",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1174,
+    "level": 5,
+    "jump": 6,
+    "type": "g4_dy0_l0_s3x3",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1184,
+    "level": 5,
+    "jump": 8,
+    "type": "g3_dy1_l2_s3x3",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1185,
+    "level": 5,
+    "jump": 4,
+    "type": "g4_dy0_l1_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1189,
+    "level": 5,
+    "jump": 3,
+    "type": "g3_dy1_l-2_s1x1",
+    "result": "fell",
+    "beam": false
+   }
+  ]
+ },
+ "obstacles": {
+  "courses": 1200,
+  "failed": 57,
+  "by_level": {
+   "0": 1,
+   "1": 3,
+   "2": 5,
+   "3": 4,
+   "4": 6,
+   "5": 38
+  },
+  "by_jump_index": {
+   "0": 4,
+   "1": 9,
+   "2": 6,
+   "3": 4,
+   "4": 6,
+   "5": 7,
+   "6": 8,
+   "7": 6,
+   "8": 5,
+   "9": 2
+  },
+  "by_result": {
+   "fell": 53,
+   "stalled": 4
+  },
+  "jump_types": [
+   {
+    "type": "g5_dy-3_l-2_s1x1",
+    "failures": 8,
+    "attempts": 37,
+    "with_beam": {
+     "failures": 5,
+     "attempts": 10
+    }
+   },
+   {
+    "type": "g5_dy-3_l2_s2x2",
+    "failures": 2,
+    "attempts": 23,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g4_dy0_l1_s2x2",
+    "failures": 3,
+    "attempts": 37,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g5_dy-3_l-2_s3x3",
+    "failures": 2,
+    "attempts": 29,
+    "with_beam": {
+     "failures": 2,
+     "attempts": 7
+    }
+   },
+   {
+    "type": "g3_dy1_l-2_s1x1",
+    "failures": 3,
+    "attempts": 45,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g4_dy0_l-1_s1x1",
+    "failures": 3,
+    "attempts": 45,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 1
+    }
+   },
+   {
+    "type": "g3_dy-2_l-2_s2x2",
+    "failures": 1,
+    "attempts": 16,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g4_dy0_l0_s2x2",
+    "failures": 2,
+    "attempts": 36,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g4_dy-1_l2_s2x2",
+    "failures": 2,
+    "attempts": 38,
+    "with_beam": {
+     "failures": 2,
+     "attempts": 15
+    }
+   },
+   {
+    "type": "g5_dy-3_l1_s1x1",
+    "failures": 1,
+    "attempts": 19,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g3_dy1_l2_s1x1",
+    "failures": 2,
+    "attempts": 39,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g2_dy-2_l-1_s1x1",
+    "failures": 2,
+    "attempts": 42,
+    "with_beam": {
+     "failures": 1,
+     "attempts": 13
+    }
+   },
+   {
+    "type": "g5_dy-3_l2_s1x1",
+    "failures": 1,
+    "attempts": 23,
+    "with_beam": {
+     "failures": 1,
+     "attempts": 6
+    }
+   },
+   {
+    "type": "g3_dy1_l-1_s2x2",
+    "failures": 2,
+    "attempts": 47,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g2_dy-2_l2_s1x1",
+    "failures": 1,
+    "attempts": 24,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 7
+    }
+   },
+   {
+    "type": "g2_dy-2_l0_s1x1",
+    "failures": 1,
+    "attempts": 24,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 7
+    }
+   },
+   {
+    "type": "g3_dy1_l-1_s1x1",
+    "failures": 2,
+    "attempts": 49,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g3_dy-1_l-1_s3x3",
+    "failures": 1,
+    "attempts": 25,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 7
+    }
+   },
+   {
+    "type": "g5_dy-3_l2_s3x3",
+    "failures": 1,
+    "attempts": 26,
+    "with_beam": {
+     "failures": 1,
+     "attempts": 10
+    }
+   },
+   {
+    "type": "g4_dy0_l0_s1x1",
+    "failures": 2,
+    "attempts": 53,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g4_dy-1_l-2_s1x1",
+    "failures": 1,
+    "attempts": 27,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g4_dy-3_l0_s3x3",
+    "failures": 1,
+    "attempts": 29,
+    "with_beam": {
+     "failures": 1,
+     "attempts": 10
+    }
+   },
+   {
+    "type": "g3_dy-2_l0_s1x1",
+    "failures": 1,
+    "attempts": 31,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 10
+    }
+   },
+   {
+    "type": "g4_dy0_l1_s1x1",
+    "failures": 1,
+    "attempts": 31,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 1
+    }
+   },
+   {
+    "type": "g4_dy-2_l0_s1x1",
+    "failures": 1,
+    "attempts": 34,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g2_dy-2_l0_s3x3",
+    "failures": 1,
+    "attempts": 36,
+    "with_beam": {
+     "failures": 1,
+     "attempts": 9
+    }
+   },
+   {
+    "type": "g3_dy-1_l2_s2x2",
+    "failures": 1,
+    "attempts": 36,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 9
+    }
+   },
+   {
+    "type": "g1_dy1_l2_s1x1",
+    "failures": 1,
+    "attempts": 39,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 11
+    }
+   },
+   {
+    "type": "g3_dy-1_l-2_s1x1",
+    "failures": 1,
+    "attempts": 39,
+    "with_beam": {
+     "failures": 1,
+     "attempts": 12
+    }
+   },
+   {
+    "type": "g1_dy-2_l-2_s1x1",
+    "failures": 1,
+    "attempts": 40,
+    "with_beam": {
+     "failures": 1,
+     "attempts": 15
+    }
+   },
+   {
+    "type": "g2_dy-3_l2_s1x1",
+    "failures": 1,
+    "attempts": 43,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 12
+    }
+   },
+   {
+    "type": "g3_dy1_l0_s1x1",
+    "failures": 1,
+    "attempts": 46,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g3_dy1_l0_s2x2",
+    "failures": 1,
+    "attempts": 46,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 0
+    }
+   },
+   {
+    "type": "g2_dy0_l2_s1x1",
+    "failures": 1,
+    "attempts": 52,
+    "with_beam": {
+     "failures": 1,
+     "attempts": 13
+    }
+   },
+   {
+    "type": "g2_dy0_l0_s1x1",
+    "failures": 1,
+    "attempts": 56,
+    "with_beam": {
+     "failures": 0,
+     "attempts": 13
+    }
+   }
+  ],
+  "failed_courses": [
+   {
+    "course": 187,
+    "level": 0,
+    "jump": 1,
+    "type": "g2_dy-3_l2_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 284,
+    "level": 1,
+    "jump": 2,
+    "type": "g2_dy-2_l0_s3x3",
+    "result": "fell",
+    "beam": true
+   },
+   {
+    "course": 289,
+    "level": 1,
+    "jump": 1,
+    "type": "g2_dy-2_l2_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 375,
+    "level": 1,
+    "jump": 5,
+    "type": "g1_dy1_l2_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 433,
+    "level": 2,
+    "jump": 7,
+    "type": "g2_dy-2_l-1_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 434,
+    "level": 2,
+    "jump": 8,
+    "type": "g2_dy0_l0_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 501,
+    "level": 2,
+    "jump": 4,
+    "type": "g3_dy-2_l0_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 523,
+    "level": 2,
+    "jump": 0,
+    "type": "g2_dy0_l2_s1x1",
+    "result": "fell",
+    "beam": true
+   },
+   {
+    "course": 571,
+    "level": 2,
+    "jump": 3,
+    "type": "g3_dy-2_l-2_s2x2",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 622,
+    "level": 3,
+    "jump": 2,
+    "type": "g4_dy-3_l0_s3x3",
+    "result": "fell",
+    "beam": true
+   },
+   {
+    "course": 697,
+    "level": 3,
+    "jump": 1,
+    "type": "g3_dy-1_l2_s2x2",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 726,
+    "level": 3,
+    "jump": 6,
+    "type": "g3_dy-1_l-2_s1x1",
+    "result": "fell",
+    "beam": true
+   },
+   {
+    "course": 799,
+    "level": 3,
+    "jump": 4,
+    "type": "g4_dy-2_l0_s1x1",
+    "result": "stalled",
+    "beam": false
+   },
+   {
+    "course": 809,
+    "level": 4,
+    "jump": 3,
+    "type": "g5_dy-3_l1_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 842,
+    "level": 4,
+    "jump": 5,
+    "type": "g3_dy-1_l-1_s3x3",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 884,
+    "level": 4,
+    "jump": 5,
+    "type": "g2_dy-2_l0_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 912,
+    "level": 4,
+    "jump": 5,
+    "type": "g4_dy-1_l-2_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 920,
+    "level": 4,
+    "jump": 6,
+    "type": "g1_dy-2_l-2_s1x1",
+    "result": "fell",
+    "beam": true
+   },
+   {
+    "course": 967,
+    "level": 4,
+    "jump": 7,
+    "type": "g3_dy1_l0_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1000,
+    "level": 5,
+    "jump": 7,
+    "type": "g3_dy1_l-2_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1001,
+    "level": 5,
+    "jump": 0,
+    "type": "g5_dy-3_l-2_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1004,
+    "level": 5,
+    "jump": 1,
+    "type": "g5_dy-3_l-2_s1x1",
+    "result": "fell",
+    "beam": true
+   },
+   {
+    "course": 1007,
+    "level": 5,
+    "jump": 7,
+    "type": "g4_dy0_l0_s2x2",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1009,
+    "level": 5,
+    "jump": 3,
+    "type": "g4_dy0_l1_s2x2",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1011,
+    "level": 5,
+    "jump": 6,
+    "type": "g5_dy-3_l-2_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1013,
+    "level": 5,
+    "jump": 9,
+    "type": "g4_dy0_l0_s2x2",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1016,
+    "level": 5,
+    "jump": 1,
+    "type": "g4_dy0_l1_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1021,
+    "level": 5,
+    "jump": 6,
+    "type": "g5_dy-3_l-2_s3x3",
+    "result": "fell",
+    "beam": true
+   },
+   {
+    "course": 1040,
+    "level": 5,
+    "jump": 2,
+    "type": "g4_dy-1_l2_s2x2",
+    "result": "fell",
+    "beam": true
+   },
+   {
+    "course": 1041,
+    "level": 5,
+    "jump": 2,
+    "type": "g4_dy0_l0_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1046,
+    "level": 5,
+    "jump": 9,
+    "type": "g3_dy1_l2_s1x1",
+    "result": "stalled",
+    "beam": false
+   },
+   {
+    "course": 1054,
+    "level": 5,
+    "jump": 8,
+    "type": "g3_dy1_l0_s2x2",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1058,
+    "level": 5,
+    "jump": 6,
+    "type": "g5_dy-3_l-2_s1x1",
+    "result": "fell",
+    "beam": true
+   },
+   {
+    "course": 1065,
+    "level": 5,
+    "jump": 4,
+    "type": "g3_dy1_l-1_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1069,
+    "level": 5,
+    "jump": 8,
+    "type": "g4_dy0_l1_s2x2",
+    "result": "stalled",
+    "beam": false
+   },
+   {
+    "course": 1077,
+    "level": 5,
+    "jump": 5,
+    "type": "g4_dy0_l1_s2x2",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1078,
+    "level": 5,
+    "jump": 2,
+    "type": "g4_dy0_l0_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1079,
+    "level": 5,
+    "jump": 7,
+    "type": "g3_dy1_l-1_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1102,
+    "level": 5,
+    "jump": 1,
+    "type": "g5_dy-3_l-2_s1x1",
+    "result": "fell",
+    "beam": true
+   },
+   {
+    "course": 1103,
+    "level": 5,
+    "jump": 3,
+    "type": "g5_dy-3_l-2_s1x1",
+    "result": "fell",
+    "beam": true
+   },
+   {
+    "course": 1111,
+    "level": 5,
+    "jump": 5,
+    "type": "g5_dy-3_l2_s1x1",
+    "result": "fell",
+    "beam": true
+   },
+   {
+    "course": 1115,
+    "level": 5,
+    "jump": 4,
+    "type": "g2_dy-2_l-1_s1x1",
+    "result": "fell",
+    "beam": true
+   },
+   {
+    "course": 1121,
+    "level": 5,
+    "jump": 0,
+    "type": "g5_dy-3_l-2_s1x1",
+    "result": "fell",
+    "beam": true
+   },
+   {
+    "course": 1122,
+    "level": 5,
+    "jump": 8,
+    "type": "g5_dy-3_l2_s3x3",
+    "result": "stalled",
+    "beam": true
+   },
+   {
+    "course": 1134,
+    "level": 5,
+    "jump": 0,
+    "type": "g5_dy-3_l2_s2x2",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1135,
+    "level": 5,
+    "jump": 4,
+    "type": "g3_dy1_l-1_s2x2",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1141,
+    "level": 5,
+    "jump": 8,
+    "type": "g5_dy-3_l-2_s3x3",
+    "result": "fell",
+    "beam": true
+   },
+   {
+    "course": 1147,
+    "level": 5,
+    "jump": 7,
+    "type": "g5_dy-3_l2_s2x2",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1153,
+    "level": 5,
+    "jump": 6,
+    "type": "g3_dy1_l-2_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1159,
+    "level": 5,
+    "jump": 4,
+    "type": "g5_dy-3_l-2_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1177,
+    "level": 5,
+    "jump": 2,
+    "type": "g4_dy-1_l2_s2x2",
+    "result": "fell",
+    "beam": true
+   },
+   {
+    "course": 1178,
+    "level": 5,
+    "jump": 1,
+    "type": "g3_dy1_l2_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1179,
+    "level": 5,
+    "jump": 1,
+    "type": "g4_dy0_l-1_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1182,
+    "level": 5,
+    "jump": 5,
+    "type": "g4_dy0_l-1_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1187,
+    "level": 5,
+    "jump": 6,
+    "type": "g3_dy1_l-1_s2x2",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1193,
+    "level": 5,
+    "jump": 1,
+    "type": "g4_dy0_l-1_s1x1",
+    "result": "fell",
+    "beam": false
+   },
+   {
+    "course": 1197,
+    "level": 5,
+    "jump": 6,
+    "type": "g3_dy1_l-2_s1x1",
+    "result": "fell",
+    "beam": false
+   }
+  ]
+ }
+}

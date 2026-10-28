@@ -132,7 +132,19 @@ Concrete work, most important first. Nothing here needs new research.
    60 + 60 offline and real-Minecraft courses, the stress tests). Whether
    one policy can do both is open.
 3. **Hardest level:** level 5 is 93.5% standard and 81.0% with obstacles;
-   most remaining failures of the final policy are there.
+   most remaining failures of the final policy are there. Where exactly
+   (`scripts/jump_failures.py` -> `results/jump_failures.json`, simulator,
+   test sets): the 19 standard failures are all falls, 13 at level 5,
+   spread over many jump types (none fails more than 3 times), and 12 of
+   them at the 7th to 9th jump of a course. Of the 57 obstacle failures,
+   17 are on a jump under a head-hitter beam (12 of the 38 at level 5).
+   Worst case: a 5-block gap down 3 with a 2-block sideways offset onto
+   one block fails in 5 of its 10 attempts under a beam, 3 of 27 without.
+   The beam rule (`configs/jump_beam.json`) only asks a jump to keep its
+   level, and level 5 has no lower bound, so a beam can make a level-5
+   jump several times less forgiving (this one: 1.2% to 0.27% of scripted
+   strategies). Do not change the generator (the test sets are fixed); a
+   training-side fix (more such beams in training) is the natural try.
 4. **Planner shortcuts:** most planner failures take a shortcut to a later
    platform that is in reach, and that jump is harder
    (`results/planner/`, report 7.11). With the final policy 98 of the 109
@@ -292,6 +304,8 @@ needs the PC's GPU.
   and the `planner-*`, `v2-planner-*`, `v2-tuned-planner-*` games.
 - Report in the submission format: `results/report_draft.docx` / `.pdf`,
   written by `scripts/report_docx.py --pdf` from `docs/report_draft.md`.
+- Failure analysis of the final policy by jump type: `results/jump_failures.json`
+  (`scripts/jump_failures.py`).
 - Claim audit: `results/audit_claims.json` (829 claims checked against the
   run files on 28 Oct).
 - Sweeps: `scripts/sweep.py configs/<sweep>.json --slots N` (skips finished
@@ -308,18 +322,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `a9cafce` (2026-10-28 14:04, branch `claude/pensive-knuth-biwj11`): Handoff tidy-up; record the last planner variants tried on validation
+Generated on top of commit `568763d` (2026-10-28 14:05, branch `claude/pensive-knuth-biwj11`): Report introduction: the neo and route-planner contributions (still 20 pages)
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 14 |
+| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 16 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `b05becd` 2026-10-28 13:52 | 1 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 7 |
-| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 19 |
-| `docs/report_draft.md` | `b05becd` 2026-10-28 13:52 | 1 |
-| `results/README.md` | `6170803` 2026-10-28 11:40 | 16 |
-| `results/DATA.md` | `b05becd` 2026-10-28 13:52 | 1 |
+| `TEAM_STATUS.md` | `b05becd` 2026-10-28 13:52 | 3 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 9 |
+| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 21 |
+| `docs/report_draft.md` | `568763d` 2026-10-28 14:05 | 0 |
+| `results/README.md` | `6170803` 2026-10-28 11:40 | 18 |
+| `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -493,7 +507,12 @@ Newest first. One entry per session; earlier history is in the
   (`cost=distance, align=2.0`) chosen on validation, 92.3% / 90.5% on the
   test sets (from 90.9 / 88.1), offline bot 51/60, 56/60; critic-chosen
   routes and a drop penalty did not help. Report 7.11 updated (still 20
-  pages). Next: section 3, item 1 (confirm in real Minecraft on the PC). Decision: CPU torch
+  pages), introduction lists the neo and planner contributions. Failure
+  analysis by jump type (section 4, item 3) and of the neo policy's weak
+  neo types (section 4, item 1). Decision: no Minecraft server in the cloud
+  container (it needs the user's EULA acceptance for that machine), so all
+  real-game checks stay on the PC. Next: section 3, item 1 (confirm the
+  retuned planner in real Minecraft on the PC). Decision: CPU torch
   cannot be installed here (`download.pytorch.org` is blocked by this
   environment's network), so no new numbers are computed in this session;
   everything comes from files already in `results/` (superseded: PyPI's
