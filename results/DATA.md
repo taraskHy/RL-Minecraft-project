@@ -119,4 +119,6 @@ Open them in a browser; they need no server.
 ## Tables
 
 `results/README.md` (generated) has every number with its source run;
-`docs/report_draft.md` has the report text.
+`docs/report_draft.md` has the report text. `results/report_draft.docx` and
+`results/report_draft.pdf` are that text in the submission format (Arial 12,
+1.5 spacing, one-inch margins), written by `scripts/report_docx.py --pdf`.
