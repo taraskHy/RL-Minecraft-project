@@ -1,0 +1,38 @@
+{
+ "method": "parkour.parity.compare with shapes: random_case(np.random.default_rng(13), ticks=200, shapes=0.5) x 300, the simulator with World(shape=...) against prismarine-physics 1.11.1 through Node with the real block states (configs/block_shapes.json, prismarine-block, Minecraft 1.21.4), same 1e-7 collision tolerance, CPU",
+ "shapes": [
+  "bottom_slab",
+  "top_slab",
+  "soul_sand",
+  "dirt_path",
+  "enchanting_table",
+  "daylight_detector",
+  "bottom_trapdoor",
+  "top_trapdoor",
+  "carpet",
+  "fence_post",
+  "wall_post",
+  "iron_bars",
+  "end_rod",
+  "stairs_north",
+  "stairs_east",
+  "stairs_south",
+  "stairs_west"
+ ],
+ "shaped_cells_per_case": 16.2,
+ "result": {
+  "cases": 300,
+  "ticks": 60000,
+  "max_pos_err": 1.4210854715202004e-14,
+  "max_vel_err": 8.326672684688674e-17,
+  "flag_mismatch_ticks": 0,
+  "exact_pos_ticks": 58520,
+  "diverged_cases": 0
+ },
+ "effect_of_shapes": {
+  "cases_changed": 72,
+  "cases": 300,
+  "largest_position_change_blocks": 7.024
+ },
+ "full_cube_shape_grid_identical": true
+}

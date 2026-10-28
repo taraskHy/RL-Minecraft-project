@@ -1,0 +1,387 @@
+{
+ "source": "bridge/export_shapes.js: prismarine-block, Minecraft 1.21.4 (minecraft-data 3.117.0)",
+ "shapes": [
+  {
+   "name": "full",
+   "block": "stone",
+   "properties": {},
+   "state": 1,
+   "boxes": [
+    [
+     0,
+     0,
+     0,
+     1,
+     1,
+     1
+    ]
+   ]
+  },
+  {
+   "name": "bottom_slab",
+   "block": "stone_slab",
+   "properties": {
+    "type": "bottom",
+    "waterlogged": false
+   },
+   "state": 12110,
+   "boxes": [
+    [
+     0,
+     0,
+     0,
+     1,
+     0.5,
+     1
+    ]
+   ]
+  },
+  {
+   "name": "top_slab",
+   "block": "stone_slab",
+   "properties": {
+    "type": "top",
+    "waterlogged": false
+   },
+   "state": 12108,
+   "boxes": [
+    [
+     0,
+     0.5,
+     0,
+     1,
+     1,
+     1
+    ]
+   ]
+  },
+  {
+   "name": "soul_sand",
+   "block": "soul_sand",
+   "properties": {},
+   "state": 6019,
+   "boxes": [
+    [
+     0,
+     0,
+     0,
+     1,
+     0.875,
+     1
+    ]
+   ]
+  },
+  {
+   "name": "dirt_path",
+   "block": "dirt_path",
+   "properties": {},
+   "state": 13526,
+   "boxes": [
+    [
+     0,
+     0,
+     0,
+     1,
+     0.9375,
+     1
+    ]
+   ]
+  },
+  {
+   "name": "enchanting_table",
+   "block": "enchanting_table",
+   "properties": {},
+   "state": 8163,
+   "boxes": [
+    [
+     0,
+     0,
+     0,
+     1,
+     0.75,
+     1
+    ]
+   ]
+  },
+  {
+   "name": "daylight_detector",
+   "block": "daylight_detector",
+   "properties": {
+    "inverted": false,
+    "power": 0
+   },
+   "state": 10006,
+   "boxes": [
+    [
+     0,
+     0,
+     0,
+     1,
+     0.375,
+     1
+    ]
+   ]
+  },
+  {
+   "name": "bottom_trapdoor",
+   "block": "oak_trapdoor",
+   "properties": {
+    "facing": "north",
+    "half": "bottom",
+    "open": false,
+    "powered": false,
+    "waterlogged": false
+   },
+   "state": 6145,
+   "boxes": [
+    [
+     0,
+     0,
+     0,
+     1,
+     0.1875,
+     1
+    ]
+   ]
+  },
+  {
+   "name": "top_trapdoor",
+   "block": "oak_trapdoor",
+   "properties": {
+    "facing": "north",
+    "half": "top",
+    "open": false,
+    "powered": false,
+    "waterlogged": false
+   },
+   "state": 6137,
+   "boxes": [
+    [
+     0,
+     0.8125,
+     0,
+     1,
+     1,
+     1
+    ]
+   ]
+  },
+  {
+   "name": "carpet",
+   "block": "white_carpet",
+   "properties": {},
+   "state": 11607,
+   "boxes": [
+    [
+     0,
+     0,
+     0,
+     1,
+     0.0625,
+     1
+    ]
+   ]
+  },
+  {
+   "name": "fence_post",
+   "block": "oak_fence",
+   "properties": {
+    "north": false,
+    "east": false,
+    "south": false,
+    "west": false,
+    "waterlogged": false
+   },
+   "state": 6017,
+   "boxes": [
+    [
+     0.375,
+     0,
+     0.375,
+     0.625,
+     1.5,
+     0.625
+    ]
+   ]
+  },
+  {
+   "name": "wall_post",
+   "block": "cobblestone_wall",
+   "properties": {
+    "up": true,
+    "north": "none",
+    "east": "none",
+    "south": "none",
+    "west": "none",
+    "waterlogged": false
+   },
+   "state": 8696,
+   "boxes": [
+    [
+     0.25,
+     0,
+     0.25,
+     0.75,
+     1.5,
+     0.75
+    ]
+   ]
+  },
+  {
+   "name": "iron_bars",
+   "block": "iron_bars",
+   "properties": {
+    "north": false,
+    "east": false,
+    "south": false,
+    "west": false,
+    "waterlogged": false
+   },
+   "state": 7005,
+   "boxes": [
+    [
+     0.4375,
+     0,
+     0.4375,
+     0.5625,
+     1,
+     0.5625
+    ]
+   ]
+  },
+  {
+   "name": "end_rod",
+   "block": "end_rod",
+   "properties": {
+    "facing": "up"
+   },
+   "state": 13351,
+   "boxes": [
+    [
+     0.375,
+     0,
+     0.375,
+     0.625,
+     1,
+     0.625
+    ]
+   ]
+  },
+  {
+   "name": "stairs_north",
+   "block": "stone_stairs",
+   "properties": {
+    "facing": "north",
+    "half": "bottom",
+    "shape": "straight",
+    "waterlogged": false
+   },
+   "state": 14466,
+   "boxes": [
+    [
+     0,
+     0,
+     0,
+     1,
+     0.5,
+     1
+    ],
+    [
+     0,
+     0.5,
+     0,
+     1,
+     1,
+     0.5
+    ]
+   ]
+  },
+  {
+   "name": "stairs_east",
+   "block": "stone_stairs",
+   "properties": {
+    "facing": "east",
+    "half": "bottom",
+    "shape": "straight",
+    "waterlogged": false
+   },
+   "state": 14526,
+   "boxes": [
+    [
+     0,
+     0,
+     0,
+     1,
+     0.5,
+     1
+    ],
+    [
+     0.5,
+     0.5,
+     0,
+     1,
+     1,
+     1
+    ]
+   ]
+  },
+  {
+   "name": "stairs_south",
+   "block": "stone_stairs",
+   "properties": {
+    "facing": "south",
+    "half": "bottom",
+    "shape": "straight",
+    "waterlogged": false
+   },
+   "state": 14486,
+   "boxes": [
+    [
+     0,
+     0,
+     0,
+     1,
+     0.5,
+     1
+    ],
+    [
+     0,
+     0.5,
+     0.5,
+     1,
+     1,
+     1
+    ]
+   ]
+  },
+  {
+   "name": "stairs_west",
+   "block": "stone_stairs",
+   "properties": {
+    "facing": "west",
+    "half": "bottom",
+    "shape": "straight",
+    "waterlogged": false
+   },
+   "state": 14506,
+   "boxes": [
+    [
+     0,
+     0,
+     0,
+     1,
+     0.5,
+     1
+    ],
+    [
+     0,
+     0.5,
+     0,
+     0.5,
+     1,
+     1
+    ]
+   ]
+  }
+ ]
+}

@@ -4,8 +4,12 @@ prismarine-physics is the movement engine that Mineflayer runs on the client
 side. A Mineflayer bot moves exactly as that engine computes and the server
 accepts the result, so a faithful port of it is a faithful simulator of the
 bot in real Minecraft. This port covers what parkour courses use: air and full
-solid cubes with default slipperiness. Water, lava, ladders, slabs, ice, soul
-sand, cobwebs, sneaking, effects and elytra are not ported.
+solid cubes with default slipperiness, and two opt-in extensions that change
+nothing unless passed: per-cell slipperiness (ice) and per-cell collision
+shapes (slabs, stairs, soul sand, carpets, trapdoors, fence and wall posts,
+..., ``World(shape=...)`` with the boxes of configs/block_shapes.json). Water,
+lava, ladders, slime, honey, cobwebs, sneaking, effects and elytra are not
+ported.
 
 Every expression keeps the operand order of the JavaScript source, in float64,
 so trajectories match the original to rounding error (see
@@ -23,10 +27,14 @@ counter-clockwise seen from above (pi/2 faces west, -X). The forward vector is
 """
 from __future__ import annotations
 
+import json
 import math
 from dataclasses import dataclass
+from functools import lru_cache
 
 import torch
+
+from .paths import CONFIGS
 
 # Constants as prismarine-physics evaluates them (JavaScript doubles).
 GRAVITY = 0.08
@@ -60,6 +68,26 @@ FORWARD, BACK, LEFT, RIGHT, JUMP, SPRINT = range(6)
 N_CONTROLS = 6
 
 
+@lru_cache(maxsize=None)
+def shape_table() -> tuple:
+    """(names, boxes (S, K, 6) float64, counts (S,)) of configs/block_shapes.json; shape id = index, 0 = full cube.
+
+    The boxes are prismarine-block's for Minecraft 1.21.4 (bridge/export_shapes.js writes the file
+    and checks it); K is the most boxes any shape has, shorter lists are padded."""
+    data = json.loads((CONFIGS / "block_shapes.json").read_text())["shapes"]
+    k = max(len(d["boxes"]) for d in data)
+    boxes = torch.zeros(len(data), k, 6, dtype=torch.float64)
+    for i, d in enumerate(data):
+        if d["boxes"]:
+            boxes[i, :len(d["boxes"])] = torch.tensor(d["boxes"], dtype=torch.float64)
+    counts = torch.tensor([len(d["boxes"]) for d in data], dtype=torch.int64)
+    return tuple(d["name"] for d in data), boxes, counts
+
+
+def shape_id(name: str) -> int:
+    return shape_table()[0].index(name)
+
+
 class World:
     """Solid-cube occupancy for a pool of courses on one device.
 
@@ -71,9 +99,13 @@ class World:
     under the player's feet for ground friction as prismarine-physics does
     (ice 0.98). Without it every block has the default 0.6 and the simulation
     is exactly the one all results so far were measured with.
+
+    ``shape`` (optional, same shape, uint8) is each solid cell's collision
+    shape id (``shape_table``; 0, the full cube, everywhere else). Without it
+    every solid cell is a full cube, through the original code path.
     """
 
-    def __init__(self, solid: torch.Tensor, slip: torch.Tensor | None = None):
+    def __init__(self, solid: torch.Tensor, slip: torch.Tensor | None = None, shape: torch.Tensor | None = None):
         if solid.dim() != 4:
             raise ValueError("solid must have shape (P, GX, GY, GZ)")
         self.solid = solid.to(torch.bool).contiguous()
@@ -83,6 +115,14 @@ class World:
         if slip is not None and tuple(slip.shape) != tuple(solid.shape):
             raise ValueError("slip must have the shape of solid")
         self.slip = None if slip is None else slip.to(torch.float64).contiguous().view(-1)
+        self.shape_ids = None
+        if shape is not None:
+            if tuple(shape.shape) != tuple(solid.shape):
+                raise ValueError("shape must have the shape of solid")
+            _, boxes, counts = shape_table()
+            self.shape_ids = shape.to(torch.uint8).contiguous().view(-1)
+            self.boxes = boxes.to(self.device)
+            self.box_counts = counts.to(self.device)
 
     def lookup(self, course, ix, iy, iz):
         """Solid flags for integer cells; arguments broadcast together."""
@@ -90,6 +130,24 @@ class World:
         inside = (ix >= 0) & (ix < gx) & (iy >= 0) & (iy < gy) & (iz >= 0) & (iz < gz)
         index = ((course * gx + ix.clamp(0, gx - 1)) * gy + iy.clamp(0, gy - 1)) * gz + iz.clamp(0, gz - 1)
         return self.flat[index] & inside
+
+    def shapes(self, course, ix, iy, iz):
+        """Shape ids (int64) of integer cells, 0 outside the grid; needs ``shape``."""
+        gx, gy, gz = self.shape
+        index = ((course * gx + ix.clamp(0, gx - 1)) * gy + iy.clamp(0, gy - 1)) * gz + iz.clamp(0, gz - 1)
+        return self.shape_ids[index].to(torch.int64)
+
+    def cell_boxes(self, course, ix, iy, iz, solid):
+        """Absolute collision boxes of the cells (lo (..., K, 3), hi (..., K, 3), mask (..., K)).
+
+        Box = cell + shape box, added in the order prismarine's AABB.offset adds them
+        (exact here: every coordinate is a multiple of 1/64)."""
+        ids = self.shapes(course, ix, iy, iz)
+        b = self.boxes[ids]  # (..., K, 6)
+        k = torch.arange(self.boxes.shape[1], device=b.device)
+        mask = solid[..., None] & (k < self.box_counts[ids][..., None])
+        cell = torch.stack(torch.broadcast_tensors(ix, iy, iz), -1).to(torch.float64)[..., None, :]
+        return b[..., :3] + cell, b[..., 3:] + cell, mask
 
     def slipperiness(self, course, ix, iy, iz):
         """Slipperiness of integer cells (the default outside the grid); needs ``slip``."""
@@ -177,9 +235,16 @@ class _Cells:
         self.cx = ix.to(torch.float64)
         self.cy = iy.to(torch.float64)
         self.cz = iz.to(torch.float64)
+        self.shaped = world.shape_ids is not None
+        if self.shaped:
+            # Every box of every cell in the window: (N, wx, wy, wz, K).
+            self.lo, self.hi, self.bmask = world.cell_boxes(
+                course.view(-1, 1, 1, 1), ix[:, :, None, None], iy[:, None, :, None], iz[:, None, None, :], self.solid)
 
     def offset(self, bb: torch.Tensor, d: torch.Tensor, axis: int) -> torch.Tensor:
         """Sequential AABB.computeOffset{X,Y,Z} over all cells, as a reduction, with vanilla's tolerance."""
+        if self.shaped:
+            return self._offset_boxes(bb, d, axis)
         eps = COLLISION_EPSILON
         coords = (self.cx, self.cy, self.cz)
         overlaps = []
@@ -202,6 +267,23 @@ class _Cells:
         up = torch.where(line & (hi <= c + eps), (c - hi).clamp(min=0.0), inf).amin(dim=1)
         down = torch.where(line & (lo >= c + 1 - eps), ((c + 1) - lo).clamp(max=0.0), -inf).amax(dim=1)
         # A block that limits the move to under the tolerance stops it entirely.
+        up = torch.where(up < eps, torch.zeros_like(up), up)
+        down = torch.where(down > -eps, torch.zeros_like(down), down)
+        return torch.where(d > 0, torch.where(up < d, up, d), torch.where(d < 0, torch.where(down > d, down, d), d))
+
+    def _offset_boxes(self, bb: torch.Tensor, d: torch.Tensor, axis: int) -> torch.Tensor:
+        """``offset`` with every box of every cell (``World(shape=...)``); for full cubes the same numbers."""
+        eps = COLLISION_EPSILON
+        col = (lambda v: v.view(-1, 1, 1, 1, 1))  # noqa: E731
+        mask = self.bmask
+        for other in range(3):
+            if other != axis:
+                mask = mask & (col(bb[:, other + 3]) > self.lo[..., other] + eps) & (col(bb[:, other]) < self.hi[..., other] - eps)
+        lo_a, hi_a = self.lo[..., axis], self.hi[..., axis]
+        bmin, bmax = col(bb[:, axis]), col(bb[:, axis + 3])
+        inf = torch.full_like(lo_a, math.inf)
+        up = torch.where(mask & (bmax <= lo_a + eps), (lo_a - bmax).clamp(min=0.0), inf).flatten(1).amin(dim=1)
+        down = torch.where(mask & (bmin >= hi_a - eps), (hi_a - bmin).clamp(max=0.0), -inf).flatten(1).amax(dim=1)
         up = torch.where(up < eps, torch.zeros_like(up), up)
         down = torch.where(down > -eps, torch.zeros_like(down), down)
         return torch.where(d > 0, torch.where(up < d, up, d), torch.where(d < 0, torch.where(down > d, down, d), d))
@@ -355,6 +437,8 @@ def inside_solid(world: World, course: torch.Tensor, pos: torch.Tensor, eps: flo
     """
     w = HALF_WIDTH
     x, y, z = pos.unbind(-1)
+    if world.shape_ids is not None:
+        return _inside_boxes(world, course, pos, eps)
     bx = torch.floor(x - w).to(torch.int64)[:, None] + torch.arange(2, device=pos.device)
     by = torch.floor(y).to(torch.int64)[:, None] + torch.arange(3, device=pos.device)
     bz = torch.floor(z - w).to(torch.int64)[:, None] + torch.arange(2, device=pos.device)
@@ -364,4 +448,21 @@ def inside_solid(world: World, course: torch.Tensor, pos: torch.Tensor, eps: flo
     oy = ((y[:, None] + PLAYER_HEIGHT) > fy + eps) & (y[:, None] < fy + 1 - eps)
     oz = ((z[:, None] + w) > fz + eps) & ((z[:, None] - w) < fz + 1 - eps)
     hit = solid & ox[:, :, None, None] & oy[:, None, :, None] & oz[:, None, None, :]
+    return hit.flatten(1).any(dim=1)
+
+
+def _inside_boxes(world: World, course: torch.Tensor, pos: torch.Tensor, eps: float) -> torch.Tensor:
+    """``inside_solid`` with collision shapes (the row below too: posts are 1.5 blocks tall)."""
+    w = HALF_WIDTH
+    x, y, z = pos.unbind(-1)
+    dev = pos.device
+    bx = (torch.floor(x - w).to(torch.int64)[:, None] + torch.arange(2, device=dev))[:, :, None, None]
+    by = (torch.floor(y).to(torch.int64)[:, None] - 1 + torch.arange(4, device=dev))[:, None, :, None]
+    bz = (torch.floor(z - w).to(torch.int64)[:, None] + torch.arange(2, device=dev))[:, None, None, :]
+    c = course.view(-1, 1, 1, 1)
+    lo, hi, mask = world.cell_boxes(c, bx, by, bz, world.lookup(c, bx, by, bz))
+    col = (lambda v: v.view(-1, 1, 1, 1, 1))  # noqa: E731
+    hit = (mask & (col(x + w) > lo[..., 0] + eps) & (col(x - w) < hi[..., 0] - eps)
+           & (col(y + PLAYER_HEIGHT) > lo[..., 1] + eps) & (col(y) < hi[..., 1] - eps)
+           & (col(z + w) > lo[..., 2] + eps) & (col(z - w) < hi[..., 2] - eps))
     return hit.flatten(1).any(dim=1)
