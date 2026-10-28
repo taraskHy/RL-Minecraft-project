@@ -26,7 +26,7 @@ import torch
 
 from . import courses as C
 from . import physics
-from .env import CoursePool, EnvConfig, LevelSampler, ParkourEnv, RewardConfig
+from .env import OBS_DIM, OBS_DIM_EXT, CoursePool, EnvConfig, LevelSampler, ParkourEnv, RewardConfig
 from .model import ActorCritic, RunningNorm
 from .paths import RUNS
 
@@ -75,6 +75,7 @@ class TrainConfig:
     reward: RewardConfig = field(default_factory=RewardConfig)
     init_from: str = ""
     hide: str = ""  # comma-separated observation parts the policy must not see, e.g. "platforms"
+    extended_obs: bool = False  # far scan and landing memory (env.OBS_LAYOUT_EXT)
     obstacle_prob: float = 0.0  # chance per jump of a head-hitter beam or a decoy pillar
     advanced: bool = False  # add levels 6-8: neos, double neos, momentum and wide jumps
     save_at: str = ""  # comma-separated update counts at which to keep a snapshot (0 = untrained)
@@ -130,13 +131,15 @@ def evaluate(model: ActorCritic, pool: CoursePool, device, stall_ticks: int, det
     the live bot stands on the start block after its teleport.
     """
     n = pool.size
-    env = ParkourEnv(pool, EnvConfig(num_envs=n, stall_ticks=stall_ticks, max_ticks=max_ticks, fall_rule=fall_rule), sampler=None)
+    env = ParkourEnv(pool, EnvConfig(num_envs=n, stall_ticks=stall_ticks, max_ticks=max_ticks, fall_rule=fall_rule,
+                                     extended_obs=model.obs_dim == OBS_DIM_EXT), sampler=None)
     obs = env.reset_all(torch.arange(n, device=device))
     if settle:
         idle = torch.zeros(n, 6, dtype=torch.bool, device=device)
         for _ in range(settle):
             env.state = physics.simulate(pool.world, env.course, env.state, idle)
         env.dist = env._distance(env.state.pos, env.course, env.cp)
+        env.reset_memory(torch.ones(n, dtype=torch.bool, device=device))
         obs = env.observe()
     finished = torch.zeros(n, dtype=torch.bool, device=device)
     success = torch.zeros(n, dtype=torch.bool, device=device)
@@ -215,10 +218,12 @@ def train(cfg: TrainConfig) -> Path:
         sampler = LevelSampler(n_levels, fixed=[1.0] * n_levels)
     else:
         raise ValueError(cfg.curriculum)
-    env = ParkourEnv(pool, EnvConfig(num_envs=cfg.num_envs, stall_ticks=cfg.stall_ticks, reward=cfg.reward),
+    env = ParkourEnv(pool, EnvConfig(num_envs=cfg.num_envs, stall_ticks=cfg.stall_ticks, reward=cfg.reward,
+                                     extended_obs=cfg.extended_obs),
                      sampler=sampler, seed=cfg.seed)
 
-    model = ActorCritic(hidden=cfg.hidden, hidden_parts=tuple(p for p in cfg.hide.split(",") if p)).to(dev)
+    model = ActorCritic(obs_dim=OBS_DIM_EXT if cfg.extended_obs else OBS_DIM, hidden=cfg.hidden,
+                        hidden_parts=tuple(p for p in cfg.hide.split(",") if p)).to(dev)
     opt = torch.optim.Adam(model.parameters(), lr=cfg.lr, eps=1e-5)
     lr = cfg.lr
     start_it = 0

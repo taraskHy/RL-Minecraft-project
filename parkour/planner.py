@@ -62,6 +62,7 @@ class PlannerConfig:
     cost: str = "difficulty"   # "difficulty": -log forgiveness of the jump; "distance": the air gap
     mark_passed: bool = True   # landing beyond the plan's next platform marks the ones skipped as passed
     clear_path: bool = True    # skip platforms whose straight flight path from here passes through blocks
+    head_hitters: bool = True  # a slab 4 blocks above a platform it touches is a head hitter, not a target
 
 
 class Platform:
@@ -135,6 +136,17 @@ def path_clear(is_solid, a: Platform, b: Platform) -> bool:
             if is_solid(x, y, z):
                 return False
     return True
+
+
+def head_hitter(p: Platform, platforms: list) -> bool:
+    """A slab 4 blocks above another platform whose footprint it touches or overlaps (a beam
+    over a jump; course platforms are at most 3 above the next one)."""
+    for q in platforms:
+        touch_x = max(0, p.x0 - (q.x1 + 1), q.x0 - (p.x1 + 1)) == 0
+        touch_z = max(0, p.z0 - (q.z1 + 1), q.z0 - (p.z1 + 1)) == 0
+        if p.y - q.y == 4 and touch_x and touch_z:
+            return True
+    return False
 
 
 def choose(platforms: list, current: Platform, visited: set, goal: tuple, cfg: PlannerConfig, is_solid=None) -> list:
@@ -234,7 +246,8 @@ class GreedyPlanner:
                     break
         self.current = here
         self.visited.update(here.cells)
-        self.chain = choose(platforms, here, self.visited, self.goal, cfg, self.is_solid)
+        targets = [p for p in platforms if not head_hitter(p, platforms)] if cfg.head_hitters else platforms
+        self.chain = choose(targets, here, self.visited, self.goal, cfg, self.is_solid)
         c = here.centre()
         dx, dy, dz = c[0] - self.goal[0], c[1] - self.goal[1], c[2] - self.goal[2]
         dist = math.sqrt(dx * dx + dy * dy + dz * dz)
@@ -268,6 +281,7 @@ def evaluate_planned(model, pool: CoursePool, device, cfg: PlannerConfig, stall_
         for _ in range(settle):
             env.state = physics.simulate(pool.world, env.course, env.state, idle)
         env.dist = env._distance(env.state.pos, env.course, env.cp)
+        env.reset_memory(torch.ones(n, dtype=torch.bool, device=device))
     solid = pool.world.solid.cpu().numpy()
     gx, gy, gz = solid.shape[1:]
     goals = pool.centre[torch.arange(n, device=device), (pool.n - 1).clamp(min=0)].cpu().numpy()

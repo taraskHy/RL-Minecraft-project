@@ -15,7 +15,7 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 
-from .env import ACTION_DIMS, OBS_DIM, OBS_LAYOUT
+from .env import ACTION_DIMS, OBS_DIM, OBS_DIM_EXT, OBS_LAYOUT, OBS_LAYOUT_EXT
 
 
 class RunningNorm(nn.Module):
@@ -69,7 +69,7 @@ class ActorCritic(nn.Module):
         self.hidden_parts = tuple(hidden_parts)
         for name in hidden_parts:
             start = 0
-            for part, size in OBS_LAYOUT:
+            for part, size in (OBS_LAYOUT_EXT if obs_dim == OBS_DIM_EXT else OBS_LAYOUT):
                 if part == name:
                     self.norm.mask[start:start + size] = 0
                 start += size

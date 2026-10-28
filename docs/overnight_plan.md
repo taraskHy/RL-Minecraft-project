@@ -55,3 +55,19 @@ flowchart TD
   Minecraft are full cubes with normal friction only (concrete, quartz, gold,
   emerald), so the bot moves exactly as on stone.
 - The previous final policy stays available whatever happens.
+
+## Update, 02:40: two new branches (requested from the side chat)
+
+```mermaid
+flowchart TD
+    P[Greedy route planner: the existing policy, no course list] --> P1[Tune on validation courses, test on 1,200 + 1,200 courses]
+    P1 --> P2[Same plans in Python and the bot: parity test]
+    P2 --> P3[Offline bot and real Minecraft, standard and obstacle courses, replays]
+    P3 --> N[Learned no-route model: wide scan + landing memory, route reward only in training]
+    N --> N0{Beats the planner on validation?}
+    N0 -- yes --> N1[It is the new-map model: offline, real Minecraft, replays, video]
+    N0 -- no --> N2[Planner is the new-map model; the learned one is the research comparison]
+```
+
+Rule change: at most two training processes on the GPU (a third now spills
+out of GPU memory and slows all of them about 8 times).

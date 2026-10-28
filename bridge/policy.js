@@ -19,6 +19,11 @@ const HALF_WIDTH = 0.3
 const YAW_STEPS_DEG = [-20.0, -6.0, -1.5, 0.0, 1.5, 6.0, 20.0]
 const ACTION_DIMS = [3, 3, 2, 2, 7]
 const OBS_DIM = 6 + 5 + PLATFORM_SLOTS * 11 + SCAN_FORWARD.length * SCAN_LATERAL.length * 2 + 4
+// Extended observation (env.OBS_LAYOUT_EXT): wide coarse scan and the last landing spots.
+const SCAN_FAR_FORWARD = Array.from({ length: 15 }, (_, i) => -4.0 + i)
+const SCAN_FAR_LATERAL = Array.from({ length: 13 }, (_, i) => -6.0 + i)
+const MEMORY_SLOTS = 3
+const OBS_DIM_EXT = OBS_DIM + SCAN_FAR_FORWARD.length * SCAN_FAR_LATERAL.length * 2 + MEMORY_SLOTS * 4
 const NO_ACTION = [1, 1, 0, 0, 3]
 const GRID = [64, 32, 64] // parkour.courses.GRID: the planner only looks inside the course area
 
@@ -39,8 +44,8 @@ function observe (s, lastAction, platforms, cp, isSolid) {
 // The observation with explicit platform slots ([{p, goal}], current platform first; missing
 // slots are empty), goal centre and progress: what observe() builds from the course, or what
 // the route planner builds from the blocks it sees.
-function observeSlots (s, lastAction, slots, g, progress, isSolid) {
-  const out = new Float64Array(OBS_DIM)
+function observeSlots (s, lastAction, slots, g, progress, isSolid, memory = null) {
+  const out = new Float64Array(memory ? OBS_DIM_EXT : OBS_DIM)
   let o = 0
   const [px, py, pz] = s.pos
   const sy = Math.sin(s.yaw)
@@ -80,30 +85,62 @@ function observeSlots (s, lastAction, slots, g, progress, isSolid) {
   }
 
   const fy = Math.floor(py + STAND_EPS)
-  for (const a of SCAN_FORWARD) {
-    for (const b of SCAN_LATERAL) {
-      const sx = px + a * fx + b * rx
-      const sz = pz + a * fz + b * rz
-      const ix = Math.floor(sx)
-      const iz = Math.floor(sz)
-      let h = NO_FLOOR
-      for (const lv of SCAN_FLOOR_LEVELS) {
-        if (isSolid(ix, fy + lv, iz)) { h = (fy + lv + 1) - py; break }
+  const scan = (fwd, lat) => {
+    for (const a of fwd) {
+      for (const b of lat) {
+        const sx = px + a * fx + b * rx
+        const sz = pz + a * fz + b * rz
+        const ix = Math.floor(sx)
+        const iz = Math.floor(sz)
+        let h = NO_FLOOR
+        for (const lv of SCAN_FLOOR_LEVELS) {
+          if (isSolid(ix, fy + lv, iz)) { h = (fy + lv + 1) - py; break }
+        }
+        let ceiling = 0
+        for (const lv of SCAN_CEILING_LEVELS) {
+          if (isSolid(ix, fy + lv, iz)) { ceiling = 1; break }
+        }
+        out[o++] = h / 3.0
+        out[o++] = ceiling
       }
-      let ceiling = 0
-      for (const lv of SCAN_CEILING_LEVELS) {
-        if (isSolid(ix, fy + lv, iz)) { ceiling = 1; break }
-      }
-      out[o++] = h / 3.0
-      out[o++] = ceiling
     }
   }
+  scan(SCAN_FORWARD, SCAN_LATERAL)
 
   out[o++] = relF(g[0], g[2]) / 20
   out[o++] = relR(g[0], g[2]) / 20
   out[o++] = (g[1] - py) / 10
   out[o++] = progress
+  if (memory) {
+    scan(SCAN_FAR_FORWARD, SCAN_FAR_LATERAL)
+    for (let k = 0; k < MEMORY_SLOTS; k++) {
+      if (!memory.valid[k]) { o += 4; continue }
+      const m = memory.pos[k]
+      out[o++] = 1
+      out[o++] = relF(m[0], m[2]) / 4.0
+      out[o++] = relR(m[0], m[2]) / 4.0
+      out[o++] = (m[1] - py) / 2.0
+    }
+  }
   return out
+}
+
+// Landing memory (EnvConfig.extended_obs): the last MEMORY_SLOTS spots landed on, newest first.
+class LandingMemory {
+  constructor (pos, onGround) {
+    this.pos = [pos.slice(), [0, 0, 0], [0, 0, 0]]
+    this.valid = [true, false, false]
+    this.prevGround = onGround
+  }
+
+  update (s) {
+    const dx = s.pos[0] - this.pos[0][0]; const dz = s.pos[2] - this.pos[0][2]
+    if (s.onGround && !this.prevGround && (dx * dx + dz * dz >= 1.0 || !this.valid[0])) {
+      this.pos = [s.pos.slice(), this.pos[0], this.pos[1]]
+      this.valid = [true, this.valid[0], this.valid[1]]
+    }
+    this.prevGround = s.onGround
+  }
 }
 
 // Highest platform index the player stands on, or -1.
@@ -133,13 +170,14 @@ function fellBelow (s, platforms, cp, rule = 'local') {
 class Policy {
   constructor (data) {
     if (data.format !== 'parkour-policy-v1') throw new Error('unknown policy format ' + data.format)
-    if (data.obs_dim !== OBS_DIM) throw new Error(`policy expects ${data.obs_dim} observations, bridge builds ${OBS_DIM}`)
+    if (data.obs_dim !== OBS_DIM && data.obs_dim !== OBS_DIM_EXT) throw new Error(`policy expects ${data.obs_dim} observations, bridge builds ${OBS_DIM} or ${OBS_DIM_EXT}`)
     this.mean = data.norm_mean
     this.std = data.norm_std
     this.clip = data.norm_clip
     this.mask = data.obs_mask || null
     this.layers = data.layers
     this.actionDims = data.action_dims
+    this.obsDim = data.obs_dim
     this.meta = data.meta
   }
 
@@ -237,6 +275,8 @@ class Episode {
     this.started = false
     this.result = null
     this.lastAction = NO_ACTION.slice()
+    this.extended = policy.obsDim === OBS_DIM_EXT
+    this.memory = null
     this.actions = []
     this.traj = []
     this.init = null
@@ -257,14 +297,24 @@ class Episode {
         return null
       }
       if (this.planner) this.planner.update(s.pos, s.onGround, this.ticks)
+      if (this.memory) this.memory.update(s)
     } else {
       this.started = true
       this.init = s
       if (this.planner) this.planner.start(s.pos)
+      if (this.extended) this.memory = new LandingMemory(s.pos, s.onGround)
     }
-    const obs = this.planner
-      ? observeSlots(s, this.lastAction, this.planner.slots(), centre(this.platforms[this.platforms.length - 1]), this.planner.progress, this.isSolid)
-      : observe(s, this.lastAction, this.platforms, this.cp, this.isSolid)
+    const n = this.platforms.length
+    let slots, progress
+    if (this.planner) {
+      slots = this.planner.slots()
+      progress = this.planner.progress
+    } else {
+      slots = []
+      for (let k = 0; k < PLATFORM_SLOTS && this.cp + k < n; k++) slots.push({ p: this.platforms[this.cp + k], goal: this.cp + k === n - 1 })
+      progress = this.cp / Math.max(n - 1, 1)
+    }
+    const obs = observeSlots(s, this.lastAction, slots, centre(this.platforms[n - 1]), progress, this.isSolid, this.memory)
     const a = this.policy.act(obs)
     this.actions.push(a)
     this.lastAction = a
@@ -288,6 +338,6 @@ class Episode {
 }
 
 module.exports = {
-  observe, observeSlots, standingOn, fellBelow, onObstacle, Policy, Episode, controls, wrapYaw, centre,
+  observe, observeSlots, LandingMemory, OBS_DIM_EXT, standingOn, fellBelow, onObstacle, Policy, Episode, controls, wrapYaw, centre,
   OBS_DIM, ACTION_DIMS, NO_ACTION, YAW_STEPS_DEG
 }

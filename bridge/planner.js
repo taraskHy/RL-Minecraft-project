@@ -17,7 +17,7 @@ const FORGIVENESS = {
 }
 const DEFAULTS = {
   radius: 12, below: 10, above: 4, max_gap: 5.5, dy_min: -3, dy_max: 1, align: 3.0, slab_only: true,
-  limits: 'table', slack: 0.5, cost: 'difficulty', mark_passed: true, clear_path: true
+  limits: 'table', slack: 0.5, cost: 'difficulty', mark_passed: true, clear_path: true, head_hitters: true
 }
 
 class Platform {
@@ -87,6 +87,15 @@ function pathClear (isSolid, a, b) {
 }
 
 function goalCell (goal) { return [Math.floor(goal[0]), Math.round(goal[1]) - 1, Math.floor(goal[2])] }
+
+function headHitter (p, platforms) {
+  for (const q of platforms) {
+    const dy = p.y - q.y
+    if (dy === 4 && Math.max(0, p.x0 - (q.x1 + 1), q.x0 - (p.x1 + 1)) === 0 &&
+        Math.max(0, p.z0 - (q.z1 + 1), q.z0 - (p.z1 + 1)) === 0) return true
+  }
+  return false
+}
 
 function choose (platforms, current, visited, goal, cfg, isSolid) {
   const chain = []
@@ -172,7 +181,8 @@ class GreedyPlanner {
     }
     this.current = here
     for (const c of here.cells) this.visited.add(key(...c))
-    this.chain = choose(platforms, here, this.visited, this.goal, cfg, this.isSolid)
+    const targets = cfg.head_hitters ? platforms.filter(p => !headHitter(p, platforms)) : platforms
+    this.chain = choose(targets, here, this.visited, this.goal, cfg, this.isSolid)
     const c = here.centre()
     const dx = c[0] - this.goal[0]; const dy = c[1] - this.goal[1]; const dz = c[2] - this.goal[2]
     const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)

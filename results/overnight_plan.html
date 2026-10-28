@@ -26,6 +26,7 @@ li { margin: 4px 0; }
 .time { border-left: 3px solid var(--accent); padding: 2px 10px; }
 .time b { display: block; }
 .time span { color: var(--muted); font-size: 13px; }
+.done { color: var(--accent); font-weight: 600; }
 </style>
 
 <div class="wrap">
@@ -35,11 +36,22 @@ li { margin: 4px 0; }
   </header>
 
   <section class="card">
+    <h2>What happened so far (02:40)</h2>
+    <ul>
+      <li><span class="done">Double neos:</span> none of 64 layouts can be landed (branch B2). Single neos are possible but very tight.</li>
+      <li><span class="done">Neo training:</span> flat at about 70% on level 6 and 30% on level 7. The bot refuses tight neos rather than risk a fall. A stall-penalty fine-tune (branch A3) is ending; so far it is flat too, so branch A4 is likely.</li>
+      <li><span class="done">Visuals:</span> Minecraft-style viewer, ghost-race videos, real-Minecraft first-person videos, results page.</li>
+      <li><span class="done">New, from your side chat:</span> a greedy route planner lets the existing policy play without the course list. On 1,200 unseen test courses it completes about 90% (given route: 97%). Now testing it offline and in real Minecraft. Then a learned model that finds its own route.</li>
+    </ul>
+  </section>
+
+  <section class="card">
     <h2>Expected timeline</h2>
     <div class="times">
-      <div class="time"><b>~01:30</b><span>Double-neo search with set-back walls ends</span></div>
-      <div class="time"><b>~02:30</b><span>Neo training ends, then tests in simulator, offline and real Minecraft</span></div>
-      <div class="time"><b>~05:30</b><span>Hyperparameter study ends</span></div>
+      <div class="time"><b>~02:50</b><span>Neo stall-penalty run ends</span></div>
+      <div class="time"><b>~03:30</b><span>Route planner tested offline and in real Minecraft</span></div>
+      <div class="time"><b>~05:30</b><span>Learned no-route model trained (about 1.6 billion ticks)</span></div>
+      <div class="time"><b>Morning</b><span>Hyperparameter study continues one run at a time</span></div>
       <div class="time"><b>All night</b><span>Visuals: Minecraft-style viewer, ghost race, colourful showcase course</span></div>
     </div>
   </section>
@@ -79,13 +91,23 @@ flowchart TD
     B1 --> M
     B2 --> M
     V4 --> M
+    S --> P[New: greedy route planner, existing policy, no course list]
+    P --> P1[Tune on validation courses, test on 1,200 + 1,200 courses]
+    P1 --> P2[Same plans in Python and the bot: parity test]
+    P2 --> P3[Offline bot and real Minecraft, standard and obstacle courses, replays]
+    P3 --> N[New: learned no-route model, wide scan + landing memory, route reward only in training]
+    N --> N0{Beats the planner on validation?}
+    N0 -- yes --> N1[It is the new-map model: offline, real Minecraft, replays, video]
+    N0 -- no --> N2[Planner is the new-map model; the learned one is the research comparison]
+    N1 --> M
+    N2 --> M
 </pre>
   </section>
 
   <section class="card">
     <h2>Rules for the night</h2>
     <ul>
-      <li>At most three training processes on the GPU at once; more spills into system memory and slows everything 5 to 10 times.</li>
+      <li>At most two training processes on the GPU at once (measured tonight: a third spills out of GPU memory and slows everything about 8 times).</li>
       <li>Every number says where it was measured: simulator, offline bot (Mineflayer's physics without a server) or real Minecraft.</li>
       <li>Visuals never change the physics or the policy. Colourful blocks in Minecraft are full cubes with normal friction only (concrete, quartz, gold, emerald), so the bot moves exactly as on stone.</li>
       <li>The current final policy stays available whatever happens.</li>

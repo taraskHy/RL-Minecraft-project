@@ -55,7 +55,7 @@ def load_model(checkpoint: Path, device) -> ActorCritic:
     ck = torch.load(checkpoint, map_location=device, weights_only=False)
     hidden = tuple(ck["config"].get("hidden", (512, 256, 128)))
     parts = tuple(p for p in ck["config"].get("hide", "").split(",") if p)
-    model = ActorCritic(hidden=hidden, hidden_parts=parts).to(device)
+    model = ActorCritic(obs_dim=ck["model"]["norm.mean"].shape[0], hidden=hidden, hidden_parts=parts).to(device)
     model.load_state_dict(ck["model"])
     model.eval()
     return model

@@ -46,8 +46,16 @@ FALL_MARGIN = 1.0
 STAND_EPS = 1e-6
 
 OBS_LAYOUT = (("proprio", 6), ("action", 5), ("platforms", PLATFORM_SLOTS * 11),
-              ("scan", len(SCAN_FORWARD) * len(SCAN_LATERAL) * 2), ("goal", 4))
+              ("scan", len(SCAN_FORWARD) * len(SCAN_LATERAL) * 2), ("goal", 3), ("progress", 1))
 OBS_DIM = sum(n for _, n in OBS_LAYOUT)
+# Extended observation (EnvConfig.extended_obs), for policies that find the route themselves:
+# a coarse, wide block scan (one sample per block, so no 1x1 platform falls between samples)
+# and the bot's memory of its last landing spots. Appended after the standard observation.
+SCAN_FAR_FORWARD = tuple(float(i) for i in range(-4, 11))
+SCAN_FAR_LATERAL = tuple(float(i) for i in range(-6, 7))
+MEMORY_SLOTS = 3
+OBS_LAYOUT_EXT = OBS_LAYOUT + (("farscan", len(SCAN_FAR_FORWARD) * len(SCAN_FAR_LATERAL) * 2), ("memory", MEMORY_SLOTS * 4))
+OBS_DIM_EXT = sum(n for _, n in OBS_LAYOUT_EXT)
 
 
 @dataclass
@@ -73,6 +81,7 @@ class EnvConfig:
     # results). "remaining": below every platform from cp-1 to the goal, so dropping onto a later,
     # lower platform (a shortcut a route planner may take) is not a fall. Evaluation only.
     fall_rule: str = "local"
+    extended_obs: bool = False  # add OBS_LAYOUT_EXT's far scan and landing memory
 
 
 MAX_EXTRA = 256
@@ -180,19 +189,22 @@ def on_obstacle(pool: CoursePool, s: physics.PlayerState, course: torch.Tensor) 
 class Observer:
     """Builds observations; shared by the environment and the parity tests."""
 
-    def __init__(self, device):
-        a = torch.tensor(SCAN_FORWARD, dtype=torch.float64, device=device)
-        b = torch.tensor(SCAN_LATERAL, dtype=torch.float64, device=device)
-        aa, bb = torch.meshgrid(a, b, indexing="ij")
-        self.scan_a = aa.reshape(-1)
-        self.scan_b = bb.reshape(-1)
+    def __init__(self, device, extended: bool = False):
+        def grid(fwd, lat):
+            a = torch.tensor(fwd, dtype=torch.float64, device=device)
+            b = torch.tensor(lat, dtype=torch.float64, device=device)
+            aa, bb = torch.meshgrid(a, b, indexing="ij")
+            return aa.reshape(-1), bb.reshape(-1)
+        self.scan_a, self.scan_b = grid(SCAN_FORWARD, SCAN_LATERAL)
+        self.extended = extended
+        self.far_a, self.far_b = grid(SCAN_FAR_FORWARD, SCAN_FAR_LATERAL)
         self.floor_levels = torch.tensor(SCAN_FLOOR_LEVELS, dtype=torch.int64, device=device)
         self.ceiling_levels = torch.tensor(SCAN_CEILING_LEVELS, dtype=torch.int64, device=device)
         self.yaw_steps = torch.tensor(YAW_STEPS_DEG, dtype=torch.float64, device=device)
         self.device = device
 
     def __call__(self, pool: CoursePool, course: torch.Tensor, s: physics.PlayerState, cp: torch.Tensor,
-                 last_action: torch.Tensor) -> torch.Tensor:
+                 last_action: torch.Tensor, memory=None) -> torch.Tensor:
         n = course.shape[0]
         pos = s.pos
         sy, cy = torch.sin(s.yaw), torch.cos(s.yaw)
@@ -220,28 +232,44 @@ class Observer:
         p = pool.plat[course[:, None], jc]  # (N, S, 5)
         slots = self.slots(s, p, valid, j == nplat[:, None] - 1)
 
-        # Height scan.
-        px = pos[:, 0:1] + self.scan_a * fx[:, None] + self.scan_b * rx[:, None]
-        pz = pos[:, 2:3] + self.scan_a * fz[:, None] + self.scan_b * rz[:, None]
-        ix = torch.floor(px).to(torch.int64)
-        iz = torch.floor(pz).to(torch.int64)
-        fy = torch.floor(pos[:, 1] + STAND_EPS).to(torch.int64)
-        levels = fy[:, None, None] + self.floor_levels[None, None, :]
-        solid = pool.world.lookup(course[:, None, None], ix[..., None], levels, iz[..., None])  # (N, 98, 6)
-        found = solid.any(-1)
-        first = torch.argmax(solid.to(torch.int8), dim=-1)  # first True in top-down order
-        top_cell = fy[:, None] + self.floor_levels[first]
-        h = torch.where(found, (top_cell + 1).to(torch.float64) - pos[:, 1:2], torch.full_like(px, NO_FLOOR))
-        clevels = fy[:, None, None] + self.ceiling_levels[None, None, :]
-        ceiling = pool.world.lookup(course[:, None, None], ix[..., None], clevels, iz[..., None]).any(-1)
-        scan = torch.stack((h / 3.0, ceiling.to(torch.float64)), -1).reshape(n, -1)
+        scan = self.scan(pool, course, s, self.scan_a, self.scan_b)
 
         gidx = (nplat - 1).clamp(min=0)
         g = pool.centre[course, gidx]
         gf, gr = rel(g[:, 0:1], g[:, 2:3])
         goal = torch.stack((gf[:, 0] / 20, gr[:, 0] / 20, (g[:, 1] - pos[:, 1]) / 10,
                             cp.to(torch.float64) / (nplat - 1).clamp(min=1).to(torch.float64)), -1)
-        return torch.cat((proprio, act, slots, scan, goal), -1).to(torch.float32)
+        parts = [proprio, act, slots, scan, goal]
+        if self.extended:
+            far = self.scan(pool, course, s, self.far_a, self.far_b)
+            mem, mvalid = memory
+            mf, mr = rel(mem[..., 0], mem[..., 2])
+            vf = mvalid.to(torch.float64)
+            m = torch.stack((vf, mf / 4.0 * vf, mr / 4.0 * vf, (mem[..., 1] - pos[:, 1:2]) / 2.0 * vf), -1).reshape(n, -1)
+            parts += [far, m]
+        return torch.cat(parts, -1).to(torch.float32)
+
+    def scan(self, pool: CoursePool, course: torch.Tensor, s: physics.PlayerState, a: torch.Tensor, b: torch.Tensor):
+        """Height (top of the highest block within the floor levels) and ceiling at points (a ahead, b right)."""
+        n = course.shape[0]
+        pos = s.pos
+        sy, cy = torch.sin(s.yaw), torch.cos(s.yaw)
+        fx, fz = -sy, -cy
+        rx, rz = cy, -sy
+        px = pos[:, 0:1] + a * fx[:, None] + b * rx[:, None]
+        pz = pos[:, 2:3] + a * fz[:, None] + b * rz[:, None]
+        ix = torch.floor(px).to(torch.int64)
+        iz = torch.floor(pz).to(torch.int64)
+        fy = torch.floor(pos[:, 1] + STAND_EPS).to(torch.int64)
+        levels = fy[:, None, None] + self.floor_levels[None, None, :]
+        solid = pool.world.lookup(course[:, None, None], ix[..., None], levels, iz[..., None])  # (N, points, 6)
+        found = solid.any(-1)
+        first = torch.argmax(solid.to(torch.int8), dim=-1)  # first True in top-down order
+        top_cell = fy[:, None] + self.floor_levels[first]
+        h = torch.where(found, (top_cell + 1).to(torch.float64) - pos[:, 1:2], torch.full_like(px, NO_FLOOR))
+        clevels = fy[:, None, None] + self.ceiling_levels[None, None, :]
+        ceiling = pool.world.lookup(course[:, None, None], ix[..., None], clevels, iz[..., None]).any(-1)
+        return torch.stack((h / 3.0, ceiling.to(torch.float64)), -1).reshape(n, -1)
 
     def slots(self, s: physics.PlayerState, p: torch.Tensor, valid: torch.Tensor, is_goal: torch.Tensor) -> torch.Tensor:
         """(N, S * 11) slot features of platforms ``p`` (N, S, 5); also used by the route planner."""
@@ -342,7 +370,7 @@ class ParkourEnv:
         self.n = config.num_envs
         self.sampler = sampler
         torch.manual_seed(seed)
-        self.obs_fn = Observer(self.device)
+        self.obs_fn = Observer(self.device, extended=config.extended_obs)
         self.yaw_steps = torch.tensor(YAW_STEPS_DEG, dtype=torch.float64, device=self.device) * (math.pi / 180)
         self.no_action = torch.tensor([1, 1, 0, 0, 3], device=self.device)
         self.k_range = torch.arange(MAX_PLATFORMS, device=self.device)
@@ -356,6 +384,10 @@ class ParkourEnv:
         self.last_action = self.no_action.repeat(self.n, 1)
         self.dist = torch.zeros(self.n, dtype=torch.float64, device=self.device)
         self.ep_return = torch.zeros(self.n, dtype=torch.float64, device=self.device)
+        # Landing memory (extended observation): the last MEMORY_SLOTS spots the player landed on,
+        # newest first; a landing counts when it is at least 1 block from the newest one.
+        self.mem = torch.zeros(self.n, MEMORY_SLOTS, 3, dtype=torch.float64, device=self.device)
+        self.mem_valid = torch.zeros(self.n, MEMORY_SLOTS, dtype=torch.bool, device=self.device)
         self.n_levels = max(int(pool.level.max().item()) + 1, sampler.n_levels if sampler else 1)
         self.stats = torch.zeros(len(STATS), self.n_levels, dtype=torch.float64, device=self.device)
         self.level_probs = torch.ones(self.n_levels, dtype=torch.float32, device=self.device)
@@ -402,6 +434,26 @@ class ParkourEnv:
         self.last_action = torch.where(mask[:, None], self.no_action[None, :], self.last_action)
         self.ep_return = torch.where(mask, torch.zeros_like(self.ep_return), self.ep_return)
         self.dist = torch.where(mask, self._distance(self.state.pos, self.course, self.cp), self.dist)
+        self.reset_memory(mask)
+
+    def reset_memory(self, mask: torch.Tensor) -> None:
+        """Memory of the rows in ``mask``: only the current position (the start block)."""
+        fresh = torch.zeros_like(self.mem)
+        fresh[:, 0] = self.state.pos
+        valid = torch.zeros_like(self.mem_valid)
+        valid[:, 0] = True
+        self.mem = torch.where(mask[:, None, None], fresh, self.mem)
+        self.mem_valid = torch.where(mask[:, None], valid, self.mem_valid)
+
+    def _remember_landings(self, prev_ground: torch.Tensor) -> None:
+        pos = self.state.pos
+        d = pos[:, [0, 2]] - self.mem[:, 0][:, [0, 2]]
+        far = (d * d).sum(-1) >= 1.0
+        store = self.state.on_ground & ~prev_ground & (far | ~self.mem_valid[:, 0])
+        shifted = torch.cat((pos[:, None, :], self.mem[:, :-1]), 1)
+        svalid = torch.cat((torch.ones_like(self.mem_valid[:, :1]), self.mem_valid[:, :-1]), 1)
+        self.mem = torch.where(store[:, None, None], shifted, self.mem)
+        self.mem_valid = torch.where(store[:, None], svalid, self.mem_valid)
 
     def reset_rows(self, mask: torch.Tensor) -> None:
         self._apply_reset(mask, self._sample_courses(self.n))
@@ -428,7 +480,7 @@ class ParkourEnv:
         return standing_on(self.pool, s, course)
 
     def observe(self) -> torch.Tensor:
-        return self.obs_fn(self.pool, self.course, self.state, self.cp, self.last_action)
+        return self.obs_fn(self.pool, self.course, self.state, self.cp, self.last_action, (self.mem, self.mem_valid))
 
     # Step ---------------------------------------------------------------------------------------------
     def step(self, action: torch.Tensor):
@@ -436,10 +488,13 @@ class ParkourEnv:
         s = self.state
         yaw = s.yaw + self.yaw_steps[action[:, 4]]
         s.yaw = torch.remainder(yaw + math.pi, 2 * math.pi) - math.pi
+        prev_ground = s.on_ground
         new = physics.simulate(self.pool.world, self.course, s, action_to_controls(action))
         self.state = new
         self.last_action = action
         self.ticks = self.ticks + 1
+        if self.cfg.extended_obs:
+            self._remember_landings(prev_ground)
 
         stand = self.standing_on(new, self.course)
         k = self.k_range[None, :]
