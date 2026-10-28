@@ -10,7 +10,7 @@ the data: training runs, policies, the route planner and neo files, the game
 folders (including the v2, planner, noroute, neo and film games) and the
 videos.
 
-**Last updated:** 29 Oct 2026, 01:25, training PC: initial advanced and ice runs complete, combined comparison delivered; extra and ice seed 1 active.
+**Last updated:** 29 Oct 2026, 01:29, training PC: active-run validation refreshed; initial advanced/ice comparison already delivered.
 
 ## The project
 
@@ -318,6 +318,8 @@ The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
 5. The report discussion and conclusion are drafted. The cloud DOCX/PDF exports predate this merged source; rebuild and check pagination before submission.
 
 ## Update log
+
+- **29 Oct 2026, 01:29, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-extra: iteration 199, validation 81.75%, selected best 199 (81.75%), 12 levels; g995-ice-s1: iteration 49, validation 94.83%, selected best 49 (94.83%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. No executable changes; prior checks remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 
 - **29 Oct 2026, 01:25, Codex heartbeat on training PC:** both requested initial runs completed 1,000 iterations. Delivered the combined validation/test comparison in this chat; do not repeat that notification. Advanced selected checkpoint 99 on nine-level validation 81.78% (common levels 0-5: 96.17%); final tests across nine levels: 82.28% standard / 78.72% obstacles. On the identical common levels 0-5: 97.42% standard / 94.50% obstacles. Ice selected checkpoint 449 on six-level validation 97.33%; final tests 97.50% / 94.50%. Existing final policy (checkpoint 699): validation 97.58%, tests 98.42% / 95.25%. Thus advanced trails the baseline on common tests by 1.00 / 0.75 percentage points and ice by 0.92 / 0.75 points. All numbers are simulator results, validation families 2/5 and test families 1/4; each new run has exactly one test row per split, and selected iterations match validation maxima. Evidence: `results/operations/g995-initial-comparison.json` with source files. No tests were repeated and the existing final-policy files remain unchanged. The queue automatically started g995-ice-s1 beside g995-extra, selected from common validation (ice 97.33% versus advanced 96.17%), never test results. Extra new validation best 149: 76.71% across twelve levels. Exactly two unrestricted trainers, one queue, one thermal watchdog (65/58 C) and one keep-awake are healthy; current telemetry 83% busy, 5791/16303 MiB, 41.58 C. Native monitor updated to record delivered notification and continue extra/seeds. Report/handoff refreshed; no executable changes, so prior checks remain applicable.
 

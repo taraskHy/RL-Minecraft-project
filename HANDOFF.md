@@ -548,18 +548,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `dc7f47a` (2026-10-29 01:19, branch `main`): Archive advanced 949 and extra 99 validation results
+Generated on top of commit `902a489` (2026-10-29 01:26, branch `main`): Report completed advanced and ice comparison and continue queue
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 95 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 96 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 53 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 70 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 53 |
-| `results/README.md` | `0856810` 2026-10-29 00:44 | 9 |
-| `results/DATA.md` | `9b48bda` 2026-10-29 00:34 | 11 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 54 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 71 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 54 |
+| `results/README.md` | `0856810` 2026-10-29 00:44 | 10 |
+| `results/DATA.md` | `9b48bda` 2026-10-29 00:34 | 12 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -585,8 +585,9 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `full-s1` | 999 | 0.52 | - | - | - | 94.2 | - |
 | `full-s2` | 999 | 0.52 | 949 | 93.0 | 93.1 | 91.9 | - |
 | `g995-adv` | 999 | 0.52 | 99 | 81.8 | 82.3 | - | - |
-| `g995-extra` | 149 | 0.08 | 149 | 76.7 | - | - | - |
+| `g995-extra` | 199 | 0.10 | 199 | 81.8 | - | - | - |
 | `g995-ice` | 999 | 0.52 | 449 | 97.3 | 97.5 | - | - |
+| `g995-ice-s1` | 49 | 0.03 | 49 | 94.8 | - | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
 | `hp-envs4096` | 3999 | 0.52 | 3599 | 93.7 | 94.2 | 92.0 | - |
@@ -719,6 +720,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **29 Oct 2026, 01:29, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-extra: iteration 199, validation 81.75%, selected best 199 (81.75%), 12 levels; g995-ice-s1: iteration 49, validation 94.83%, selected best 49 (94.83%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. No executable changes; prior checks remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 
 - **29 Oct 2026, 01:25, Codex heartbeat on training PC:** both requested initial runs completed 1,000 iterations. Delivered the combined validation/test comparison in this chat; do not repeat that notification. Advanced selected checkpoint 99 on nine-level validation 81.78% (common levels 0-5: 96.17%); final tests across nine levels: 82.28% standard / 78.72% obstacles. On the identical common levels 0-5: 97.42% standard / 94.50% obstacles. Ice selected checkpoint 449 on six-level validation 97.33%; final tests 97.50% / 94.50%. Existing final policy (checkpoint 699): validation 97.58%, tests 98.42% / 95.25%. Thus advanced trails the baseline on common tests by 1.00 / 0.75 percentage points and ice by 0.92 / 0.75 points. All numbers are simulator results, validation families 2/5 and test families 1/4; each new run has exactly one test row per split, and selected iterations match validation maxima. Evidence: `results/operations/g995-initial-comparison.json` with source files. No tests were repeated and the existing final-policy files remain unchanged. The queue automatically started g995-ice-s1 beside g995-extra, selected from common validation (ice 97.33% versus advanced 96.17%), never test results. Extra new validation best 149: 76.71% across twelve levels. Exactly two unrestricted trainers, one queue, one thermal watchdog (65/58 C) and one keep-awake are healthy; current telemetry 83% busy, 5791/16303 MiB, 41.58 C. Native monitor updated to record delivered notification and continue extra/seeds. Report/handoff refreshed; no executable changes, so prior checks remain applicable.
 
