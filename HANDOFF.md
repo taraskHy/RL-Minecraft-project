@@ -85,14 +85,19 @@ More facts that hold now:
     neo's takeoff, a cross-entropy search with the exact physics plans its
     actions from its exact state, and the bot plays the plan. Validation
     (218 held-out neo courses, `results/neo/assist_validation.jsonl`): the
-    final policy alone completes 0 and passes 0 of the neo jumps it reaches;
-    with the assist it completes 49 and passes 131 of 179 reached neo jumps
-    (every played plan landed as searched). Most remaining failures are at
-    the momentum and wide jumps the final policy never learned; planning
-    those too (`--jumps advanced`) is being measured. Both bots have it
-    (`parkour.live --assist '{}'`: the bot pauses on the takeoff, a Python
-    planner service searches, prismarine-physics checks the plan, the bot
-    plays it); the offline bot matches the simulator exactly
+    final policy alone completes 0 and passes 0 of the 140 neo jumps it
+    reaches; with the assist it completes 49 and passes 131 of 179 reached
+    neo jumps (every played plan landed as searched); 121 of its 169 failed
+    courses stop at a jump that is not a neo (`failed_at_a_neo` 48).
+    Planning the wide and momentum jumps too (`--jumps advanced`): 119 of
+    218, 214 of 286 neos passed. These rows (tagged `code 587c9b1`) ran an
+    earlier default that searched up to 32 states at once (batch 32: same
+    method, other random draws); the current default, batch 1, is what the
+    bots reproduce, and the chosen setting is re-measured with it. Both bots
+    have it (`parkour.live --assist '{"jumps": "advanced"}'`: the bot pauses
+    on the takeoff, a Python planner service searches, prismarine-physics
+    checks the plan, the bot plays it); the offline bot matches the
+    simulator exactly when both search on the same device
     (`tests/test_neo_assist.py`). Not yet run in real Minecraft.
   - *Head hitters and ice run-ups*: new jump kinds (a run-up under a 2-high
     roof, a tunnel, an ice runway), feasibility-checked
@@ -131,9 +136,12 @@ Concrete work, most important first. Nothing here needs new research.
    for `HANDOFF.md` keep both sides' hand-written text and add both session
    log entries; then `run.cmd test` and push. The branch adds opt-in
    features to the physics, courses, training, planner and both bots (ice,
-   planner options), all off by default and covered by tests (42 pass);
-   the only default behaviour changes are the GPU watchdog also pausing
-   `parkour.neo_dagger` and `run.cmd report` also refreshing this file's
+   planner options, the neo assist, new jump kinds and blocks), all off by
+   default and covered by tests (63 pass in the cloud container, CUDA test
+   skipped; `tests/test_heldout_fingerprints.py` proves the held-out courses
+   unchanged); the only default behaviour changes are the GPU watchdog also
+   pausing `parkour.neo_dagger` and `parkour.neo_assist` (not the bots'
+   planner service), and `run.cmd report` also refreshing this file's
    snapshot and writing the new tables in `results/README.md`.
 2. **Confirm the retuned planner in real Minecraft** (PC; section 4,
    item 4): `run.cmd live --checkpoint results\final_policy.pt --planner
@@ -465,18 +473,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `e9a19c6` (2026-10-28 18:12, branch `claude/pensive-knuth-biwj11`): Ladder climbs in courses and both bots; study kinds can be reused
+Generated on top of commit `8adb005` (2026-10-28 18:22, branch `claude/pensive-knuth-biwj11`): Design notes: the new blocks in the physics and the opt-in extensions
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 20 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 25 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `af25aeb` 2026-10-28 14:50 | 11 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 36 |
-| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 19 |
-| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 21 |
-| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 18 |
-| `results/DATA.md` | `558979f` 2026-10-28 18:06 | 1 |
+| `TEAM_STATUS.md` | `7ed4c1b` 2026-10-28 18:20 | 2 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 41 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 0 |
+| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 26 |
+| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 23 |
+| `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 

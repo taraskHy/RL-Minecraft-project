@@ -23,7 +23,9 @@ be made from (without a landing the takeoff search runs as usual).
 
 This is planning with an exact model of the game's physics. It measures
 what the bot does when it plans its neos, not what the network learned. The
-bots (offline and real Minecraft) do not have it yet: docs/abilities_plan.md.
+bots have it too (``parkour.live --assist``: the planner service ``--serve``,
+bridge/assist.js); the offline bot reproduces this module's plans when both
+search on the same device (CUDA's random draws differ from the CPU's).
 
 Course sets (``--set``):
   official  the held-out level 6-8 courses that contain a neo (family 1:
@@ -40,6 +42,7 @@ once with the chosen setting. Each run appends one JSON line to ``--out``
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import re
@@ -141,6 +144,22 @@ def advanced_takeoffs(course: C.Course) -> list[int]:
     ks = set(neo_takeoffs(course))
     ks |= {k for k, sp in enumerate(course.specs) if abs(sp.lateral) == 3 or sp.runway > 0 or sp.neo}
     return sorted(k for k in ks if k + 1 < course.n)
+
+
+def jump_kind(course: C.Course, k: int, neos: list) -> str:
+    """The kind of the jump from platform k: neo, wide (3 sideways), momentum (run-up), other advanced, or basic."""
+    if k in neos:
+        return "neo"
+    sp = course.specs[k] if k < len(course.specs) else None
+    if sp is None:
+        return "unknown"
+    if sp.runway:
+        return "momentum" if not (sp.ceiling or sp.ice) else "run-up (roof or ice)"
+    if abs(sp.lateral) == 3:
+        return "wide"
+    if sp.neo or sp.block or sp.bounce or sp.ladder:
+        return "other advanced"
+    return "basic"
 
 
 def neo_level() -> list[C.JumpSpec]:
@@ -470,7 +489,8 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
                            "level": int(lv[i]), "neos": len(ks), "neos_reached": len(reached[i]),
                            "neos_passed": sum(1 for k in ks if k in reached[i] and (s[i] or cp_final[i] > k)),
                            "stopped_at": int(cp_final[i]) if not s[i] else None,
-                           "stopped_at_neo": bool(not s[i] and int(cp_final[i]) in ks)})
+                           "stopped_at_neo": bool(not s[i] and int(cp_final[i]) in ks),
+                           "stopped_at_kind": None if s[i] else jump_kind(pool.courses[i], int(cp_final[i]), ks)})
     return {"per_course": per_course, "events": events, "plans": plans, "search_seconds": round(search_seconds, 1)}
 
 
@@ -481,6 +501,9 @@ def summarize(res: dict) -> dict:
            "neo_jumps": sum(c["neos"] for c in pc), "neo_jumps_reached": sum(c["neos_reached"] for c in pc),
            "neo_jumps_passed": sum(c["neos_passed"] for c in pc),
            "failed_at_a_neo": sum(c["stopped_at_neo"] for c in pc)}
+    kinds = [c.get("stopped_at_kind") for c in pc if not c["success"] and c.get("stopped_at_kind")]
+    if kinds:  # the jump each failed course stopped before
+        out["failed_at"] = {k: kinds.count(k) for k in sorted(set(kinds))}
     by = {}
     for c in pc:
         key = str(c["neos"]) if c["neos"] < 5 else "5+"
@@ -572,9 +595,12 @@ def main(argv=None):
     t0 = time.time()
     res = evaluate_assisted(model, pool, dev, cfg, log=lambda d: print(json.dumps(d), flush=True))
     test = a.family in TEST_FAMILIES
+    ck = Path(a.checkpoint).resolve()
+    ck_name = ck.relative_to(ROOT).as_posix() if ck.is_relative_to(ROOT) else ck.name
     row = {"set": a.set, "family": a.family, "split": "test" if test else "validation",
-           "checkpoint": Path(a.checkpoint).as_posix().split("RL-Minecraft-project/")[-1], "assist": not a.off,
-           "config": asdict(cfg), "tag": a.tag, "measured": "simulator (float64 port of prismarine-physics), CPU",
+           "checkpoint": ck_name, "checkpoint_sha1": hashlib.sha1(ck.read_bytes()).hexdigest()[:12], "assist": not a.off,
+           "config": asdict(cfg), "tag": a.tag,
+           "measured": f"simulator (float64 port of prismarine-physics), {dev.upper() if dev == 'cpu' else 'CUDA'}",
            **summarize(res), "seconds": round(time.time() - t0, 1)}
     if a.courses:
         row["first_courses_only"] = a.courses

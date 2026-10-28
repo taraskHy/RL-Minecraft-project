@@ -105,7 +105,7 @@ JavaScript on Mineflayer's physics engine without a server. Every folder's
 | `detector_check.json` | the first neo-takeoff detector against the fixed one |
 | `wide_takeoff_search.json` | which neos are landable from 2x2 and 3x3 takeoffs |
 | `one_policy_comparison.json` | the neo policies on levels 0-5 (the same courses as the standard test set) and the final policies on levels 6-8 and the 210 neo courses (`scripts/one_policy_check.py`) |
-| `assist_validation.jsonl`, `assist_test.jsonl` | the neo assist (`parkour.neo_assist`: a search from the bot's exact state at every neo takeoff): one JSON line per run and setting, validation (families 2, 13) and test (families 1, 12) courses, simulator |
+| `assist_validation.jsonl`, `assist_test.jsonl` | the neo assist (`parkour.neo_assist`: a search from the bot's exact state at every planned takeoff): one JSON line per run and setting, validation (families 2, 13) and test (families 1, 12) courses, simulator. Rows tagged `code 587c9b1` ran in a git worktree of that commit (their `checkpoint` is that worktree's copy of `results/final_policy.pt`) with the then-default batched search (batch 32) |
 
 ## Videos (`results/videos/`, 1080p MP4)
 

@@ -4,9 +4,10 @@ Started 28 Oct 2026 (evening) by the cloud session on branch
 `claude/pensive-knuth-biwj11`. The user asked for more of the bot's parkour
 abilities (other blocks, more jump types such as head hitters) and for neos
 made consistently on a random course, while they play a game on the PC's
-GPU ("leave a safe buffer"). The cloud session has no GPU and cannot reach
-the PC, so it builds, verifies and measures on the CPU, and prepares the
-training for the PC (gaming-safe settings, HANDOFF section 6).
+GPU (first "leave a safe buffer", then "you can use more GPU, don't leave
+like a 40% margin": about 10%). The cloud session has no GPU and cannot
+reach the PC, so it builds, verifies and measures on the CPU, and prepares
+the training for the PC (gaming settings, HANDOFF section 6).
 
 Rules that shape every stage (AGENTS.md, HANDOFF section 5): every feature
 is opt-in and off by default; the held-out test and validation courses stay

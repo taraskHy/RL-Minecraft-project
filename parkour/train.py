@@ -41,7 +41,7 @@ class TrainConfig:
     run: str = "dev"
     seed: int = 0
     device: str = "cuda"
-    gpu_mem_fraction: float = 0.0  # >0: cap this process at that share of GPU memory (e.g. 0.35 while the user games)
+    gpu_mem_fraction: float = 0.0  # >0: cap this process at that share of GPU memory (0.75 while the user games)
     gpu_duty: float = 1.0  # <1: sleep after each iteration so the GPU works at most this share of the time
     threads: int = 0  # >0: torch CPU threads
     num_envs: int = 16384

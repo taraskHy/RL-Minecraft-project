@@ -36,11 +36,14 @@ Extra jumps (opt-in levels after the others, ``configs/jump_levels_extra.json``;
 they change nothing unless loaded with ``load_levels(extra=True)``):
 
 * *head hitter*: ``ceiling`` 1 puts a ceiling 2 blocks above a runway's
-  surface over every runway block but the first, so the run-up and the
-  takeoff are under a 2-high roof (the head hits it at once, which caps the
-  jump's rise at 0.2 blocks); ``ceiling`` 2 continues the roof over the gap
-  (a tunnel). The first runway block stays open so the jump onto the runway
-  can land.
+  surface over every runway block but the first, so the run-up is under a
+  2-high roof: a jump started under it rises only 0.2 blocks, and hops
+  under it build speed. The roof ends with the runway, so a hop that lands
+  just past the runway's end (still on the ground for that tick: vertical
+  movement is resolved first, as in vanilla) can jump at full height from
+  there; many of the possible strategies do that. ``ceiling`` 2 continues
+  the roof over the gap (a tunnel), where the whole jump stays under it.
+  The first runway block stays open so the jump onto the runway can land.
 * *ice*: ``ice`` 1 makes the runway ice (slipperiness 0.98: slow to speed
   up, faster at the end).
 * *shaped blocks*: ``block`` names the target's block shape (a bottom slab,

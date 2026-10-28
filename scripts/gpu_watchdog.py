@@ -15,7 +15,8 @@ those programs runs, e.g. a game, and resumed when it has closed and the GPU
 is below ``--cool``.
 Suspended processes keep all their state; nothing is lost. Below ``--cool``
 degrees it resumes them. Jobs that start while paused are suspended too.
-Live Minecraft runs are left alone (the bot plays in real time). Every pause
+Live Minecraft runs are left alone (the bot plays in real time), and so is the
+bots' planner service (parkour.neo_assist --serve). Every pause
 and resume is logged with time and temperature to runs/gpu_watchdog.log.
 """
 import argparse
@@ -69,7 +70,8 @@ def gpu_jobs() -> dict:
     jobs = {}
     for line in out.splitlines():
         pid, _, cmd = line.partition("\t")
-        if pid.strip().isdigit() and GPU_JOBS.search(cmd) and "gpu_watchdog" not in cmd:
+        # The bots' planner service (neo_assist --serve) answers the live bot, which plays in real time: left alone.
+        if pid.strip().isdigit() and GPU_JOBS.search(cmd) and "gpu_watchdog" not in cmd and "--serve" not in cmd:
             jobs[int(pid)] = cmd.strip()
     return jobs
 
