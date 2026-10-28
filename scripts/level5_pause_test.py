@@ -7,16 +7,24 @@ the analysis family 11, pausing 3, 6 or 10 ticks lowers success from 90.2% to
 80.0%, 72.3% and 70.0% (results/level5_pause_test.jsonl). Kept so it is not
 tried again.
 """
-import json, sys
-sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[1]))
-import numpy as np, torch
-from parkour import courses as C
-from parkour.env import CoursePool, EnvConfig, ParkourEnv
-from parkour.live import load_model
-from parkour.train import held_out_courses
+import json
+import sys
+from pathlib import Path
+
+import numpy as np
+import torch
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from parkour import courses as C  # noqa: E402
+from parkour.env import CoursePool, EnvConfig, ParkourEnv  # noqa: E402
+from parkour.live import load_model  # noqa: E402
+from parkour.train import held_out_courses  # noqa: E402
+
 torch.set_num_threads(4)
 k = int(sys.argv[1]); which = sys.argv[2]
-model = load_model(__import__("pathlib").Path(__file__).resolve().parents[1] / "results" / "final_policy.pt", "cpu")
+model = load_model(ROOT / "results" / "final_policy.pt", "cpu")
 levels = C.load_levels()
 if which == "val":
     cs = held_out_courses(levels, 100, 10, family=2)
