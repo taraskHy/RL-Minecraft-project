@@ -6,8 +6,9 @@
 Every ``--every`` seconds it reads the GPU temperature (nvidia-smi). Above
 ``--hot`` degrees it suspends every GPU job of this project (training,
 demonstration and jump searches, planner and jump evaluations: python
-processes running parkour.train, parkour.neo_demos, parkour.cem,
-parkour.planner, parkour.jumpeval, parkour.stress or parkour.feasibility).
+processes running parkour.train, parkour.neo_demos, parkour.neo_dagger,
+parkour.cem, parkour.planner, parkour.jumpeval, parkour.stress or
+parkour.feasibility).
 Suspended processes keep all their state; nothing is lost. Below ``--cool``
 degrees it resumes them. Jobs that start while paused are suspended too.
 Live Minecraft runs are left alone (the bot plays in real time). Every pause
@@ -23,7 +24,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LOG = ROOT / "runs" / "gpu_watchdog.log"
-GPU_JOBS = re.compile(r"parkour\.(train|neo_demos|cem|planner|jumpeval|stress|feasibility)\b|cem_momentum")
+GPU_JOBS = re.compile(r"parkour\.(train|neo_demos|neo_dagger|cem|planner|jumpeval|stress|feasibility)\b|cem_momentum")
 PROCESS_SUSPEND_RESUME = 0x0800
 
 

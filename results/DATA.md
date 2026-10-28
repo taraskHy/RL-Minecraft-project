@@ -43,12 +43,64 @@ and every tick's position and velocity), `summary.md` / `summary.json`
 (outcomes, comparison with the simulator) and, for real-game runs,
 `server.log.gz`.
 
+"Live" folders are **real Minecraft 1.21.4**; "offline" ones are the bot's
+JavaScript on Mineflayer's physics engine without a server. Every folder's
+`summary.md` names its checkpoint. The generated snapshot at the end of
+`HANDOFF.md` lists every folder with its score.
+
 | Folder | What |
 | --- | --- |
-| `live-final`, `live-final-obstacles`, `live-showcase`, `live-smoke` | **real Minecraft 1.21.4**, final policy: 59/60, 58/60, 3/3, 6/6 |
-| `offline-*`, `final-*` | the bot's JavaScript on Mineflayer's physics engine, no server |
+| `v2-live`, `v2-live-obstacles`, `v2-live-showcase` | real Minecraft, **final policy** (discount 0.995): 59/60 standard, 57/60 obstacles, 3/4 hand-designed (misses the neo course) |
+| `v2-offline`, `v2-offline-obstacles`, `v2-offline-showcase` | the same courses offline: identical outcomes |
+| `v2-planner-live`, `v2-planner-live-obstacles`, `v2-planner-offline`, `v2-planner-offline-obstacles` | final policy + route planner, no course list: 50/60, 55/60 (live and offline identical) |
+| `live2-final`, `live2-obstacles`, `live2-showcase` | real Minecraft, first final policy, re-run with the collision-tolerance patch: 59/60, 58/60, 3/4 |
+| `recheck-std`, `recheck-obs`, `recheck-show` | the same re-check offline: identical |
+| `live-final`, `live-final-obstacles`, `live-showcase`, `live-smoke` | real Minecraft, first final policy, before the collision-tolerance patch: 59/60, 58/60, 3/3, 6/6 |
+| `offline-*`, `final-*` | offline runs of the main run's policy (`offline-*`) and the first final policy (`final-*`) |
+| `planner-live`, `planner-live-obstacles`, `planner-offline`, `planner-offline-obstacles` | first final policy + route planner, no course list: 52/60, 53/60 |
+| `noroute-live`, `noroute-live-obstacles`, `noroute-offline`, `noroute-offline-obstacles` | learned no-route model `noroute-v2`: 55/60, 37/60 |
+| `neo-live-final`, `neo-offline-final` | neo policy `neo-dagger3` on the neo course set (`configs/neo_live_courses.json`): 11/31 |
+| `neo-full`, `cheat-check` | an early neo checkpoint (`runs/neo-ck.pt`, source run not recorded) on the neo course set (1/31) and on one test course (0/1) |
 | `neo-preview__bot` | the first neo attempts during neo training: stalls at the wall and falls |
+| `film-*` | single-course real-Minecraft runs recorded for the first-person videos (`scripts/film_pov.py`); `film-neo_level7-*` is the neo video |
+| `live-rainbow-test`, `viewer-test` | test runs: the four hand-designed courses (3/4) and one course with the spectator viewer (1/1) |
 | `progress-demo-games__*` | the same courses at every stage of a training run, from untrained to trained |
+
+## Evaluations (`results/`)
+
+| File | What |
+| --- | --- |
+| `final_policy.pt` / `.json` | the final policy (`runs/obstacles-g995`, discount 0.995) |
+| `final_policy_v1.pt` / `final_policy_v1.json` | the first final policy (`runs/obstacles-ft`, discount 0.99) |
+| `jump_eval.json`, `jump_eval_v1.json`, `jump_eval_main.json` | every jump type from a standing start at 16 angles: final, first final and main-run policy |
+| `stress.json`, `stress_v1.json`, `stress_main.json` | course styles outside training, 100 courses per level and condition, same three policies |
+| `offline_summary.md`, `live_summary.md` (and `offline_summary_v1.md`, `live_summary_v1.md`) | the bot's per-level tables offline and in real Minecraft, final and first final policy |
+| `physics_parity.json` | the simulator against prismarine-physics 1.11.1: 99,000 ticks, largest error 1.4e-14 blocks |
+| `hparams_defaults_validation.json` | the defaults' validation score for the hyperparameter table |
+| `audit_claims.json` | the audit of 829 claims in the documents against the run files (28 Oct) |
+| `results/planner/` | route planner on the 1,200 + 1,200 test courses: `sim_test_*.json` (`_v1`: with the first final policy) |
+| `results/neo/` | the neo numbers (written by `scripts/neo_evidence.py` and the evaluations), below |
+
+`results/neo/`:
+
+| File | What |
+| --- | --- |
+| `course_eval.json`, `round3_eval.json` | each neo policy on the 210 held-out level 6-8 courses with a neo (and the validation ones) |
+| `by_neo_count.json` | the chosen neo policy split by the number of neos per course |
+| `jump_eval_*.json` | every advanced jump type alone (`parkour.jumpeval --advanced`), one file per neo policy |
+| `demonstrations.json`, `demos_collection.txt` | the search demonstrations: 50,706 collected, 12,800 used |
+| `neo_dagger_r1b.txt`, `neo_dagger_r2.txt`, `neo_dagger_r3.txt` | the DAgger collection logs per round |
+| `label_agreement.json` | how often DAgger labels agree with the bot, before and after simplification |
+| `detector_check.json` | the first neo-takeoff detector against the fixed one |
+| `wide_takeoff_search.json` | which neos are landable from 2x2 and 3x3 takeoffs |
+
+## Videos (`results/videos/`, 1080p MP4)
+
+| File | What |
+| --- | --- |
+| `ghost_race_*.mp4` | ten training stages of one agent on the same unseen course, seen from above |
+| `real_minecraft_*.mp4` | the bot's first-person view in real Minecraft (`_no_course_list`: with the route planner; `_neo_level7`: the neo policy) |
+| `replay_*.mp4` | replays from the theatre (no-course-list runs draw the plan; `replay_137_*` is a neo) |
 
 ## Pages to show
 
@@ -57,6 +109,9 @@ and every tick's position and velocity), `summary.md` / `summary.json`
 | `results/replay_viewer.html` | 3D replays of all 123 real-Minecraft episodes |
 | `results/progress.html` | learning progress: the same courses from untrained to trained, failures included |
 | `results/neo_preview.html` | neo training in progress |
+| `results/theatre.html` | Minecraft-style 3D replays and the ghost races |
+| `results/showcase.html` | the results page for the presentation ("Learning Minecraft Parkour") |
+| `results/overnight_plan.html` | the overnight decision tree of 28 October (`docs/overnight_plan.md`) |
 
 Open them in a browser; they need no server.
 

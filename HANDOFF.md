@@ -80,21 +80,18 @@ Concrete work, most important first. Nothing here needs new research.
    stops at "demonstrations are the natural next step" and needs the
    imitation + DAgger results (`results/README.md`, section "Neo jumps");
    section 8 is bullet points; section 9 (conclusion) is "to be written".
-2. **`results/DATA.md`** was last updated on 28 Oct at 00:07: index what the
-   snapshot below lists as missing (neo, planner, v2 and film games, videos,
-   `results/neo/`, `results/planner/`, the v1 files).
-3. **`final-v2`** (`results/runs/final-v2`: 3,000 iterations planned, stopped
+2. **`final-v2`** (`results/runs/final-v2`: 3,000 iterations planned, stopped
    at 499, discount 0.99, obstacles 30%) is not described in any document.
    Ask the PC session or the user what it was, then document it or mark it
    aborted.
-4. **Ship the neo policy in Git** if the team will present it: it exists
+3. **Ship the neo policy in Git** if the team will present it: it exists
    only as `runs/neo-dagger3/checkpoints/best.pt` on the PC. Export it next
    to the final policy (for example `results/neo_policy.pt` / `.json`)
    without replacing `results/final_policy.*`.
-5. **GPU watchdog gap:** `scripts/gpu_watchdog.py` does not pause
-   `parkour.neo_dagger` (also a GPU job) or the live bot. Add
-   `neo_dagger` to `GPU_JOBS` before any more DAgger rounds.
-6. Keep `TEAM_STATUS.md` and this file in step with each new result.
+4. **Restart the GPU watchdog on the PC** after merging this branch: it
+   now also pauses `parkour.neo_dagger`, but the copy already running uses
+   the old job list.
+5. Keep `TEAM_STATUS.md` and this file in step with each new result.
 
 ## 4. Open problems (unsolved, up for grabs)
 
@@ -177,9 +174,11 @@ holds it awake while training runs.
 **GPU temperature rule (user, 28 Oct):** above 65 C pause the GPU work,
 resume when cool. `scripts/gpu_watchdog.py` runs in the background: every
 10 s it reads nvidia-smi; above 65 C it suspends the project's GPU jobs by
-name (train, neo_demos, cem, planner, jumpeval, stress, feasibility,
-cem_momentum_neo; suspended, so no state is lost) and resumes them below
-58 C. It does not cover `parkour.neo_dagger` or the live bot. Log:
+name (train, neo_demos, neo_dagger, cem, planner, jumpeval, stress,
+feasibility, cem_momentum_neo; suspended, so no state is lost) and resumes them below
+58 C. Since 28 Oct afternoon it also covers `parkour.neo_dagger` (restart
+the watchdog to pick that up); the live bot is left alone on purpose (it
+plays in real time). Log:
 `runs/gpu_watchdog.log`. If the watchdog is ever killed while jobs are
 paused: `python scripts/gpu_watchdog.py --resume-all`.
 
@@ -254,18 +253,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `a7a426c` (2026-10-28 12:34, branch `claude/pensive-knuth-biwj11`): Evidence files for every neo and audit number in the docs
+Generated on top of commit `a37dea9` (2026-10-28 12:26, branch `claude/pensive-knuth-biwj11`): Living handoff for any model: AGENTS.md, current HANDOFF.md, generated snapshot
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | updated together with this snapshot | 0 |
+| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 0 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | updated together with this snapshot | 0 |
-| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 4 |
-| `docs/report_draft.md` | `ed915f0` 2026-10-28 10:02 | 4 |
-| `results/README.md` | `6170803` 2026-10-28 11:40 | 1 |
-| `results/DATA.md` | `abb53b8` 2026-10-28 00:07 | 25 |
+| `TEAM_STATUS.md` | `a37dea9` 2026-10-28 12:26 | 0 |
+| `README.md` | `a37dea9` 2026-10-28 12:26 | 0 |
+| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 5 |
+| `docs/report_draft.md` | `ed915f0` 2026-10-28 10:02 | 5 |
+| `results/README.md` | `6170803` 2026-10-28 11:40 | 2 |
+| `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -400,7 +399,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 
 ### In `results/` but not yet in `results/DATA.md`
 
-`audit_claims.json`, `final_policy_v1.json`, `final_policy_v1.pt`, `games/cheat-check/`, `games/film-neo_level7-1028-112702/`, `games/film-sprint-1028-014252/`, `games/film-sprint-1028-024939/`, `games/film-stairs-1028-014205/`, `games/film-stairs-1028-024852/`, `games/film-tour-1028-014014/`, `games/film-tour-1028-014119/`, `games/film-tour-1028-024805/`, `games/live-rainbow-test/`, `games/live2-final/`, `games/live2-obstacles/`, `games/live2-showcase/`, `games/neo-full/`, `games/neo-live-final/`, `games/neo-offline-final/`, `games/noroute-live/`, `games/noroute-live-obstacles/`, `games/noroute-offline/`, `games/noroute-offline-obstacles/`, `games/planner-live/`, `games/planner-live-obstacles/`, `games/planner-offline/`, `games/planner-offline-obstacles/`, `games/recheck-obs/`, `games/recheck-show/`, `games/recheck-std/`, `games/v2-live/`, `games/v2-live-obstacles/`, `games/v2-live-showcase/`, `games/v2-offline/`, `games/v2-offline-obstacles/`, `games/v2-offline-showcase/`, `games/v2-planner-live/`, `games/v2-planner-live-obstacles/`, `games/v2-planner-offline/`, `games/v2-planner-offline-obstacles/`, `games/viewer-test/`, `hparams_defaults_validation.json`, `jump_eval.json`, `jump_eval_main.json`, `jump_eval_v1.json`, `live_summary.md`, `live_summary_v1.md`, `neo/` (17 files), `offline_summary.md`, `offline_summary_v1.md`, `overnight_plan.html`, `physics_parity.json`, `planner/` (4 files), `showcase.html`, `stress.json`, `stress_main.json`, `stress_v1.json`, `theatre.html`, `videos/` (20 files)
+Nothing: the data index names everything.
 
 <!-- END AUTO-SNAPSHOT -->
 
@@ -421,6 +420,14 @@ At the end of a session, or after each result:
 Newest first. One entry per session; earlier history is in the
 [TEAM_STATUS update log](TEAM_STATUS.md#update-log) and `git log`.
 
+- **28 Oct 2026, Claude Code (cloud session, continued, branch
+  `claude/pensive-knuth-biwj11`):** the user asked this session to keep
+  working through section 3 on its own (no questions; they are away from
+  the PC), pushing after every step so the next model can continue. Done
+  so far: `results/DATA.md` indexes everything in `results/` (the snapshot's
+  "not yet indexed" list is empty); the GPU watchdog also pauses
+  `parkour.neo_dagger`. In progress: the report (section 3, item 1). This
+  branch is not merged into `main`; the PC session should merge it.
 - **28 Oct 2026, Claude Code (cloud session, branch
   `claude/pensive-knuth-biwj11`):** turned this file into a living handoff
   for any model: current state with the discount-0.995 final policy and the
