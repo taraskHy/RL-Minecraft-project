@@ -16,14 +16,21 @@ With no landing found the policy keeps control, and with ``--retries`` the
 search runs again every ``--retry-every`` ticks while the bot still stands
 on the takeoff (a bot that stopped there can often be planned from the
 standstill; ``--retry-horizon`` gives those plans more ticks, to walk back
-before the jump). With ``--approach H`` the search also runs when the bot
-first stands on the platform before a neo's takeoff, for a plan of up to H
-ticks over both jumps, so the bot reaches the takeoff in a state the neo can
-be made from (without a landing the takeoff search runs as usual).
+before the jump). With ``--brake T`` the bot first stops on the takeoff
+(``brake_plan``: "back" for up to 6 ticks, then no keys, T ticks in all,
+checked with the physics) and the retry runs as soon as it stands still.
+With ``--approach H`` the search also runs when the bot first stands on the
+platform before a neo's takeoff, for a plan of up to H ticks over both
+jumps, so the bot reaches the takeoff in a state the neo can be made from
+(without a landing the takeoff search runs as usual). With
+``--jumps advanced`` the search also runs at wide (3 sideways) and run-up
+jumps (momentum, head hitters, ice), with ``--jumps all`` at every jump.
 
 This is planning with an exact model of the game's physics. It measures
 what the bot does when it plans its neos, not what the network learned. The
-bots (offline and real Minecraft) do not have it yet: docs/abilities_plan.md.
+bots have it too (``parkour.live --assist``: the planner service ``--serve``,
+bridge/assist.js); the offline bot reproduces this module's plans when both
+search on the same device (CUDA's random draws differ from the CPU's).
 
 Course sets (``--set``):
   official  the held-out level 6-8 courses that contain a neo (family 1:
@@ -40,6 +47,7 @@ once with the chosen setting. Each run appends one JSON line to ``--out``
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import re
@@ -75,10 +83,11 @@ class AssistConfig:
     horizon: int = HORIZON  # ticks a plan from the takeoff may take
     retry_horizon: int = 0  # ticks for retry plans (0: horizon)
     approach: int = 0  # >0: also plan from the platform before a planned takeoff, over both jumps, in so many ticks
-    jumps: str = "neo"  # which jumps are planned: "neo", or "advanced" (also wide and momentum jumps, by spec)
+    jumps: str = "neo"  # which jumps are planned: "neo", "advanced" (also wide and momentum jumps, by spec) or "all"
     prior: float = 0.0  # weight of the policy's own action probabilities in the search's start
     retries: int = 0  # extra searches while the bot still stands on the takeoff without a plan
     retry_every: int = 10  # ticks between them
+    brake: int = 0  # >0: after a search without a landing, first stop on the takeoff (brake_plan, this many ticks), then retry
     batch: int = 1  # arrival states searched together; 1: every search has its own seed (the bots reproduce it)
     seed: int = 0
 
@@ -100,12 +109,97 @@ def plan_once(model, pool: CoursePool, rules: "Rules", arrival: dict, kind: str,
     return (f[0][0] if f[0] else None), r[0]
 
 
+BRAKE_BACK_TICKS = 6  # brake_plan holds "back" for 0 to this many ticks
+
+
+def brake_plan(pool: CoursePool, rules: "Rules", arrival: dict, ticks: int, device):
+    """Keys that stop the bot on its takeoff: "back" for the first k ticks (k = 0, 1, ... 6), then none, ``ticks``
+    in all. The first sequence after which the exact physics has the bot standing still on the platform it
+    stands on now (horizontal speed below 0.001), never on an obstacle; None if none does."""
+    ks = list(range(min(BRAKE_BACK_TICKS, ticks) + 1))
+    seqs = np.zeros((len(ks), ticks, 5), dtype=np.int64)
+    seqs[:, :, 0] = 1  # move: none
+    seqs[:, :, 1] = 1  # strafe: none
+    seqs[:, :, 4] = YAW_STEPS_DEG.index(0.0)  # no turn
+    for j, k in enumerate(ks):
+        seqs[j, :k, 0] = 0  # back
+    s = _state_rows([arrival] * len(ks), device)
+    course = torch.full((len(ks),), arrival["course"], device=device)
+    acts = torch.as_tensor(seqs, device=device)
+    steps = torch.tensor(YAW_STEPS_DEG, dtype=torch.float64, device=device) * (math.pi / 180)
+    alive = torch.ones(len(ks), dtype=torch.bool, device=device)
+    for t in range(ticks):
+        y = s.yaw + steps[acts[:, t, 4]]
+        s.yaw = torch.remainder(y + math.pi, 2 * math.pi) - math.pi
+        s = physics.simulate(pool.world, course, s, action_to_controls(acts[:, t]))
+        alive &= ~rules.on_obstacle(s, course)
+    still = standing_on(pool, s, course)[:, arrival["cp"]] & (torch.linalg.norm(s.vel[:, [0, 2]], dim=-1) < 1e-3)
+    ok = torch.nonzero(alive & still).flatten().tolist()
+    return seqs[ok[0]] if ok else None
+
+
 def horizons(cfg: "AssistConfig") -> dict:
     return {"takeoff": cfg.horizon, "retry": cfg.retry_horizon or cfg.horizon, "approach": cfg.approach}
 
 
+BOUNCE_PLAN_HORIZON = 80  # a jump onto a slime pad: takeoff, fall, bounce and the flight to the exit
+LADDER_PLAN_HORIZON = 64  # a ladder climb: 5 blocks take about 43 ticks from a standstill
+
+
+def plan_target(course: C.Course, k: int) -> int:
+    """The platform a plan from takeoff ``k`` ends on: the next one; for a jump onto a slime pad, the exit
+    after the pad (how high the bounce goes depends on how the pad is hit, so both are one plan)."""
+    sp = course.specs[k] if k < len(course.specs) else None
+    return k + 2 if sp is not None and sp.bounce and k + 2 < course.n else k + 1
+
+
+def plan_horizon(course: C.Course, k: int, kind: str, cfg: "AssistConfig") -> int:
+    """Ticks a plan of ``kind`` for the jump from takeoff ``k`` may take: the configured horizon, at least
+    ``BOUNCE_PLAN_HORIZON`` for slime jumps and ``LADDER_PLAN_HORIZON`` for ladder climbs."""
+    h = horizons(cfg)[kind]
+    sp = course.specs[k] if k < len(course.specs) else None
+    if kind == "approach" or sp is None:
+        return h
+    if sp.bounce:
+        return max(h, BOUNCE_PLAN_HORIZON)
+    if sp.ladder:
+        return max(h, LADDER_PLAN_HORIZON)
+    return h
+
+
+def specs_from_keys(keys: list[str], n_platforms: int) -> list[C.JumpSpec]:
+    """A course file's jump specs, one per jump from platform k to k + 1 as ``courses.generate`` records them.
+
+    Hand-designed courses (``courses.from_specs``) list only the specs they were built from; their runway
+    steps and the exits after shaped targets and slime pads are put back."""
+    specs = [spec_from_key(k) for k in keys]
+    if len(specs) == n_platforms - 1:
+        return specs
+    out = []
+    for sp in specs:
+        if sp.runway:
+            out.append(C.JumpSpec(1, 0, 0, (sp.runway, 1)))
+        out.append(sp)
+        if sp.block:
+            out.append(C.exit_spec(sp.block))
+        if sp.bounce:
+            out.append(C.bounce_exit(sp))
+    return out if len(out) == n_platforms - 1 else specs
+
+
+def courses_from_file(raw: list[dict]) -> list[C.Course]:
+    """Courses of a course file (its "courses" list) with their jump specs, which ``Course.from_json`` leaves out."""
+    out = []
+    for d in raw:
+        c = C.Course.from_json(d)
+        if d.get("specs"):
+            c.specs = specs_from_keys(d["specs"], c.n)
+        out.append(c)
+    return out
+
+
 _KEY = re.compile(r"g(-?\d+)_dy(-?\d+)_l(-?\d+)_s(\d+)x(\d+)(?:_neo(\d)([RL])(?:w(\d+))?)?(?:_run(\d+))?"
-                  r"(?:_hh(\d))?(?:_ice(\d))?$")
+                  r"(?:_hh(\d))?(?:_ice(\d))?(?:_b([a-z_]+?))?(?:_slime(\d+))?(_ladder)?$")
 
 
 def spec_from_key(key: str) -> C.JumpSpec:
@@ -113,23 +207,23 @@ def spec_from_key(key: str) -> C.JumpSpec:
     m = _KEY.match(key)
     if not m:
         raise ValueError(key)
-    g, dy, lat, a, b, neo, side, wall, run, hh, ice = m.groups()
+    g, dy, lat, a, b, neo, side, wall, run, hh, ice, block, slime, ladder = m.groups()
     return C.JumpSpec(int(g), int(dy), int(lat), (int(a), int(b)), int(neo or 0), 1 if side != "L" else -1,
-                      int(run or 0), int(wall or 1), int(hh or 0), int(ice or 0))
+                      int(run or 0), int(wall or 1), int(hh or 0), int(ice or 0), block or "", int(slime or 0),
+                      1 if ladder else 0)
 
 
-def planned_takeoffs(course: C.Course, jumps: str, spec_keys: list | None = None) -> list[int]:
-    """Where the assist plans: neo takeoffs, or (``advanced``) also wide and momentum jumps.
+def planned_takeoffs(course: C.Course, jumps: str) -> list[int]:
+    """Where the assist plans: neo takeoffs; (``advanced``) also wide and momentum jumps; (``all``) every jump.
 
-    ``spec_keys`` (a course file's "specs") stand in for ``course.specs`` of a course read from a file."""
+    A course read from a file needs its ``specs`` back first (``specs_from_keys``, as ``parkour.live`` does)."""
     if jumps == "neo":
         return neo_takeoffs(course)
-    if jumps != "advanced":
-        raise ValueError(jumps)
-    if spec_keys is not None and not course.specs:
-        course = C.Course(course.platforms, course.spawn, course.spawn_yaw, course.level, course.seed,
-                          specs=[spec_from_key(k) for k in spec_keys], name=course.name, extra=course.extra, ice=course.ice)
-    return advanced_takeoffs(course)
+    if jumps == "advanced":
+        return advanced_takeoffs(course)
+    if jumps == "all":
+        return list(range(course.n - 1))
+    raise ValueError(jumps)
 
 
 def advanced_takeoffs(course: C.Course) -> list[int]:
@@ -141,6 +235,22 @@ def advanced_takeoffs(course: C.Course) -> list[int]:
     ks = set(neo_takeoffs(course))
     ks |= {k for k, sp in enumerate(course.specs) if abs(sp.lateral) == 3 or sp.runway > 0 or sp.neo}
     return sorted(k for k in ks if k + 1 < course.n)
+
+
+def jump_kind(course: C.Course, k: int, neos: list) -> str:
+    """The kind of the jump from platform k: neo, wide (3 sideways), momentum (run-up), other advanced, or basic."""
+    if k in neos:
+        return "neo"
+    sp = course.specs[k] if k < len(course.specs) else None
+    if sp is None:
+        return "unknown"
+    if sp.runway:
+        return "momentum" if not (sp.ceiling or sp.ice) else "run-up (roof or ice)"
+    if abs(sp.lateral) == 3:
+        return "wide"
+    if sp.neo or sp.block or sp.bounce or sp.ladder:
+        return "other advanced"
+    return "basic"
 
 
 def neo_level() -> list[C.JumpSpec]:
@@ -357,14 +467,15 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
             if k >= 1 and k - 1 not in planned[i]:
                 before[i, k - 1] = True
     hz = horizons(cfg)
-    H = max(hz.values())
+    H = max(list(hz.values()) + [BOUNCE_PLAN_HORIZON, LADDER_PLAN_HORIZON, cfg.brake])
     tries = torch.zeros(n, C.MAX_PLATFORMS, dtype=torch.int64, device=device)
     tried_before = torch.zeros_like(neo)
     last_try = torch.full((n,), -10**9, dtype=torch.int64, device=device)
     plan = torch.zeros(n, H, 5, dtype=torch.int64, device=device)
     plan_len = torch.zeros(n, dtype=torch.int64, device=device)
     plan_pos = torch.zeros(n, dtype=torch.int64, device=device)
-    plan_k = torch.full((n,), -1, dtype=torch.int64, device=device)  # the neo takeoff a plan is for
+    plan_t = torch.full((n,), -1, dtype=torch.int64, device=device)  # the platform a plan ends on
+    braking = torch.zeros(n, dtype=torch.bool, device=device)  # the queued actions are a brake_plan
     rows = torch.arange(n, device=device)
     finished = torch.zeros(n, dtype=torch.bool, device=device)
     success = torch.zeros(n, dtype=torch.bool, device=device)
@@ -372,8 +483,8 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
     length = torch.zeros(n, dtype=torch.int64, device=device)
     prog = torch.zeros(n, dtype=torch.float64, device=device)
     reached = [set() for _ in range(n)]
-    events = []  # one per search: course, kind, neo takeoff, tick, found, plan ticks, rounds
-    plans = {"played": 0, "landed_as_planned": 0}
+    events = []  # one per search: course, kind, takeoff, target, tick, after_plan (a plan or brake ended this tick), ...
+    plans = {"played": 0, "landed_as_planned": 0, "brakes": 0}
     search_seconds = 0.0
     with torch.no_grad():
         for t in range(max_ticks):
@@ -391,11 +502,12 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
             length = torch.where(first, info["ep_len"], length)
             prog = torch.where(first, info["progress_frac"], prog)
             ended = active & (plan_pos >= plan_len)  # a plan's last action was just played
+            retry_now = ended & braking  # a brake just ended: retry at once
+            braking &= ~ended
             if bool(ended.any()):
-                for i in torch.nonzero(ended).flatten().tolist():
+                for i in torch.nonzero(ended & ~retry_now).flatten().tolist():
                     plans["played"] += 1
-                    k = int(plan_k[i])
-                    ok = bool(info["success"][i]) if bool(first[i]) else int(env.cp[i]) > k
+                    ok = bool(info["success"][i]) if bool(first[i]) else int(env.cp[i]) >= int(plan_t[i])
                     plans["landed_as_planned"] += int(ok)
             finished |= done
             plan_len = torch.where(done, torch.zeros_like(plan_len), plan_len)
@@ -411,7 +523,7 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
             n_try = tries[rows, cp]
             kinds = {"takeoff": free & plan_at[rows, cp] & (n_try == 0),
                      "retry": (free & plan_at[rows, cp] & (n_try > 0) & (n_try <= cfg.retries)
-                               & (t - last_try >= cfg.retry_every) & (env.stall + hz["retry"] < stall_ticks)),
+                               & ((t - last_try >= cfg.retry_every) | retry_now) & (env.stall + hz["retry"] < stall_ticks)),
                      "approach": free & before[rows, cp] & ~tried_before[rows, cp] if cfg.approach else None}
             for kind, mask in kinds.items():
                 want = [] if mask is None else torch.nonzero(mask).flatten().tolist()
@@ -419,30 +531,38 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
                     continue
                 t0 = time.time()
                 arrivals = [_arrival(env, i) for i in want]
-                if kind == "approach":
-                    for arr in arrivals:
-                        arr["target"] = arr["cp"] + 2
+                horizon = []
+                for i, arr in zip(want, arrivals):
+                    k = arr["cp"] + 1 if kind == "approach" else arr["cp"]
+                    arr["target"] = plan_target(pool.courses[i], k)
+                    horizon.append(plan_horizon(pool.courses[i], k, kind, cfg))
                 found, rounds = [], []
                 if cfg.batch <= 1:
-                    for i, arr in zip(want, arrivals):
+                    for i, arr, h in zip(want, arrivals, horizon):
                         attempt = 0 if kind == "approach" else int(tries[i, int(cp[i])])
-                        seq, r = plan_once(model, pool, rules, arr, kind, attempt, cfg, hz[kind], device)
+                        seq, r = plan_once(model, pool, rules, arr, kind, attempt, cfg, h, device)
                         found.append([] if seq is None else [seq])
                         rounds.append(r)
                 else:  # searches batched per tick (faster on a GPU); the bots cannot reproduce these seeds
-                    for b in range(0, len(arrivals), cfg.batch):
-                        part = arrivals[b:b + cfg.batch]
-                        pr = policy_prior(model, pool, part, device, hz[kind]) if cfg.prior > 0 else None
-                        f, r = search(pool, rules, part, device, cfg, cfg.seed + 1009 * t + b, pr, hz[kind])
-                        found += f
-                        rounds += r
+                    found, rounds = [None] * len(arrivals), [None] * len(arrivals)
+                    for h in sorted(set(horizon)):
+                        idx = [j for j, hj in enumerate(horizon) if hj == h]
+                        for b in range(0, len(idx), cfg.batch):
+                            part = idx[b:b + cfg.batch]
+                            arr_b = [arrivals[j] for j in part]
+                            pr = policy_prior(model, pool, arr_b, device, h) if cfg.prior > 0 else None
+                            seed = cfg.seed + 1009 * t + b if h == hz[kind] else cfg.seed + 1009 * t + b + 7919 * h
+                            f, r = search(pool, rules, arr_b, device, cfg, seed, pr, h)
+                            for j, fj, rj in zip(part, f, r):
+                                found[j], rounds[j] = fj, rj
                 dt = time.time() - t0
                 search_seconds += dt
                 for j, i in enumerate(want):
                     c = int(cp[i])
                     k = c + 1 if kind == "approach" else c
-                    events.append({"course": i, "kind": kind, "takeoff": k, "tick": t + 1, "found": bool(found[j]),
-                                   "plan_ticks": len(found[j][0]) if found[j] else 0, "rounds": rounds[j]})
+                    events.append({"course": i, "kind": kind, "takeoff": k, "target": arrivals[j]["target"], "tick": t + 1,
+                                   "after_plan": bool(ended[i]), "found": bool(found[j]),
+                                   "plan_ticks": len(found[j][0]) if found[j] else 0, "rounds": rounds[j], "braked": False})
                     if kind == "approach":
                         tried_before[i, c] = True
                     else:
@@ -453,7 +573,16 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
                         plan[i, :len(seq)] = seq
                         plan_len[i] = len(seq)
                         plan_pos[i] = 0
-                        plan_k[i] = k
+                        plan_t[i] = arrivals[j]["target"]
+                    elif cfg.brake and kind != "approach" and int(tries[i, c]) <= cfg.retries:
+                        seq = brake_plan(pool, rules, arrivals[j], cfg.brake, device)
+                        if seq is not None:
+                            plan[i, :len(seq)] = torch.as_tensor(seq, device=device)
+                            plan_len[i] = len(seq)
+                            plan_pos[i] = 0
+                            braking[i] = True
+                            plans["brakes"] += 1
+                            events[-1]["braked"] = True
                 if log:
                     log({"tick": t + 1, "kind": kind, "searched": len(want), "found": sum(bool(f) for f in found),
                          "seconds": round(dt, 1), "unfinished": int((~finished).sum())})
@@ -470,7 +599,8 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
                            "level": int(lv[i]), "neos": len(ks), "neos_reached": len(reached[i]),
                            "neos_passed": sum(1 for k in ks if k in reached[i] and (s[i] or cp_final[i] > k)),
                            "stopped_at": int(cp_final[i]) if not s[i] else None,
-                           "stopped_at_neo": bool(not s[i] and int(cp_final[i]) in ks)})
+                           "stopped_at_neo": bool(not s[i] and int(cp_final[i]) in ks),
+                           "stopped_at_kind": None if s[i] else jump_kind(pool.courses[i], int(cp_final[i]), ks)})
     return {"per_course": per_course, "events": events, "plans": plans, "search_seconds": round(search_seconds, 1)}
 
 
@@ -481,6 +611,9 @@ def summarize(res: dict) -> dict:
            "neo_jumps": sum(c["neos"] for c in pc), "neo_jumps_reached": sum(c["neos_reached"] for c in pc),
            "neo_jumps_passed": sum(c["neos_passed"] for c in pc),
            "failed_at_a_neo": sum(c["stopped_at_neo"] for c in pc)}
+    kinds = [c.get("stopped_at_kind") for c in pc if not c["success"] and c.get("stopped_at_kind")]
+    if kinds:  # the jump each failed course stopped before
+        out["failed_at"] = {k: kinds.count(k) for k in sorted(set(kinds))}
     by = {}
     for c in pc:
         key = str(c["neos"]) if c["neos"] < 5 else "5+"
@@ -497,6 +630,8 @@ def summarize(res: dict) -> dict:
                 out["searches"][kind] = {"n": len(e), "found": sum(x["found"] for x in e)}
         out["plans_played"] = res["plans"]["played"]
         out["plans_landed_as_planned"] = res["plans"]["landed_as_planned"]
+        if res["plans"].get("brakes"):
+            out["brakes"] = res["plans"]["brakes"]
         out["search_seconds"] = res["search_seconds"]
         out["seconds_per_search"] = round(res["search_seconds"] / len(ev), 2)
     return out
@@ -508,14 +643,15 @@ def serve(model, courses: list[C.Course], cfg: AssistConfig, device, inp=None, o
     Request: {"index": course index in ``courses``, "cp", "target", "kind",
     "attempt", "state": {"pos", "vel", "yaw", "onGround", "jumpTicks",
     "collidedH"}, "lastAction"}. Answer: {"plan": [[move, strafe, jump,
-    sprint, yaw], ...] or null, "rounds", "seconds"}. The search is the one
-    ``evaluate_assisted`` runs with ``batch`` 1 (same seed for the same request).
+    sprint, yaw], ...] or null, "rounds", "brake": the brake_plan to play
+    before the retry when there is no plan and ``brake`` is set (else null),
+    "seconds"}. The search is the one ``evaluate_assisted`` runs with
+    ``batch`` 1 (same seed for the same request).
     """
     inp = inp or sys.stdin
     out = out or sys.stdout
     pool = CoursePool(courses, device, C.GRID)
     rules = Rules(pool)
-    hz = horizons(cfg)
     with torch.no_grad():
         for line in inp:
             if not line.strip():
@@ -528,9 +664,15 @@ def serve(model, courses: list[C.Course], cfg: AssistConfig, device, inp=None, o
                    "collided_h": bool(st.get("collidedH", False)), "collided_v": False,
                    "last_action": [int(v) for v in req["lastAction"]]}
             t0 = time.time()
-            seq, rounds = plan_once(model, pool, rules, arr, req["kind"], int(req.get("attempt", 0)), cfg, hz[req["kind"]],
-                                    device)
+            k = arr["cp"] + 1 if req["kind"] == "approach" else arr["cp"]
+            attempt = int(req.get("attempt", 0))
+            seq, rounds = plan_once(model, pool, rules, arr, req["kind"], attempt, cfg,
+                                    plan_horizon(courses[arr["course"]], k, req["kind"], cfg), device)
+            brake = None
+            if seq is None and cfg.brake and req["kind"] != "approach" and attempt + 1 <= cfg.retries:
+                brake = brake_plan(pool, rules, arr, cfg.brake, device)
             out.write(json.dumps({"plan": None if seq is None else seq.tolist(), "rounds": rounds,
+                                  "brake": None if brake is None else brake.tolist(),
                                   "seconds": round(time.time() - t0, 3)}) + "\n")
             out.flush()
 
@@ -545,8 +687,11 @@ def main(argv=None):
     ap.add_argument("--threads", type=int, default=0)
     ap.add_argument("--out", default="")
     ap.add_argument("--tag", default="")
+    ap.add_argument("--details", default="", help="also write every course's outcome and every search to this JSON file")
     ap.add_argument("--serve", action="store_true", help="plan for the bots: JSON lines on stdin/stdout (see serve)")
     ap.add_argument("--courses-file", default="", help="with --serve: the courses the bot plays")
+    ap.add_argument("--device", default="", help="cpu or cuda (default: cuda if available); the bots' planner service "
+                                                 "must use the device of the simulator run it is compared with")
     for k, v in asdict(AssistConfig()).items():
         if k != "enabled":
             ap.add_argument("--" + k.replace("_", "-"), type=type(v), default=v)
@@ -557,9 +702,9 @@ def main(argv=None):
     if a.family not in valid[a.set]:
         raise SystemExit(f"--set {a.set} has families {valid[a.set]} (test, validation)")
     cfg = AssistConfig(enabled=not a.off, **{k: getattr(a, k) for k in asdict(AssistConfig()) if k != "enabled"})
-    dev = "cuda" if torch.cuda.is_available() else "cpu"
+    dev = a.device or ("cuda" if torch.cuda.is_available() else "cpu")
     if a.serve:
-        courses = [C.Course.from_json(d) for d in json.loads(Path(a.courses_file).read_text())["courses"]]
+        courses = courses_from_file(json.loads(Path(a.courses_file).read_text())["courses"])
         serve(load_model(Path(a.checkpoint), dev), courses, cfg, dev)
         return
     courses = course_set(a.set, a.family)
@@ -570,9 +715,12 @@ def main(argv=None):
     t0 = time.time()
     res = evaluate_assisted(model, pool, dev, cfg, log=lambda d: print(json.dumps(d), flush=True))
     test = a.family in TEST_FAMILIES
+    ck = Path(a.checkpoint).resolve()
+    ck_name = ck.relative_to(ROOT).as_posix() if ck.is_relative_to(ROOT) else ck.name
     row = {"set": a.set, "family": a.family, "split": "test" if test else "validation",
-           "checkpoint": Path(a.checkpoint).as_posix().split("RL-Minecraft-project/")[-1], "assist": not a.off,
-           "config": asdict(cfg), "tag": a.tag, "measured": f"simulator (float64 port of prismarine-physics), {dev}",
+           "checkpoint": ck_name, "checkpoint_sha1": hashlib.sha1(ck.read_bytes()).hexdigest()[:12], "assist": not a.off,
+           "config": asdict(cfg), "tag": a.tag,
+           "measured": f"simulator (float64 port of prismarine-physics), {dev.upper() if dev == 'cpu' else 'CUDA'}",
            **summarize(res), "seconds": round(time.time() - t0, 1)}
     if a.courses:
         row["first_courses_only"] = a.courses
@@ -580,6 +728,9 @@ def main(argv=None):
     out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, "a") as fh:
         fh.write(json.dumps(row) + "\n")
+    if a.details:
+        Path(a.details).parent.mkdir(parents=True, exist_ok=True)
+        Path(a.details).write_text(json.dumps({"row": row, "per_course": res["per_course"], "events": res["events"]}))
     print(json.dumps(row, indent=1))
 
 

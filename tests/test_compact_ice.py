@@ -6,6 +6,7 @@ from parkour.env import CoursePool
 
 def test_compact_ice_exact_and_replace():
     cs = [C.generate(np.random.default_rng(k), C.load_levels(), k%6, 5, ice_prob=.5) for k in range(6)]
+    cs[0].slime = [0]  # the compact palette must preserve slime's distinct friction too
     devices = ['cpu'] + (['cuda'] if torch.cuda.is_available() else [])
     for dev in devices:
         full = CoursePool(cs, dev, C.GRID, ice=True)

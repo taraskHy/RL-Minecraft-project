@@ -10,7 +10,7 @@ the data: training runs, policies, the route planner and neo files, the game
 folders (including the v2, planner, noroute, neo and film games) and the
 videos.
 
-**Last updated:** 28 October 2026, evening, training PC: cloud work merged through `d9237e7`; validation-only training queue being prepared.
+**Last updated:** 28 October 2026, evening, training PC: cloud work merged through `21188a6`; validation-only training queue being prepared.
 
 ## The project
 
@@ -166,6 +166,36 @@ neo jumps; `results/neo/`):
   is a fine-tune of the discount-0.99 line on levels 0-8; the final policy
   is trained on levels 0-5 with obstacles.
 
+## New abilities (28 Oct evening, cloud session; simulator unless said)
+
+The cloud session cannot use the PC's GPU, so it built and checked these on
+its CPU; the training for them is queued for the PC
+(`configs/sweep_new_skills.json`). Plan and status: `docs/abilities_plan.md`.
+
+- **The bot plans its hardest jumps.** When it first stands on a neo's
+  takeoff (or a wide or run-up jump's), a search with the exact game physics
+  finds an action sequence from its exact state, and the bot plays it.
+  On the 218 validation neo courses: the final policy alone completes 0;
+  with planning at neos 49; planning every advanced jump 119 (55%), passing
+  214 of the 286 neos it reaches. Every one of the 869 plans played landed
+  exactly as searched. The offline bot (prismarine-physics, the live bot's
+  engine) reproduces the simulator exactly with this planner; the live bot
+  has it too (it stands still on the takeoff while the planner thinks), not
+  yet run on a real server.
+- **Head hitters and ice run-ups**: new jump kinds (a run-up under a
+  2-high roof, a tunnel, an ice runway), checked possible by a scripted
+  study. The final policy, never trained on them, makes 68% of the head
+  hitter kinds alone, 22% of the hard ones and 49% of the ice ones; whole
+  courses of those kinds 25.5%, 1.5% and 7.0%, and with the planner 31/40,
+  38/40, 32/40.
+- **New blocks in the physics**, each matching prismarine-physics to
+  1.4e-14 blocks over 60,000 ticks: slabs, stairs, soul sand, carpets,
+  trapdoors, fence and wall posts, ladders (block shapes), slime (bounces),
+  ladders and vines (climbing). Courses can use them as jump kinds that
+  land on a shaped block, bounce off a slime pad, or climb a ladder onto a
+  wall; both bots build the real blocks and the offline bot plays them
+  exactly like the simulator.
+
 ## No course list: the bot finds its own route
 
 Requested from the side chat: run the trained bot on maps where nobody gives
@@ -176,10 +206,10 @@ policy jumps to them, no retraining. Only the goal position is given.
 
 | Unseen courses | Course list given | Planner | Planner, first policy |
 | --- | --- | --- | --- |
-| 1,200 standard, simulator | 98.4% | **90.9%** | 89.6% |
-| 1,200 with obstacles, simulator | 95.2% | **88.1%** | 86.2% |
-| 60 standard, **real Minecraft** | 59/60 | **50/60** | 52/60 |
-| 60 with obstacles, **real Minecraft** | 57/60 | **55/60** | 53/60 |
+| 1,200 standard, simulator | 98.4% | **92.3%** | 89.6% |
+| 1,200 with obstacles, simulator | 95.2% | **90.5%** | 86.2% |
+| 60 standard, **real Minecraft** | 59/60 | **51/60** | 52/60 |
+| 60 with obstacles, **real Minecraft** | 57/60 | **56/60** | 53/60 |
 
 For both policies, real Minecraft and the offline bot match the simulator on
 every course, 0 server corrections. If a drop onto any later, lower platform
@@ -215,14 +245,18 @@ real Minecraft still to be run on the PC. Videos: `real_minecraft_showcase_no_co
 (first person) and `replay_233_*` / `replay_240_*` (the plan drawn as
 numbered cyan platforms). Report section 7.11.
 
+The retuned planner is confirmed in real Minecraft: 51/60 standard and 56/60 obstacles, all outcomes identical to the simulator, zero server corrections. It is now the default in Python and JavaScript (`cost=distance`, `align=2.0`). Evidence: `results/games/v2-tuned-planner-live*`.
+
 ## Last known state
 
-The cloud work is merged through `d9237e7`. Integration checks pass (56 tests, 8 subtests). The two-slot queue is ready to start `g995-adv` and `g995-ice`, then `g995-extra`. The game is closed: no GPU-memory, duty or thread limits. `scripts/training_queue.py` will fill available slots and replicate the best recipe on the shared validation levels 0-5; test scores do not select recipes.
+The cloud work is merged through `21188a6`. Integration checks pass (85 tests, 8 subtests, plus 6 focused checks after the cache-release change). Both `g995-adv` and `g995-ice` resumed their own iteration-49 checkpoint at 22:07, with `g995-extra` next. The latest user instruction limits both GPU compute and memory to 70%. The initial 10-second duty cycle produced unacceptable long 98% bursts; it has been replaced by shared 50-ms pacing with feedback from measured GPU usage, targeting headroom below 70%. This software control cannot guarantee every transient sample or the user's game stays below 70%.
+
+Overwatch was observed running at 22:04, with no trainers active and about 40% card memory already in use. Training now uses a 13% allocator cap per job, 1,024-course pools, 8,192 environments, rollout 64, and 32 minibatches; game ticks per iteration remain 524,288, while rollout shape and minibatch changes affect optimization. The earlier ice run exceeded its 28% allocator cap during PPO; original logs/config are retained under its `recovery/20261028-220658/` directory, and it resumed the saved checkpoint. Shared 70% compute feedback, thermal protection and keep-awake remain active. The local queue fills slots; a five-minute native heartbeat monitors progress and publishes results. Later recipes are selected from common validation levels 0-5; test scores do not select recipes.
 
 - **GPU temperature watchdog** (user rule, since 28 Oct 07:47):
-  `scripts/gpu_watchdog.py` checks the GPU every 10 s, suspends the
+  `scripts/gpu_watchdog.py` checks the GPU about every second, suspends the
   project's GPU jobs above 65 C (no state lost) and resumes them below 58 C.
-  Its log (`runs/gpu_watchdog.log`) shows no pause so far. The merged watchdog also covers `parkour.neo_dagger` and `parkour.neo_assist`; the live bot is excluded.
+  Its log is `runs/gpu_watchdog.log`. The merged watchdog also covers `parkour.neo_dagger` and `parkour.neo_assist`; the live bot and its planner service are excluded.
 - Only two training runs fit on the GPU at once (a third spills out of GPU
   memory and makes all of them about 8 times slower, as noted in
   `docs/overnight_plan.md`).
@@ -261,19 +295,30 @@ The cloud work is merged through `d9237e7`. Integration checks pass (56 tests, 8
 
 ## Open problems anyone can pick up
 
-1. Neo courses: DAgger levels off at about 30% of held-out neo courses, and
-   courses with two or more neos are rarely completed (5 of 81 test courses
-   in the simulator, `results/neo/by_neo_count.json`). The showcase neo
-   course is still unsolved.
-2. One policy for everything: the neo policy and the final policy are
-   separate networks, and nobody has tried to merge them yet.
-3. Ice physics, ice platforms, head hitters and ice run-ups are now opt-in features; GPU training is queued. Slabs, ladders and fences remain open.
+The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
+(sections 3 to 5).
+
+1. Neos: the learned neo policy completes 29% of neo courses; with the
+   new planning assist (simulator) the final policy completes 55% of the
+   validation neo courses. Training the policy itself to do it is still open.
+2. One policy for both normal and neo courses (now there are two).
+3. New blocks are in the physics and in course pieces (shapes, slime,
+   ladders); the policy has not been trained on them yet (PC queue).
 4. Hand-built maps: extract the platform chain from a region of a real map.
 5. The report discussion and conclusion are drafted. The cloud DOCX/PDF exports predate this merged source; rebuild and check pagination before submission.
 
 ## Update log
 
+- **28 Oct 2026, 22:10, Codex on training PC:** merged cloud through `21188a6`; 85 tests and 8 subtests passed, then 6 focused checks passed after releasing unused validation cache. Regenerated extra feasibility/levels through the study command. Retuned planner live verification and neo export complete. Replaced rejected long-burst duty with 50-ms shared feedback pacing. Overwatch was found running; resumed both saved iteration-49 checkpoints with 13% allocator caps and smaller tensor working sets, preserving the ice OOM attempt and 41 uncheckpointed updates in recovery logs. Card-wide telemetry is archived in `results/operations/gpu-limit-verification.json`; a five-minute heartbeat monitors results and publication. Next: finish requested three recipes, select by validation only, report each test once.
+
+- **28 Oct 2026, 21:38, Codex on the training PC:** retuned planner confirmed in real Minecraft (51/60 standard, 56/60 obstacles, 0 corrections, exact outcome parity) and adopted as default in both implementations. Cloud work merged again through `21188a6`. User changed GPU budget to 70% compute and memory. Compact friction and evaluation batches preserve physics and fixed evaluation courses; extra training uses a 2,048-course pool to fit the budget (16,384 environments unchanged).
 - **28 Oct 2026, evening, Codex on the training PC:** merged cloud work, retained the PC audit corrections and both histories, exported the neo policy, fixed relative-path checkpoint resume and preserved validation best, added opt-in final-test-only training and a two-slot queue. 56 tests and 8 subtests pass. Next: GPU training and real-Minecraft confirmation of the retuned planner.
+- **28 Oct 2026, evening (cloud session):** new abilities: planning the
+  hardest jumps with the exact physics (neo assist; simulator and both
+  bots), head-hitter and ice run-up jump kinds, block shapes, slime and
+  ladders in the physics and in courses (exact against prismarine-physics),
+  a gaming-friendly training mode for the PC and its queue. Details above.
+
 - **28 Oct 2026, afternoon (cloud session):** this page brought up to date:
   final policy with discount 0.995 (98.4% / 95.2% in the simulator; 59/60,
   57/60, 3/4 in real Minecraft), neos learned from demonstrations and DAgger

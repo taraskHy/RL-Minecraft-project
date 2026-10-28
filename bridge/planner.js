@@ -16,8 +16,8 @@ const FORGIVENESS = {
   '-3': [0.826, 0.859, 0.656, 0.156, 0.062, 0.021]
 }
 const DEFAULTS = {
-  radius: 12, below: 10, above: 4, max_gap: 5.5, dy_min: -3, dy_max: 1, align: 3.0, slab_only: true,
-  limits: 'table', slack: 0.5, cost: 'difficulty', mark_passed: true, clear_path: true, head_hitters: true
+  radius: 12, below: 10, above: 4, max_gap: 5.5, dy_min: -3, dy_max: 1, align: 2.0, slab_only: true,
+  limits: 'table', slack: 0.5, cost: 'distance', mark_passed: true, clear_path: true, head_hitters: true
 }
 
 class Platform {

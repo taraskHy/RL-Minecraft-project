@@ -1,4 +1,6 @@
-"""Head hitters and ice run-ups (opt-in extra levels): placement, physics of the roof, and the level files."""
+"""The opt-in extra levels (head hitters, ice run-ups, shaped blocks, slime bounces, ladder climbs): placement,
+physics of the roof, and the level files."""
+import dataclasses
 import json
 import unittest
 
@@ -8,7 +10,11 @@ import torch
 from parkour import courses as C
 from parkour import physics
 from parkour.env import MAX_EXTRA, CoursePool
+from parkour.feasibility import EXTRA_LEVELS
 from parkour.paths import CONFIGS
+
+KIND_OF_LEVEL = {"head hitter": "ceiling", "hard head hitter": "ceiling", "ice run-up": "ice", "shaped blocks": "block",
+                 "slime bounce": "bounce", "ladder climb": "ladder"}  # the JumpSpec field every spec of the level sets
 
 
 def extra_table():
@@ -19,8 +25,8 @@ class ExtraLevels(unittest.TestCase):
     def test_existing_levels_and_keys_unchanged(self):
         self.assertEqual(len(C.load_levels()), 6)
         self.assertEqual(len(C.load_levels(advanced=True)), 9)
-        self.assertEqual(len(C.load_levels(extra=True)), 9)
-        self.assertEqual(len(C.load_levels(advanced=True, extra=True)), 12)
+        self.assertEqual(len(C.load_levels(extra=True)), 6 + len(EXTRA_LEVELS))
+        self.assertEqual(len(C.load_levels(advanced=True, extra=True)), 9 + len(EXTRA_LEVELS))
         for level in C.load_levels(advanced=True):
             for sp in level:
                 self.assertEqual((sp.ceiling, sp.ice), (0, 0))
@@ -31,13 +37,15 @@ class ExtraLevels(unittest.TestCase):
         feas = {C._spec_from(r).key(): r["forgiveness"]
                 for r in json.loads((CONFIGS / "jump_feasibility_extra.json").read_text())["specs"]}
         data = json.loads((CONFIGS / "jump_levels_extra.json").read_text())
-        self.assertEqual([L["name"] for L in data["levels"]], ["head hitter", "hard head hitter", "ice run-up"])
+        self.assertEqual([L["name"] for L in data["levels"]], [name for name, _ in EXTRA_LEVELS])
         for L in data["levels"]:
+            self.assertTrue(L["specs"], L["name"])
             for d in L["specs"]:
                 sp = C._spec_from(d)
-                self.assertGreater(feas[C.JumpSpec(sp.gap, sp.dy, abs(sp.lateral), sp.size, runway=sp.runway,
-                                                   ceiling=sp.ceiling, ice=sp.ice).key()], 0)
-                self.assertGreater(sp.runway, 0)
+                self.assertGreater(feas[dataclasses.replace(sp, lateral=abs(sp.lateral)).key()], 0)
+                self.assertTrue(getattr(sp, KIND_OF_LEVEL[L["name"]]), L["name"])
+                if L["name"] in ("head hitter", "hard head hitter", "ice run-up"):
+                    self.assertGreater(sp.runway, 0)
 
     def test_roofs_and_ice_in_generated_courses(self):
         levels = extra_table()
@@ -70,6 +78,18 @@ class ExtraLevels(unittest.TestCase):
         self.assertGreater(n_icy, 5)
         pool = CoursePool([C.generate(np.random.default_rng(i), levels, 8, 8) for i in range(4)], "cpu", C.GRID)
         self.assertIsNotNone(pool.slip)
+
+    def test_single_jump_evaluation_keeps_the_blocks(self):
+        from parkour.jumpeval import jump_course, target_index
+        slab = jump_course(C.JumpSpec(2, 0, 0, (1, 1), block="bottom_slab"), 0.0)
+        self.assertEqual((slab.n, slab.shapes, target_index(slab.specs[0])), (4, {1: "bottom_slab"}, 1))
+        pad = jump_course(C.JumpSpec(2, -3, 0, (1, 1), bounce=2), 0.0)
+        self.assertEqual((pad.n, pad.slime, target_index(pad.specs[0])), (4, [1], 2))
+        self.assertEqual(int(pad.platforms[2][4] - pad.platforms[1][4]), 2)  # the exit 2 above the pad
+        ladder = jump_course(C.JumpSpec(1, 3, 0, (1, 1), ladder=1), 0.0)
+        self.assertEqual((ladder.n, len(ladder.ladders)), (3, 4))
+        plain = jump_course(C.JumpSpec(2, 0, 1, (1, 1)), 0.0)
+        self.assertEqual((plain.n, plain.shapes, plain.slime, len(plain.ladders)), (3, {}, [], 0))
 
     def test_roof_caps_the_rise_at_two_tenths(self):
         c = C.single_jump(C.JumpSpec(2, 0, 0, (1, 1), runway=3, ceiling=1))

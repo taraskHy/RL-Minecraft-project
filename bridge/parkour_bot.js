@@ -3,7 +3,7 @@
 //
 //   node parkour_bot.js --policy P.json --courses C.json --out episodes.jsonl
 //        [--port 25570] [--origin 0,80,0] [--pad -20,100,-20] [--viewer NAME] [--stall 200] [--max-ticks 3000]
-//        [--assist CONFIG_JSON --assist-python PYTHON --assist-checkpoint CKPT --assist-root DIR]
+//        [--assist CONFIG_JSON --assist-python PYTHON --assist-checkpoint CKPT --assist-root DIR --assist-device cpu|cuda]
 //
 // For each course: move to the spawn pad, clear the course area, build the
 // platforms with /fill, /tp onto the start block, then drive the bot with the
@@ -22,6 +22,15 @@ const { Vec3 } = require('vec3')
 const P = require('./policy')
 const A = require('./assist')
 const { Physics } = require('prismarine-physics')
+const path = require('path')
+// Shaped platforms (Course.shapes): the block state of each shape name, as /setblock writes it.
+const SHAPES = Object.fromEntries(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'configs', 'block_shapes.json'), 'utf8'))
+  .shapes.map(s => [s.name, s]))
+function stateString (name) {
+  const s = SHAPES[name]
+  const props = Object.entries(s.properties).map(([k, v]) => `${k}=${v}`).join(',')
+  return `minecraft:${s.block}` + (props ? `[${props}]` : '')
+}
 
 function parseArgs (argv) {
   const a = { port: 25570, host: '127.0.0.1', origin: '0,80,0', pad: '-20,100,-20', stall: 200, maxTicks: 3000, username: 'ParkourBot', viewer: '', style: 'stone', webViewer: 0, hold: 0, planner: '', fallRule: 'local', assist: '' }
@@ -50,8 +59,9 @@ const GRID = [64, 32, 64]
 // slime, soul sand or honey), so the bot moves exactly as it does on stone.
 const RAINBOW = ['white_concrete', 'orange_concrete', 'magenta_concrete', 'light_blue_concrete', 'yellow_concrete',
   'lime_concrete', 'pink_concrete', 'cyan_concrete', 'purple_concrete', 'blue_concrete', 'red_concrete', 'green_concrete']
-function blockFor (k, n, ice) {
+function blockFor (k, n, ice, slime) {
   if ((ice || []).includes(k)) return 'minecraft:ice' // the bot's physics reads the block type: ice friction
+  if ((slime || []).includes(k)) return 'minecraft:slime_block' // and bounces off slime
   if (args.style !== 'rainbow') return 'minecraft:stone'
   if (k === 0) return 'minecraft:emerald_block'
   if (k === n - 1) return 'minecraft:gold_block'
@@ -107,6 +117,12 @@ function isSolid (x, y, z) {
   return !!b && b.boundingBox === 'block'
 }
 
+// The top of a solid cell's collision shape as the bot sees it (1 for a full block).
+function topOf (x, y, z) {
+  const b = bot.blockAt(new Vec3(x + OX, y + OY, z + OZ), false)
+  return b && b.shapes.length ? Math.max(...b.shapes.map(q => q[4])) : 1
+}
+
 function applyAction (a) {
   const c = P.controls(a)
   bot.entity.yaw = P.wrapYaw(bot.entity.yaw + c.yawStep)
@@ -118,7 +134,7 @@ function applyAction (a) {
 
 const assistConfig = args.assist ? JSON.parse(args.assist) : null
 const service = assistConfig
-  ? new A.PlannerService(args.assistPython, A.serviceArgs(assistConfig, args.assistCheckpoint, args.courses), args.assistRoot)
+  ? new A.PlannerService(args.assistPython, A.serviceArgs(assistConfig, args.assistCheckpoint, args.courses, args.assistDevice), args.assistRoot)
   : null
 let planning = false
 let courseIndex = -1
@@ -143,9 +159,11 @@ function planThenAct (ep) {
       const here = { pos: [e.position.x, e.position.y, e.position.z], vel: [e.velocity.x, e.velocity.y, e.velocity.z], yaw: e.yaw, onGround: !!e.onGround, jumpTicks: bot.jumpTicks || 0, collidedH: !!e.isCollidedHorizontally }
       const plats = c.platforms.map(([x0, x1, z0, z1, y]) => [x0 + OX, x1 + OX, z0 + OZ, z1 + OZ, y + OY])
       const extra = (c.extra || []).map(([x, y, z]) => [x + OX, y + OY, z + OZ])
+      const geom = ep.geom ? ep.geom.map(([x0, x1, z0, z1, top]) => [x0 + OX, x1 + OX, z0 + OZ, z1 + OZ, top + OY]) : null
       const world = { getBlock: p => bot.blockAt(p, false) }
-      const verified = !!r.plan && A.verifyPlan(Physics(bot.registry, world), world, here, r.plan, plats, q.cp, q.target, extra)
-      const a = ep.resume(verified ? r.plan : null, { found: !!r.plan, verified, rounds: r.rounds, seconds: r.seconds })
+      const verified = !!r.plan && A.verifyPlan(Physics(bot.registry, world), world, here, r.plan, plats, q.cp, q.target, extra, geom)
+      const brake = !r.plan && r.brake && A.verifyPlan(Physics(bot.registry, world), world, here, r.brake, plats, q.cp, q.cp, extra, geom, true) ? r.brake : null
+      const a = ep.resume(verified ? r.plan : null, { found: !!r.plan, verified, rounds: r.rounds, seconds: r.seconds }, brake)
       planning = false
       if (a === null) endEpisode()
       else applyAction(a)
@@ -198,11 +216,21 @@ async function runCourse (c, index) {
     // Remove the previous course's beacon (it stands below the course area).
     await chatCommand(`/fill ${OX - 4} ${OY - 7} ${OZ - 4} ${OX + GRID[0] + 3} ${OY - 6} ${OZ + GRID[2] + 3} minecraft:air`)
   }
+  const shapes = c.shapes || {}
   for (const [k, [x0, x1, z0, z1, y]] of c.platforms.entries()) {
-    await chatCommand(`/fill ${x0 + OX} ${y + OY} ${z0 + OZ} ${x1 + OX} ${y + OY} ${z1 + OZ} ${blockFor(k, c.platforms.length, c.ice)}`)
+    if (shapes[k]) continue // shaped platforms last: fences and walls would connect to blocks placed after them
+    await chatCommand(`/fill ${x0 + OX} ${y + OY} ${z0 + OZ} ${x1 + OX} ${y + OY} ${z1 + OZ} ${blockFor(k, c.platforms.length, c.ice, c.slime)}`)
   }
   const extra = c.extra || []
   for (const [x, y, z] of extra) await chatCommand(`/setblock ${x + OX} ${y + OY} ${z + OZ} ${OBSTACLE_BLOCK()}`)
+  for (const [k, name] of Object.entries(shapes)) {
+    const [x0, x1, z0, z1, y] = c.platforms[Number(k)]
+    await chatCommand(`/fill ${x0 + OX} ${y + OY} ${z0 + OZ} ${x1 + OX} ${y + OY} ${z1 + OZ} ${stateString(name)}`)
+  }
+  const ladders = c.ladders || [] // after their walls (the obstacle cells): a ladder needs a block behind it
+  for (const [x, y, z, f] of ladders) {
+    await chatCommand(`/setblock ${x + OX} ${y + OY} ${z + OZ} ${stateString('ladder_' + ['north', 'east', 'south', 'west'][f])}`)
+  }
   if (args.style === 'rainbow') {
     // A beacon beam rising beside the goal, from a beacon far below the course (beams have no collision).
     const used = new Set()
@@ -227,9 +255,20 @@ async function runCourse (c, index) {
   }, 10000, 'teleport')
   await waitFor(() => c.platforms.every(([x0, x1, z0, z1, y]) => isSolid(x0, y, z0) && isSolid(x1, y, z1)), 10000, 'course blocks')
   await waitFor(() => extra.every(([x, y, z]) => isSolid(x, y, z)), 10000, 'obstacle blocks')
+  // Every shaped platform must be exactly its block state (the physics collides with its shape).
+  await waitFor(() => Object.entries(shapes).every(([k, name]) => {
+    const [x0, , z0, , y] = c.platforms[Number(k)]
+    const b = bot.blockAt(new Vec3(x0 + OX, y + OY, z0 + OZ), false)
+    return !!b && b.stateId === SHAPES[name].state
+  }), 10000, 'shaped blocks')
+  await waitFor(() => ladders.every(([x, y, z, f]) => {
+    const b = bot.blockAt(new Vec3(x + OX, y + OY, z + OZ), false)
+    return !!b && b.stateId === SHAPES['ladder_' + ['north', 'east', 'south', 'west'][f]].state
+  }), 10000, 'ladders')
   const cells = []
   for (const [x0, x1, z0, z1, y] of c.platforms) for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) cells.push([x, y, z])
   cells.push(...extra)
+  cells.push(...ladders.map(([x, y, z]) => [x, y, z]))
   const wanted = new Set(cells.map(k => k.join(',')))
   const stale = previous.filter(k => !wanted.has(k.join(',')))
   await waitFor(() => stale.every(([x, y, z]) => !isSolid(x, y, z)), 10000, 'previous course cleared')
@@ -245,7 +284,9 @@ async function runCourse (c, index) {
     extra: c.extra || [],
     planner: args.planner ? JSON.parse(args.planner) : null,
     fallRule: args.fallRule,
-    assist: assistConfig ? { config: assistConfig, takeoffs: c.assist_takeoffs || [] } : null
+    assist: assistConfig ? { config: assistConfig, takeoffs: c.assist_takeoffs || [], targets: c.assist_targets || null } : null,
+    shapes: c.shapes || null,
+    topOf
   })
   courseIndex = index
   await new Promise(resolve => { finish = resolve; episode = ep })

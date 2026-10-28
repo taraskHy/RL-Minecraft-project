@@ -5,6 +5,7 @@
 // checks both against the Python code.
 
 const fs = require('fs')
+const path = require('path')
 const { GreedyPlanner } = require('./planner')
 const { Assist } = require('./assist')
 
@@ -32,20 +33,52 @@ function clamp (x, lo, hi) { return Math.min(hi, Math.max(lo, x)) }
 
 function centre (p) { return [(p[0] + p[1] + 1) / 2, p[4] + 1, (p[2] + p[3] + 1) / 2] }
 
+// Shaped platforms (Course.shapes, parkour/courses.shape_geometry): [top, x0, x1, z0, z1] of a block
+// shape inside its cell, from configs/block_shapes.json.
+let SHAPE_GEOMETRY = null
+function shapeGeometry (name) {
+  if (!SHAPE_GEOMETRY) {
+    SHAPE_GEOMETRY = {}
+    const file = path.join(__dirname, '..', 'configs', 'block_shapes.json')
+    for (const sh of JSON.parse(fs.readFileSync(file, 'utf8')).shapes) {
+      const b = sh.boxes
+      SHAPE_GEOMETRY[sh.name] = [Math.max(...b.map(x => x[4])), Math.min(...b.map(x => x[0])), Math.max(...b.map(x => x[3])),
+        Math.min(...b.map(x => x[2])), Math.max(...b.map(x => x[5]))]
+    }
+  }
+  return SHAPE_GEOMETRY[name]
+}
+
+// Standing area and top of every platform, [x0, x1, z0, z1, top]; ``shapes`` ({index: shape name}) as in
+// CoursePool.foot / CoursePool.top.
+function platformGeometry (platforms, shapes) {
+  return platforms.map((p, k) => {
+    const name = shapes ? shapes[k] : undefined
+    if (!name) return [p[0], p[1] + 1, p[2], p[3] + 1, p[4] + 1]
+    const [top, x0, x1, z0, z1] = shapeGeometry(name)
+    return [p[0] + x0, p[1] + x1, p[2] + z0, p[3] + z1, p[4] + top]
+  })
+}
+
 // s: {pos:[x,y,z], vel:[x,y,z], yaw, onGround, jumpTicks, collidedH}
 // platforms: [[x0,x1,z0,z1,y], ...] in the same coordinates as s.pos
 // isSolid(x, y, z): integer cell -> boolean
-function observe (s, lastAction, platforms, cp, isSolid) {
+// geom (shaped courses): platformGeometry(...); topOf(x, y, z): the top of a solid cell's shape (1 for full blocks)
+function observe (s, lastAction, platforms, cp, isSolid, geom = null, topOf = null) {
   const n = platforms.length
   const slots = []
-  for (let k = 0; k < PLATFORM_SLOTS && cp + k < n; k++) slots.push({ p: platforms[cp + k], goal: cp + k === n - 1 })
-  return observeSlots(s, lastAction, slots, centre(platforms[n - 1]), cp / Math.max(n - 1, 1), isSolid)
+  for (let k = 0; k < PLATFORM_SLOTS && cp + k < n; k++) {
+    slots.push({ p: platforms[cp + k], goal: cp + k === n - 1, g: geom ? geom[cp + k] : undefined })
+  }
+  const g = geom ? geom[n - 1] : null
+  const goal = g ? [(g[0] + g[1]) / 2, g[4], (g[2] + g[3]) / 2] : centre(platforms[n - 1])
+  return observeSlots(s, lastAction, slots, goal, cp / Math.max(n - 1, 1), isSolid, null, geom ? topOf : null)
 }
 
 // The observation with explicit platform slots ([{p, goal}], current platform first; missing
 // slots are empty), goal centre and progress: what observe() builds from the course, or what
 // the route planner builds from the blocks it sees.
-function observeSlots (s, lastAction, slots, g, progress, isSolid, memory = null) {
+function observeSlots (s, lastAction, slots, g, progress, isSolid, memory = null, topOf = null) {
   const out = new Float64Array(memory ? OBS_DIM_EXT : OBS_DIM)
   let o = 0
   const [px, py, pz] = s.pos
@@ -73,7 +106,8 @@ function observeSlots (s, lastAction, slots, g, progress, isSolid, memory = null
   for (let k = 0; k < PLATFORM_SLOTS; k++) {
     if (k >= slots.length) { o += 11; continue }
     const p = slots[k].p
-    const x0 = p[0]; const x1 = p[1] + 1; const z0 = p[2]; const z1 = p[3] + 1
+    const q = slots[k].g // a shaped platform's own footprint and top
+    const x0 = q ? q[0] : p[0]; const x1 = q ? q[1] : p[1] + 1; const z0 = q ? q[2] : p[2]; const z1 = q ? q[3] : p[3] + 1
     out[o++] = 1
     out[o++] = slots[k].goal ? 1 : 0
     const cxs = [x0, x1, x1, x0]
@@ -82,7 +116,7 @@ function observeSlots (s, lastAction, slots, g, progress, isSolid, memory = null
       out[o++] = clamp(relF(cxs[c], czs[c]) / 4.0, -10, 10)
       out[o++] = clamp(relR(cxs[c], czs[c]) / 4.0, -10, 10)
     }
-    out[o++] = ((p[4] + 1) - py) / 2.0
+    out[o++] = q ? (q[4] - py) / 2.0 : ((p[4] + 1) - py) / 2.0
   }
 
   const fy = Math.floor(py + STAND_EPS)
@@ -95,7 +129,7 @@ function observeSlots (s, lastAction, slots, g, progress, isSolid, memory = null
         const iz = Math.floor(sz)
         let h = NO_FLOOR
         for (const lv of SCAN_FLOOR_LEVELS) {
-          if (isSolid(ix, fy + lv, iz)) { h = (fy + lv + 1) - py; break }
+          if (isSolid(ix, fy + lv, iz)) { h = topOf ? (fy + lv + topOf(ix, fy + lv, iz)) - py : (fy + lv + 1) - py; break }
         }
         let ceiling = 0
         for (const lv of SCAN_CEILING_LEVELS) {
@@ -144,13 +178,19 @@ class LandingMemory {
   }
 }
 
-// Highest platform index the player stands on, or -1.
-function standingOn (s, platforms) {
+// Highest platform index the player stands on, or -1 (geom: platformGeometry for shaped courses).
+function standingOn (s, platforms, geom = null) {
   if (!s.onGround) return -1
   const [x, y, z] = s.pos
   let best = -1
   for (let k = 0; k < platforms.length; k++) {
     const p = platforms[k]
+    if (geom) {
+      const q = geom[k]
+      const over = x + HALF_WIDTH > q[0] && x - HALF_WIDTH < q[1] && z + HALF_WIDTH > q[2] && z - HALF_WIDTH < q[3]
+      if (over && Math.abs(y - q[4]) < STAND_EPS) best = k
+      continue
+    }
     const over = x + HALF_WIDTH > p[0] && x - HALF_WIDTH < p[1] + 1 && z + HALF_WIDTH > p[2] && z - HALF_WIDTH < p[3] + 1
     if (over && Math.abs(y - (p[4] + 1)) < STAND_EPS) best = k
   }
@@ -159,11 +199,11 @@ function standingOn (s, platforms) {
 
 // rule 'local': below platforms cp-1..cp+2 (as in training); 'remaining': below every platform
 // from cp-1 to the goal (EnvConfig.fall_rule).
-function fellBelow (s, platforms, cp, rule = 'local') {
+function fellBelow (s, platforms, cp, rule = 'local', geom = null) {
   const last = platforms.length - 1
   let lo = Infinity
   for (let j = cp - 1; j <= (rule === 'local' ? cp + 2 : last); j++) {
-    if (j >= 0 && j <= last) lo = Math.min(lo, platforms[j][4] + 1)
+    if (j >= 0 && j <= last) lo = Math.min(lo, geom ? geom[j][4] : platforms[j][4] + 1)
   }
   return s.pos[1] < lo - FALL_MARGIN
 }
@@ -259,10 +299,14 @@ function onObstacle (s, extra) {
 const PLAN = 'plan'
 
 class Episode {
-  constructor (policy, platforms, isSolid, { stall = 200, maxTicks = 3000, extra = null, planner = null, fallRule = 'local', assist = null } = {}) {
+  constructor (policy, platforms, isSolid, { stall = 200, maxTicks = 3000, extra = null, planner = null, fallRule = 'local', assist = null, shapes = null, topOf = null } = {}) {
     this.extra = extra
-    // With an assist ({config, takeoffs}), planned actions replace the policy's (see PLAN).
-    this.assist = assist ? new Assist(assist.config, assist.takeoffs) : null
+    // Shaped platforms ({index: shape name}): their own footprints and tops, and the shape tops in the scan.
+    this.geom = shapes && Object.keys(shapes).length ? platformGeometry(platforms, shapes) : null
+    this.topOf = topOf
+    if (this.geom && planner) throw new Error('the route planner does not support shaped platforms')
+    // With an assist ({config, takeoffs, targets}), planned actions replace the policy's (see PLAN).
+    this.assist = assist ? new Assist(assist.config, assist.takeoffs, assist.targets) : null
     this.queue = []
     this.pending = null
     this.assistLog = []
@@ -297,10 +341,10 @@ class Episode {
     if (this.started) {
       this.ticks++
       this.traj.push([s.pos[0], s.pos[1], s.pos[2], s.vel[0], s.vel[1], s.vel[2], s.onGround ? 1 : 0, s.jumpTicks])
-      const k = standingOn(s, this.platforms)
+      const k = standingOn(s, this.platforms, this.geom)
       if (k > this.cp) { this.cp = k; this.stall = 0 } else this.stall++
       const success = this.cp >= this.platforms.length - 1
-      const fell = !success && (fellBelow(s, this.platforms, this.cp, this.fallRule) || onObstacle(s, this.extra))
+      const fell = !success && (fellBelow(s, this.platforms, this.cp, this.fallRule, this.geom) || onObstacle(s, this.extra))
       const truncated = !success && !fell && (this.stall >= this.stallLimit || this.ticks >= this.maxTicks)
       if (success || fell || truncated) {
         this.result = success ? 'success' : fell ? 'fell' : 'truncated'
@@ -324,12 +368,17 @@ class Episode {
     return this._act(s)
   }
 
-  // After PLAN: play ``plan`` (a list of actions) or, with null, let the policy act.
-  resume (plan, info = {}) {
+  // After PLAN: play ``plan`` (a list of actions) or, with null, let the policy act; with no plan, a
+  // ``brake`` (assist.js: keys that stop the bot on the takeoff) is played and the retry follows it.
+  resume (plan, info = {}, brake = null) {
     const req = this.pending
     this.pending = null
-    this.assistLog.push({ kind: req.kind, cp: req.cp, takeoff: req.takeoff, tick: req.tick, ...info, played: !!plan })
+    this.assistLog.push({ kind: req.kind, cp: req.cp, takeoff: req.takeoff, tick: req.tick, ...info, played: !!plan, braked: !plan && !!brake })
     if (plan) this.queue = plan.map(a => a.slice())
+    else if (brake) {
+      this.queue = brake.map(a => a.slice())
+      this.assist.braked = true
+    }
     return this._act(req.state)
   }
 
@@ -347,10 +396,14 @@ class Episode {
       progress = this.planner.progress
     } else {
       slots = []
-      for (let k = 0; k < PLATFORM_SLOTS && this.cp + k < n; k++) slots.push({ p: this.platforms[this.cp + k], goal: this.cp + k === n - 1 })
+      for (let k = 0; k < PLATFORM_SLOTS && this.cp + k < n; k++) {
+        slots.push({ p: this.platforms[this.cp + k], goal: this.cp + k === n - 1, g: this.geom ? this.geom[this.cp + k] : undefined })
+      }
       progress = this.cp / Math.max(n - 1, 1)
     }
-    const obs = observeSlots(s, this.lastAction, slots, centre(this.platforms[n - 1]), progress, this.isSolid, this.memory)
+    const gq = this.geom ? this.geom[n - 1] : null
+    const goal = gq ? [(gq[0] + gq[1]) / 2, gq[4], (gq[2] + gq[3]) / 2] : centre(this.platforms[n - 1])
+    const obs = observeSlots(s, this.lastAction, slots, goal, progress, this.isSolid, this.memory, this.geom ? this.topOf : null)
     const a = this.policy.act(obs)
     this.actions.push(a)
     this.lastAction = a
@@ -376,5 +429,5 @@ class Episode {
 
 module.exports = {
   observe, observeSlots, LandingMemory, OBS_DIM_EXT, standingOn, fellBelow, onObstacle, Policy, Episode, controls, wrapYaw, centre,
-  OBS_DIM, ACTION_DIMS, NO_ACTION, YAW_STEPS_DEG, PLAN
+  OBS_DIM, ACTION_DIMS, NO_ACTION, YAW_STEPS_DEG, PLAN, platformGeometry, shapeGeometry
 }

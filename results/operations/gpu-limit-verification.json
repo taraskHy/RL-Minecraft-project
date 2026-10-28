@@ -1,0 +1,26 @@
+{
+  "measured_on": "Windows RTX 5080, NVIDIA-SMI card-wide telemetry; Overwatch running",
+  "start": "2026-10-28 22:07:57",
+  "end": "2026-10-28 22:09:52",
+  "samples": 110,
+  "mean_gpu_percent": 54.53636363636364,
+  "peak_gpu_percent": 67.0,
+  "peak_memory_percent": 60.66368153100656,
+  "peak_temperature_c": 46.16,
+  "watchdog": {
+    "period_seconds": 0.05,
+    "host_duty_ceiling": 0.55,
+    "utilization_target": 0.7,
+    "hot_c": 65,
+    "cool_c": 58
+  },
+  "training": {
+    "processes": 2,
+    "allocator_fraction_per_job": 0.13,
+    "num_envs": 8192,
+    "rollout": 64,
+    "minibatches": 32,
+    "pool_size": 1024
+  },
+  "limitations": "Software target, not a hardware guarantee against every transient or independent game load. Earlier raw samples preserve rejected limiter attempts. Training changes affect optimization and are recorded in each config."
+}

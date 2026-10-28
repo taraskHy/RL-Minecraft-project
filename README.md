@@ -27,7 +27,7 @@ Final policy: `obstacles-g995` (discount 0.995), chosen on the validation course
 | The bot's JavaScript on Mineflayer's physics engine | 59/60 standard, 57/60 obstacle, 3/4 hand-designed; identical to the simulator | prismarine-physics, no server |
 | Physics port against the real library | 1.4e-14 blocks over 99,000 ticks (`results/physics_parity.json`) | Node + prismarine-physics |
 | **Real Minecraft 1.21.4 server** | **59/60 standard, 57/60 obstacle, 3/4 hand-designed; identical to the simulator, 0 server corrections** | real game, Mineflayer bot |
-| Route planner instead of the course list (only the goal position given) | 90.9% standard, 88.1% obstacle (1,200 each); 50/60 and 55/60 in real Minecraft, identical to the simulator | simulator; real game |
+| Route planner instead of the course list (only the goal position given) | 92.3% standard, 90.5% obstacle (1,200 each); 51/60 and 56/60 in real Minecraft (validation-retuned planner, now default), identical to the simulator | simulator; real game |
 | Neo jumps learned from demonstrations (a separate neo policy) | 29.0% of 210 held-out level 6-8 courses with a neo (0% before); 11/31 neo courses in real Minecraft, identical to the simulator | simulator; real game |
 
 The one hand-designed course the final policy misses is the neo course. Neo jumps are not in

@@ -597,7 +597,7 @@ standard and 90.5% of the obstacle courses (from 90.9% and 88.1%; "remaining"
 rule: 94.7% and 92.4%), with 80 route failures on each set instead of 98
 and 110 (`results/planner/sim_test_*_tuned.json`). The offline bot made 51
 and 56 of the 60 + 60 courses (from 50 and 55), the same courses as the
-simulator. It has not been run in real Minecraft yet.
+simulator. The training PC then confirmed 51/60 and 56/60 in real Minecraft, identical outcomes on all 120 courses, zero server corrections and maximum replay error 2.13e-14 blocks (`results/games/v2-tuned-planner-live*`). These retuned settings are now the defaults in both implementations.
 
 The better policy helps the planner in the simulator (+1.3 and +1.9 points)
 and on the real obstacle courses (55 against 53), while on the 60 real
@@ -839,8 +839,8 @@ so we treat them as impossible, though the search does not prove it.
 The policy also works without the course list. A simple greedy planner fills
 the policy's platform slots from the solid blocks within 12 blocks of the bot
 (only the goal position is given), and the unchanged final policy
-then completes 90.9% of standard and 88.1% of obstacle test courses in the
-simulator, and 50 of 60 and 55 of 60 in real Minecraft. A model trained
+then completes 92.3% of standard and 90.5% of obstacle test courses in the
+simulator with validation-retuned settings, and 51 of 60 and 56 of 60 in real Minecraft. A model trained
 without the list reaches 85.4% and 70.9% in the simulator, so on our test
 sets the hand-written planner on top of the route-trained policy is the
 better way to play maps without a course list.

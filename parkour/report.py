@@ -279,6 +279,82 @@ def pct(v):
     return "-" if v is None or (isinstance(v, float) and np.isnan(v)) else f"{v * 100:.1f}"
 
 
+def new_abilities(out: Path) -> list:
+    """Tables of the planning assist, the extra jump kinds and the new blocks' physics checks (simulator)."""
+    lines = []
+    runs = []
+    for split in ("validation", "test"):
+        f = out / "neo" / f"assist_{split}.jsonl"
+        if f.exists():
+            runs += [json.loads(x) for x in f.read_text().splitlines() if x.strip()]
+    if runs:
+        lines += ["## Planning the hard jumps: the neo assist (simulator)", "",
+                  "When the bot first stands on a planned takeoff, a cross-entropy search with the exact physics finds an",
+                  "action sequence from its exact state and the bot plays it (`parkour/neo_assist.py`). Jumps planned:",
+                  "`neo` the neos; `advanced` also the wide and momentum jumps; `all` every jump. Official: the held-out",
+                  "level 6-8 courses with a neo (family 2 validation, family 1 test); random: courses of level 0-5 jumps",
+                  "where half the jumps are neos (13 validation, 12 test). Settings are chosen on validation; test lines",
+                  "are the chosen settings.", "",
+                  "| Split | Courses | Policy | Setting | Jumps planned | Completed | Neo jumps passed / reached | "
+                  "Plans landed / played |", "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+        for r in runs:
+            ckpt = Path(r["checkpoint"]).stem
+            setting = "policy alone" if not r["assist"] else (r.get("tag") or "assist").split(";")[0]
+            if r["assist"] and r["config"].get("batch", 1) != 1:  # searches batched: other random draws, not the bots'
+                setting += f" (batch {r['config']['batch']})"
+            jumps = r["config"]["jumps"] if r["assist"] else ""
+            plans = (f"{r['plans_landed_as_planned']}/{r['plans_played']}" if r.get("plans_played") is not None else "")
+            lines.append(f"| {r['split']} | {r['set']} (family {r['family']}) | `{ckpt}` | {setting} | {jumps} | "
+                         f"{r['completed']}/{r['courses']} ({pct(r['completed'] / r['courses'])}) | "
+                         f"{r['neo_jumps_passed']}/{r.get('neo_jumps_reached', '?')} | {plans} |")
+        lines.append("")
+    je = out / "extra" / "jump_eval_final_policy.json"
+    previews = [(f, json.loads(f.read_text())) for f in (out / "extra" / f"course_preview_family{F}.json" for F in (2, 1))
+                if f.exists()]
+    if je.exists() or previews:
+        lines += ["## New jump kinds and blocks: head hitters, ice run-ups, shaped blocks, slime, ladders (simulator)", "",
+                  "Opt-in levels (`configs/jump_levels_extra.json`, `run.cmd train --extra`) that the final policy was",
+                  "never trained on. Every kind alone from rest at 16 angles (`parkour.jumpeval --extra`) and whole",
+                  "held-out courses of each level (`scripts/extra_preview.py`: family 2 validation, family 1 test), the",
+                  "policy alone and with the planner (jumps `advanced`: the run-up jumps; `all`: every jump) on the first",
+                  "courses of each level.", ""]
+        if je.exists():
+            j = json.loads(je.read_text())
+            lines += ["| Level | Kinds | Mean success alone | Kinds never made |", "| --- | --- | --- | --- |"]
+            for name, v in j["by_level"].items():
+                lines.append(f"| {name} | {v['specs']} | {pct(v['mean_policy_success'])} | {v['specs_policy_never']} |")
+            lines.append("")
+        for f, c in previews:
+            settings = c.get("assist_configs") or {"": c.get("assist_config", {})}
+            planner = c["with_planner"] if "assist_configs" in c else {"": c["with_planner"]}
+            heads = [f"planner, jumps {cfg.get('jumps', '?')}" for cfg in settings.values()]
+            lines += [f"Family {c['family']} ({'test' if c['family'] == 1 else 'validation'}, `{f.name}`):", "",
+                      "| Level | Policy alone (all courses) | Same first courses, policy alone | " + " | ".join(heads) + " |",
+                      "| --- | --- | --- | " + " | ".join("---" for _ in heads) + " |"]
+            for name, v in c["policy_alone"].items():
+                ws = [planner[s].get(name, {}) for s in settings]
+                first = next((w for w in ws if w), {})
+                lines.append(f"| {name} | {v}% of {c['courses_per_level']} | "
+                             f"{first.get('completed_policy_alone', '')}/{first.get('courses', '')} | " +
+                             " | ".join(f"{w.get('completed', '')}/{w.get('courses', '')}" for w in ws) + " |")
+            lines.append("")
+    rows = []
+    for name, label in (("physics_parity_shapes.json", "block shapes"), ("physics_parity_slime.json", "slime"),
+                        ("physics_parity_climb.json", "ladders and vines")):
+        f = out / name
+        if f.exists():
+            d = json.loads(f.read_text())
+            r = d["result"]
+            eff = d.get("effect_of_shapes") or d.get("effect_of_slime") or d.get("effect_of_climbing")
+            rows.append(f"| {label} | {r['cases']} | {r['ticks']} | {r['max_pos_err']:.1e} | {r['flag_mismatch_ticks']} | "
+                        f"{eff['cases_changed']}/{eff['cases']} |")
+    if rows:
+        lines += ["## The new blocks against prismarine-physics (physics library)", "",
+                  "| Blocks | Random fields | Ticks | Largest position error (blocks) | Ticks with a flag mismatch | "
+                  "Trajectories the blocks change |", "| --- | --- | --- | --- | --- | --- |"] + rows + [""]
+    return lines
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", default=str(ROOT / "results"))
@@ -561,6 +637,8 @@ def main(argv=None):
                              f"{r['obstacles_levels_0_5']} | " + " | ".join(str(r["per_level"][str(L)]) for L in (6, 7, 8))
                              + " | |")
             lines.append("")
+
+    lines += new_abilities(out)
 
     for name in ("offline", "live", "offline_v1", "live_v1"):
         p = out / f"{name}_summary.md"

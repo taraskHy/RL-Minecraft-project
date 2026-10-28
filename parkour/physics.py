@@ -4,8 +4,13 @@ prismarine-physics is the movement engine that Mineflayer runs on the client
 side. A Mineflayer bot moves exactly as that engine computes and the server
 accepts the result, so a faithful port of it is a faithful simulator of the
 bot in real Minecraft. This port covers what parkour courses use: air and full
-solid cubes with default slipperiness. Water, lava, ladders, slabs, ice, soul
-sand, cobwebs, sneaking, effects and elytra are not ported.
+solid cubes with default slipperiness, and two opt-in extensions that change
+nothing unless passed: per-cell slipperiness (ice) and per-cell collision
+shapes (slabs, stairs, soul sand, carpets, trapdoors, fence and wall posts,
+..., ``World(shape=...)`` with the boxes of configs/block_shapes.json), and
+slime bounces (``World(slime=...)``, with slipperiness 0.8 in ``slip``), and
+climbing ladders and vines (``World(climb=...)``). Water, lava, honey,
+cobwebs, scaffolding, sneaking, effects and elytra are not ported.
 
 Every expression keeps the operand order of the JavaScript source, in float64,
 so trajectories match the original to rounding error (see
@@ -23,10 +28,14 @@ counter-clockwise seen from above (pi/2 faces west, -X). The forward vector is
 """
 from __future__ import annotations
 
+import json
 import math
 from dataclasses import dataclass
+from functools import lru_cache
 
 import torch
+
+from .paths import CONFIGS
 
 # Constants as prismarine-physics evaluates them (JavaScript doubles).
 GRAVITY = 0.08
@@ -43,6 +52,9 @@ AIR_SPRINT_ACCELERATION = AIRBORNE_ACCELERATION + AIRBORNE_ACCELERATION * 0.3
 AUTOJUMP_COOLDOWN = 10
 DEFAULT_SLIPPERINESS = 0.6
 ICE_SLIPPERINESS = 0.98  # ice and packed ice (blue ice: 0.989); only with World(slip=...)
+SLIME_SLIPPERINESS = 0.8  # slime blocks also bounce (World(slime=...))
+LADDER_MAX_SPEED = 0.15  # in a ladder or vine cell (World(climb=...))
+LADDER_CLIMB_SPEED = 0.2
 GROUND_INERTIA = 0.6 * 0.91  # default slipperiness * 0.91
 _INERTIA_CUBED = GROUND_INERTIA * GROUND_INERTIA * GROUND_INERTIA
 WALK_ACCELERATION = 0.1 * (0.1627714 / _INERTIA_CUBED)
@@ -60,6 +72,26 @@ FORWARD, BACK, LEFT, RIGHT, JUMP, SPRINT = range(6)
 N_CONTROLS = 6
 
 
+@lru_cache(maxsize=None)
+def shape_table() -> tuple:
+    """(names, boxes (S, K, 6) float64, counts (S,)) of configs/block_shapes.json; shape id = index, 0 = full cube.
+
+    The boxes are prismarine-block's for Minecraft 1.21.4 (bridge/export_shapes.js writes the file
+    and checks it); K is the most boxes any shape has, shorter lists are padded."""
+    data = json.loads((CONFIGS / "block_shapes.json").read_text())["shapes"]
+    k = max(len(d["boxes"]) for d in data)
+    boxes = torch.zeros(len(data), k, 6, dtype=torch.float64)
+    for i, d in enumerate(data):
+        if d["boxes"]:
+            boxes[i, :len(d["boxes"])] = torch.tensor(d["boxes"], dtype=torch.float64)
+    counts = torch.tensor([len(d["boxes"]) for d in data], dtype=torch.int64)
+    return tuple(d["name"] for d in data), boxes, counts
+
+
+def shape_id(name: str) -> int:
+    return shape_table()[0].index(name)
+
+
 class World:
     """Solid-cube occupancy for a pool of courses on one device.
 
@@ -71,9 +103,14 @@ class World:
     under the player's feet for ground friction as prismarine-physics does
     (ice 0.98). Without it every block has the default 0.6 and the simulation
     is exactly the one all results so far were measured with.
+
+    ``shape`` (optional, same shape, uint8) is each solid cell's collision
+    shape id (``shape_table``; 0, the full cube, everywhere else). Without it
+    every solid cell is a full cube, through the original code path.
     """
 
-    def __init__(self, solid: torch.Tensor, slip: torch.Tensor | None = None, *, compact_ice: bool = False):
+    def __init__(self, solid: torch.Tensor, slip: torch.Tensor | None = None, shape: torch.Tensor | None = None,
+                 slime: torch.Tensor | None = None, climb: torch.Tensor | None = None, *, compact_ice: bool = False):
         if solid.dim() != 4:
             raise ValueError("solid must have shape (P, GX, GY, GZ)")
         self.solid = solid.to(torch.bool).contiguous()
@@ -83,9 +120,25 @@ class World:
         if slip is not None and tuple(slip.shape) != tuple(solid.shape):
             raise ValueError("slip must have the shape of solid")
         self.compact_ice = compact_ice
-        if compact_ice and slip is not None and slip.dtype != torch.bool:
-            raise ValueError("compact ice requires a boolean ice mask")
-        self.slip = None if slip is None else slip.to(torch.bool if compact_ice else torch.float64).contiguous().view(-1)
+        self.slip_values = torch.tensor([DEFAULT_SLIPPERINESS, ICE_SLIPPERINESS, SLIME_SLIPPERINESS], dtype=torch.float64, device=self.device) if compact_ice else None
+        if compact_ice and slip is not None and slip.dtype != torch.uint8:
+            raise ValueError("compact friction requires uint8 material ids")
+        self.slip = None if slip is None else slip.to(torch.uint8 if compact_ice else torch.float64).contiguous().view(-1)
+        if slime is not None and tuple(slime.shape) != tuple(solid.shape):
+            raise ValueError("slime must have the shape of solid")
+        self.slime = None if slime is None else slime.to(torch.bool).contiguous().view(-1)
+        if climb is not None and tuple(climb.shape) != tuple(solid.shape):
+            raise ValueError("climb must have the shape of solid")
+        # Ladders and vines: cells the player climbs in (a ladder is also solid with its thin box; a vine is not).
+        self.climb = None if climb is None else climb.to(torch.bool).contiguous().view(-1)
+        self.shape_ids = None
+        if shape is not None:
+            if tuple(shape.shape) != tuple(solid.shape):
+                raise ValueError("shape must have the shape of solid")
+            _, boxes, counts = shape_table()
+            self.shape_ids = shape.to(torch.uint8).contiguous().view(-1)
+            self.boxes = boxes.to(self.device)
+            self.box_counts = counts.to(self.device)
 
     def lookup(self, course, ix, iy, iz):
         """Solid flags for integer cells; arguments broadcast together."""
@@ -94,6 +147,39 @@ class World:
         index = ((course * gx + ix.clamp(0, gx - 1)) * gy + iy.clamp(0, gy - 1)) * gz + iz.clamp(0, gz - 1)
         return self.flat[index] & inside
 
+    def slime_at(self, course, ix, iy, iz):
+        """Slime flags of integer cells (False outside the grid); needs ``slime``."""
+        return self._flag(self.slime, course, ix, iy, iz)
+
+    def climb_at(self, course, pos):
+        """(N,) bool: the cell of the feet (pos floored) is a ladder or vine; needs ``climb``."""
+        f = torch.floor(pos).to(torch.int64)
+        return self._flag(self.climb, course, f[:, 0], f[:, 1], f[:, 2])
+
+    def _flag(self, flat, course, ix, iy, iz):
+        gx, gy, gz = self.shape
+        inside = (ix >= 0) & (ix < gx) & (iy >= 0) & (iy < gy) & (iz >= 0) & (iz < gz)
+        index = ((course * gx + ix.clamp(0, gx - 1)) * gy + iy.clamp(0, gy - 1)) * gz + iz.clamp(0, gz - 1)
+        return flat[index] & inside
+
+    def shapes(self, course, ix, iy, iz):
+        """Shape ids (int64) of integer cells, 0 outside the grid; needs ``shape``."""
+        gx, gy, gz = self.shape
+        index = ((course * gx + ix.clamp(0, gx - 1)) * gy + iy.clamp(0, gy - 1)) * gz + iz.clamp(0, gz - 1)
+        return self.shape_ids[index].to(torch.int64)
+
+    def cell_boxes(self, course, ix, iy, iz, solid):
+        """Absolute collision boxes of the cells (lo (..., K, 3), hi (..., K, 3), mask (..., K)).
+
+        Box = cell + shape box, added in the order prismarine's AABB.offset adds them
+        (exact here: every coordinate is a multiple of 1/64)."""
+        ids = self.shapes(course, ix, iy, iz)
+        b = self.boxes[ids]  # (..., K, 6)
+        k = torch.arange(self.boxes.shape[1], device=b.device)
+        mask = solid[..., None] & (k < self.box_counts[ids][..., None])
+        cell = torch.stack(torch.broadcast_tensors(ix, iy, iz), -1).to(torch.float64)[..., None, :]
+        return b[..., :3] + cell, b[..., 3:] + cell, mask
+
     def slipperiness(self, course, ix, iy, iz):
         """Slipperiness of integer cells (the default outside the grid); needs ``slip``."""
         gx, gy, gz = self.shape
@@ -101,8 +187,7 @@ class World:
         index = ((course * gx + ix.clamp(0, gx - 1)) * gy + iy.clamp(0, gy - 1)) * gz + iz.clamp(0, gz - 1)
         values = self.slip[index]
         if self.compact_ice:
-            values = torch.where(values, torch.full(values.shape, ICE_SLIPPERINESS, dtype=torch.float64, device=values.device),
-                                 torch.full(values.shape, DEFAULT_SLIPPERINESS, dtype=torch.float64, device=values.device))
+            values = self.slip_values[values.long()]
         return torch.where(inside, values, torch.full_like(values, DEFAULT_SLIPPERINESS))
 
 
@@ -183,9 +268,16 @@ class _Cells:
         self.cx = ix.to(torch.float64)
         self.cy = iy.to(torch.float64)
         self.cz = iz.to(torch.float64)
+        self.shaped = world.shape_ids is not None
+        if self.shaped:
+            # Every box of every cell in the window: (N, wx, wy, wz, K).
+            self.lo, self.hi, self.bmask = world.cell_boxes(
+                course.view(-1, 1, 1, 1), ix[:, :, None, None], iy[:, None, :, None], iz[:, None, None, :], self.solid)
 
     def offset(self, bb: torch.Tensor, d: torch.Tensor, axis: int) -> torch.Tensor:
         """Sequential AABB.computeOffset{X,Y,Z} over all cells, as a reduction, with vanilla's tolerance."""
+        if self.shaped:
+            return self._offset_boxes(bb, d, axis)
         eps = COLLISION_EPSILON
         coords = (self.cx, self.cy, self.cz)
         overlaps = []
@@ -208,6 +300,23 @@ class _Cells:
         up = torch.where(line & (hi <= c + eps), (c - hi).clamp(min=0.0), inf).amin(dim=1)
         down = torch.where(line & (lo >= c + 1 - eps), ((c + 1) - lo).clamp(max=0.0), -inf).amax(dim=1)
         # A block that limits the move to under the tolerance stops it entirely.
+        up = torch.where(up < eps, torch.zeros_like(up), up)
+        down = torch.where(down > -eps, torch.zeros_like(down), down)
+        return torch.where(d > 0, torch.where(up < d, up, d), torch.where(d < 0, torch.where(down > d, down, d), d))
+
+    def _offset_boxes(self, bb: torch.Tensor, d: torch.Tensor, axis: int) -> torch.Tensor:
+        """``offset`` with every box of every cell (``World(shape=...)``); for full cubes the same numbers."""
+        eps = COLLISION_EPSILON
+        col = (lambda v: v.view(-1, 1, 1, 1, 1))  # noqa: E731
+        mask = self.bmask
+        for other in range(3):
+            if other != axis:
+                mask = mask & (col(bb[:, other + 3]) > self.lo[..., other] + eps) & (col(bb[:, other]) < self.hi[..., other] - eps)
+        lo_a, hi_a = self.lo[..., axis], self.hi[..., axis]
+        bmin, bmax = col(bb[:, axis]), col(bb[:, axis + 3])
+        inf = torch.full_like(lo_a, math.inf)
+        up = torch.where(mask & (bmax <= lo_a + eps), (lo_a - bmax).clamp(min=0.0), inf).flatten(1).amin(dim=1)
+        down = torch.where(mask & (bmin >= hi_a - eps), (hi_a - bmin).clamp(max=0.0), -inf).flatten(1).amax(dim=1)
         up = torch.where(up < eps, torch.zeros_like(up), up)
         down = torch.where(down > -eps, torch.zeros_like(down), down)
         return torch.where(d > 0, torch.where(up < d, up, d), torch.where(d < 0, torch.where(down > d, down, d), d))
@@ -271,8 +380,14 @@ def _move(world: World, course: torch.Tensor, pos: torch.Tensor, vel: torch.Tens
     collided_h = hit_x | hit_z
     collided_v = hit_y
     new_on_ground = collided_v & (dy < 0)
-    new_vel = torch.stack((torch.where(hit_x, zero, dx), torch.where(hit_y, zero, dy),
-                           torch.where(hit_z, zero, dz)), dim=-1)
+    vy_after = torch.where(hit_y, zero, dy)
+    if world.slime is not None:
+        # A vertical collision with slime 0.2 below the feet reverses the velocity (no sneaking here).
+        bounce = hit_y & world.slime_at(course, torch.floor(new_pos[:, 0]).to(torch.int64),
+                                        torch.floor(new_pos[:, 1] - 0.2).to(torch.int64),
+                                        torch.floor(new_pos[:, 2]).to(torch.int64))
+        vy_after = torch.where(bounce, -dy, vy_after)
+    new_vel = torch.stack((torch.where(hit_x, zero, dx), vy_after, torch.where(hit_z, zero, dz)), dim=-1)
     return new_pos, new_vel, new_on_ground, collided_h, collided_v
 
 
@@ -332,11 +447,19 @@ def simulate(world: World, course: torch.Tensor, state: PlayerState, controls: t
     heading = speed >= 0.01
     vx = torch.where(heading, vx - (st * cos2 + fw * sin2), vx)
     vz = torch.where(heading, vz + (fw * cos2 - st * sin2), vz)
+    if world.climb is not None:  # on a ladder or vine: slow sideways, fall at most 0.15 per tick (no sneaking)
+        on = world.climb_at(course, state.pos)
+        m = LADDER_MAX_SPEED
+        vx = torch.where(on, torch.maximum(const(-m), torch.minimum(vx, const(m))), vx)
+        vz = torch.where(on, torch.maximum(const(-m), torch.minimum(vz, const(m))), vz)
+        vy = torch.where(on, torch.maximum(vy, const(-m)), vy)
 
     pos, mvel, on_ground, collided_h, collided_v = _move(
         world, course, state.pos, torch.stack((vx, vy, vz), -1), state.on_ground, check)
 
     mx, my, mz = mvel.unbind(-1)
+    if world.climb is not None:  # pushing against something, or jumping (1.14+), while on a ladder climbs it
+        my = torch.where(world.climb_at(course, pos) & (collided_h | jump), const(LADDER_CLIMB_SPEED), my)
     my = (my - GRAVITY) * AIRDRAG
     mx = mx * inertia
     mz = mz * inertia
@@ -361,6 +484,8 @@ def inside_solid(world: World, course: torch.Tensor, pos: torch.Tensor, eps: flo
     """
     w = HALF_WIDTH
     x, y, z = pos.unbind(-1)
+    if world.shape_ids is not None:
+        return _inside_boxes(world, course, pos, eps)
     bx = torch.floor(x - w).to(torch.int64)[:, None] + torch.arange(2, device=pos.device)
     by = torch.floor(y).to(torch.int64)[:, None] + torch.arange(3, device=pos.device)
     bz = torch.floor(z - w).to(torch.int64)[:, None] + torch.arange(2, device=pos.device)
@@ -370,4 +495,21 @@ def inside_solid(world: World, course: torch.Tensor, pos: torch.Tensor, eps: flo
     oy = ((y[:, None] + PLAYER_HEIGHT) > fy + eps) & (y[:, None] < fy + 1 - eps)
     oz = ((z[:, None] + w) > fz + eps) & ((z[:, None] - w) < fz + 1 - eps)
     hit = solid & ox[:, :, None, None] & oy[:, None, :, None] & oz[:, None, None, :]
+    return hit.flatten(1).any(dim=1)
+
+
+def _inside_boxes(world: World, course: torch.Tensor, pos: torch.Tensor, eps: float) -> torch.Tensor:
+    """``inside_solid`` with collision shapes (the row below too: posts are 1.5 blocks tall)."""
+    w = HALF_WIDTH
+    x, y, z = pos.unbind(-1)
+    dev = pos.device
+    bx = (torch.floor(x - w).to(torch.int64)[:, None] + torch.arange(2, device=dev))[:, :, None, None]
+    by = (torch.floor(y).to(torch.int64)[:, None] - 1 + torch.arange(4, device=dev))[:, None, :, None]
+    bz = (torch.floor(z - w).to(torch.int64)[:, None] + torch.arange(2, device=dev))[:, None, None, :]
+    c = course.view(-1, 1, 1, 1)
+    lo, hi, mask = world.cell_boxes(c, bx, by, bz, world.lookup(c, bx, by, bz))
+    col = (lambda v: v.view(-1, 1, 1, 1, 1))  # noqa: E731
+    hit = (mask & (col(x + w) > lo[..., 0] + eps) & (col(x - w) < hi[..., 0] - eps)
+           & (col(y + PLAYER_HEIGHT) > lo[..., 1] + eps) & (col(y) < hi[..., 1] - eps)
+           & (col(z + w) > lo[..., 2] + eps) & (col(z - w) < hi[..., 2] - eps))
     return hit.flatten(1).any(dim=1)

@@ -90,11 +90,18 @@ def main():
     while True:
         plan = json.loads(PLAN.read_text())
         control = json.loads(CONTROL.read_text()) if CONTROL.exists() else {'gaming': False, 'hold': False}
-        rows = processes()  # fails closed: never launch without a valid process inventory
+        try:
+            rows = processes()  # fails closed: never launch without a valid process inventory
+        except (OSError, ValueError, subprocess.SubprocessError) as exc:
+            print(f'Process inventory unavailable; no launch: {exc}', flush=True)
+            time.sleep(5)
+            continue
         active = trainings(rows)
         names = {r['run'] for r in active}
         for spec in plan['jobs']:
-            state['jobs'].setdefault(spec['name'], {**spec, 'status': 'pending'})
+            job = state['jobs'].setdefault(spec['name'], {**spec, 'status': 'pending'})
+            if job['status'] == 'pending':
+                job['flags'] = spec['flags']
         for name, job in list(state['jobs'].items()):
             if job['status'] == 'running' and name not in names:
                 if name in handles:
@@ -134,12 +141,16 @@ def main():
                 for marker in ['pause_requested', 'pause_ready.json']:
                     (folder/marker).unlink(missing_ok=True)
                 args = [sys.executable, '-u', '-m', 'parkour.train', '--run', name, '--init-from', init,
-                        '--obstacle-prob', '0.3', '--gamma', '0.995', '--iterations', '1000', '--test-once', '--compact-ice'] + job['flags']
+                        '--obstacle-prob', '0.3', '--gamma', '0.995', '--iterations', '1000', '--test-once', '--compact-ice', '--eval-batch-size', '256'] + job['flags']
                 fraction = float(control.get('memory_fraction_per_job', 0))
                 if fraction:
                     args += ['--gpu-mem-fraction', str(fraction)]
                 if control.get('gaming', False):
                     args += ['--gpu-duty', '0.9', '--threads', '8']
+                # Smaller simultaneous tensor working set; the rollout still
+                # contains 524,288 game ticks, as in the original recipe.
+                if control.get('small_memory', False):
+                    args += ['--num-envs', '8192', '--rollout', '64', '--minibatches', '32']
                 logs = RUNS/'queue_logs'; logs.mkdir(exist_ok=True)
                 with open(logs/f'{name}.log', 'a') as log:
                     proc = subprocess.Popen(args, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, creationflags=FLAGS)

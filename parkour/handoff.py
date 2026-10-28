@@ -111,9 +111,9 @@ def policy_lines(results: Path) -> list[str]:
 def runs_lines(results: Path) -> list[str]:
     lines = ["### Training runs (`results/runs/*/summary.json`)", "",
              "Simulator, held-out test set. \"Picked\" is the validation-selected checkpoint (`best.pt`); runs "
-             "without one predate validation selection. Runs trained on levels 0-8 (`advanced-*`, `neo-*`) are "
-             "evaluated on levels 0-8, the others on levels 0-5, so their overall numbers differ in kind; per level "
-             "they compare (levels 0-5 are the same courses in both).", "",
+             "without one predate validation selection. Standard runs cover levels 0-5; advanced/neo runs "
+             "add levels 6-8, while extra runs add their configured extra levels. Check each run's config: "
+             "overall scores from different course sets are not comparable. Common levels 0-5 use the same courses.", "",
              "| Run | Last iteration | Game ticks (B) | Picked: iteration | validation | test | Last: test | "
              "Last: obstacles |", "| --- | --- | --- | --- | --- | --- | --- | --- |"]
     for p in sorted((results / "runs").glob("*/summary.json")):

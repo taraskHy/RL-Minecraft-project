@@ -41,7 +41,7 @@ class TrainConfig:
     run: str = "dev"
     seed: int = 0
     device: str = "cuda"
-    gpu_mem_fraction: float = 0.0  # >0: cap this process at that share of GPU memory (e.g. 0.35 while the user games)
+    gpu_mem_fraction: float = 0.0  # >0: cap this process at that share of GPU memory (0.75 while the user games)
     gpu_duty: float = 1.0  # <1: sleep after each iteration so the GPU works at most this share of the time
     threads: int = 0  # >0: torch CPU threads
     num_envs: int = 16384
@@ -71,7 +71,8 @@ class TrainConfig:
     turn_prob: float = 0.25
     curriculum: str = "adaptive"  # adaptive | uniform
     eval_every: int = 50
-    compact_ice: bool = False  # opt-in boolean ice grid; queried friction remains float64
+    compact_ice: bool = False  # opt-in uint8 material grid; queried friction remains float64
+    eval_batch_size: int = 0  # >0: evaluate the same fixed courses in memory-bounded batches
     test_once: bool = False  # select on validation; test only the selected checkpoint after training
     eval_per_level: int = 200
     val_per_level: int = 100
@@ -226,6 +227,34 @@ def evaluate(model: ActorCritic, pool: CoursePool, device, stall_ticks: int, det
     return out
 
 
+def evaluate_course_batches(model, courses, device, stall_ticks, batch_size, compact_ice=False):
+    """Same independent episodes, with only one batch's course grids on the GPU."""
+    parts = []
+    if torch.device(device).type == 'cuda':
+        torch.cuda.empty_cache()
+    for start in range(0, len(courses), batch_size):
+        chunk = courses[start:start + batch_size]
+        batch_pool = CoursePool(chunk, device, C.GRID, compact_ice=compact_ice)
+        parts.append((len(chunk), evaluate(model, batch_pool, device, stall_ticks)))
+        del batch_pool
+        if torch.device(device).type == 'cuda':
+            # Retaining many differently sized cached grids can fill VRAM even
+            # though the live tensors fit. Release only unused allocator blocks.
+            torch.cuda.empty_cache()
+    per_level = {}
+    levels = sorted({L for _, result in parts for L in result['per_level']})
+    for L in levels:
+        rows = [r['per_level'][L] for _, r in parts if L in r['per_level']]
+        n = sum(r['n'] for r in rows)
+        row = {k: sum(r[k] * r['n'] for r in rows) / n for k in ('success', 'fell', 'progress')}
+        successes = sum(r['n'] * r['success'] for r in rows if r.get('ticks_success') is not None)
+        row['ticks_success'] = (sum(r['ticks_success'] * r['n'] * r['success'] for r in rows
+                                   if r.get('ticks_success') is not None) / successes) if successes else None
+        row['n'] = n
+        per_level[L] = row
+    return {'success': sum(n * r['success'] for n, r in parts) / len(courses), 'per_level': per_level}
+
+
 def _save(obj, path: Path):
     tmp = path.with_suffix(path.suffix + ".tmp")
     torch.save(obj, tmp)
@@ -245,7 +274,8 @@ def train(cfg: TrainConfig) -> Path:
     if cfg.threads > 0:
         torch.set_num_threads(cfg.threads)
     if cfg.gpu_mem_fraction > 0 and dev.type == "cuda":
-        torch.cuda.set_per_process_memory_fraction(cfg.gpu_mem_fraction, dev)
+        torch.cuda.set_per_process_memory_fraction(cfg.gpu_mem_fraction,
+                                                   dev.index if dev.index is not None else torch.cuda.current_device())
     out = RUNS / cfg.run
     resuming = bool(cfg.init_from) and Path(cfg.init_from).resolve().parent.parent == out.resolve()
     if (out / "train_log.csv").exists() and not resuming:
@@ -279,10 +309,12 @@ def train(cfg: TrainConfig) -> Path:
     if n_demo:
         pick = np.random.default_rng([2026, 3, cfg.seed]).choice(len(demos), n_demo, replace=False)
         train_courses[:n_demo] = [demo_course(demos[i], cfg.demo_level) for i in pick]
-    pool = CoursePool(train_courses, dev, C.GRID, ice=cfg.ice_prob > 0 or any(sp.ice for L in levels for sp in L), compact_ice=cfg.compact_ice)
+    pool = CoursePool(train_courses, dev, C.GRID, ice=cfg.ice_prob > 0 or any(sp.ice or sp.bounce for L in levels for sp in L), compact_ice=cfg.compact_ice,
+                      shapes=any(bool(sp.block) or sp.ladder for L in levels for sp in L),
+                      slime=any(sp.bounce for L in levels for sp in L))
     test_pool = None if cfg.test_once else CoursePool(tests, dev, C.GRID)
     obstacle_pool = CoursePool(obstacle_tests, dev, C.GRID) if obstacle_tests and not cfg.test_once else None
-    val_pool = CoursePool(vals, dev, C.GRID)
+    val_pool = None if cfg.eval_batch_size else CoursePool(vals, dev, C.GRID, compact_ice=cfg.compact_ice)
     best_info = old_summary.get("best", {})
 
     if cfg.curriculum == "adaptive":
@@ -355,8 +387,14 @@ def train(cfg: TrainConfig) -> Path:
                         + [f"progress_L{L}" for L in range(n_levels)] + [f"fell_L{L}" for L in range(n_levels)])
     best = best_info.get("validation_success", -1.0)
     obs = env.observe()
+    if dev.type == 'cuda' and cfg.gpu_mem_fraction:
+        print(json.dumps({'gpu_memory_start': {
+            'allocator_fraction': torch.cuda.get_per_process_memory_fraction(dev.index if dev.index is not None else torch.cuda.current_device()),
+            'allocated_mib': torch.cuda.memory_allocated(dev) / 2**20,
+            'reserved_mib': torch.cuda.memory_reserved(dev) / 2**20}}), flush=True)
     total_steps = start_it * T * N
     t_start = time.time()
+    busy = []  # wall time of each iteration, for --gpu-duty
     for it in range(start_it, cfg.iterations):
         t0 = time.time()
         model.eval()
@@ -520,7 +558,8 @@ def train(cfg: TrainConfig) -> Path:
                 eval_f.flush()
                 print(json.dumps({"eval_iteration": it, **ev}), flush=True)
             # Model selection uses the validation courses only.
-            evv = evaluate(model, val_pool, dev, cfg.stall_ticks)
+            evv = (evaluate_course_batches(model, vals, dev, cfg.stall_ticks, cfg.eval_batch_size, cfg.compact_ice)
+                   if cfg.eval_batch_size else evaluate(model, val_pool, dev, cfg.stall_ticks))
             score = evv["success"]
             vpath = out / "eval_val_log.csv"
             new_file = not vpath.exists()
@@ -564,17 +603,18 @@ def train(cfg: TrainConfig) -> Path:
         if cfg.gpu_duty < 1:  # leave the GPU idle for the rest of the time (another program, e.g. a game)
             if dev.type == "cuda":
                 torch.cuda.synchronize(dev)
-            time.sleep((time.time() - t0) * (1 - cfg.gpu_duty) / max(cfg.gpu_duty, 0.05))
+            # An iteration the watchdog kept suspended (a game, heat) is not busy time: cap at 3x the recent median.
+            busy.append(time.time() - t0)
+            work = min(busy[-1], 3 * float(np.median(busy[-20:])))
+            time.sleep(work * (1 - cfg.gpu_duty) / max(cfg.gpu_duty, 0.05))
     log_f.close()
     eval_f.close()
     model.export(out / "policy_last.json", {"run": cfg.run, "iteration": cfg.iterations - 1})
     if cfg.test_once:
-        test_pool = CoursePool(tests, dev, C.GRID, compact_ice=cfg.compact_ice)
-        obstacle_pool = CoursePool(obstacle_tests, dev, C.GRID, compact_ice=cfg.compact_ice) if obstacle_tests else None
         selected = torch.load(out / "checkpoints" / "best.pt", map_location=dev, weights_only=False)
         model.load_state_dict(selected["model"])
         model.eval()
-        tested = evaluate(model, test_pool, dev, cfg.stall_ticks)
+        tested = evaluate_course_batches(model, tests, dev, cfg.stall_ticks, cfg.eval_batch_size or len(tests), cfg.compact_ice)
         best_it = selected["iteration"]
         best_steps = (best_it + 1) * T * N
         pl = tested["per_level"]
@@ -583,8 +623,9 @@ def train(cfg: TrainConfig) -> Path:
                 + [round(pl[L]["success"], 4) for L in range(n_levels)]
                 + [round(pl[L]["progress"], 4) for L in range(n_levels)]
                 + [round(pl[L]["fell"], 4) for L in range(n_levels)])
-        if obstacle_pool is not None:
-            tested["obstacles"] = evaluate(model, obstacle_pool, dev, cfg.stall_ticks)
+        if obstacle_tests:
+            tested["obstacles"] = evaluate_course_batches(model, obstacle_tests, dev, cfg.stall_ticks,
+                                                          cfg.eval_batch_size or len(obstacle_tests), cfg.compact_ice)
             po = tested["obstacles"]["per_level"]
             with open(out / "eval_obstacles_log.csv", "a", newline="") as f:
                 w = csv.writer(f)

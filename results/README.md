@@ -215,6 +215,55 @@ policies at their validation-chosen checkpoint; their neo-course results are in 
 | `neo-dagger2` (iteration 299) | 96.6 | 93.8 | 74.0 | 50.0 | 77.0 | |
 | `neo-dagger3` (iteration 449) | 96.5 | 92.5 | 80.5 | 46.5 | 71.5 | |
 
+## Planning the hard jumps: the neo assist (simulator)
+
+When the bot first stands on a planned takeoff, a cross-entropy search with the exact physics finds an
+action sequence from its exact state and the bot plays it (`parkour/neo_assist.py`). Jumps planned:
+`neo` the neos; `advanced` also the wide and momentum jumps; `all` every jump. Official: the held-out
+level 6-8 courses with a neo (family 2 validation, family 1 test); random: courses of level 0-5 jumps
+where half the jumps are neos (13 validation, 12 test). Settings are chosen on validation; test lines
+are the chosen settings.
+
+| Split | Courses | Policy | Setting | Jumps planned | Completed | Neo jumps passed / reached | Plans landed / played |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| validation | official (family 2) | `final_policy` | policy alone |  | 0/218 (0.0) | 0/140 |  |
+| validation | official (family 2) | `final_policy` | neo (batch 32) | neo | 49/218 (22.5) | 131/179 | 131/131 |
+| validation | official (family 2) | `final_policy` | advanced (batch 32) | advanced | 119/218 (54.6) | 214/286 | 869/869 |
+| validation | random (family 13) | `final_policy` | policy alone |  | 27/200 (13.5) | 0/169 |  |
+| validation | official (family 2) | `final_policy` | advanced, prior 0.5 | advanced | 111/218 (50.9) | 195/281 | 830/830 |
+| test | random (family 12) | `final_policy` | policy alone |  | 33/200 (16.5) | 1/162 |  |
+
+## New jump kinds and blocks: head hitters, ice run-ups, shaped blocks, slime, ladders (simulator)
+
+Opt-in levels (`configs/jump_levels_extra.json`, `run.cmd train --extra`) that the final policy was
+never trained on. Every kind alone from rest at 16 angles (`parkour.jumpeval --extra`) and whole
+held-out courses of each level (`scripts/extra_preview.py`: family 2 validation, family 1 test), the
+policy alone and with the planner (jumps `advanced`: the run-up jumps; `all`: every jump) on the first
+courses of each level.
+
+| Level | Kinds | Mean success alone | Kinds never made |
+| --- | --- | --- | --- |
+| hard head hitter | 31 | 21.6 | 15 |
+| head hitter | 187 | 68.2 | 26 |
+| ice run-up | 131 | 48.9 | 45 |
+| impossible | 119 | 0.8 | 118 |
+
+Family 1 (test, `course_preview_family1.json`):
+
+| Level | Policy alone (all courses) | Same first courses, policy alone | planner, jumps advanced |
+| --- | --- | --- | --- |
+| head hitter | 25.5% of 200 | 5/40 | 31/40 |
+| hard head hitter | 1.5% of 200 | 1/40 | 38/40 |
+| ice run-up | 7.0% of 200 | 1/40 | 32/40 |
+
+## The new blocks against prismarine-physics (physics library)
+
+| Blocks | Random fields | Ticks | Largest position error (blocks) | Ticks with a flag mismatch | Trajectories the blocks change |
+| --- | --- | --- | --- | --- | --- |
+| block shapes | 300 | 60000 | 7.1e-15 | 0 | 216/300 |
+| slime | 300 | 60000 | 1.4e-14 | 0 | 297/300 |
+| ladders and vines | 300 | 60000 | 7.1e-15 | 0 | 48/300 |
+
 ## Offline check
 
 ### Offline JavaScript bot on prismarine-physics (final policy: discount 0.995, obstacles-g995)

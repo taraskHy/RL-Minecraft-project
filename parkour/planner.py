@@ -66,11 +66,11 @@ class PlannerConfig:
     max_gap: float = 5.5  # largest horizontal air gap between two platforms (limits "flat")
     dy_min: int = -3
     dy_max: int = 1
-    align: float = 3.0    # weight of the goal direction against the jump's cost (tuned on validation)
+    align: float = 2.0    # weight of the goal direction against the jump's cost (tuned on validation)
     slab_only: bool = True
     limits: str = "table"      # "table": gap up to MAX_GAP[dy] + slack; "flat": up to max_gap
     slack: float = 0.5
-    cost: str = "difficulty"   # "difficulty": -log forgiveness of the jump; "distance": the air gap
+    cost: str = "distance"   # "difficulty": -log forgiveness of the jump; "distance": the air gap
     mark_passed: bool = True   # landing beyond the plan's next platform marks the ones skipped as passed
     clear_path: bool = True    # skip platforms whose straight flight path from here passes through blocks
     head_hitters: bool = True  # a slab 4 blocks above a platform it touches is a head hitter, not a target
@@ -314,6 +314,8 @@ def evaluate_planned(model, pool: CoursePool, device, cfg: PlannerConfig, stall_
 
     Scoring (success, falls, stalls) still uses the true course, as in train.evaluate.
     """
+    if pool.shape_grid is not None:
+        raise ValueError("the route planner does not support shaped platforms (Course.shapes)")
     n = pool.size
     env = ParkourEnv(pool, EnvConfig(num_envs=n, stall_ticks=stall_ticks, max_ticks=max_ticks, fall_rule=fall_rule), sampler=None)
     env.reset_all(torch.arange(n, device=device))

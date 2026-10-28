@@ -68,3 +68,21 @@ def test_existing_run_requires_own_checkpoint(monkeypatch, tmp_path):
     with pytest.raises(ValueError, match='Existing run'):
         T.train(dataclasses.replace(cfg, init_from='external.pt'))
     assert (out/'train_log.csv').read_text() == 'existing evidence'
+
+def test_batched_evaluation_matches_full():
+    import numpy as np
+    from parkour import courses as C
+    from parkour.env import CoursePool
+    from parkour.live import load_model
+    from parkour.paths import ROOT
+    cs = [C.generate(np.random.default_rng(k+300), C.load_levels(), k%6, 2, ice_prob=.5) for k in range(12)]
+    model = load_model(ROOT/'results/final_policy.pt', 'cpu')
+    model.eval()
+    full = T.evaluate(model, CoursePool(cs, 'cpu', C.GRID), 'cpu', 200)
+    batched = T.evaluate_course_batches(model, cs, 'cpu', 200, 5, compact_ice=True)
+    assert batched['success'] == full['success']
+    for level, row in full['per_level'].items():
+        for key in ['success','fell','progress','ticks_success','n']:
+            expected=row[key]
+            actual=batched['per_level'][level][key]
+            assert (actual == pytest.approx(expected) if expected is not None else actual is None), (level, key, actual, expected)

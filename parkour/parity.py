@@ -28,11 +28,17 @@ class ParityCase:
     yaw: np.ndarray  # (T,)
     controls: np.ndarray  # (T, 6) bool
     ice: np.ndarray | None = None  # (I, 3) int, cells of ``blocks`` that are ice
+    shapes: np.ndarray | None = None  # (M, 4) int, cells of ``blocks`` with a collision shape: x, y, z, shape id
+    slime: np.ndarray | None = None  # (L, 3) int, cells of ``blocks`` that are slime blocks
+    ladders: np.ndarray | None = None  # (A, 4) int: x, y, z, facing (0-3: north, east, south, west) of ladder blocks
+    vines: np.ndarray | None = None  # (V, 3) int, air cells that hold a vine
 
 
-def random_case(rng: np.random.Generator, ticks: int = 120, size: int = 14, ice: float = 0.0) -> ParityCase:
+def random_case(rng: np.random.Generator, ticks: int = 120, size: int = 14, ice: float = 0.0,
+                shapes: float = 0.0, slime: float = 0.0, climb: float = 0.0, floor_shapes: float = 0.0) -> ParityCase:
     """A random block field with a player on top of a block and sticky random inputs; with ``ice``
-    > 0, that share of the raised blocks (and always the start block) is ice."""
+    > 0, that share of the raised blocks (and always the start block) is ice; with ``shapes`` > 0,
+    that share of the other raised blocks has a random collision shape of physics.shape_table()."""
     blocks = set()
     floor_y = 6
     o = 26  # offset so a safety floor fits around the field at non-negative cells
@@ -74,12 +80,59 @@ def random_case(rng: np.random.Generator, ticks: int = 120, size: int = 14, ice:
     cells = None
     if ice > 0:  # drawn last, so cases without ice are the same as before
         cells = np.array([b for b in raised if b == start or rng.random() < ice], dtype=np.int64)
-    return ParityCase(np.array(sorted(blocks), dtype=np.int64), pos, yaw, controls, cells)
+    shaped = None
+    if shapes > 0:  # drawn after that, for the same reason
+        icy = set() if cells is None else {tuple(int(v) for v in b) for b in cells}
+        n_shapes = sum(1 for n in physics.shape_table()[0] if not n.startswith("ladder"))  # shapes only, no climbing
+        shaped = np.array([(*b, int(rng.integers(1, n_shapes))) for b in raised  # not the start block's head room
+                           if b != start and b in blocks and b not in icy and rng.random() < shapes],
+                          dtype=np.int64).reshape(-1, 4)
+    bouncy = None
+    if slime > 0:  # drawn after that: slime blocks among the other full blocks (the start block too)
+        taken = (set() if cells is None else {tuple(int(v) for v in b) for b in cells}) | (
+            set() if shaped is None else {tuple(int(v) for v in b[:3]) for b in shaped})
+        bouncy = np.array([b for b in raised if b in blocks and b not in taken and (b == start or rng.random() < slime)],
+                          dtype=np.int64).reshape(-1, 3)
+    if floor_shapes > 0:  # drawn after that: shapes on the safety floor under the field, where players end up
+        names, boxes, counts = physics.shape_table()
+        # Only shapes with a box over the whole cell: posts and bars would open holes into the void.
+        full = [i for i in range(1, len(names)) if not names[i].startswith("ladder") and any(
+            b[0] == 0 and b[2] == 0 and b[3] == 1 and b[5] == 1 for b in boxes[i, :int(counts[i])].tolist())]
+        have = set() if shaped is None else {tuple(int(v) for v in b[:3]) for b in shaped}
+        extra = [(x, 1, z, full[int(rng.integers(len(full)))]) for x in range(o - 4, o + size + 4)
+                 for z in range(o - 4, o + size + 4) if (x, 1, z) not in have and rng.random() < floor_shapes]
+        shaped = np.concatenate([np.zeros((0, 4), dtype=np.int64) if shaped is None else shaped,
+                                 np.array(extra, dtype=np.int64).reshape(-1, 4)])
+    ladders = vines = None
+    if climb > 0:  # drawn after that: ladders on the sides of raised blocks, vines in the air beside them
+        taken = {tuple(int(v) for v in b[:3]) for arr in (cells, shaped, bouncy) if arr is not None for b in arr}
+        lad, vin, used = [], [], set()
+        for b in raised:
+            if b not in blocks or b in taken or b == start or rng.random() >= climb:
+                continue
+            f = int(rng.integers(4))
+            dx, dz = ((0, -1), (1, 0), (0, 1), (-1, 0))[f]  # facing north, east, south, west: away from block b
+            beside = (b[0] + dx, b[1], b[2] + dz)
+            if beside in blocks or beside in used:
+                continue
+            used.add(beside)
+            if rng.random() < 0.5:
+                lad.append((*beside, f))
+            else:
+                vin.append(beside)
+        for x, y, z, _ in lad:
+            blocks.add((x, y, z))
+        ladders = np.array(lad, dtype=np.int64).reshape(-1, 4)
+        vines = np.array(vin, dtype=np.int64).reshape(-1, 3)
+    return ParityCase(np.array(sorted(blocks), dtype=np.int64), pos, yaw, controls, cells, shaped, bouncy, ladders, vines)
 
 
 def run_js(cases: list[ParityCase]) -> list[list[dict]]:
     payload = {"cases": [{
         "blocks": c.blocks.tolist(), "ice": [] if c.ice is None else c.ice.tolist(),
+        "shapes": [] if c.shapes is None else [[*b[:3].tolist(), physics.shape_table()[0][b[3]]] for b in c.shapes],
+        "slime": [] if c.slime is None else c.slime.tolist(),
+        "ladders": [] if c.ladders is None else c.ladders.tolist(), "vines": [] if c.vines is None else c.vines.tolist(),
         "pos": list(c.pos), "vel": [0.0, 0.0, 0.0], "onGround": False,
         "jumpTicks": 0,
         "ticks": [{"yaw": float(c.yaw[t]), "c": [int(v) for v in c.controls[t]]} for t in range(len(c.yaw))],
@@ -104,14 +157,49 @@ def run_torch(cases: list[ParityCase], device: str = "cpu") -> list[dict]:
         b = torch.as_tensor(c.blocks)
         solid[i, b[:, 0], b[:, 1], b[:, 2]] = True
     slip = None
-    if any(c.ice is not None and len(c.ice) for c in cases):
+    has_slime = any(c.slime is not None and len(c.slime) for c in cases)
+    if any(c.ice is not None and len(c.ice) for c in cases) or has_slime:
         slip = torch.full(solid.shape, physics.DEFAULT_SLIPPERINESS, dtype=torch.float64)
         for i, c in enumerate(cases):
             if c.ice is not None and len(c.ice):
                 b = torch.as_tensor(c.ice)
                 slip[i, b[:, 0], b[:, 1], b[:, 2]] = physics.ICE_SLIPPERINESS
+            if c.slime is not None and len(c.slime):
+                b = torch.as_tensor(c.slime)
+                slip[i, b[:, 0], b[:, 1], b[:, 2]] = physics.SLIME_SLIPPERINESS
         slip = slip.to(device)
-    world = physics.World(solid.to(device), slip)
+    slime = None
+    if has_slime:
+        slime = torch.zeros(solid.shape, dtype=torch.bool)
+        for i, c in enumerate(cases):
+            if c.slime is not None and len(c.slime):
+                b = torch.as_tensor(c.slime)
+                slime[i, b[:, 0], b[:, 1], b[:, 2]] = True
+        slime = slime.to(device)
+    shape = None
+    has_ladders = any(c.ladders is not None and len(c.ladders) for c in cases)
+    has_climb = has_ladders or any(c.vines is not None and len(c.vines) for c in cases)
+    if any(c.shapes is not None and len(c.shapes) for c in cases) or has_ladders:
+        shape = torch.zeros(solid.shape, dtype=torch.uint8)
+        ladder_ids = torch.tensor([physics.shape_id(f"ladder_{d}") for d in ("north", "east", "south", "west")])
+        for i, c in enumerate(cases):
+            if c.shapes is not None and len(c.shapes):
+                b = torch.as_tensor(c.shapes)
+                shape[i, b[:, 0], b[:, 1], b[:, 2]] = b[:, 3].to(torch.uint8)
+            if c.ladders is not None and len(c.ladders):
+                b = torch.as_tensor(c.ladders)
+                shape[i, b[:, 0], b[:, 1], b[:, 2]] = ladder_ids[b[:, 3]].to(torch.uint8)
+        shape = shape.to(device)
+    climb = None
+    if has_climb:
+        climb = torch.zeros(solid.shape, dtype=torch.bool)
+        for i, c in enumerate(cases):
+            for arr in (c.ladders, c.vines):
+                if arr is not None and len(arr):
+                    b = torch.as_tensor(arr)
+                    climb[i, b[:, 0], b[:, 1], b[:, 2]] = True
+        climb = climb.to(device)
+    world = physics.World(solid.to(device), slip, shape, slime, climb)
     course = torch.arange(n, device=device)
     state = physics.PlayerState.at(torch.tensor([c.pos for c in cases], dtype=torch.float64, device=device),
                                    torch.zeros(n, dtype=torch.float64, device=device))

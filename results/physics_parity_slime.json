@@ -1,0 +1,19 @@
+{
+ "method": "parkour.parity.compare with slime: random_case(np.random.default_rng(13), ticks=200, slime=0.5) x 300, the simulator with World(slime=..., slip=0.8 on slime) against prismarine-physics 1.11.1 through Node with minecraft-data 1.21.4 slime blocks, same 1e-7 collision tolerance, CPU",
+ "slime_cells_per_case": 17.6,
+ "result": {
+  "cases": 300,
+  "ticks": 60000,
+  "max_pos_err": 1.4210854715202004e-14,
+  "max_vel_err": 1.1102230246251565e-16,
+  "flag_mismatch_ticks": 0,
+  "exact_pos_ticks": 58447,
+  "diverged_cases": 0
+ },
+ "effect_of_slime": {
+  "cases_changed": 297,
+  "cases": 300,
+  "largest_position_change_blocks": 9.177,
+  "highest_upward_speed_blocks_per_tick": 0.807
+ }
+}

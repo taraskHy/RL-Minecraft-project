@@ -343,6 +343,8 @@ def main(argv=None):
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--prior", type=float, default=0.95, help="weight of the policy's own action probabilities in the search's start")
     ap.add_argument("--simplify", type=int, default=1, help="1: keep only the corrections that matter (see above)")
+    ap.add_argument("--expert", choices=("cem", "assist"), default="cem",
+                    help="assist: parkour.neo_assist's search (same method; finished states drop out, so faster)")
     a = ap.parse_args(argv)
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     t0 = time.time()
@@ -352,8 +354,16 @@ def main(argv=None):
     print(json.dumps({"courses": len(courses), "arrivals": len(arrivals), "seconds": round(time.time() - t0)}), flush=True)
     pool = CoursePool(courses, dev, C.GRID)
     found = []
+    if a.expert == "assist":
+        from . import neo_assist as NA
+        rules = NA.Rules(pool)
+        cfg = NA.AssistConfig(samples=a.samples, iterations=a.iterations, keep=a.keep, prior=a.prior)
     for b in range(0, len(arrivals), a.batch):
         part = arrivals[b:b + a.batch]
+        if a.expert == "assist":
+            prior = NA.policy_prior(model, pool, part, dev, HORIZON) if a.prior > 0 else None
+            found += NA.search(pool, rules, part, dev, cfg, a.seed + b, prior, HORIZON)[0]
+            continue
         prior = policy_prior(model, pool, part, dev) if a.prior > 0 else None
         found += search(pool, part, dev, a.samples, a.iterations, a.keep, a.seed + b, prior, a.prior)
         if (b // a.batch) % 10 == 0:

@@ -46,7 +46,7 @@ results of the cloud session on branch `claude/pensive-knuth-biwj11`
 | --- | --- | --- | --- |
 | **Final policy** (discount 0.995) | `results/final_policy.pt` / `.json` = `runs/obstacles-g995` best, iteration 699 (validation 97.6) | 98.4% standard (level 5: 93.5), 95.2% obstacles (level 5: 81.0) | 59/60 standard, 57/60 obstacles, 3/4 hand-designed (the miss is the neo course, not in its training); 0 server corrections; same outcome as the simulator on every course |
 | First final policy (discount 0.99) | `results/final_policy_v1.*` = `runs/obstacles-ft` | 97.1%, 93.6% | 59/60, 58/60, 3/3 |
-| **New map, no course list**: greedy route planner + final policy | `parkour/planner.py` = `bridge/planner.js` | 90.9% standard, 88.1% obstacles; **retuned** (`cost=distance, align=2.0`, chosen on validation): 92.3%, 90.5% | 50/60, 55/60 (retuned: not run yet; offline bot 51/60, 56/60) |
+| **New map, no course list**: greedy route planner + final policy | `parkour/planner.py` = `bridge/planner.js` | 90.9% standard, 88.1% obstacles; **retuned** (`cost=distance, align=2.0`, chosen on validation): 92.3%, 90.5% | retuned: 51/60, 56/60, identical to offline and simulator, 0 corrections; now default (old configuration: 50/60, 55/60) |
 | Learned no-route model (research comparison) | `runs/noroute-v2` | 85.4%, 70.9% | 55/60, 37/60 |
 | **Neo policy** (imitation + 3 DAgger rounds) | `runs/neo-dagger3` best, **only on the PC** (not in Git) | 61/210 (29.0%) held-out level 6-8 courses with a neo; 97/224 neo jumps passed | 11/31 neo course set (`configs/neo_live_courses.json`), same as offline and the simulator |
 
@@ -79,10 +79,53 @@ More facts that hold now:
   standard and 92.5% obstacles at levels 0-5 (final policy: 98.4, 95.2),
   while the final policy completes 0 of the 210 neo courses (levels 6/7/8:
   71.0/3.5/1.5% against the neo policy's 80.5/46.5/71.5%).
+- **New abilities (28 Oct evening, cloud session, CPU, simulator unless
+  said otherwise; plan and status in `docs/abilities_plan.md`):**
+  - *Neo assist* (`parkour/neo_assist.py`): when the bot first stands on a
+    neo's takeoff, a cross-entropy search with the exact physics plans its
+    actions from its exact state, and the bot plays the plan. Validation
+    (218 held-out neo courses, `results/neo/assist_validation.jsonl`): the
+    final policy alone completes 0 and passes 0 of the 140 neo jumps it
+    reaches; with the assist it completes 49 and passes 131 of 179 reached
+    neo jumps (every played plan landed as searched); 121 of its 169 failed
+    courses stop at a jump that is not a neo (`failed_at_a_neo` 48).
+    Planning the wide and momentum jumps too (`--jumps advanced`): 119 of
+    218, 214 of 286 neos passed. These rows (tagged `code 587c9b1`) ran an
+    earlier default that searched up to 32 states at once (batch 32: same
+    method, other random draws); the current default, batch 1, is what the
+    bots reproduce, and the chosen setting is re-measured with it. Both bots
+    have it (`parkour.live --assist '{"jumps": "advanced"}'`: the bot pauses
+    on the takeoff, a Python planner service searches, prismarine-physics
+    checks the plan, the bot plays it); the offline bot matches the
+    simulator exactly when both search on the same device
+    (`tests/test_neo_assist.py`). Not yet run in real Minecraft.
+  - *Head hitters and ice run-ups*: new jump kinds (a run-up under a 2-high
+    roof, a tunnel, an ice runway), feasibility-checked
+    (`configs/jump_feasibility_extra.json`), in opt-in levels
+    (`configs/jump_levels_extra.json`, `run.cmd train --extra`). Zero-shot,
+    the final policy makes 68% / 22% / 49% of the head-hitter / hard
+    head-hitter / ice kinds alone, and completes 25.5% / 1.5% / 7.0% of
+    whole held-out courses of those levels; with the planner on every run-up
+    jump, 31/40, 38/40, 32/40 (`results/extra/`).
+  - *New blocks* (physics, opt-in, each exact against prismarine-physics
+    over 60,000 ticks of random block fields, `results/physics_parity_*.json`):
+    block shapes (`physics.World(shape=...)`: slabs, stairs, soul sand,
+    dirt path, trapdoors, carpets, fence and wall posts, end rods, ladders;
+    boxes from prismarine-block in `configs/block_shapes.json`), slime
+    bounces (`World(slime=...)`), ladders and vines (`World(climb=...)`).
+    In courses, as composite jump kinds that end on stone (shaped targets
+    with an exit jump, slime pads with an exit above them, ladder climbs
+    onto a wall): `JumpSpec.block`, `.bounce`, `.ladder`; the pool, the
+    observation and its JavaScript mirror use the shapes' real tops and
+    footprints, both bots build the real blocks, and the offline bot plays
+    shaped, slime and ladder courses exactly like the simulator (tests).
+    The route planner refuses shaped courses for now.
 - What is running on the PC right now cannot be known from outside it: the
   last commits record finished results only. Check the processes there.
 
 ## 3. What is left to do
+
+**PC completion update, 28 Oct 21:38:** cloud merged through `21188a6`; neo files shipped; retuned planner verified on both real-Minecraft sets (51/60 and 56/60, zero corrections) and adopted in Python/JS. Items 1, 2, 4 and 5 below describe the completed integration steps and ongoing merge/watchdog procedure. Training continues under the latest 70% compute/memory request.
 
 Concrete work, most important first. Nothing here needs new research.
 
@@ -95,9 +138,12 @@ Concrete work, most important first. Nothing here needs new research.
    for `HANDOFF.md` keep both sides' hand-written text and add both session
    log entries; then `run.cmd test` and push. The branch adds opt-in
    features to the physics, courses, training, planner and both bots (ice,
-   planner options), all off by default and covered by tests (42 pass);
-   the only default behaviour changes are the GPU watchdog also pausing
-   `parkour.neo_dagger` and `run.cmd report` also refreshing this file's
+   planner options, the neo assist, new jump kinds and blocks), all off by
+   default and covered by tests (63 pass in the cloud container, CUDA test
+   skipped; `tests/test_heldout_fingerprints.py` proves the held-out courses
+   unchanged); the only default behaviour changes are the GPU watchdog also
+   pausing `parkour.neo_dagger` and `parkour.neo_assist` (not the bots'
+   planner service), and `run.cmd report` also refreshing this file's
    snapshot and writing the new tables in `results/README.md`.
 2. **Confirm the retuned planner in real Minecraft** (PC; section 4,
    item 4): `run.cmd live --checkpoint results\final_policy.pt --planner
@@ -133,7 +179,32 @@ Concrete work, most important first. Nothing here needs new research.
    evening): neo assist, head hitters, ice jumps, slime, block shapes.
    `docs/abilities_plan.md` lists the stages, their status and the design
    constraints found in the code; whatever needs training is queued for
-   the PC with the gaming-safe settings of section 6.
+   the PC with the gaming-safe settings of section 6. For the PC:
+   - the neo assist in real Minecraft: `run.cmd live --checkpoint
+     results\final_policy.pt --courses-file configs\neo_live_courses.json
+     --assist "{}" --out runs\neo-assist-live` (and `--offline` first; the
+     planner service runs on the PC's Python);
+   - train the new kinds and the neo levels on the discount-0.995 policy,
+     one run at a time with the gaming flags: `python scripts/sweep.py
+     configs\sweep_new_skills.json --slots 1` (`extra-ft`: the extra levels
+     after the basic ones, uniform curriculum; `advanced-g995`: levels 6-8).
+     Pick on validation, then `parkour.jumpeval --extra`,
+     `scripts/extra_preview.py` and the standard and obstacle test sets.
+   - a learned neo on top of `advanced-g995` in one command (rounds of the
+     recipe below, each kept only if it beats the last on the validation neo
+     courses): `python scripts/neo_pipeline.py --start
+     runs\advanced-g995\checkpoints\best.pt --name neo995 --rounds 3
+     --gaming` (`--dry-run` prints the commands). By hand, the same recipe
+     (the neo-dagger recipe, now with
+     the assist's faster search): `python -m parkour.neo_dagger --checkpoint
+     runs\advanced-g995\checkpoints\best.pt --out runs\neo995_r1.pt --prior
+     0.5 --expert assist`, then `run.cmd train --run neo995-r1 --init-from
+     runs\advanced-g995\checkpoints\best.pt --advanced --obstacle-prob 0.3
+     --gamma 0.995 --reward-stall 5 --bc-coef 0.3 --bc-pairs runs\neo995_r1.pt
+     --wide-neo --lr 3e-4 --lr-max 3e-4 --iterations 500` (neo-dagger3's
+     settings), more rounds from its `best.pt`, each chosen on the
+     validation neo courses (`parkour.neo_assist --set official --family 2
+     --off`).
 
 ## 4. Open problems (unsolved, up for grabs)
 
@@ -241,7 +312,8 @@ re-run the offline and real-Minecraft checks.
 
 | Part | Why | Guarded by |
 | --- | --- | --- |
-| `parkour/physics.py` | exact float64 port of prismarine-physics 1.11.1 (operand order kept) plus vanilla's 1e-7 `COLLISION_EPSILON`; the optional ice grid (`World(slip=...)`) is off unless passed | `tests/test_physics_parity.py` (also with ice), `test_corner_slip.py`, `test_inside_block.py` |
+| `parkour/physics.py` | exact float64 port of prismarine-physics 1.11.1 (operand order kept) plus vanilla's 1e-7 `COLLISION_EPSILON`; the optional ice grid (`World(slip=...)`) and shape grid (`World(shape=...)`) are off unless passed | `tests/test_physics_parity.py` (also with ice and shapes), `test_shapes.py`, `test_corner_slip.py`, `test_inside_block.py` |
+| `configs/block_shapes.json` | the collision boxes of the shaped blocks, written by `bridge/export_shapes.js` from prismarine-block | `node bridge/export_shapes.js --check` (in `test_physics_parity.py`) |
 | `bridge/physics_patch.js` | the same tolerance in the bot; must change together with `physics.py` | `tests/test_physics_parity.py` |
 | `bridge/policy.js` <-> `parkour/env.py` (observation, fall and stall rules), `bridge/planner.js` <-> `parkour/planner.py` | the bot mirrors the Python code; the 255-number observation is what every shipped policy expects | `tests/test_bridge_parity.py`, `test_extended_obs.py`, `test_planner.py` |
 | Seed families in `parkour/train.py` (training 0, test 1, validation 2, stress 3, obstacle test 4, obstacle validation 5) and default course generation in `parkour/courses.py` | every test number is on exactly these courses (`course_hash`); new course features are opt-in (like `wide_neo`) | `tests/test_courses.py` |
@@ -295,7 +367,7 @@ started before that does not pause it until restarted. The live bot is left
 alone on purpose (it plays in real time). Log: `runs/gpu_watchdog.log`. If the watchdog is ever killed while jobs are
 paused: `python scripts/gpu_watchdog.py --resume-all`.
 
-**Current PC instruction (28 Oct evening):** the game is closed. Run two training jobs without GPU-memory, duty or thread restrictions. Queue `g995-adv`, `g995-ice` concurrently, then `g995-extra`. If gaming resumes, wait for each next checkpoint, then resume each same run from its own `latest.pt` with the three gaming flags below. This supersedes the earlier one-process suggestion.
+**Current PC instruction (28 Oct evening):** queue `g995-adv`, `g995-ice` concurrently, then `g995-extra`, with at most two trainers. The later user request caps both compute and aggregate memory at 70%, superseding the earlier unrestricted-GPU request. Overwatch was observed running at 22:04; gaming limits are active. Resume each same run from its own `latest.pt`; retain the newer 70% aggregate target. Other applications can independently exceed it, so monitor actual usage and do not stop the user's game.
 
 **Earlier gaming guidance.** The user plays on the same GPU. On
 28 Oct they first asked for "a safe buffer", then (same evening) "you can
@@ -379,15 +451,16 @@ needs the PC's GPU.
 
 ## Training queue operation (PC, 28 Oct evening)
 
-**Latest user decision:** bound both compute and memory to 70%. The watchdog applies a shared 70% duty window to both jobs together; each trainer uses a 28% allocator cap, leaving room for CUDA and desktop memory below the aggregate target. Verify actual card memory with nvidia-smi. This supersedes the earlier unrestricted-GPU request and the gaming recipe while the cap is active.
+**Latest user decision:** bound both compute and memory to 70%. The user rejected the initial 10-second duty window because it produced long 98% bursts. The replacement watchdog uses shared 50-ms windows with measured-utilization feedback and headroom below 70%; telemetry and process discovery run separately from the pacing loop. This is a measured software target, not a hardware guarantee against every transient peak or game usage. Overwatch increased the non-training baseline to about 40% memory and 37% compute at 22:04. Each trainer now has a 13% allocator cap, with smaller working tensors, leaving room for the game and runtime overhead. Verify actual card memory with nvidia-smi. This supersedes the earlier unrestricted-GPU request and the 75% per-job gaming recipe.
 
-The first startup attempts hit Windows shared-memory spill (the dense ice friction grid alone was 8 GiB). Their logs are retained in `runs/startup-memory-spill-20261028/` (advanced: 8 updates, ice: 1; neither had a checkpoint). They were stopped and retained as failed startup attempts; the same requested run names restart from final_policy after a compact-ice parity fix. `--compact-ice` stores one boolean per cell and reconstructs the exact float64 friction on lookup; no training pool or batch size is reduced. Test pools allocate only at final testing with `--test-once`.
+The first startup attempts hit Windows shared-memory spill (the dense ice friction grid alone was 8 GiB). Their logs are retained in `runs/startup-memory-spill-20261028/` (advanced: 8 updates, ice: 1; neither had a checkpoint). `--compact-ice` stores one byte per cell and reconstructs the exact float64 friction on lookup. Validation and test pools use `--eval-batch-size 256`, keeping the same course sets with bounded memory; unused cache is released between batches. The later 28% ice run exceeded its allocator limit during PPO, after saving iteration 49; its full original log and config are retained in `runs/g995-ice/recovery/20261028-220658/`, including 41 uncheckpointed updates. Both jobs resumed their own iteration-49 checkpoint at 22:07. With Overwatch open, all queued recipes use a 1,024-course training pool, 8,192 environments, rollout 64 and 32 minibatches; game ticks per PPO iteration remain 524,288. The changed minibatch count and rollout shape affect training dynamics and must be reported. Test sets and checkpoint selection remain unchanged. Test pools allocate only at final testing with `--test-once`.
 
 - `scripts/training_queue.py` reads `configs/training_queue.json`, keeps at most two logical training process trees, and writes `runs/training_queue_state.json`. Initial order: advanced and ice together, then extra. Later seeds use the best completed initial recipe on the common validation levels 0-5 (standard plus obstacles), never test scores.
 - `runs/training_control.json`: `gaming=true` requests each job to stop cleanly at its next 50-update checkpoint and resume under the same run name with the three gaming flags; `gaming=false` does the reverse. `hold=true` prevents new starts. Do not launch a second queue.
 - `--test-once` validates every 50 iterations and tests only the selected best at completion. Resume restores iteration, optimizer, learning rate and validation best; simulator episodes/course pool restart, so it is not bit-identical continuation. Completed tested runs get a new name for further training.
+- Current watchdog command: `python scripts/gpu_watchdog.py --hot 65 --cool 58 --duty 0.55 --period 0.05 --utilization-target 0.7 --every 1`. The host duty ceiling is deliberately below the GPU busy-time limit because queued kernels continue briefly after host suspension. Keep `scripts/keep_awake.py` running. A five-minute native heartbeat in this chat monitors progress and publishes completed results; the local queue fills training slots immediately.
 - Neo policy now shipped as `results/neo_policy.pt` and `.json`; hashes in `results/neo_policy_provenance.json`. Final policy files retained.
-- Normal Windows test run: 56 passed, 8 subtests. CPU assist parity now pins the subprocess service to CPU (device-specific search RNG differs from CUDA).
+- Normal Windows test run after the second merge: 85 passed, 8 subtests (`runs/pc-final-merge-tests.txt`). CPU assist parity now pins the subprocess service to CPU (device-specific search RNG differs from CUDA).
 
 ## 8. Where things are
 
@@ -421,18 +494,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `bbb1494` (2026-10-28 20:40, branch `main`): Merge cloud parkour work and prepare safe two-slot GPU training
+Generated on top of commit `d347b72` (2026-10-28 21:29, branch `main`): Bound shared GPU compute and memory; compact ice without physics changes
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 16 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 17 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `bbb1494` 2026-10-28 20:40 | 0 |
-| `README.md` | `bbb1494` 2026-10-28 20:40 | 0 |
-| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 15 |
-| `docs/report_draft.md` | `bbb1494` 2026-10-28 20:40 | 0 |
-| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 14 |
-| `results/DATA.md` | `bbb1494` 2026-10-28 20:40 | 0 |
+| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
+| `README.md` | updated together with this snapshot | 0 |
+| `docs/design.md` | updated together with this snapshot | 0 |
+| `docs/report_draft.md` | updated together with this snapshot | 0 |
+| `results/README.md` | updated together with this snapshot | 0 |
+| `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -447,7 +520,7 @@ Simulator, held-out test sets (1,200 courses each), checkpoint picked on the val
 
 ### Training runs (`results/runs/*/summary.json`)
 
-Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`best.pt`); runs without one predate validation selection. Runs trained on levels 0-8 (`advanced-*`, `neo-*`) are evaluated on levels 0-8, the others on levels 0-5, so their overall numbers differ in kind; per level they compare (levels 0-5 are the same courses in both).
+Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`best.pt`); runs without one predate validation selection. Standard runs cover levels 0-5; advanced/neo runs add levels 6-8, while extra runs add their configured extra levels. Check each run's config: overall scores from different course sets are not comparable. Common levels 0-5 use the same courses.
 
 | Run | Last iteration | Game ticks (B) | Picked: iteration | validation | test | Last: test | Last: obstacles |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -457,6 +530,8 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `final-v2` | 499 | 0.26 | 499 | 89.6 | 88.5 | 88.5 | 88.1 |
 | `full-s1` | 999 | 0.52 | - | - | - | 94.2 | - |
 | `full-s2` | 999 | 0.52 | 949 | 93.0 | 93.1 | 91.9 | - |
+| `g995-adv` | 49 | 0.03 | 49 | 77.1 | - | - | - |
+| `g995-ice` | 49 | 0.03 | 49 | 95.6 | - | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
 | `hp-envs4096` | 3999 | 0.52 | 3599 | 93.7 | 94.2 | 92.0 | - |
@@ -564,13 +639,14 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `v2-planner-offline` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 50/60 | 83.3 | 100.0 |
 | `v2-planner-offline-obstacles` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 55/60 | 91.7 | 100.0 |
 | `v2-tuned-planner-live` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 51/60 | 85.0 | 100.0 |
+| `v2-tuned-planner-live-obstacles` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 56/60 | 93.3 | 100.0 |
 | `v2-tuned-planner-offline` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 51/60 | 85.0 | 100.0 |
 | `v2-tuned-planner-offline-obstacles` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 56/60 | 93.3 | 100.0 |
 | `viewer-test` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
 
 ### In `results/` but not yet in `results/DATA.md`
 
-`report_draft.pdf`, `videos/ghost_race_02_level_1_course_0.mp4`, `videos/ghost_race_03_level_2_course_0.mp4`, `videos/ghost_race_04_level_3_course_0.mp4`, `videos/ghost_race_05_level_4_course_0.mp4`, `videos/replay_137_neo_policy_level_7_course_5.mp4`
+`operations/` (2 files), `report_draft.pdf`, `videos/ghost_race_02_level_1_course_0.mp4`, `videos/ghost_race_03_level_2_course_0.mp4`, `videos/ghost_race_04_level_3_course_0.mp4`, `videos/ghost_race_05_level_4_course_0.mp4`, `videos/replay_137_neo_policy_level_7_course_5.mp4`
 
 <!-- END AUTO-SNAPSHOT -->
 
@@ -588,6 +664,10 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **28 Oct 2026, 22:10, Codex on training PC:** merged cloud through `21188a6`; 85 tests and 8 subtests passed, then 6 focused checks passed after releasing unused validation cache. Regenerated extra feasibility/levels through the study command. Retuned planner live verification and neo export complete. Replaced rejected long-burst duty with 50-ms shared feedback pacing. Overwatch was found running; resumed both saved iteration-49 checkpoints with 13% allocator caps and smaller tensor working sets, preserving the ice OOM attempt and 41 uncheckpointed updates in recovery logs. Card-wide telemetry is archived in `results/operations/gpu-limit-verification.json`; a five-minute heartbeat monitors results and publication. Next: finish requested three recipes, select by validation only, report each test once.
+
+- **28 Oct 2026, 21:38, Codex on training PC:** confirmed retuned planner in real Minecraft: 51/60 standard, 56/60 obstacles, all simulator outcomes matched, zero server corrections; defaults adopted in Python and JS. Evidence archived by report. Shared 70% compute plus conservative per-job allocator caps and compact/batched memory allocation are being checked before queue restart.
+- **28 Oct 2026, 21:33, Codex on the training PC:** second merge brings cloud work through `21188a6`, including the CUDA memory-cap device-index fix and shapes/slime/ladders. Preserve the requested 70% shared compute and aggregate memory budget. Compact friction uses one-byte material ids with exact float64 lookup (stone, ice and slime). Initial cap startup failures occurred before any training and are logged.
 - **28 Oct 2026, evening, Codex (main session on the training PC):** preserved the PC documentation updates, merged cloud work through `d9237e7`, retained both session histories and the full earlier PC handoff below. Preparing two unrestricted GPU runs (`g995-adv`, `g995-ice`), then `g995-extra`; validation-only checkpoint selection and one final test evaluation per run. Game is closed. When gaming resumes, wait for the next 50-iteration checkpoint and resume each same run from its own latest checkpoint with `--gpu-mem-fraction 0.75 --gpu-duty 0.9 --threads 8`.
 
 Newest first. One entry per session; earlier history is in the
@@ -596,15 +676,18 @@ Newest first. One entry per session; earlier history is in the
 - **28 Oct 2026, evening, Claude Code (cloud session, continued again,
   branch `claude/pensive-knuth-biwj11`, CPU only):** the user asked for
   more parkour abilities (other blocks, head hitters) and consistent neos
-  while they game on the PC's GPU ("leave a safe buffer"). This session
-  cannot reach the PC, so it builds and measures on the CPU and prepares
-  training for the PC. Plan and progress: `docs/abilities_plan.md`. Done:
-  held-out fingerprint guard (`tests/test_heldout_fingerprints.py`, the 8
-  test/validation sets are byte-identical to commit 6170803); gaming-safe
-  training flags `--gpu-mem-fraction`, `--gpu-duty`, `--threads` (off by
-  default) and `gpu_watchdog.py --pause-while GAME.exe` (section 6). Next:
-  the neo assist (stage A).
-
+  while they game on the PC's GPU (first "a safe buffer", then "don't leave
+  like a 40% margin"). This session cannot reach the PC, so it builds and
+  measures on the CPU and prepares training for the PC. Plan and progress:
+  `docs/abilities_plan.md`. Done: held-out fingerprint guard
+  (`tests/test_heldout_fingerprints.py`, the 8 test/validation sets are
+  byte-identical to commit 6170803); gaming flags `--gpu-mem-fraction`,
+  `--gpu-duty`, `--threads` and `gpu_watchdog.py --pause-while` (section 6:
+  75% memory, 90% duty); the neo assist in the simulator and both bots
+  (section 2); head-hitter and ice run-up jump kinds and levels; block
+  shapes in the physics with exact parity. Next: the assist on the test
+  sets with the setting chosen on validation, shaped platforms in courses
+  (stage D), slime, the PC training queue.
 - **28 Oct 2026, afternoon, Claude Code (cloud session, continued, branch
   `claude/pensive-knuth-biwj11`, CPU only):** the user asked this session
   to keep working on its own (no questions; they were away from the PC)

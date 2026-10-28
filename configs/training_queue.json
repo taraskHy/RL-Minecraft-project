@@ -1,7 +1,29 @@
 {
   "jobs": [
-    {"name": "g995-adv", "flags": ["--advanced"]},
-    {"name": "g995-ice", "flags": ["--ice-prob", "0.3"]},
-    {"name": "g995-extra", "flags": ["--extra"]}
+    {
+      "name": "g995-adv",
+      "flags": [
+        "--advanced",
+        "--pool-size",
+        "1024"
+      ]
+    },
+    {
+      "name": "g995-ice",
+      "flags": [
+        "--ice-prob",
+        "0.3",
+        "--pool-size",
+        "1024"
+      ]
+    },
+    {
+      "name": "g995-extra",
+      "flags": [
+        "--extra",
+        "--pool-size",
+        "1024"
+      ]
+    }
   ]
 }

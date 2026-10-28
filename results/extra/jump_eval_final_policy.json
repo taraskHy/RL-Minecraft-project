@@ -1,0 +1,8469 @@
+{
+ "checkpoint": "results/final_policy.pt",
+ "yaw_errors_deg": [
+  -60.0,
+  -52.0,
+  -44.0,
+  -36.0,
+  -28.0,
+  -20.0,
+  -12.0,
+  -4.0,
+  4.0,
+  12.0,
+  20.0,
+  28.0,
+  36.0,
+  44.0,
+  52.0,
+  60.0
+ ],
+ "by_level": {
+  "hard head hitter": {
+   "specs": 31,
+   "mean_policy_success": 0.2157,
+   "specs_policy_never": 15
+  },
+  "head hitter": {
+   "specs": 187,
+   "mean_policy_success": 0.6825,
+   "specs_policy_never": 26
+  },
+  "ice run-up": {
+   "specs": 131,
+   "mean_policy_success": 0.4895,
+   "specs_policy_never": 45
+  },
+  "impossible": {
+   "specs": 119,
+   "mean_policy_success": 0.0084,
+   "specs_policy_never": 118
+  }
+ },
+ "specs": [
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.15556,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.8963,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.24074,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.63704,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.71852,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.85926,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.58148,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.63704,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.14074,
+   "level": "head hitter",
+   "policy_success": 0.6875,
+   "policy_fell": 0.3125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.18148,
+   "level": "head hitter",
+   "policy_success": 0.8125,
+   "policy_fell": 0.1875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.18148,
+   "level": "head hitter",
+   "policy_success": 0.75,
+   "policy_fell": 0.25,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.14444,
+   "level": "head hitter",
+   "policy_success": 0.6875,
+   "policy_fell": 0.3125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.87037,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.9,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.61111,
+   "level": "head hitter",
+   "policy_success": 0.9375,
+   "policy_fell": 0.0625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.59259,
+   "level": "head hitter",
+   "policy_success": 0.9375,
+   "policy_fell": 0.0625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.74074,
+   "level": "head hitter",
+   "policy_success": 0.375,
+   "policy_fell": 0.625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.65556,
+   "level": "head hitter",
+   "policy_success": 0.5625,
+   "policy_fell": 0.4375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.45926,
+   "level": "head hitter",
+   "policy_success": 0.5,
+   "policy_fell": 0.5,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.44444,
+   "level": "head hitter",
+   "policy_success": 0.8125,
+   "policy_fell": 0.1875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.03704,
+   "level": "hard head hitter",
+   "policy_success": 0.25,
+   "policy_fell": 0.75,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.08889,
+   "level": "head hitter",
+   "policy_success": 0.8125,
+   "policy_fell": 0.1875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.04444,
+   "level": "hard head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.05926,
+   "level": "head hitter",
+   "policy_success": 0.5,
+   "policy_fell": 0.5,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.03704,
+   "level": "hard head hitter",
+   "policy_success": 0.3125,
+   "policy_fell": 0.6875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.08148,
+   "level": "head hitter",
+   "policy_success": 0.875,
+   "policy_fell": 0.125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.06667,
+   "level": "head hitter",
+   "policy_success": 0.1875,
+   "policy_fell": 0.8125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.08889,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.03704,
+   "level": "hard head hitter",
+   "policy_success": 0.625,
+   "policy_fell": 0.375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.08148,
+   "level": "head hitter",
+   "policy_success": 0.1875,
+   "policy_fell": 0.8125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.11111,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.08889,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.07407,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.08148,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.16667,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.08889,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.03704,
+   "level": "hard head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.04074,
+   "level": "hard head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.10741,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.05556,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.03704,
+   "level": "hard head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.04074,
+   "level": "hard head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.10741,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.05556,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.03704,
+   "level": "hard head hitter",
+   "policy_success": 0.25,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.75
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.02963,
+   "level": "hard head hitter",
+   "policy_success": 0.9375,
+   "policy_fell": 0.0625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 1.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.11111,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.72222,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.21481,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.45185,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.31481,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.88889,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.22593,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.37037,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.9,
+   "level": "head hitter",
+   "policy_success": 0.5625,
+   "policy_fell": 0.4375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.7963,
+   "level": "head hitter",
+   "policy_success": 0.75,
+   "policy_fell": 0.25,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.35556,
+   "level": "head hitter",
+   "policy_success": 0.625,
+   "policy_fell": 0.375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.23704,
+   "level": "head hitter",
+   "policy_success": 0.375,
+   "policy_fell": 0.625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.7037,
+   "level": "head hitter",
+   "policy_success": 0.75,
+   "policy_fell": 0.25,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.89259,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.48148,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.48148,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.85185,
+   "level": "head hitter",
+   "policy_success": 0.5625,
+   "policy_fell": 0.4375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.8037,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.6,
+   "level": "head hitter",
+   "policy_success": 0.75,
+   "policy_fell": 0.25,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.41111,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.01852,
+   "level": "hard head hitter",
+   "policy_success": 0.5625,
+   "policy_fell": 0.4375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.1037,
+   "level": "head hitter",
+   "policy_success": 0.875,
+   "policy_fell": 0.125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.1,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.14815,
+   "level": "head hitter",
+   "policy_success": 0.625,
+   "policy_fell": 0.375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.66667,
+   "level": "head hitter",
+   "policy_success": 0.375,
+   "policy_fell": 0.625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.66296,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.47778,
+   "level": "head hitter",
+   "policy_success": 0.75,
+   "policy_fell": 0.25,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.31481,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.01852,
+   "level": "hard head hitter",
+   "policy_success": 0.25,
+   "policy_fell": 0.75,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.03704,
+   "level": "hard head hitter",
+   "policy_success": 0.8125,
+   "policy_fell": 0.1875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.0963,
+   "level": "head hitter",
+   "policy_success": 0.4375,
+   "policy_fell": 0.5625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.07407,
+   "level": "head hitter",
+   "policy_success": 0.125,
+   "policy_fell": 0.875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.03704,
+   "level": "hard head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.03704,
+   "level": "hard head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.05926,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.07407,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.01852,
+   "level": "hard head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.01852,
+   "level": "hard head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.02593,
+   "level": "hard head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.03704,
+   "level": "hard head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.01852,
+   "level": "hard head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.01852,
+   "level": "hard head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.02593,
+   "level": "hard head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.03704,
+   "level": "hard head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.01852,
+   "level": "hard head hitter",
+   "policy_success": 0.0625,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.01852,
+   "level": "hard head hitter",
+   "policy_success": 0.125,
+   "policy_fell": 0.875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.02593,
+   "level": "hard head hitter",
+   "policy_success": 0.125,
+   "policy_fell": 0.875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.02963,
+   "level": "hard head hitter",
+   "policy_success": 0.25,
+   "policy_fell": 0.75,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.09259,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.34444,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.37037,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.33704,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.25926,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.56667,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.48519,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.3,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.53704,
+   "level": "head hitter",
+   "policy_success": 0.4375,
+   "policy_fell": 0.5625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.54815,
+   "level": "head hitter",
+   "policy_success": 0.1875,
+   "policy_fell": 0.8125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.16667,
+   "level": "head hitter",
+   "policy_success": 0.1875,
+   "policy_fell": 0.8125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.11481,
+   "level": "head hitter",
+   "policy_success": 0.375,
+   "policy_fell": 0.625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.31481,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.53333,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.37778,
+   "level": "head hitter",
+   "policy_success": 0.875,
+   "policy_fell": 0.125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.42222,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.48148,
+   "level": "head hitter",
+   "policy_success": 0.4375,
+   "policy_fell": 0.5625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.57778,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.26667,
+   "level": "head hitter",
+   "policy_success": 0.75,
+   "policy_fell": 0.25,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.15926,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.05556,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.28519,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.04444,
+   "level": "hard head hitter",
+   "policy_success": 0.25,
+   "policy_fell": 0.75,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.0963,
+   "level": "head hitter",
+   "policy_success": 0.875,
+   "policy_fell": 0.125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.38889,
+   "level": "head hitter",
+   "policy_success": 0.75,
+   "policy_fell": 0.25,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.5963,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.24444,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.21111,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.2037,
+   "level": "head hitter",
+   "policy_success": 0.8125,
+   "policy_fell": 0.1875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.26296,
+   "level": "head hitter",
+   "policy_success": 0.3125,
+   "policy_fell": 0.6875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.22963,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.19259,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.25926,
+   "level": "head hitter",
+   "policy_success": 0.375,
+   "policy_fell": 0.625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.41481,
+   "level": "head hitter",
+   "policy_success": 0.1875,
+   "policy_fell": 0.8125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.27407,
+   "level": "head hitter",
+   "policy_success": 0.0625,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.32222,
+   "level": "head hitter",
+   "policy_success": 0.125,
+   "policy_fell": 0.875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.2037,
+   "level": "head hitter",
+   "policy_success": 0.0625,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.35185,
+   "level": "head hitter",
+   "policy_success": 0.1875,
+   "policy_fell": 0.8125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.24074,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.36667,
+   "level": "head hitter",
+   "policy_success": 0.0625,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.2037,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.35185,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.28519,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.36667,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.2963,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.2963,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.37037,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 0,
+   "forgiveness": 0.23333,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.15556,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.98148,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.24074,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.66667,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.71852,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.91481,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.6037,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.66296,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.21481,
+   "level": "head hitter",
+   "policy_success": 0.875,
+   "policy_fell": 0.125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.22963,
+   "level": "head hitter",
+   "policy_success": 0.9375,
+   "policy_fell": 0.0625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.24074,
+   "level": "head hitter",
+   "policy_success": 0.6875,
+   "policy_fell": 0.3125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.17037,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.94444,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.94444,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.67778,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.62222,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.81481,
+   "level": "head hitter",
+   "policy_success": 0.5625,
+   "policy_fell": 0.4375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.7,
+   "level": "head hitter",
+   "policy_success": 0.1875,
+   "policy_fell": 0.8125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.5037,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.47407,
+   "level": "head hitter",
+   "policy_success": 0.0625,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.03704,
+   "level": "hard head hitter",
+   "policy_success": 0.75,
+   "policy_fell": 0.25,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.04074,
+   "level": "hard head hitter",
+   "policy_success": 0.125,
+   "policy_fell": 0.875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.05556,
+   "level": "head hitter",
+   "policy_success": 0.375,
+   "policy_fell": 0.625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.03333,
+   "level": "hard head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.1875,
+   "policy_stalled": 0.8125
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 2,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.0625,
+   "policy_stalled": 0.9375
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.11111,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.76667,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.21481,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.61481,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.31481,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.93333,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.27407,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.52593,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.93704,
+   "level": "head hitter",
+   "policy_success": 0.9375,
+   "policy_fell": 0.0625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.81852,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.5037,
+   "level": "head hitter",
+   "policy_success": 0.5,
+   "policy_fell": 0.5,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.32963,
+   "level": "head hitter",
+   "policy_success": 0.3125,
+   "policy_fell": 0.6875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.74074,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.96296,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.54815,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.57037,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.88889,
+   "level": "head hitter",
+   "policy_success": 0.625,
+   "policy_fell": 0.375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.87407,
+   "level": "head hitter",
+   "policy_success": 0.8125,
+   "policy_fell": 0.1875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.58519,
+   "level": "head hitter",
+   "policy_success": 0.875,
+   "policy_fell": 0.125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.48148,
+   "level": "head hitter",
+   "policy_success": 0.125,
+   "policy_fell": 0.875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.66667,
+   "level": "head hitter",
+   "policy_success": 0.5,
+   "policy_fell": 0.5,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.64444,
+   "level": "head hitter",
+   "policy_success": 0.0625,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.41111,
+   "level": "head hitter",
+   "policy_success": 0.375,
+   "policy_fell": 0.625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.27778,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.8125,
+   "policy_stalled": 0.1875
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.125,
+   "policy_stalled": 0.875
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.09259,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.45556,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.37407,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.36667,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.25926,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.93333,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.44815,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.35556,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.94444,
+   "level": "head hitter",
+   "policy_success": 0.9375,
+   "policy_fell": 0.0625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.84815,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.35185,
+   "level": "head hitter",
+   "policy_success": 0.5,
+   "policy_fell": 0.5,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0963,
+   "level": "head hitter",
+   "policy_success": 0.625,
+   "policy_fell": 0.375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.42593,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.93704,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.41111,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.48148,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.83333,
+   "level": "head hitter",
+   "policy_success": 0.75,
+   "policy_fell": 0.25,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.82963,
+   "level": "head hitter",
+   "policy_success": 0.875,
+   "policy_fell": 0.125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.57778,
+   "level": "head hitter",
+   "policy_success": 0.9375,
+   "policy_fell": 0.0625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.21481,
+   "level": "head hitter",
+   "policy_success": 0.8125,
+   "policy_fell": 0.1875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.68519,
+   "level": "head hitter",
+   "policy_success": 0.625,
+   "policy_fell": 0.375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.69259,
+   "level": "head hitter",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.51481,
+   "level": "head hitter",
+   "policy_success": 0.9375,
+   "policy_fell": 0.0625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.3,
+   "level": "head hitter",
+   "policy_success": 0.8125,
+   "policy_fell": 0.1875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.2963,
+   "level": "head hitter",
+   "policy_success": 0.625,
+   "policy_fell": 0.375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.27037,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.16296,
+   "level": "head hitter",
+   "policy_success": 0.125,
+   "policy_fell": 0.875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.13333,
+   "level": "head hitter",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -2,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "roof",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 2,
+   "ice": 0,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.75,
+   "policy_stalled": 0.25
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.18519,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.31481,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.18148,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.28889,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.27778,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.2963,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.27037,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.25185,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.18519,
+   "level": "ice run-up",
+   "policy_success": 0.5625,
+   "policy_fell": 0.4375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.17778,
+   "level": "ice run-up",
+   "policy_success": 0.8125,
+   "policy_fell": 0.1875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.14074,
+   "level": "ice run-up",
+   "policy_success": 0.875,
+   "policy_fell": 0.125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.08519,
+   "level": "ice run-up",
+   "policy_success": 0.9375,
+   "policy_fell": 0.0625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.16667,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.15556,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.14815,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.14815,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.12963,
+   "level": "ice run-up",
+   "policy_success": 0.1875,
+   "policy_fell": 0.8125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.12963,
+   "level": "ice run-up",
+   "policy_success": 0.8125,
+   "policy_fell": 0.1875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.12222,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.05556,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.01852,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.01852,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.01481,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.875,
+   "policy_stalled": 0.125
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 1.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 1.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 1.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 1.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.35185,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 1.0,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.48519,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.82222,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.42593,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.98148,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.73704,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.7037,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.87037,
+   "level": "ice run-up",
+   "policy_success": 0.875,
+   "policy_fell": 0.125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.83333,
+   "level": "ice run-up",
+   "policy_success": 0.5625,
+   "policy_fell": 0.4375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.52222,
+   "level": "ice run-up",
+   "policy_success": 0.25,
+   "policy_fell": 0.75,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.21481,
+   "level": "ice run-up",
+   "policy_success": 0.5,
+   "policy_fell": 0.5,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.74074,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.74074,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.69259,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.62963,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.61111,
+   "level": "ice run-up",
+   "policy_success": 0.25,
+   "policy_fell": 0.75,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.61111,
+   "level": "ice run-up",
+   "policy_success": 0.25,
+   "policy_fell": 0.75,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.51852,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.3037,
+   "level": "ice run-up",
+   "policy_success": 0.0625,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.31481,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.31481,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.30741,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.12593,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 1.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.0625,
+   "policy_stalled": 0.9375
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.3125,
+   "policy_stalled": 0.6875
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.0625,
+   "policy_stalled": 0.9375
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.83333,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 1.0,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.77407,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.31852,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.59259,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.46667,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.22963,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0963,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.18519,
+   "level": "ice run-up",
+   "policy_success": 0.3125,
+   "policy_fell": 0.6875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.1963,
+   "level": "ice run-up",
+   "policy_success": 0.375,
+   "policy_fell": 0.625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.13333,
+   "level": "ice run-up",
+   "policy_success": 0.1875,
+   "policy_fell": 0.8125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.00741,
+   "level": "ice run-up",
+   "policy_success": 0.4375,
+   "policy_fell": 0.5625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.2037,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.2037,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.18519,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.08148,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.14815,
+   "level": "ice run-up",
+   "policy_success": 0.875,
+   "policy_fell": 0.125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.14815,
+   "level": "ice run-up",
+   "policy_success": 0.125,
+   "policy_fell": 0.875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.11852,
+   "level": "ice run-up",
+   "policy_success": 0.5,
+   "policy_fell": 0.5,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.03333,
+   "level": "ice run-up",
+   "policy_success": 0.625,
+   "policy_fell": 0.375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.04815,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.04074,
+   "level": "ice run-up",
+   "policy_success": 0.0625,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.02963,
+   "level": "ice run-up",
+   "policy_success": 0.0625,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.01481,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 0,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.7037,
+   "level": "ice run-up",
+   "policy_success": 0.6875,
+   "policy_fell": 0.3125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.47407,
+   "level": "ice run-up",
+   "policy_success": 0.8125,
+   "policy_fell": 0.1875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.16667,
+   "level": "ice run-up",
+   "policy_success": 0.5,
+   "policy_fell": 0.5,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.14074,
+   "level": "ice run-up",
+   "policy_success": 0.25,
+   "policy_fell": 0.75,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.07407,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.07407,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.06667,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.07407,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.03704,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.03704,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.03704,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.02222,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.03704,
+   "level": "ice run-up",
+   "policy_success": 0.375,
+   "policy_fell": 0.625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.03704,
+   "level": "ice run-up",
+   "policy_success": 0.1875,
+   "policy_fell": 0.8125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.03704,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.02222,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.8125,
+   "policy_stalled": 0.1875
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.625,
+   "policy_stalled": 0.375
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.1875,
+   "policy_stalled": 0.8125
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.0625,
+   "policy_stalled": 0.9375
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 1.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.0625,
+   "policy_stalled": 0.9375
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 3,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 1.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.03704,
+   "level": "ice run-up",
+   "policy_success": 0.9375,
+   "policy_fell": 0.0625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.20741,
+   "level": "ice run-up",
+   "policy_success": 0.9375,
+   "policy_fell": 0.0625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.03704,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.06296,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.03704,
+   "level": "ice run-up",
+   "policy_success": 0.5625,
+   "policy_fell": 0.4375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.54074,
+   "level": "ice run-up",
+   "policy_success": 0.5,
+   "policy_fell": 0.5,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.14074,
+   "level": "ice run-up",
+   "policy_success": 0.4375,
+   "policy_fell": 0.5625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.05556,
+   "level": "ice run-up",
+   "policy_success": 0.125,
+   "policy_fell": 0.875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.03704,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.43704,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.16296,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.04444,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.37037,
+   "level": "ice run-up",
+   "policy_success": 0.0625,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.7037,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.2963,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.01111,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.33333,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 0.75,
+   "policy_stalled": 0.25
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.6,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.13333,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0625
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0625
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.66667,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.6,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.2,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 0.75,
+   "policy_stalled": 0.25
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 4,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.25,
+   "policy_stalled": 0.75
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.01852,
+   "level": "ice run-up",
+   "policy_success": 0.5,
+   "policy_fell": 0.5,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.12593,
+   "level": "ice run-up",
+   "policy_success": 0.5,
+   "policy_fell": 0.5,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.04074,
+   "level": "ice run-up",
+   "policy_success": 0.8125,
+   "policy_fell": 0.1875,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.04444,
+   "level": "ice run-up",
+   "policy_success": 0.6875,
+   "policy_fell": 0.3125,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.01852,
+   "level": "ice run-up",
+   "policy_success": 0.875,
+   "policy_fell": 0.0625,
+   "policy_stalled": 0.0625
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.12593,
+   "level": "ice run-up",
+   "policy_success": 0.625,
+   "policy_fell": 0.375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.05926,
+   "level": "ice run-up",
+   "policy_success": 0.9375,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0625
+  },
+  {
+   "kind": "ice",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.04074,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.01852,
+   "level": "ice run-up",
+   "policy_success": 0.9375,
+   "policy_fell": 0.0625,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.42963,
+   "level": "ice run-up",
+   "policy_success": 1.0,
+   "policy_fell": 0.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.1037,
+   "level": "ice run-up",
+   "policy_success": 0.625,
+   "policy_fell": 0.375,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.02593,
+   "level": "ice run-up",
+   "policy_success": 0.75,
+   "policy_fell": 0.25,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.01852,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 0.1875,
+   "policy_stalled": 0.8125
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.42963,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 0.25,
+   "policy_stalled": 0.75
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.1037,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 0.6875,
+   "policy_stalled": 0.3125
+  },
+  {
+   "kind": "ice",
+   "gap": 4,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.01481,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 1.0,
+   "policy_stalled": 0.0
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.34444,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 0.375,
+   "policy_stalled": 0.625
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.6037,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0625
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.13333,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 0.75,
+   "policy_stalled": 0.25
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.875,
+   "policy_stalled": 0.125
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.33333,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 0.625,
+   "policy_stalled": 0.375
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.6,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 0.75,
+   "policy_stalled": 0.25
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.13333,
+   "level": "ice run-up",
+   "policy_success": 0.0,
+   "policy_fell": 0.75,
+   "policy_stalled": 0.25
+  },
+  {
+   "kind": "ice",
+   "gap": 5,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    2,
+    2
+   ],
+   "runway": 6,
+   "ceiling": 1,
+   "ice": 1,
+   "forgiveness": 0.0,
+   "level": null,
+   "policy_success": 0.0,
+   "policy_fell": 0.9375,
+   "policy_stalled": 0.0625
+  }
+ ]
+}
