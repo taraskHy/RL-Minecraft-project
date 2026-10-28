@@ -754,6 +754,8 @@ def main(argv=None):
     ap.add_argument("--details", default="", help="also write every course's outcome and every search to this JSON file")
     ap.add_argument("--serve", action="store_true", help="plan for the bots: JSON lines on stdin/stdout (see serve)")
     ap.add_argument("--courses-file", default="", help="with --serve: the courses the bot plays")
+    ap.add_argument("--realtime", action="store_true", help="with --serve: the live bot's planner (scripts/gpu_watchdog.py "
+                                                            "never pauses it; nothing else changes)")
     ap.add_argument("--device", default="", help="cpu or cuda (default: cuda if available); the bots' planner service "
                                                  "must use the device of the simulator run it is compared with")
     for k, v in asdict(AssistConfig()).items():

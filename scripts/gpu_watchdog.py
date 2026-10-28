@@ -9,15 +9,19 @@ Every ``--every`` seconds it reads the GPU temperature (nvidia-smi). Above
 demonstration and jump searches, planner and jump evaluations: python
 processes running parkour.train, parkour.neo_demos, parkour.neo_dagger,
 parkour.cem, parkour.planner, parkour.jumpeval, parkour.stress,
-parkour.feasibility or parkour.neo_assist). With ``--pause-while`` (program
+parkour.feasibility, parkour.neo_assist or parkour.live --offline). With ``--pause-while`` (program
 names as in Task Manager's details tab) they are also suspended while any of
 those programs runs, e.g. a game, and resumed when it has closed and the GPU
 is below ``--cool``.
 Suspended processes keep all their state; nothing is lost. Below ``--cool``
 degrees it resumes them. Jobs that start while paused are suspended too.
-Live Minecraft runs are left alone (the bot plays in real time), and so is the
-bots' planner service (parkour.neo_assist --serve). Every pause
-and resume is logged with time and temperature to runs/gpu_watchdog.log.
+Live Minecraft runs are left alone: the bot plays in real time (its planner
+service, parkour.neo_assist --serve --realtime, started by
+bridge/parkour_bot.js, is not paused) and parkour.live's own process pumps the
+server's output (pausing it could stall the server). Offline runs are paused
+like any other job: parkour.live --offline (it waits for the bot, then
+compares with the simulator on the GPU) and the offline bot's planner service.
+Every pause and resume is logged with time and temperature to runs/gpu_watchdog.log.
 """
 import argparse
 import ctypes
@@ -29,7 +33,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LOG = ROOT / "runs" / "gpu_watchdog.log"
-GPU_JOBS = re.compile(r"parkour\.(train|neo_demos|neo_dagger|neo_assist|cem|planner|jumpeval|stress|feasibility)\b"
+GPU_JOBS = re.compile(r"parkour\.(train|neo_demos|neo_dagger|neo_assist|cem|planner|jumpeval|stress|feasibility|live)\b"
                       r"|cem_momentum")
 PROCESS_SUSPEND_RESUME = 0x0800
 
@@ -62,6 +66,17 @@ def running(names: list) -> bool:
     return any(n.lower() in have for n in names)
 
 
+def pausable(cmd: str) -> bool:
+    """Is this python command line a GPU job of this project that may be suspended?"""
+    if "gpu_watchdog" in cmd or not GPU_JOBS.search(cmd):
+        return False
+    if "--serve" in cmd and "--realtime" in cmd:  # the live bot's planner: real time
+        return False
+    if re.search(r"parkour\.live\b", cmd) and "--offline" not in cmd:  # a live run pumps the server's output
+        return False
+    return True
+
+
 def gpu_jobs() -> dict:
     """{pid: command line} of this project's GPU jobs."""
     ps = ("Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | "
@@ -70,8 +85,7 @@ def gpu_jobs() -> dict:
     jobs = {}
     for line in out.splitlines():
         pid, _, cmd = line.partition("\t")
-        # The bots' planner service (neo_assist --serve) answers the live bot, which plays in real time: left alone.
-        if pid.strip().isdigit() and GPU_JOBS.search(cmd) and "gpu_watchdog" not in cmd and "--serve" not in cmd:
+        if pid.strip().isdigit() and pausable(cmd):
             jobs[int(pid)] = cmd.strip()
     return jobs
 

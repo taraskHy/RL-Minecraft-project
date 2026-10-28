@@ -366,8 +366,13 @@ resume when cool. `scripts/gpu_watchdog.py` runs in the background: every
 name (train, neo_demos, neo_dagger, cem, planner, jumpeval, stress,
 feasibility, cem_momentum_neo; suspended, so no state is lost) and resumes
 them below 58 C. `neo_dagger` was added on 28 Oct afternoon: a watchdog
-started before that does not pause it until restarted. The live bot is left
-alone on purpose (it plays in real time). Log: `runs/gpu_watchdog.log`. If the watchdog is ever killed while jobs are
+started before that does not pause it until restarted. Live Minecraft runs
+are left alone on purpose (the bot plays in real time, and `parkour.live`
+pumps the server's output): neither their process nor the live bot's planner
+service (`neo_assist --serve --realtime`) is paused, while offline runs
+(`parkour.live --offline`) and their planner service are (since 28 Oct late
+evening; an older watchdog copy skipped every planner service). Log:
+`runs/gpu_watchdog.log`. If the watchdog is ever killed while jobs are
 paused: `python scripts/gpu_watchdog.py --resume-all`.
 
 **While the user games on the PC.** The user plays on the same GPU. On

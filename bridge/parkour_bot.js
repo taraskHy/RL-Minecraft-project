@@ -134,7 +134,8 @@ function applyAction (a) {
 
 const assistConfig = args.assist ? JSON.parse(args.assist) : null
 const service = assistConfig
-  ? new A.PlannerService(args.assistPython, A.serviceArgs(assistConfig, args.assistCheckpoint, args.courses, args.assistDevice), args.assistRoot)
+  ? new A.PlannerService(args.assistPython, A.serviceArgs(assistConfig, args.assistCheckpoint, args.courses, args.assistDevice)
+    .concat(['--realtime']), args.assistRoot) // real time: the GPU watchdog leaves this planner running
   : null
 let planning = false
 let courseIndex = -1
@@ -163,7 +164,7 @@ function planThenAct (ep) {
       const world = { getBlock: p => bot.blockAt(p, false) }
       const verified = !!r.plan && A.verifyPlan(Physics(bot.registry, world), world, here, r.plan, plats, q.cp, q.target, extra, geom)
       const brake = !r.plan && r.brake && A.verifyPlan(Physics(bot.registry, world), world, here, r.brake, plats, q.cp, q.cp, extra, geom, true) ? r.brake : null
-      const a = ep.resume(verified ? r.plan : null, { found: !!r.plan, verified, rounds: r.rounds, seconds: r.seconds }, brake)
+      const a = ep.resume(verified ? r.plan : null, { found: !!r.plan, verified, rounds: r.rounds, seconds: r.seconds, error: r.error }, brake)
       if (a === P.PLAN) return planThenAct(ep) // a failed approach: the takeoff's own request, still frozen
       planning = false
       if (a === null) endEpisode()

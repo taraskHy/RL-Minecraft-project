@@ -220,7 +220,11 @@ def main(argv=None):
                              "found": sum(bool(x.get("found")) for x in log), "verified": sum(bool(x.get("verified")) for x in log),
                              "played": sum(bool(x.get("played")) for x in log),
                              "braked": sum(bool(x.get("braked")) for x in log),
+                             "planner_errors": sum(bool(x.get("error")) for x in log),
                              "planner_seconds": round(sum(x.get("seconds") or 0 for x in log), 1)}
+        if summary["assist"]["planner_errors"]:  # the service died: these were never searched
+            print(f"WARNING: the planner service failed on {summary['assist']['planner_errors']} requests "
+                  f"({next(x['error'] for x in log if x.get('error'))}); its counts are not searches", flush=True)
     (out / "summary.json").write_text(json.dumps(summary, indent=1))
     lines = [f"# {summary['mode']}", "", f"Checkpoint `{a.checkpoint}`, {len(rows)} courses "
              f"({'from ' + a.courses_file if a.courses_file else 'held-out' + (' with obstacles' if a.obstacles else '') + ', 10 jumps each'}).", "",

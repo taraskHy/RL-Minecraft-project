@@ -77,6 +77,7 @@ class PlannerService {
       if (w) w(JSON.parse(line))
     })
     const die = why => {
+      if (!this.dead) process.stderr.write(`planner service: ${why}; no more plans this run\n`)
       this.dead = this.dead || why
       for (const w of this.waiting.splice(0)) w({ plan: null, error: this.dead })
     }
