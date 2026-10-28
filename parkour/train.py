@@ -76,6 +76,15 @@ class TrainConfig:
     init_from: str = ""
     hide: str = ""  # comma-separated observation parts the policy must not see, e.g. "platforms"
     extended_obs: bool = False  # far scan and landing memory (env.OBS_LAYOUT_EXT)
+    # Learning from demonstrations (parkour.neo_demos): a behaviour-cloning loss on the
+    # demonstrations' (observation, action) pairs next to PPO, and pool slots whose courses start
+    # where a demonstration starts (takeoff, the jump, an easy platform). Slots are never refreshed.
+    demos: str = ""
+    bc_coef: float = 0.0
+    bc_decay: bool = True  # the behaviour-cloning weight falls linearly to 0 over the run
+    bc_batch: int = 4096
+    demo_courses: int = 0
+    demo_level: int = 6
     obstacle_prob: float = 0.0  # chance per jump of a head-hitter beam or a decoy pillar
     advanced: bool = False  # add levels 6-8: neos, double neos, momentum and wide jumps
     save_at: str = ""  # comma-separated update counts at which to keep a snapshot (0 = untrained)
@@ -121,6 +130,40 @@ class CourseFactory:
             if c.n >= 3 and course_hash(c) not in self.exclude:
                 out.append(c)
         return out
+
+
+def load_demos(path: str) -> list[dict]:
+    return json.loads(Path(path).read_text())["demos"]
+
+
+def demo_course(d: dict, level: int) -> C.Course:
+    c = C.Course.from_json(d["course"])
+    return C.Course(c.platforms, np.array(d["start"], dtype=np.float64), float(d["yaw"]), level=level,
+                    specs=c.specs, extra=c.extra, name="demo")
+
+
+def demo_dataset(demos: list[dict], extended: bool, device, chunk: int = 4096):
+    """Observations along every demonstration (replayed in ParkourEnv) and the demonstrated actions."""
+    obs_all, act_all = [], []
+    for k in range(0, len(demos), chunk):
+        part = demos[k:k + chunk]
+        pool = CoursePool([demo_course(d, 0) for d in part], device, C.GRID)
+        n = len(part)
+        env = ParkourEnv(pool, EnvConfig(num_envs=n, stall_ticks=10 ** 6, max_ticks=10 ** 6, extended_obs=extended),
+                         sampler=None)
+        obs = env.reset_all(torch.arange(n, device=device))
+        T = max(len(d["actions"]) for d in part)
+        acts = torch.zeros(n, T, 5, dtype=torch.int64, device=device)
+        acts[..., 0], acts[..., 1], acts[..., 4] = 1, 1, 3
+        lens = torch.as_tensor([len(d["actions"]) for d in part], device=device)
+        for i, d in enumerate(part):
+            acts[i, :len(d["actions"])] = torch.as_tensor(d["actions"], device=device)
+        for t in range(T):
+            m = lens > t
+            obs_all.append(obs[m])
+            act_all.append(acts[m, t])
+            obs, *_ = env.step(acts[:, t])
+    return torch.cat(obs_all), torch.cat(act_all)
 
 
 def evaluate(model: ActorCritic, pool: CoursePool, device, stall_ticks: int, deterministic: bool = True,
@@ -206,7 +249,13 @@ def train(cfg: TrainConfig) -> Path:
                                  family=OBSTACLE_VALIDATION_FAMILY)
     test_hashes |= {course_hash(c) for c in vals}
     factory = CourseFactory(cfg, levels, test_hashes)
-    pool = CoursePool(factory.make(cfg.pool_size), dev, C.GRID)
+    train_courses = factory.make(cfg.pool_size)
+    demos = load_demos(cfg.demos) if cfg.demos else []
+    n_demo = min(cfg.demo_courses, len(demos)) if demos else 0
+    if n_demo:
+        pick = np.random.default_rng([2026, 3, cfg.seed]).choice(len(demos), n_demo, replace=False)
+        train_courses[:n_demo] = [demo_course(demos[i], cfg.demo_level) for i in pick]
+    pool = CoursePool(train_courses, dev, C.GRID)
     test_pool = CoursePool(tests, dev, C.GRID)
     obstacle_pool = CoursePool(obstacle_tests, dev, C.GRID) if obstacle_tests else None
     val_pool = CoursePool(vals, dev, C.GRID)
@@ -238,6 +287,10 @@ def train(cfg: TrainConfig) -> Path:
                 env.set_level_probs(sampler.probs())
     shadow = RunningNorm(model.obs_dim).to(dev)
     shadow.load_state_dict(model.norm.state_dict())
+    demo_obs = demo_act = None
+    if demos and cfg.bc_coef > 0:
+        demo_obs, demo_act = demo_dataset(demos, cfg.extended_obs, dev)
+        print(json.dumps({"demonstrations": len(demos), "bc_pairs": int(demo_obs.shape[0]), "demo_courses": n_demo}), flush=True)
 
     snapshots = {int(v) for v in cfg.save_at.split(",") if v.strip()}
 
@@ -322,7 +375,8 @@ def train(cfg: TrainConfig) -> Path:
         b_val = val_buf.view(-1)
         b_adv = (b_adv - b_adv.mean()) / (b_adv.std() + 1e-8)
         mb = T * N // cfg.minibatches
-        stats = {"pi_loss": 0.0, "v_loss": 0.0, "entropy": 0.0, "kl": 0.0, "clipfrac": 0.0}
+        stats = {"pi_loss": 0.0, "v_loss": 0.0, "entropy": 0.0, "kl": 0.0, "clipfrac": 0.0, "bc_loss": 0.0}
+        bc_w = cfg.bc_coef * ((1 - (it - start_it) / max(1, cfg.iterations - start_it)) if cfg.bc_decay else 1.0)
         nupd, stopped = 0, False
         for _ in range(cfg.epochs):
             perm = torch.randperm(T * N, device=dev)
@@ -343,6 +397,12 @@ def train(cfg: TrainConfig) -> Path:
                 vl = 0.5 * torch.max((v - b_ret[idx]).pow(2), (vc - b_ret[idx]).pow(2)).mean()
                 el = ent.mean()
                 loss = pl + cfg.vf_coef * vl - cfg.ent_coef * el
+                if demo_obs is not None and bc_w > 0:
+                    j = torch.randint(demo_obs.shape[0], (cfg.bc_batch,), device=dev)
+                    bc_logp, _, _ = model.evaluate(model.norm(demo_obs[j]), demo_act[j])
+                    bc = -bc_logp.mean()
+                    loss = loss + bc_w * bc
+                    stats["bc_loss"] += bc.item()
                 if not torch.isfinite(loss):
                     stopped = True
                     break
@@ -401,7 +461,7 @@ def train(cfg: TrainConfig) -> Path:
         # Refresh part of the training pool with new courses.
         if cfg.pool_refresh_every and it % cfg.pool_refresh_every == cfg.pool_refresh_every - 1:
             k = int(pool.size * cfg.pool_refresh_frac)
-            idx = np.random.default_rng([2026, 2, cfg.seed, it]).choice(pool.size, k, replace=False)
+            idx = n_demo + np.random.default_rng([2026, 2, cfg.seed, it]).choice(pool.size - n_demo, k, replace=False)
             for i, c in zip(idx, factory.make(k)):
                 pool.replace(int(i), c)
             env.rebuild_level_table()

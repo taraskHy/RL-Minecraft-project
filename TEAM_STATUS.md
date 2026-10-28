@@ -131,13 +131,17 @@ one is the research comparison (report 7.12). Video:
 
 ## Running now
 
-1. Hyperparameter study: gamma 0.995 led on validation (95.2% against a
-   defaults mean of 91.8%, one seed); two more seeds are training to
-   confirm it before it changes anything.
-2. Hyperparameter study (`configs/sweep_hparams.json`), one run at a time:
-   3 of 9 finished.
+1. **Neos from demonstrations** (requested from the side chat): a search
+   in the bot's own action space collects thousands of successful neo
+   move sequences; then training with an imitation loss next to PPO.
+2. Hyperparameter study: all 9 settings done; gamma 0.995 led on
+   validation (95.2% and 95.8% in two seeds against a defaults mean of
+   91.8%); a third seed is finishing.
 3. Only two training runs fit on the GPU at once now (a third spills out
    of GPU memory and makes all of them 8 times slower).
+4. **GPU temperature watchdog** (user rule, 28 Oct 07:47): above 65 C every
+   GPU job is suspended (no state lost) and resumed below 58 C; each pause
+   is logged in `runs/gpu_watchdog.log`. At start the GPU was at 42-47 C.
 
 ## For the presentation
 

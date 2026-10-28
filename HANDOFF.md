@@ -32,10 +32,18 @@ Java and the 1.21.4 server jar in `.local` (ignored by Git). The Minecraft
 EULA was accepted by the user on 27 Oct 2026
 (`.local/minecraft-eula-consent.json`).
 
-**GPU memory is the limit:** about three training processes fit; a fourth
-(or a large `parkour.cem` search beside three) spills into system RAM and
-everything slows 5-10 times. Windows sleeps after 15 idle minutes:
-`scripts/keep_awake.py` holds it awake while training runs.
+**GPU memory is the limit:** two training processes fit (since 28 Oct, with
+the desktop apps open); a third spills into system RAM and everything slows
+5-10 times. Windows sleeps after 15 idle minutes: `scripts/keep_awake.py`
+holds it awake while training runs.
+
+**GPU temperature rule (user, 28 Oct):** above 65 C pause the GPU work,
+resume when cool. `scripts/gpu_watchdog.py` runs in the background: every
+10 s it reads nvidia-smi; above 65 C it suspends every GPU job of the
+project (train, neo_demos, cem, planner, jumpeval, stress, feasibility;
+suspended, so no state is lost) and resumes them below 58 C. Log:
+`runs/gpu_watchdog.log`. If the watchdog is ever killed while jobs are
+paused: `python scripts/gpu_watchdog.py --resume-all`.
 
 ## Key facts learned
 
