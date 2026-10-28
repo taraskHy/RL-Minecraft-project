@@ -361,18 +361,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `8da16f5` (2026-10-28 14:31, branch `claude/pensive-knuth-biwj11`): Ice physics, opt-in: per-block slipperiness matching prismarine-physics to 7e-15 blocks
+Generated on top of commit `8c5bdfa` (2026-10-28 14:36, branch `claude/pensive-knuth-biwj11`): Results page: the retuned planner and the one-policy comparison
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 1 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 2 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `12c736a` 2026-10-28 14:26 | 2 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 17 |
-| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 0 |
-| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 2 |
-| `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | `8da16f5` 2026-10-28 14:31 | 0 |
+| `TEAM_STATUS.md` | `12c736a` 2026-10-28 14:26 | 3 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 18 |
+| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 1 |
+| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 3 |
+| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 0 |
+| `results/DATA.md` | `8da16f5` 2026-10-28 14:31 | 1 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -530,33 +530,36 @@ At the end of a session, or after each result:
 Newest first. One entry per session; earlier history is in the
 [TEAM_STATUS update log](TEAM_STATUS.md#update-log) and `git log`.
 
-- **28 Oct 2026, Claude Code (cloud session, continued, branch
-  `claude/pensive-knuth-biwj11`):** the user asked this session to keep
-  working through section 3 on its own (no questions; they are away from
-  the PC), pushing after every step so the next model can continue. Done
-  so far: `results/DATA.md` indexes everything in `results/` (the snapshot's
-  "not yet indexed" list is empty); the GPU watchdog also pauses
-  `parkour.neo_dagger`; report section 7 complete (final policy, DAgger
-  neo results in 7.10, both policies in 7.11-7.12), sections 8 and 9
-  written (793 real-game episodes over all runs, 0 server corrections);
-  `final-v2` documented as abandoned. Now: the value-guided planner
-  experiment (section 4, item 4), on CPU in this container (PyTorch from
-  PyPI; the CPU simulator reproduces the published course-list scores
-  exactly, 98.42% and 95.25%). Result: a retuned planner setting
-  (`cost=distance, align=2.0`) chosen on validation, 92.3% / 90.5% on the
-  test sets (from 90.9 / 88.1), offline bot 51/60, 56/60; critic-chosen
-  routes and a drop penalty did not help. Report 7.11 updated (still 20
-  pages), introduction lists the neo and planner contributions. Failure
-  analysis by jump type (section 4, item 3) and of the neo policy's weak
-  neo types (section 4, item 1). Decision: no Minecraft server in the cloud
-  container (it needs the user's EULA acceptance for that machine), so all
-  real-game checks stay on the PC. Next: section 3, items 1 and 2 (merge this
-  branch, then confirm the retuned planner in real Minecraft on the PC). Decision: CPU torch
-  cannot be installed here (`download.pytorch.org` is blocked by this
-  environment's network), so no new numbers are computed in this session;
-  everything comes from files already in `results/` (superseded: PyPI's
-  torch wheel works, see the next lines). This
-  branch is not merged into `main`; the PC session should merge it.
+- **28 Oct 2026, afternoon, Claude Code (cloud session, continued, branch
+  `claude/pensive-knuth-biwj11`, CPU only):** the user asked this session
+  to keep working on its own (no questions; they were away from the PC)
+  and to push after every step. Setup: PyTorch from PyPI and the bridge
+  packages in the container (section 6); the CPU simulator reproduces the
+  published scores exactly (98.4% / 95.2%). Done:
+  - Docs: `results/DATA.md` indexes everything; report section 7 on the
+    final policy, 7.10 with imitation + DAgger, 7.11-7.12 with both
+    policies, sections 8-9 written, figures embedded, introduction updated;
+    `scripts/report_docx.py` builds it as .docx/.pdf (20 pages, the limit);
+    `final-v2` documented as abandoned; README and TEAM_STATUS updated.
+  - Route planner: retuned on validation (`cost=distance, align=2.0`):
+    test 92.3% / 90.5% (from 90.9 / 88.1), offline bot 51/60, 56/60;
+    critic-chosen routes (`value_pick`), a drop penalty and `align` alone
+    did not help (`results/planner/validation_tuning.jsonl`). Defaults
+    unchanged until the PC confirms it in real Minecraft.
+  - Analyses: one policy for everything (the neo policy is 2-3 points
+    behind on levels 0-5, `results/neo/one_policy_comparison.json`);
+    failures by jump type (beams over level-5 jumps, `results/jump_failures.json`);
+    level-5 failures by position (flat; `results/level5_by_position.json`);
+    pausing after landings hurts (`results/level5_pause_test.jsonl`); the
+    neo policy's weakest neo types (section 4, item 1).
+  - Code: opt-in ice physics with parity 7.1e-15 blocks
+    (`results/physics_parity_ice.json`); `results/README.md` gains the
+    retuned planner and one-policy tables (generator checked to reproduce
+    the old page exactly); GPU watchdog also pauses `parkour.neo_dagger`.
+  - Decisions: no Minecraft server here (the EULA is the user's to accept
+    on each machine); no training (no GPU); nothing changes a default.
+  - Next: section 3, items 1-2 (merge into `main`, then confirm the retuned
+    planner in real Minecraft), then section 4 on the PC's GPU.
 - **28 Oct 2026, Claude Code (cloud session, branch
   `claude/pensive-knuth-biwj11`):** turned this file into a living handoff
   for any model: current state with the discount-0.995 final policy and the
