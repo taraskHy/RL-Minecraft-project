@@ -245,7 +245,9 @@ The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
   finished. Then, on the CPU: the route planner retuned (92.3% / 90.5%
   without the course list, from 90.9% / 88.1%), the neo policy shown to be
   only 2-3 points behind the final policy on ordinary courses, a failure
-  analysis by jump type, ice physics ported (not used yet), and the report
+  analysis by jump type, ice platforms ready to train (physics checked
+  against the real library; the current policy already makes 95.6% of
+  all-ice test courses without having seen ice), and the report
   completed (20 pages in Word/PDF). `HANDOFF.md` and `AGENTS.md` tell any AI
   model how to continue.
 - **28 Oct 2026, 12:34:** neo evidence files and the audit of 829 claims

@@ -377,18 +377,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `40df460` (2026-10-28 14:49, branch `claude/pensive-knuth-biwj11`): Ice courses, opt-in end to end: generation, pool, training flag, both bots
+Generated on top of commit `bcf1f34` (2026-10-28 14:50, branch `claude/pensive-knuth-biwj11`): Handoff: what the branch changes, precisely; ice in the session log
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 7 |
-| `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `6228744` 2026-10-28 14:37 | 3 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 23 |
-| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 6 |
-| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 8 |
-| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 5 |
-| `results/DATA.md` | `f405271` 2026-10-28 14:45 | 1 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 8 |
+| `HANDOFF.md` | `bcf1f34` 2026-10-28 14:50 | 0 |
+| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 24 |
+| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 7 |
+| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 9 |
+| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 6 |
+| `results/DATA.md` | `f405271` 2026-10-28 14:45 | 2 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
