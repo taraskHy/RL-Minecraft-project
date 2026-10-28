@@ -19,7 +19,9 @@ standstill; ``--retry-horizon`` gives those plans more ticks, to walk back
 before the jump). With ``--approach H`` the search also runs when the bot
 first stands on the platform before a neo's takeoff, for a plan of up to H
 ticks over both jumps, so the bot reaches the takeoff in a state the neo can
-be made from (without a landing the takeoff search runs as usual).
+be made from (without a landing the takeoff search runs as usual). With
+``--jumps advanced`` the search also runs at wide (3 sideways) and run-up
+jumps (momentum, head hitters, ice), with ``--jumps all`` at every jump.
 
 This is planning with an exact model of the game's physics. It measures
 what the bot does when it plans its neos, not what the network learned. The
@@ -78,7 +80,7 @@ class AssistConfig:
     horizon: int = HORIZON  # ticks a plan from the takeoff may take
     retry_horizon: int = 0  # ticks for retry plans (0: horizon)
     approach: int = 0  # >0: also plan from the platform before a planned takeoff, over both jumps, in so many ticks
-    jumps: str = "neo"  # which jumps are planned: "neo", or "advanced" (also wide and momentum jumps, by spec)
+    jumps: str = "neo"  # which jumps are planned: "neo", "advanced" (also wide and momentum jumps, by spec) or "all"
     prior: float = 0.0  # weight of the policy's own action probabilities in the search's start
     retries: int = 0  # extra searches while the bot still stands on the takeoff without a plan
     retry_every: int = 10  # ticks between them
@@ -108,7 +110,7 @@ def horizons(cfg: "AssistConfig") -> dict:
 
 
 _KEY = re.compile(r"g(-?\d+)_dy(-?\d+)_l(-?\d+)_s(\d+)x(\d+)(?:_neo(\d)([RL])(?:w(\d+))?)?(?:_run(\d+))?"
-                  r"(?:_hh(\d))?(?:_ice(\d))?$")
+                  r"(?:_hh(\d))?(?:_ice(\d))?(?:_b([a-z_]+?))?(?:_slime(\d+))?(_ladder)?$")
 
 
 def spec_from_key(key: str) -> C.JumpSpec:
@@ -116,23 +118,23 @@ def spec_from_key(key: str) -> C.JumpSpec:
     m = _KEY.match(key)
     if not m:
         raise ValueError(key)
-    g, dy, lat, a, b, neo, side, wall, run, hh, ice = m.groups()
+    g, dy, lat, a, b, neo, side, wall, run, hh, ice, block, slime, ladder = m.groups()
     return C.JumpSpec(int(g), int(dy), int(lat), (int(a), int(b)), int(neo or 0), 1 if side != "L" else -1,
-                      int(run or 0), int(wall or 1), int(hh or 0), int(ice or 0))
+                      int(run or 0), int(wall or 1), int(hh or 0), int(ice or 0), block or "", int(slime or 0),
+                      1 if ladder else 0)
 
 
-def planned_takeoffs(course: C.Course, jumps: str, spec_keys: list | None = None) -> list[int]:
-    """Where the assist plans: neo takeoffs, or (``advanced``) also wide and momentum jumps.
+def planned_takeoffs(course: C.Course, jumps: str) -> list[int]:
+    """Where the assist plans: neo takeoffs; (``advanced``) also wide and momentum jumps; (``all``) every jump.
 
-    ``spec_keys`` (a course file's "specs") stand in for ``course.specs`` of a course read from a file."""
+    A course read from a file needs its ``specs`` back first (``spec_from_key``, as ``parkour.live`` does)."""
     if jumps == "neo":
         return neo_takeoffs(course)
-    if jumps != "advanced":
-        raise ValueError(jumps)
-    if spec_keys is not None and not course.specs:
-        course = C.Course(course.platforms, course.spawn, course.spawn_yaw, course.level, course.seed,
-                          specs=[spec_from_key(k) for k in spec_keys], name=course.name, extra=course.extra, ice=course.ice)
-    return advanced_takeoffs(course)
+    if jumps == "advanced":
+        return advanced_takeoffs(course)
+    if jumps == "all":
+        return list(range(course.n - 1))
+    raise ValueError(jumps)
 
 
 def advanced_takeoffs(course: C.Course) -> list[int]:

@@ -18,7 +18,7 @@ from parkour.live import load_model
 from parkour.neo_assist import (AssistConfig, Rules, evaluate_assisted, official_neo_courses, planned_takeoffs,
                                  random_neo_courses, spec_from_key)
 from parkour.neo_dagger import neo_takeoffs
-from parkour.paths import BRIDGE, NODE, ROOT
+from parkour.paths import BRIDGE, CONFIGS, NODE, ROOT
 from parkour.train import evaluate
 
 
@@ -82,10 +82,20 @@ class AssistDefaults(unittest.TestCase):
 
 class SpecKeys(unittest.TestCase):
     def test_every_level_spec_round_trips(self):
-        for adv in (False, True):
-            for level in C.load_levels(advanced=adv):
+        for adv, extra in ((False, False), (True, False), (False, True)):
+            for level in C.load_levels(advanced=adv, extra=extra):
                 for sp in level:
                     self.assertEqual(spec_from_key(sp.key()), sp)
+        names = [s["name"] for s in json.loads((CONFIGS / "block_shapes.json").read_text())["shapes"]]
+        for sp in [C.JumpSpec(2, 0, 1, (2, 2), block=b) for b in names] + [
+                C.JumpSpec(2, -3, 0, (1, 1), bounce=2), C.JumpSpec(1, 4, 0, (1, 1), ladder=1),
+                C.JumpSpec(3, 0, 0, (1, 1), runway=4, ceiling=2, ice=1)]:
+            self.assertEqual(spec_from_key(sp.key()), sp)
+
+    def test_all_plans_every_jump(self):
+        c = random_neo_courses(13, n=1)[0]
+        self.assertEqual(planned_takeoffs(c, "all"), list(range(c.n - 1)))
+        self.assertTrue(set(planned_takeoffs(c, "neo")) <= set(planned_takeoffs(c, "advanced")))
 
 
 @unittest.skipUnless(NODE.exists(), "portable Node runtime not installed (run setup.cmd)")
