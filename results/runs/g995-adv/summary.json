@@ -70,73 +70,73 @@
   }
  },
  "last_eval": {
-  "validation_success": 0.8133333333333334,
+  "validation_success": 0.8055555555555556,
   "validation_per_level": {
    "0": {
     "success": 0.99,
     "fell": 0.01,
-    "progress": 0.993,
-    "ticks_success": 119.03535353535354,
+    "progress": 0.9975,
+    "ticks_success": 118.65151515151516,
     "n": 200
    },
    "1": {
     "success": 0.985,
     "fell": 0.015,
-    "progress": 0.9915,
-    "ticks_success": 121.57868020304568,
+    "progress": 0.9884999999999999,
+    "ticks_success": 121.77664974619289,
     "n": 200
    },
    "2": {
     "success": 0.99,
     "fell": 0.01,
-    "progress": 0.9940000000000001,
-    "ticks_success": 135.27272727272728,
+    "progress": 0.9945,
+    "ticks_success": 134.95454545454547,
     "n": 200
    },
    "3": {
-    "success": 0.995,
-    "fell": 0.005,
-    "progress": 0.998,
-    "ticks_success": 149.51256281407032,
+    "success": 0.98,
+    "fell": 0.02,
+    "progress": 0.993,
+    "ticks_success": 148.79591836734693,
     "n": 200
    },
    "4": {
-    "success": 0.98,
-    "fell": 0.02,
-    "progress": 0.9925,
-    "ticks_success": 160.28061224489795,
+    "success": 0.955,
+    "fell": 0.045,
+    "progress": 0.9784999999999999,
+    "ticks_success": 160.3089005235602,
     "n": 200
    },
    "5": {
-    "success": 0.81,
-    "fell": 0.18,
-    "progress": 0.8895000000000001,
-    "ticks_success": 188.179012345679,
+    "success": 0.825,
+    "fell": 0.175,
+    "progress": 0.9045555555555557,
+    "ticks_success": 187.27272727272728,
     "n": 200
    },
    "6": {
-    "success": 0.65,
-    "fell": 0.115,
-    "progress": 0.8028711566211565,
-    "ticks_success": 162.03846153846155,
+    "success": 0.62,
+    "fell": 0.145,
+    "progress": 0.7938928016428016,
+    "ticks_success": 161.17741935483875,
     "n": 200
    },
    "7": {
-    "success": 0.275,
-    "fell": 0.165,
-    "progress": 0.5433746253746253,
-    "ticks_success": 211.8909090909091,
+    "success": 0.28,
+    "fell": 0.155,
+    "progress": 0.551648434898435,
+    "ticks_success": 214.98214285714286,
     "n": 200
    },
    "8": {
-    "success": 0.645,
-    "fell": 0.245,
-    "progress": 0.8220950715950717,
-    "ticks_success": 240.45736434108528,
+    "success": 0.625,
+    "fell": 0.27499999999999997,
+    "progress": 0.8274274891774893,
+    "ticks_success": 243.544,
     "n": 200
    }
   }
  },
- "iteration": 499,
- "env_steps": 262144000
+ "iteration": 549,
+ "env_steps": 288358400
 }

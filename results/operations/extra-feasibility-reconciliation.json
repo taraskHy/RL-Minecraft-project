@@ -1,0 +1,218 @@
+{
+  "pc_commit": "eb6dc83825273c1565afcd87ffd88a8014351977",
+  "cloud_commit": "d5943ca993ca8f72bba611eaa01387bb21bae99d",
+  "source_file": "configs/jump_feasibility_extra.json",
+  "chosen": "PC generated artifact retained without editing values",
+  "level_files_byte_identical": true,
+  "candidate_rows": 826,
+  "extra_level_counts": [
+    286,
+    40,
+    194,
+    450,
+    41,
+    4
+  ],
+  "pc_seconds_field": 144.4,
+  "cloud_seconds_field": 205.3,
+  "seconds_note": "Latest reuse invocation duration, not total accumulated study runtime",
+  "differences": [
+    {
+      "pc": {
+        "kind": "shape",
+        "gap": 3,
+        "dy": 0,
+        "lateral": 0,
+        "size": [
+          1,
+          1
+        ],
+        "block": "bottom_slab",
+        "forgiveness": 0.07813,
+        "exit_forgiveness": 0.50546
+      },
+      "cloud": {
+        "kind": "shape",
+        "gap": 3,
+        "dy": 0,
+        "lateral": 0,
+        "size": [
+          1,
+          1
+        ],
+        "block": "bottom_slab",
+        "forgiveness": 0.07812,
+        "exit_forgiveness": 0.50546
+      }
+    },
+    {
+      "pc": {
+        "kind": "shape",
+        "gap": 3,
+        "dy": 0,
+        "lateral": 0,
+        "size": [
+          1,
+          1
+        ],
+        "block": "soul_sand",
+        "forgiveness": 0.07813,
+        "exit_forgiveness": 0.49826
+      },
+      "cloud": {
+        "kind": "shape",
+        "gap": 3,
+        "dy": 0,
+        "lateral": 0,
+        "size": [
+          1,
+          1
+        ],
+        "block": "soul_sand",
+        "forgiveness": 0.07812,
+        "exit_forgiveness": 0.49826
+      }
+    },
+    {
+      "pc": {
+        "kind": "shape",
+        "gap": 3,
+        "dy": 0,
+        "lateral": 0,
+        "size": [
+          1,
+          1
+        ],
+        "block": "dirt_path",
+        "forgiveness": 0.07813,
+        "exit_forgiveness": 0.48611
+      },
+      "cloud": {
+        "kind": "shape",
+        "gap": 3,
+        "dy": 0,
+        "lateral": 0,
+        "size": [
+          1,
+          1
+        ],
+        "block": "dirt_path",
+        "forgiveness": 0.07812,
+        "exit_forgiveness": 0.48611
+      }
+    },
+    {
+      "pc": {
+        "kind": "shape",
+        "gap": 3,
+        "dy": 0,
+        "lateral": 0,
+        "size": [
+          1,
+          1
+        ],
+        "block": "enchanting_table",
+        "forgiveness": 0.07813,
+        "exit_forgiveness": 0.49826
+      },
+      "cloud": {
+        "kind": "shape",
+        "gap": 3,
+        "dy": 0,
+        "lateral": 0,
+        "size": [
+          1,
+          1
+        ],
+        "block": "enchanting_table",
+        "forgiveness": 0.07812,
+        "exit_forgiveness": 0.49826
+      }
+    },
+    {
+      "pc": {
+        "kind": "shape",
+        "gap": 3,
+        "dy": 0,
+        "lateral": 0,
+        "size": [
+          1,
+          1
+        ],
+        "block": "daylight_detector",
+        "forgiveness": 0.07813,
+        "exit_forgiveness": 0.31374
+      },
+      "cloud": {
+        "kind": "shape",
+        "gap": 3,
+        "dy": 0,
+        "lateral": 0,
+        "size": [
+          1,
+          1
+        ],
+        "block": "daylight_detector",
+        "forgiveness": 0.07812,
+        "exit_forgiveness": 0.31374
+      }
+    },
+    {
+      "pc": {
+        "kind": "shape",
+        "gap": 3,
+        "dy": 0,
+        "lateral": 0,
+        "size": [
+          1,
+          1
+        ],
+        "block": "bottom_trapdoor",
+        "forgiveness": 0.07813,
+        "exit_forgiveness": 0.27083
+      },
+      "cloud": {
+        "kind": "shape",
+        "gap": 3,
+        "dy": 0,
+        "lateral": 0,
+        "size": [
+          1,
+          1
+        ],
+        "block": "bottom_trapdoor",
+        "forgiveness": 0.07812,
+        "exit_forgiveness": 0.27083
+      }
+    },
+    {
+      "pc": {
+        "kind": "shape",
+        "gap": 3,
+        "dy": 1,
+        "lateral": 0,
+        "size": [
+          1,
+          1
+        ],
+        "block": "carpet",
+        "forgiveness": 0.07813,
+        "exit_forgiveness": 0.27083
+      },
+      "cloud": {
+        "kind": "shape",
+        "gap": 3,
+        "dy": 1,
+        "lateral": 0,
+        "size": [
+          1,
+          1
+        ],
+        "block": "carpet",
+        "forgiveness": 0.07812,
+        "exit_forgiveness": 0.27083
+      }
+    }
+  ],
+  "impact": "No change to pending extra training or evaluation courses"
+}
