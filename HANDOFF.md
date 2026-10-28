@@ -189,7 +189,12 @@ Concrete work, most important first. Nothing here needs new research.
      after the basic ones, uniform curriculum; `advanced-g995`: levels 6-8).
      Pick on validation, then `parkour.jumpeval --extra`,
      `scripts/extra_preview.py` and the standard and obstacle test sets.
-   - a learned neo on top of `advanced-g995` (the neo-dagger recipe, now with
+   - a learned neo on top of `advanced-g995` in one command (rounds of the
+     recipe below, each kept only if it beats the last on the validation neo
+     courses): `python scripts/neo_pipeline.py --start
+     runs\advanced-g995\checkpoints\best.pt --name neo995 --rounds 3
+     --gaming` (`--dry-run` prints the commands). By hand, the same recipe
+     (the neo-dagger recipe, now with
      the assist's faster search): `python -m parkour.neo_dagger --checkpoint
      runs\advanced-g995\checkpoints\best.pt --out runs\neo995_r1.pt --prior
      0.5 --expert assist`, then `run.cmd train --run neo995-r1 --init-from

@@ -20,15 +20,15 @@ file in `results/` and says where it was measured.
 | Stage | What | Status |
 | --- | --- | --- |
 | 0 | Held-out fingerprint guard; gaming-safe GPU flags (`--gpu-mem-fraction`, `--gpu-duty`, `--threads`, watchdog `--pause-while`) | done |
-| A | Neo assist: an exact-model search at every neo takeoff, in the simulator (`parkour/neo_assist.py`) and both bots (`bridge/assist.js`, `parkour.live --assist`) | built; validation sweep running, test run after it |
-| A2 | The assist on random courses made of ordinary jumps plus neos (new seed families 12 test, 13 validation) | planned |
+| A | Neo assist: an exact-model search at every neo takeoff, in the simulator (`parkour/neo_assist.py`) and both bots (`bridge/assist.js`, `parkour.live --assist`); options `--jumps all` (every jump), `--brake` (stop and retry after a failed search), per-kind plan targets and horizons | built; validation: `advanced` 119/218, with the policy prior 111/218 (prior stays 0); `advanced` (batch 1), `all` and `all` + brake running, test run after them |
+| A2 | The assist on random courses made of ordinary jumps plus neos (new seed families 12 test, 13 validation) | validation running (`all`) |
 | Q | PC training queue with gaming settings (`configs/sweep_new_skills.json`: `extra-ft`, `advanced-g995`) | written; `extra-ft` smoke-tested on the CPU (3 iterations) |
 | B | Head hitters (2-high roofs over a runway, tunnels) and ice run-ups as new jump kinds, opt-in levels, feasibility-checked | done (zero-shot results in `results/extra/`; training is for the PC) |
 | E1 | Slime bounce: physics (opt-in, parity 1.4e-14), slime pads in courses and both bots | done |
 | C | Block shapes in the physics (slabs, soul sand, fence and wall posts, ...), opt-in, parity | done (1.4e-14 blocks, `results/physics_parity_shapes.json`) |
 | D | Shaped platforms end to end (courses, observation and rules mirrored in `bridge/policy.js`, both bots) | done (route planner refuses shaped courses) |
 | E2 | Ladders and vines: physics (opt-in, parity 1.4e-14); ladder climbs in courses and both bots | done (vines only in the physics) |
-| F | A learned neo from DAgger rounds with the assist's search as expert (data here, training on the PC) | planned |
+| F | A learned neo from DAgger rounds with the assist's search as expert (data here, training on the PC) | built: `scripts/neo_pipeline.py` (rounds chosen on validation; whole chain smoke-tested on the CPU); rounds for the PC |
 
 ## Design notes from the review of the code (28 Oct)
 
