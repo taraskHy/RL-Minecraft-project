@@ -376,8 +376,80 @@ refusals fall from 95% to 89% of the failed attempts and falls rise from 5%
 to 11%. Course scores stay flat (level 6: 68.5%, level 7: 33%). The penalty
 makes refusing costlier, but random exploration almost never finds the
 curved run a neo needs (in the search, 1 in 2,000 to 16,000 sampled action
-sequences landed one). Learning from the search's successful sequences
-(demonstrations) is the natural next step.
+sequences landed one). So we gave the agent the search's successful
+sequences to learn from.
+
+**Demonstrations.** `parkour/neo_demos.py` runs the cross-entropy search in
+the policy's own discrete action space (its yaw steps applied as the
+environment applies them) on the 16 landable single-neo layouts, from both
+sides of the wall. It keeps every distinct sequence that starts outside
+blocks, never stands on the wall and never falls, and re-checks each one in
+the environment: 50,706 verified demonstrations, 1,350 to 1,600 per layout
+and side (`results/neo/demonstrations.json`). Fine-tuning from the
+stall-penalty policy for 800 iterations (`runs/neo-bc`), a behaviour-cloning
+loss on 12,800 of them (weight 1, constant) is added to the PPO loss, and
+1,024 of the 8,192 training-pool slots start where a demonstration starts.
+Alone at 16 start angles (`parkour.jumpeval --advanced`), the policy now
+makes all 13 single-neo types, in 55% of attempts; it stalls in 5% of them
+instead of 89%.
+
+**DAgger with a search expert.** Inside a course the bot reaches a neo's
+takeoff moving, off centre and turned, unlike the standing starts of the
+demonstrations. `parkour/neo_dagger.py` lets the current policy play 1,024
+training courses of levels 6 and 7 that contain neos, records its exact
+state the first time it stands on each neo's takeoff, and searches from that
+state for sequences that land (round 1: 1,819 arrival states, 1,688 with a
+landing). The search starts from the policy's own action probabilities, and
+each sequence found is then simplified: tick by tick and action part by
+action part, the bot's own choice is put back wherever the neo still lands.
+Without this step the labels disagreed with the bot in most ticks that do
+not matter (19 to 82% agreement per action part), and a round trained on
+them collapsed (58.9% of the level 0-8 test courses, `runs/neo-dagger-collapsed`);
+with it, 82 to 99% agree, and the remaining differences are the corrections
+the neo needs (`results/neo/label_agreement.json`). Each round fine-tunes for
+500 iterations from the previous one, with the imitation loss (weight 0.3)
+on all the pairs collected so far and the demonstrations: 99,361, 74,444 and
+78,945 new pairs in rounds 1 to 3. Two details mattered. A neo takeoff is
+detected by a wall block on the straight line between platform centres; our
+first detector counted any block, so every one-block-up jump counted too
+(only 1,090 of 2,526 detected takeoffs in round 2's courses were neos,
+`results/neo/detector_check.json`). And the generator's rule that a neo
+needs a 1-wide takeoff was our simplification: from a 2x2 takeoff the search
+lands every tested neo whose landing is next to the wall's open end and none
+two lanes away (`results/neo/wide_takeoff_search.json`), so training courses
+may now have wider takeoffs where that holds (the test sets are unchanged).
+
+**Results.** On the 210 held-out test courses of levels 6 to 8 that contain
+a neo (337 neo jumps; `results/neo/course_eval.json`, `round3_eval.json`):
+
+| Neo policy | Courses completed | Neo jumps passed / reached |
+| --- | --- | --- |
+| stall penalty only (`neo-stall`) | 0 (0.0%) | 0 / 202 |
+| + imitation (`neo-bc`) | 49 (23.3%) | 82 / 227 |
+| + DAgger round 1 | 62 (29.5%) | 99 / 228 |
+| + DAgger round 2 | 63 (30.0%) | 112 / 239 |
+| + DAgger round 3, chosen on validation | **61 (29.0%)** | 97 / 224 |
+
+Round 3 was chosen because it was best on the validation neo courses (75 of
+218 against 72 for round 2); on the test courses it is slightly below round
+2. Imitation does the most; DAgger adds about six points and then levels
+off. Courses with one neo are completed 56 times out of 129, courses with two
+or more 5 times out of 81 (`results/neo/by_neo_count.json`). On the whole
+level 0-8 test set (1,800 courses) the chosen policy scores 86.4%, against
+83.6% before the neo work (`advanced-ft3`). The price is paid on the other
+advanced jumps: alone, the 4-block jumps from a run-up drop from 89% to 84%
+of attempts. In real Minecraft, on the first 10 held-out courses with a neo
+of each of levels 6, 7 and 8 plus the hand-designed neo course
+(`configs/neo_live_courses.json`), the bot completes 11 of 31, exactly the
+courses the simulator and the offline bot complete, with 0 server
+corrections (video `real_minecraft_neo_level7.mp4`).
+
+The neo is the one skill in this project that PPO did not find by itself.
+Exploration had to be replaced by an expert that searches, and the expert had
+to be asked from the states the learner really visits, as DAgger prescribes
+(Ross et al., 2011). The neo policy is a separate policy from the final one:
+it is built on the discount-0.99 line of runs and was not run through the
+checks of sections 7.4 to 7.9.
 
 ### 7.11 Without the course list: a greedy route planner
 
@@ -403,7 +475,8 @@ four slots; the policy is not retrained. Only the goal's position is given
    two slots after it.
 
 All settings were chosen on the validation courses; the test set was used
-once. Results (`results/planner/`, final policy):
+once per policy. Results with the first final policy, with which the planner
+was built (`results/planner/*_v1.json`):
 
 | Unseen courses | Course list given | Planner | Planner, "remaining" fall rule |
 | --- | --- | --- | --- |
@@ -417,6 +490,23 @@ In real Minecraft and with the offline bot the planner made exactly the
 courses the simulator made, with 0 server corrections; replaying the
 recorded actions reproduced every trajectory to 2e-14 blocks, and a test
 checks that Python and the bot's JavaScript make identical plans.
+
+With the final policy and the same planner settings
+(`results/planner/sim_test_*.json`, games `v2-planner-*`):
+
+| Unseen courses | Course list given | Planner | Planner, "remaining" fall rule |
+| --- | --- | --- | --- |
+| 1,200 standard, simulator | 98.4% | 90.9% | 94.5% |
+| 1,200 with obstacles, simulator | 95.2% | 88.1% | 91.4% |
+| 60 standard, real Minecraft | 59/60 | 50/60 | |
+| 60 with obstacles, real Minecraft | 57/60 | 55/60 | |
+
+The better policy helps the planner in the simulator (+1.3 and +1.9 points)
+and on the real obstacle courses (55 against 53), while on the 60 real
+standard courses it made two fewer (50 against 52), a difference that 60
+courses cannot resolve. Again the real game and the offline bot matched the
+simulator on every course, with 0 server corrections. The failure analysis
+below is for the first final policy.
 
 Failure modes (test sets, standard fall rule). Of the 125 failed standard
 courses, 104 failed after the plan left the course's order at some landing,
@@ -458,6 +548,11 @@ validation courses (iteration 2,849).
 | 60 standard, real Minecraft | 59/60 | 52/60 | 55/60 | |
 | 60 with obstacles, real Minecraft | 58/60 | 53/60 | 37/60 | |
 | 3 hand-designed, simulator | 3/3 | 3/3 | 1/3 | |
+
+The table uses the first final policy, which these runs were compared with
+when they were made. With the final policy the planner's numbers become
+90.9% and 88.1% in the simulator (level 5: 79.0%) and 50/60 and 55/60 in
+real Minecraft, so the comparison below does not change.
 
 The learned model beats the earlier no-route arm (85.4% against 82.4%; the
 arm saw 5.5 blocks ahead and 1.5 to the side), but it also trained three times
@@ -505,6 +600,7 @@ Points to develop:
 - Heess, N. et al. (2017). Emergence of Locomotion Behaviours in Rich Environments. arXiv:1707.02286.
 - Ng, A. Y., Harada, D., Russell, S. (1999). Policy Invariance under Reward Transformations: Theory and Application to Reward Shaping. ICML.
 - PrismarineJS. mineflayer 4.39.0 and prismarine-physics 1.11.1. https://github.com/PrismarineJS
+- Ross, S., Gordon, G., Bagnell, D. (2011). A Reduction of Imitation Learning and Structured Prediction to No-Regret Online Learning. AISTATS.
 - Rudin, N., Hoeller, D., Reist, P., Hutter, M. (2021). Learning to Walk in Minutes Using Massively Parallel Deep Reinforcement Learning. CoRL.
 - Schulman, J., Moritz, P., Levine, S., Jordan, M., Abbeel, P. (2016). High-Dimensional Continuous Control Using Generalized Advantage Estimation. ICLR.
 - Schulman, J., Wolski, F., Dhariwal, P., Radford, A., Klimov, O. (2017). Proximal Policy Optimization Algorithms. arXiv:1707.06347.

@@ -74,13 +74,12 @@ More facts that hold now:
 
 Concrete work, most important first. Nothing here needs new research.
 
-1. **Report** (`docs/report_draft.md`, for the course): 7.3 to 7.9 now
-   report the final policy (first final policy in brackets). Still to do:
-   7.10 stops at "demonstrations are the natural next step" and needs the
-   imitation + DAgger results (`results/README.md` section "Neo jumps",
-   `results/neo/`); 7.11 and 7.12 need the final policy's planner numbers
-   next to the first policy's; section 8 is bullet points; section 9
-   (conclusion) is "to be written".
+1. **Report** (`docs/report_draft.md`, for the course): section 7 is
+   complete (7.3-7.9 report the final policy with the first one in
+   brackets; 7.10 has the imitation + DAgger results; 7.11-7.12 give both
+   policies' planner numbers). Still to do: section 8 is bullet points;
+   section 9 (conclusion) is "to be written"; then a read-through for the
+   8-20 page limit and the figures (the draft names them, none are placed).
 2. **`final-v2`** (`results/runs/final-v2`: 3,000 iterations planned, stopped
    at 499, discount 0.99, obstacles 30%) is not described in any document.
    Ask the PC session or the user what it was, then document it or mark it
@@ -254,18 +253,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `60924b6` (2026-10-28 12:52, branch `claude/pensive-knuth-biwj11`): Index every results file in DATA.md; GPU watchdog also pauses neo_dagger
+Generated on top of commit `b865992` (2026-10-28 12:55, branch `claude/pensive-knuth-biwj11`): Report 7.3-7.9: the final policy (discount 0.995), first final policy in brackets
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 1 |
+| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 2 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `a37dea9` 2026-10-28 12:26 | 1 |
-| `README.md` | `a37dea9` 2026-10-28 12:26 | 1 |
-| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 6 |
+| `TEAM_STATUS.md` | `a37dea9` 2026-10-28 12:26 | 2 |
+| `README.md` | `a37dea9` 2026-10-28 12:26 | 2 |
+| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 7 |
 | `docs/report_draft.md` | updated together with this snapshot | 0 |
-| `results/README.md` | `6170803` 2026-10-28 11:40 | 3 |
-| `results/DATA.md` | `60924b6` 2026-10-28 12:52 | 0 |
+| `results/README.md` | `6170803` 2026-10-28 11:40 | 4 |
+| `results/DATA.md` | `60924b6` 2026-10-28 12:52 | 1 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -427,8 +426,9 @@ Newest first. One entry per session; earlier history is in the
   the PC), pushing after every step so the next model can continue. Done
   so far: `results/DATA.md` indexes everything in `results/` (the snapshot's
   "not yet indexed" list is empty); the GPU watchdog also pauses
-  `parkour.neo_dagger`; report 7.3-7.9 updated to the final policy. In
-  progress: report 7.10-7.12, then sections 8 and 9. Decision: CPU torch
+  `parkour.neo_dagger`; report section 7 complete (final policy, DAgger
+  neo results in 7.10, both policies in 7.11-7.12). In progress: report
+  sections 8 and 9. Decision: CPU torch
   cannot be installed here (`download.pytorch.org` is blocked by this
   environment's network), so no new numbers are computed in this session;
   everything comes from files already in `results/`. This
