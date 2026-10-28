@@ -526,18 +526,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `1a392fd` (2026-10-28 23:48, branch `main`): Merge random neo brake-and-retry validation results
+Generated on top of commit `f59de30` (2026-10-28 23:52, branch `main`): Archive advanced validation through iteration 449
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 69 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 70 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 27 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 44 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 27 |
-| `results/README.md` | `9a7e90f` 2026-10-28 21:45 | 17 |
-| `results/DATA.md` | `408de3d` 2026-10-28 22:10 | 27 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 28 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 45 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 28 |
+| `results/README.md` | `9a7e90f` 2026-10-28 21:45 | 18 |
+| `results/DATA.md` | `408de3d` 2026-10-28 22:10 | 28 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -563,7 +563,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `full-s1` | 999 | 0.52 | - | - | - | 94.2 | - |
 | `full-s2` | 999 | 0.52 | 949 | 93.0 | 93.1 | 91.9 | - |
 | `g995-adv` | 449 | 0.24 | 99 | 81.8 | - | - | - |
-| `g995-ice` | 499 | 0.26 | 449 | 97.3 | - | - | - |
+| `g995-ice` | 549 | 0.29 | 449 | 97.3 | - | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
 | `hp-envs4096` | 3999 | 0.52 | 3599 | 93.7 | 94.2 | 92.0 | - |
@@ -695,6 +695,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **29 Oct 2026, 00:02, Codex heartbeat on training PC:** archived new simulator validation progress (families 2/5): g995-adv: iteration 449, validation 80.83%, selected best iteration 99; g995-ice: iteration 549, validation 95.83%, selected best iteration 449. Advanced covers nine levels and ice six, so overall scores are not directly comparable. Verified each summary against its validation CSV and the selected validation maximum; test logs remain header-only and no completion/test result exists. Report and handoff refreshed. Exactly two trainers and the existing queue, thermal/duty watchdog and keep-awake helper remain healthy. No executable changes; prior tests remain applicable.
 
 - **28 Oct 2026, 23:52, Codex heartbeat on training PC:** archived new simulator validation progress (families 2/5): g995-adv: iteration 449, validation 80.83%, selected best iteration 99; g995-ice: iteration 499, validation 96.58%, selected best iteration 449. Advanced covers nine levels and ice six, so overall scores are not directly comparable. Verified each summary against its validation CSV and the selected validation maximum; test logs remain header-only and no completion/test result exists. Report and handoff refreshed. Exactly two trainers and the existing queue, thermal/duty watchdog and keep-awake helper remain healthy. No executable changes; prior tests remain applicable.
 
