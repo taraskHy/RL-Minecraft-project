@@ -131,7 +131,7 @@ def main(argv=None):
     if a.assist:
         if a.planner:
             raise SystemExit("--assist needs the course list (not --planner)")
-        from .neo_assist import AssistConfig, planned_takeoffs, spec_from_key
+        from .neo_assist import AssistConfig, plan_target, planned_takeoffs, spec_from_key
         assist_cfg = AssistConfig(**{"batch": 1, **json.loads(a.assist)})
         if assist_cfg.batch != 1:
             raise SystemExit("the bots reproduce only searches with batch 1")
@@ -142,6 +142,7 @@ def main(argv=None):
             if not c.specs and r.get("specs"):  # a course file: its jump types, so the simulator plans where the bot does
                 c.specs = [spec_from_key(k) for k in r["specs"]]
             d["assist_takeoffs"] = planned_takeoffs(c, assist_cfg.jumps)
+            d["assist_targets"] = [plan_target(c, k) for k in d["assist_takeoffs"]]  # past a slime pad: its exit
     (out / "courses.json").write_text(json.dumps({"courses": course_json}))
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     model = load_model(Path(a.checkpoint).resolve(), dev)

@@ -15,8 +15,8 @@ from parkour import courses as C
 from parkour import physics
 from parkour.env import CoursePool, on_obstacle
 from parkour.live import load_model
-from parkour.neo_assist import (AssistConfig, Rules, evaluate_assisted, official_neo_courses, planned_takeoffs,
-                                 random_neo_courses, spec_from_key)
+from parkour.neo_assist import (AssistConfig, Rules, evaluate_assisted, official_neo_courses, plan_target,
+                                 planned_takeoffs, random_neo_courses, spec_from_key)
 from parkour.neo_dagger import neo_takeoffs
 from parkour.paths import BRIDGE, CONFIGS, NODE, ROOT
 from parkour.train import evaluate
@@ -70,6 +70,31 @@ class NeoAssist(unittest.TestCase):
         self.assertEqual([c.to_json() for c in rnd[:5]], [c.to_json() for c in random_neo_courses(13, n=5)])
 
 
+def extra_kind_courses():
+    """Two short courses each with ladder climbs, slime pads and shaped targets (feasible or not)."""
+    from parkour.feasibility import bounce_specs, ladder_specs, shape_specs
+    out = []
+    for i, kind in enumerate((ladder_specs(), bounce_specs()[:18], shape_specs()[::12])):
+        rng = np.random.default_rng([7, i])
+        out += [C.generate(rng, C.load_levels() + [kind], 6, 5, seed=j) for j in range(2)]
+    return out
+
+
+class AssistExtraKinds(unittest.TestCase):
+    def test_every_jump_planned_and_slime_plans_end_past_the_pad(self):
+        cs = extra_kind_courses()
+        self.assertTrue(any(c.slime for c in cs) and any(c.shapes for c in cs) and any(len(c.ladders) for c in cs))
+        model = load_model(ROOT / "results" / "final_policy.pt", "cpu")
+        res = evaluate_assisted(model, CoursePool(cs, "cpu", C.GRID), "cpu", AssistConfig(samples=256, iterations=8, jumps="all"))
+        self.assertGreater(res["plans"]["played"], 0)
+        self.assertEqual(res["plans"]["landed_as_planned"], res["plans"]["played"])
+        for e in res["events"]:
+            c = cs[e["course"]]
+            pad = e["takeoff"] < len(c.specs) and c.specs[e["takeoff"]].bounce
+            self.assertEqual(e["target"], e["takeoff"] + (2 if pad else 1))
+        self.assertTrue(any(e["target"] == e["takeoff"] + 2 for e in res["events"]))
+
+
 @unittest.skipUnless(NODE.exists(), "portable Node runtime not installed (run setup.cmd)")
 class AssistDefaults(unittest.TestCase):
     def test_bot_trigger_defaults_are_the_python_ones(self):
@@ -101,16 +126,22 @@ class SpecKeys(unittest.TestCase):
 @unittest.skipUnless(NODE.exists(), "portable Node runtime not installed (run setup.cmd)")
 class AssistBotParity(unittest.TestCase):
     def test_offline_bot_with_planner_service_plays_like_the_simulator(self):
+        self.check(AssistConfig(samples=256, iterations=8, approach=48, prior=0.5), official_neo_courses(2)[:6])
+
+    def test_same_on_shaped_slime_and_ladder_courses(self):
+        self.check(AssistConfig(samples=256, iterations=8, jumps="all"), extra_kind_courses())
+
+    def check(self, cfg, cs):
         from parkour.live import SETTLE_TICKS
-        cfg = AssistConfig(samples=256, iterations=8, approach=48, prior=0.5)
-        cs = official_neo_courses(2)[:6]
         model = load_model(ROOT / "results" / "final_policy.pt", "cpu")
         res = evaluate_assisted(model, CoursePool(cs, "cpu", C.GRID), "cpu", cfg, settle=SETTLE_TICKS)
         with tempfile.TemporaryDirectory() as d:
             pol, crs, out = (os.path.join(d, f) for f in ("policy.json", "courses.json", "episodes.jsonl"))
             model.export(pol)
             with open(crs, "w") as f:
-                json.dump({"courses": [{**c.to_json(), "assist_takeoffs": planned_takeoffs(c, cfg.jumps)} for c in cs]}, f)
+                json.dump({"courses": [{**c.to_json(), "assist_takeoffs": planned_takeoffs(c, cfg.jumps),
+                                        "assist_targets": [plan_target(c, k) for k in planned_takeoffs(c, cfg.jumps)]}
+                                       for c in cs]}, f)
             subprocess.run([str(NODE), str(BRIDGE / "offline_bot.js"), "--policy", pol, "--courses", crs, "--out", out,
                             "--settle", str(SETTLE_TICKS), "--assist", json.dumps(dataclasses.asdict(cfg)),
                             "--assist-python", sys.executable, "--assist-checkpoint", str(ROOT / "results" / "final_policy.pt"),

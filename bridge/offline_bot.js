@@ -102,7 +102,7 @@ async function main () {
       extra: c.extra || [],
       planner: args.planner ? JSON.parse(args.planner) : null,
       fallRule: args.fallRule,
-      assist: assistConfig ? { config: assistConfig, takeoffs: c.assist_takeoffs || [] } : null,
+      assist: assistConfig ? { config: assistConfig, takeoffs: c.assist_takeoffs || [], targets: c.assist_targets || null } : null,
       shapes: c.shapes || null,
       topOf
     })
@@ -112,7 +112,7 @@ async function main () {
       if (a === P.PLAN) {
         const q = ep.pending
         const r = await service.plan({ index, cp: q.cp, target: q.target, kind: q.kind, attempt: q.attempt, state: q.state, lastAction: q.lastAction })
-        const verified = !!r.plan && A.verifyPlan(physics, world, q.state, r.plan, c.platforms, q.cp, q.target, c.extra)
+        const verified = !!r.plan && A.verifyPlan(physics, world, q.state, r.plan, c.platforms, q.cp, q.target, c.extra, ep.geom)
         a = ep.resume(verified ? r.plan : null, { found: !!r.plan, verified, rounds: r.rounds, seconds: r.seconds })
       }
       if (a === null) break

@@ -159,8 +159,9 @@ function planThenAct (ep) {
       const here = { pos: [e.position.x, e.position.y, e.position.z], vel: [e.velocity.x, e.velocity.y, e.velocity.z], yaw: e.yaw, onGround: !!e.onGround, jumpTicks: bot.jumpTicks || 0, collidedH: !!e.isCollidedHorizontally }
       const plats = c.platforms.map(([x0, x1, z0, z1, y]) => [x0 + OX, x1 + OX, z0 + OZ, z1 + OZ, y + OY])
       const extra = (c.extra || []).map(([x, y, z]) => [x + OX, y + OY, z + OZ])
+      const geom = ep.geom ? ep.geom.map(([x0, x1, z0, z1, top]) => [x0 + OX, x1 + OX, z0 + OZ, z1 + OZ, top + OY]) : null
       const world = { getBlock: p => bot.blockAt(p, false) }
-      const verified = !!r.plan && A.verifyPlan(Physics(bot.registry, world), world, here, r.plan, plats, q.cp, q.target, extra)
+      const verified = !!r.plan && A.verifyPlan(Physics(bot.registry, world), world, here, r.plan, plats, q.cp, q.target, extra, geom)
       const a = ep.resume(verified ? r.plan : null, { found: !!r.plan, verified, rounds: r.rounds, seconds: r.seconds })
       planning = false
       if (a === null) endEpisode()
@@ -282,7 +283,7 @@ async function runCourse (c, index) {
     extra: c.extra || [],
     planner: args.planner ? JSON.parse(args.planner) : null,
     fallRule: args.fallRule,
-    assist: assistConfig ? { config: assistConfig, takeoffs: c.assist_takeoffs || [] } : null,
+    assist: assistConfig ? { config: assistConfig, takeoffs: c.assist_takeoffs || [], targets: c.assist_targets || null } : null,
     shapes: c.shapes || null,
     topOf
   })
