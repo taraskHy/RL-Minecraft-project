@@ -9,8 +9,9 @@ the data, but has not been updated since the night of 27-28 October; the
 generated snapshot at the end of [HANDOFF.md](HANDOFF.md) lists what it is
 missing.
 
-**Last updated:** 28 October 2026, with every result up to commit `a7a426c`
-(12:34).
+**Last updated:** 28 October 2026, afternoon: every training result up to
+the PC's commit `a7a426c` (12:34), plus CPU results from a cloud session on
+branch `claude/pensive-knuth-biwj11` (not merged into `main` yet).
 
 ## The project
 
@@ -237,11 +238,16 @@ The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
 
 ## Update log
 
-- **28 Oct 2026, afternoon:** this page brought up to date: final policy
-  with discount 0.995 (98.4% / 95.2% in the simulator; 59/60, 57/60, 3/4
-  in real Minecraft), neos learned from demonstrations and DAgger (0% to 29%
-  of neo courses; 11/31 in real Minecraft), hyperparameter study finished.
-  `HANDOFF.md` and `AGENTS.md` now tell any AI model how to continue.
+- **28 Oct 2026, afternoon (cloud session):** this page brought up to date:
+  final policy with discount 0.995 (98.4% / 95.2% in the simulator; 59/60,
+  57/60, 3/4 in real Minecraft), neos learned from demonstrations and DAgger
+  (0% to 29% of neo courses; 11/31 in real Minecraft), hyperparameter study
+  finished. Then, on the CPU: the route planner retuned (92.3% / 90.5%
+  without the course list, from 90.9% / 88.1%), the neo policy shown to be
+  only 2-3 points behind the final policy on ordinary courses, a failure
+  analysis by jump type, ice physics ported (not used yet), and the report
+  completed (20 pages in Word/PDF). `HANDOFF.md` and `AGENTS.md` tell any AI
+  model how to continue.
 - **28 Oct 2026, 12:34:** neo evidence files and the audit of 829 claims
   (60 errors corrected).
 - **28 Oct 2026, 11:40:** new final policy (discount 0.995); neo imitation

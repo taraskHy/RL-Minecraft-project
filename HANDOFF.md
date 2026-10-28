@@ -361,18 +361,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `8c5bdfa` (2026-10-28 14:36, branch `claude/pensive-knuth-biwj11`): Results page: the retuned planner and the one-policy comparison
+Generated on top of commit `42701b2` (2026-10-28 14:36, branch `claude/pensive-knuth-biwj11`): Handoff: one clear session-log entry for the cloud session's work
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 2 |
-| `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `12c736a` 2026-10-28 14:26 | 3 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 18 |
-| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 1 |
-| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 3 |
-| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 0 |
-| `results/DATA.md` | `8da16f5` 2026-10-28 14:31 | 1 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 3 |
+| `HANDOFF.md` | `42701b2` 2026-10-28 14:36 | 0 |
+| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 19 |
+| `docs/design.md` | `8da16f5` 2026-10-28 14:31 | 2 |
+| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 4 |
+| `results/README.md` | `8c5bdfa` 2026-10-28 14:36 | 1 |
+| `results/DATA.md` | `8da16f5` 2026-10-28 14:31 | 2 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
