@@ -1,0 +1,77 @@
+{
+ "method": "3000 level-5 courses of 10 jumps from seed family 11 (analysis only), deterministic policy, simulator; position 0 is the jump from the standing start",
+ "checkpoint": "results/final_policy.pt",
+ "success": 0.9033333333333333,
+ "positions": [
+  {
+   "jump": 0,
+   "failures": 11,
+   "attempts": 3000,
+   "level5_failures": 10,
+   "level5_attempts": 1501
+  },
+  {
+   "jump": 1,
+   "failures": 32,
+   "attempts": 2989,
+   "level5_failures": 30,
+   "level5_attempts": 1500
+  },
+  {
+   "jump": 2,
+   "failures": 28,
+   "attempts": 2956,
+   "level5_failures": 26,
+   "level5_attempts": 1460
+  },
+  {
+   "jump": 3,
+   "failures": 34,
+   "attempts": 2927,
+   "level5_failures": 33,
+   "level5_attempts": 1435
+  },
+  {
+   "jump": 4,
+   "failures": 28,
+   "attempts": 2889,
+   "level5_failures": 27,
+   "level5_attempts": 1460
+  },
+  {
+   "jump": 5,
+   "failures": 36,
+   "attempts": 2851,
+   "level5_failures": 34,
+   "level5_attempts": 1396
+  },
+  {
+   "jump": 6,
+   "failures": 35,
+   "attempts": 2812,
+   "level5_failures": 34,
+   "level5_attempts": 1439
+  },
+  {
+   "jump": 7,
+   "failures": 40,
+   "attempts": 2772,
+   "level5_failures": 37,
+   "level5_attempts": 1405
+  },
+  {
+   "jump": 8,
+   "failures": 24,
+   "attempts": 2729,
+   "level5_failures": 23,
+   "level5_attempts": 1470
+  },
+  {
+   "jump": 9,
+   "failures": 22,
+   "attempts": 2696,
+   "level5_failures": 20,
+   "level5_attempts": 1409
+  }
+ ]
+}

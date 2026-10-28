@@ -80,6 +80,7 @@ JavaScript on Mineflayer's physics engine without a server. Every folder's
 | `physics_parity.json` | the simulator against prismarine-physics 1.11.1: 99,000 ticks, largest error 1.4e-14 blocks |
 | `hparams_defaults_validation.json` | the defaults' validation score for the hyperparameter table |
 | `audit_claims.json` | the audit of 829 claims in the documents against the run files (28 Oct) |
+| `level5_by_position.json` | failure rate by position in the course on 3,000 extra level-5 courses (seed family 11, analysis only; `scripts/level5_positions.py`) |
 | `jump_failures.json` | which jump each failed test course failed on, with the final policy: failure rate per jump type, by level and jump index, with and without a beam (`scripts/jump_failures.py`) |
 | `results/planner/` | route planner on the 1,200 + 1,200 test courses: `sim_test_*.json` (`_v1`: with the first final policy; `_tuned`: the retuned setting `cost=distance, align=2.0`); `validation_tuning.jsonl`: every planner variant tried on the validation courses (one JSON line each) |
 | `results/neo/` | the neo numbers (written by `scripts/neo_evidence.py` and the evaluations), below |

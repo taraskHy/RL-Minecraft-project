@@ -135,8 +135,15 @@ Concrete work, most important first. Nothing here needs new research.
    most remaining failures of the final policy are there. Where exactly
    (`scripts/jump_failures.py` -> `results/jump_failures.json`, simulator,
    test sets): the 19 standard failures are all falls, 13 at level 5,
-   spread over many jump types (none fails more than 3 times), and 12 of
-   them at the 7th to 9th jump of a course. Of the 57 obstacle failures,
+   spread over many jump types (none fails more than 3 times); 12 of them
+   are at the 7th to 9th jump, but on 3,000 extra level-5 courses (seed
+   family 11, analysis only, `scripts/level5_positions.py` ->
+   `results/level5_by_position.json`) the failure rate is flat along the
+   course (0.8-1.4% per jump), so that was noise. What the larger sample
+   shows: 94% of the failures are on level-5 jumps, and those fail in
+   0.7% of tries as the first jump (from a standing start) but 1.4-2.6%
+   later in the course: the hardest jumps are harder when the bot arrives
+   moving. Of the 57 obstacle failures,
    17 are on a jump under a head-hitter beam (12 of the 38 at level 5).
    Worst case: a 5-block gap down 3 with a 2-block sideways offset onto
    one block fails in 5 of its 10 attempts under a beam, 3 of 27 without.
@@ -322,17 +329,17 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `568763d` (2026-10-28 14:05, branch `claude/pensive-knuth-biwj11`): Report introduction: the neo and route-planner contributions (still 20 pages)
+Generated on top of commit `de2e7b3` (2026-10-28 14:10, branch `claude/pensive-knuth-biwj11`): Failure analysis by jump type: beams over level-5 jumps
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 16 |
+| `AGENTS.md` | `a37dea9` 2026-10-28 12:26 | 17 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `b05becd` 2026-10-28 13:52 | 3 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 9 |
-| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 21 |
-| `docs/report_draft.md` | `568763d` 2026-10-28 14:05 | 0 |
-| `results/README.md` | `6170803` 2026-10-28 11:40 | 18 |
+| `TEAM_STATUS.md` | `b05becd` 2026-10-28 13:52 | 4 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 10 |
+| `docs/design.md` | `ed915f0` 2026-10-28 10:02 | 22 |
+| `docs/report_draft.md` | `568763d` 2026-10-28 14:05 | 1 |
+| `results/README.md` | `6170803` 2026-10-28 11:40 | 19 |
 | `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
