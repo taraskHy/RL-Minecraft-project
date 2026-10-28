@@ -525,18 +525,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `73dff2b` (2026-10-28 23:13, branch `main`): Archive advanced 299 and ice 349 validation results
+Generated on top of commit `73b58bb` (2026-10-28 23:26, branch `main`): Merge offline assist safeguards and validation results
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 60 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 64 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 18 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 35 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 18 |
-| `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | `408de3d` 2026-10-28 22:10 | 18 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 22 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 39 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 22 |
+| `results/README.md` | `73b58bb` 2026-10-28 23:26 | 0 |
+| `results/DATA.md` | `408de3d` 2026-10-28 22:10 | 22 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -562,7 +562,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `full-s1` | 999 | 0.52 | - | - | - | 94.2 | - |
 | `full-s2` | 999 | 0.52 | 949 | 93.0 | 93.1 | 91.9 | - |
 | `g995-adv` | 349 | 0.18 | 99 | 81.8 | - | - | - |
-| `g995-ice` | 399 | 0.21 | 99 | 96.8 | - | - | - |
+| `g995-ice` | 449 | 0.24 | 449 | 97.3 | - | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
 | `hp-envs4096` | 3999 | 0.52 | 3599 | 93.7 | 94.2 | 92.0 | - |
@@ -694,6 +694,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **28 Oct 2026, 23:37, Codex heartbeat on training PC:** archived new simulator validation progress (families 2/5): g995-adv: iteration 349, validation 77.28%, selected best iteration 99; g995-ice: iteration 449, validation 97.33%, selected best iteration 449. Advanced covers nine levels and ice six, so overall scores are not directly comparable. Verified each summary against its validation CSV and the selected validation maximum; test logs remain header-only and no completion/test result exists. Report and handoff refreshed. Exactly two trainers and the existing queue, thermal/duty watchdog and keep-awake helper remain healthy. No executable changes; prior tests remain applicable.
 
 - **28 Oct 2026, 23:26, Codex heartbeat on training PC:** merged cloud commits through `7208ebe` with both histories retained. The watchdog now includes offline assist services/runs while excluding real-time services and keep-awake; retained the strict module match and all PC pacing/thermal controls, then restarted only the watchdog with the same limits. Planner-service failures resolve outstanding requests and are preserved in episode/summary JSON; follow-up fixes keep normal shutdown quiet and mark degraded assist runs in saved Markdown/report tables. Full CPU suite: 92 passed, 1 CUDA test skipped, 12 subtests passed (`runs/heartbeat-offline-assist-merge-tests.txt`); three focused safety/failure checks also pass (`runs/heartbeat-assist-failure-tests.txt`). Cloud simulator validation evidence verified: planning every jump with braking/retry completes 147/218 official neo courses (family 2); no test selection. Archived simulator training validation: g995-adv iteration 349: 77.28%; g995-ice iteration 399: 96.17%. Advanced uses nine levels and ice six; selected best remains iteration 99 for both, and test logs remain header-only. Two trainers, one queue, one watchdog and keep-awake continue; extra stays next.
 
