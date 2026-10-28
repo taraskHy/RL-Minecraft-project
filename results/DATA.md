@@ -118,6 +118,7 @@ JavaScript on Mineflayer's physics engine without a server. Every folder's
 | `v2-tuned-planner-offline`, `v2-tuned-planner-offline-obstacles` | the same courses offline with the retuned planner (`cost=distance, align=2.0`): 51/60, 56/60 |
 | `live2-final`, `live2-obstacles`, `live2-showcase` | real Minecraft, first final policy, re-run with the collision-tolerance patch: 59/60, 58/60, 3/4 |
 | `recheck-std`, `recheck-obs`, `recheck-show` | the same re-check offline: identical |
+| `neo-assist-offline-all-brake` | the final policy with the planning assist (`parkour.live --offline --assist '{"jumps": "all", "retries": 1, "brake": 14, "retry_horizon": 48}'`, planner service on the CPU) on the same neo course set: 25/31, the simulator 25/31 with the same outcome on every course; 366 requests, 350 plans, all confirmed by prismarine-physics |
 | `neo-full`, `cheat-check` | an early neo checkpoint (`runs/neo-ck.pt`, source run not recorded) on the neo course set (1/31) and on one test course (0/1) |
 | `live-rainbow-test`, `viewer-test` | test runs: the four hand-designed courses (3/4) and one course with the spectator viewer (1/1) |
 | `live-final`, `live-final-obstacles`, `live-showcase`, `live-smoke` | **real Minecraft 1.21.4**, first final policy: 59/60, 58/60, 3/3, 6/6 |

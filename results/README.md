@@ -122,14 +122,14 @@ same test sets (`results/planner/sim_test_*_v1.json`).
 
 | Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |
 | --- | --- | --- | --- | --- | --- | --- |
-| v2-planner-offline | offline (prismarine-physics, no server) | 50/60 | 83.3 | 100.0 | 0 | 7.1e-15 |
-| v2-planner-offline-obstacles | offline (prismarine-physics, no server) | 55/60 | 91.7 | 100.0 | 0 | 7.1e-15 |
+| v2-planner-offline | offline (prismarine-physics, no server) | 50/60 | 83.3 | 100.0 | - | 7.1e-15 |
+| v2-planner-offline-obstacles | offline (prismarine-physics, no server) | 55/60 | 91.7 | 100.0 | - | 7.1e-15 |
 | v2-planner-live | live (Minecraft 1.21.4 server) | 50/60 | 83.3 | 100.0 | 0 | 2.1e-14 |
 | v2-planner-live-obstacles | live (Minecraft 1.21.4 server) | 55/60 | 91.7 | 100.0 | 0 | 2.1e-14 |
-| v2-tuned-planner-offline (retuned planner) | offline (prismarine-physics, no server) | 51/60 | 85.0 | 100.0 | 0 | 7.1e-15 |
-| v2-tuned-planner-offline-obstacles (retuned planner) | offline (prismarine-physics, no server) | 56/60 | 93.3 | 100.0 | 0 | 7.1e-15 |
-| planner-offline (first final policy) | offline (prismarine-physics, no server) | 52/60 | 86.7 | 100.0 | 0 | 7.1e-15 |
-| planner-offline-obstacles (first final policy) | offline (prismarine-physics, no server) | 53/60 | 88.3 | 100.0 | 0 | 3.6e-15 |
+| v2-tuned-planner-offline (retuned planner) | offline (prismarine-physics, no server) | 51/60 | 85.0 | 100.0 | - | 7.1e-15 |
+| v2-tuned-planner-offline-obstacles (retuned planner) | offline (prismarine-physics, no server) | 56/60 | 93.3 | 100.0 | - | 7.1e-15 |
+| planner-offline (first final policy) | offline (prismarine-physics, no server) | 52/60 | 86.7 | 100.0 | - | 7.1e-15 |
+| planner-offline-obstacles (first final policy) | offline (prismarine-physics, no server) | 53/60 | 88.3 | 100.0 | - | 3.6e-15 |
 | planner-live (first final policy) | live (Minecraft 1.21.4 server) | 52/60 | 86.7 | 100.0 | 0 | 2.1e-14 |
 | planner-live-obstacles (first final policy) | live (Minecraft 1.21.4 server) | 53/60 | 88.3 | 100.0 | 0 | 2.1e-14 |
 
@@ -147,8 +147,8 @@ Checkpoint chosen on the validation courses: iteration 2849 (validation 83.2).
 
 | Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |
 | --- | --- | --- | --- | --- | --- | --- |
-| noroute-offline | offline (prismarine-physics, no server) | 55/60 | 91.7 | 100.0 | 0 | 7.1e-15 |
-| noroute-offline-obstacles | offline (prismarine-physics, no server) | 37/60 | 61.7 | 100.0 | 0 | 1.8e-15 |
+| noroute-offline | offline (prismarine-physics, no server) | 55/60 | 91.7 | 100.0 | - | 7.1e-15 |
+| noroute-offline-obstacles | offline (prismarine-physics, no server) | 37/60 | 61.7 | 100.0 | - | 1.8e-15 |
 | noroute-live | live (Minecraft 1.21.4 server) | 55/60 | 91.7 | 100.0 | 0 | 2.1e-14 |
 | noroute-live-obstacles | live (Minecraft 1.21.4 server) | 37/60 | 61.7 | 100.0 | 0 | 2.1e-14 |
 
@@ -170,9 +170,9 @@ hand-designed courses (the neo course is not in its training):
 
 | Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |
 | --- | --- | --- | --- | --- | --- | --- |
-| v2-offline | offline (prismarine-physics, no server) | 59/60 | 98.3 | 100.0 | 0 | 7.1e-15 |
-| v2-offline-obstacles | offline (prismarine-physics, no server) | 57/60 | 95.0 | 100.0 | 0 | 7.1e-15 |
-| v2-offline-showcase | offline (prismarine-physics, no server) | 3/4 | 75.0 | 100.0 | 0 | 0.0e+00 |
+| v2-offline | offline (prismarine-physics, no server) | 59/60 | 98.3 | 100.0 | - | 7.1e-15 |
+| v2-offline-obstacles | offline (prismarine-physics, no server) | 57/60 | 95.0 | 100.0 | - | 7.1e-15 |
+| v2-offline-showcase | offline (prismarine-physics, no server) | 3/4 | 75.0 | 100.0 | - | 0.0e+00 |
 | v2-live | live (Minecraft 1.21.4 server) | 59/60 | 98.3 | 100.0 | 0 | 2.1e-14 |
 | v2-live-obstacles | live (Minecraft 1.21.4 server) | 57/60 | 95.0 | 100.0 | 0 | 2.1e-14 |
 | v2-live-showcase | live (Minecraft 1.21.4 server) | 3/4 | 75.0 | 100.0 | 0 | 2.1e-14 |
@@ -197,7 +197,7 @@ courses with a neo of levels 6, 7 and 8, and the showcase neo course):
 
 | Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |
 | --- | --- | --- | --- | --- | --- | --- |
-| neo-offline-final | offline (prismarine-physics, no server) | 11/31 | 35.5 | 100.0 | 0 | 7.1e-15 |
+| neo-offline-final | offline (prismarine-physics, no server) | 11/31 | 35.5 | 100.0 | - | 7.1e-15 |
 | neo-live-final | live (Minecraft 1.21.4 server) | 11/31 | 35.5 | 100.0 | 0 | 2.1e-14 |
 
 One policy for everything? Levels 0-5 of the advanced test set are the standard test courses, so the
@@ -236,6 +236,15 @@ are the chosen settings.
 | validation | official (family 2) | `final_policy` | all, brake | all | 147/218 (67.4) | 246/311 | 2284/2284 |
 | validation | random (family 13) | `final_policy` | all, brake | all | 119/200 (59.5) | 320/396 | 1534/1534 |
 | test | random (family 12) | `final_policy` | policy alone |  | 33/200 (16.5) | 1/162 |  |
+
+The assist in the bots, on the neo course set of the neo policy's runs (`configs/neo_live_courses.json`:
+the first 10 held-out test courses with a neo of levels 6, 7 and 8, and the showcase neo course; the
+neo policy alone made 11/31 there, offline and in real Minecraft). The final policy plays; the bot
+pauses for the Python planner service and checks every plan with prismarine-physics:
+
+| Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |
+| --- | --- | --- | --- | --- | --- | --- |
+| neo-assist-offline-all-brake (jumps all, retries 1, brake 14) | offline (prismarine-physics, no server) | 25/31 | 80.6 | 100.0 | - | 7.1e-15 |
 
 ## New jump kinds and blocks: head hitters, ice run-ups, shaped blocks, slime, ladders (simulator)
 

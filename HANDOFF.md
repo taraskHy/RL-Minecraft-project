@@ -108,7 +108,12 @@ More facts that hold now:
     on the takeoff, a Python planner service searches, prismarine-physics
     checks the plan, the bot plays it); the offline bot matches the
     simulator exactly when both search on the same device
-    (`tests/test_neo_assist.py`). Not yet run in real Minecraft.
+    (`tests/test_neo_assist.py`). On the neo course set
+    (`configs/neo_live_courses.json`, where the neo policy made 11/31) the
+    final policy with the planner (every jump, brake and retry) makes 25/31
+    in the offline bot, the same courses as the simulator
+    (`results/games/neo-assist-offline-all-brake`). Not yet run in real
+    Minecraft.
   - *Head hitters and ice run-ups*: new jump kinds (a run-up under a 2-high
     roof, a tunnel, an ice runway), feasibility-checked
     (`configs/jump_feasibility_extra.json`), in opt-in levels
@@ -526,18 +531,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `9e7d1d5` (2026-10-29 00:07, branch `main`): Archive advanced validation through iteration 499
+Generated on top of commit `ed68507` (2026-10-29 00:12, branch `main`): Archive ice validation through iteration 599
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 72 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 73 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 30 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 47 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 30 |
-| `results/README.md` | `9a7e90f` 2026-10-28 21:45 | 20 |
-| `results/DATA.md` | `408de3d` 2026-10-28 22:10 | 30 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 31 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 48 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 31 |
+| `results/README.md` | updated together with this snapshot | 0 |
+| `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -627,6 +632,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `live2-final` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 59/60 | 98.3 | 100.0 |
 | `live2-obstacles` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 58/60 | 96.7 | 100.0 |
 | `live2-showcase` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 3/4 | 75.0 | 100.0 |
+| `neo-assist-offline-all-brake` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 25/31 | 80.6 | 100.0 |
 | `neo-full` | offline (prismarine-physics, no server) | `runs/neo-ck.pt` | 1/31 | 3.2 | 100.0 |
 | `neo-live-final` | live (Minecraft 1.21.4 server) | `runs/neo-dagger3/checkpoints/best.pt` | 11/31 | 35.5 | 100.0 |
 | `neo-offline-final` | offline (prismarine-physics, no server) | `runs/neo-dagger3/checkpoints/best.pt` | 11/31 | 35.5 | 100.0 |
@@ -695,6 +701,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **29 Oct 2026, 00:19, Codex heartbeat on training PC:** merged cloud report/data commits through `4c6761d`, retaining both histories. Verified the compressed offline-bot evidence: final policy plus all-jump planning/braking/retry completes 25/31 neo-set courses, with 350 verified plans from 366 requests, zero planner errors, and simulator outcomes/tick counts identical on all 31. This fixed set contains 30 held-out test examples plus the showcase; it is reported evidence only, not validation or a tuning signal, and was not re-evaluated on the PC. Real-Minecraft verification of this assist remains pending. Merged the assist table and marked offline server corrections as not applicable. Three focused report/course-integrity tests and 12 subtests pass (92 deselected; `runs/heartbeat-offline-neo-tests.txt`); training/physics code is unchanged. Archived simulator training validation (families 2/5): g995-adv iteration 499: 81.33%, best iteration 99; g995-ice iteration 599: 94.67%, best iteration 449. Advanced uses nine levels and ice six; both trainers still select on validation only and their test logs remain header-only. The existing queue, two trainers, watchdog and keep-awake continue under the 70% target; extra remains next.
 
 - **29 Oct 2026, 00:12, Codex heartbeat on training PC:** archived new simulator validation progress (families 2/5): g995-adv: iteration 499, validation 81.33%, selected best iteration 99; g995-ice: iteration 599, validation 94.67%, selected best iteration 449. Advanced covers nine levels and ice six, so overall scores are not directly comparable. Verified each summary against its validation CSV and the selected validation maximum; test logs remain header-only and no completion/test result exists. Report and handoff refreshed. Exactly two trainers and the existing queue, thermal/duty watchdog and keep-awake helper remain healthy. No executable changes; prior tests remain applicable.
 

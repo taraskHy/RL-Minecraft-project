@@ -62,5 +62,7 @@ def test_report_marks_degraded_assist(tmp_path):
                    sim_success_same_courses=1, outcome_agreement=1, replay_max_pos_err=0,
                    assist=dict(planner_errors=2))
     (folder / 'summary.json').write_text(json.dumps(summary))
-    assert 'degraded assist: 2 planner errors' in game_row(tmp_path, 'failed-assist')
+    row = game_row(tmp_path, 'failed-assist')
+    assert 'degraded assist: 2 planner errors' in row
+    assert row.split('|')[6].strip() == '-'  # no server exists in an offline run
     assert any('degraded assist: 2 planner errors' in line for line in games_lines(tmp_path))

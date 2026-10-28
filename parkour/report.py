@@ -269,9 +269,10 @@ def game_row(out: Path, name: str, label: str | None = None) -> str | None:
     label = label or name
     if s.get("assist", {}).get("planner_errors"):
         label += f" (degraded assist: {s['assist']['planner_errors']} planner errors)"
+    corrections = "-" if s['mode'].startswith('offline') else sum(e.get('server_corrections') or 0 for e in eps)
     return (f"| {label} | {s['mode']} | {sum(e['result'] == 'success' for e in eps)}/{len(eps)} | "
             f"{pct(s['sim_success_same_courses'])} | {pct(s['outcome_agreement'])} | "
-            f"{sum(e.get('server_corrections') or 0 for e in eps)} | {s['replay_max_pos_err']:.1e} |")
+            f"{corrections} | {s['replay_max_pos_err']:.1e} |")
 
 
 GAME_HEADER = ["| Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |",
@@ -311,6 +312,18 @@ def new_abilities(out: Path) -> list:
                          f"{r['completed']}/{r['courses']} ({pct(r['completed'] / r['courses'])}) | "
                          f"{r['neo_jumps_passed']}/{r.get('neo_jumps_reached', '?')} | {plans} |")
         lines.append("")
+    games = sorted((out / "games").glob("neo-assist-*/summary.json"))
+    if games:
+        rows = []
+        for g in games:
+            a = json.loads(g.read_text()).get("assist", {}).get("config", {})
+            extra = [f"{k} {a[k]}" for k in ("retries", "brake", "approach") if a.get(k)]
+            rows.append(game_row(out, g.parent.name, f"{g.parent.name} (jumps {a.get('jumps', '?')}"
+                                 + (", " + ", ".join(extra) if extra else "") + ")"))
+        lines += ["The assist in the bots, on the neo course set of the neo policy's runs (`configs/neo_live_courses.json`:",
+                  "the first 10 held-out test courses with a neo of levels 6, 7 and 8, and the showcase neo course; the",
+                  "neo policy alone made 11/31 there, offline and in real Minecraft). The final policy plays; the bot",
+                  "pauses for the Python planner service and checks every plan with prismarine-physics:", ""] + GAME_HEADER + rows + [""]
     je = out / "extra" / "jump_eval_final_policy.json"
     previews = [(f, json.loads(f.read_text())) for f in (out / "extra" / f"course_preview_family{F}.json" for F in (2, 1))
                 if f.exists()]
