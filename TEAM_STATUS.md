@@ -10,7 +10,7 @@ the data: training runs, policies, the route planner and neo files, the game
 folders (including the v2, planner, noroute, neo and film games) and the
 videos.
 
-**Last updated:** 29 Oct 2026, 00:24, training PC: cloud merged through `d5943ca`; two validation-only training runs active under the 70% GPU target.
+**Last updated:** 29 Oct 2026, 00:29, training PC: cloud merged through `9f7a9a9`; two validation-only training runs active under the 70% GPU target.
 
 ## The project
 
@@ -259,7 +259,7 @@ The retuned planner is confirmed in real Minecraft: 51/60 standard and 56/60 obs
 
 ## Last known state
 
-The cloud work is merged through `d5943ca`. The latest CPU merge checks pass (92 tests, 12 subtests; one CUDA test skipped to avoid extra GPU load), plus three focused watchdog/planner-failure checks. The earlier CUDA-enabled suite passed 85 tests and 8 subtests, with 6 focused checks after the cache-release change. Both `g995-adv` and `g995-ice` resumed their own iteration-49 checkpoint at 22:07, with `g995-extra` next. The latest user instruction limits both GPU compute and memory to 70%. The initial 10-second duty cycle produced unacceptable long 98% bursts; it has been replaced by shared 50-ms pacing with feedback from measured GPU usage, targeting headroom below 70%. This software control cannot guarantee every transient sample or the user's game stays below 70%.
+The cloud work is merged through `9f7a9a9`. The latest CPU merge checks pass (92 tests, 12 subtests; one CUDA test skipped to avoid extra GPU load), plus three focused watchdog/planner-failure checks. The earlier CUDA-enabled suite passed 85 tests and 8 subtests, with 6 focused checks after the cache-release change. Both `g995-adv` and `g995-ice` resumed their own iteration-49 checkpoint at 22:07, with `g995-extra` next. The latest user instruction limits both GPU compute and memory to 70%. The initial 10-second duty cycle produced unacceptable long 98% bursts; it has been replaced by shared 50-ms pacing with feedback from measured GPU usage, targeting headroom below 70%. This software control cannot guarantee every transient sample or the user's game stays below 70%.
 
 Overwatch was observed running at 22:04, with no trainers active and about 40% card memory already in use. Training now uses a 13% allocator cap per job, 1,024-course pools, 8,192 environments, rollout 64, and 32 minibatches; game ticks per iteration remain 524,288, while rollout shape and minibatch changes affect optimization. The earlier ice run exceeded its 28% allocator cap during PPO; original logs/config are retained under its `recovery/20261028-220658/` directory, and it resumed the saved checkpoint. Shared 70% compute feedback, thermal protection and keep-awake remain active. The local queue fills slots; a five-minute native heartbeat monitors progress and publishes results. Later recipes are selected from common validation levels 0-5; test scores do not select recipes.
 
@@ -318,6 +318,8 @@ The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
 5. The report discussion and conclusion are drafted. The cloud DOCX/PDF exports predate this merged source; rebuild and check pagination before submission.
 
 ## Update log
+
+- **29 Oct 2026, 00:29, Codex heartbeat on training PC:** merged cloud test/documentation commits through `9f7a9a9`. Fingerprints now pin mixed families 14/15 and the six extra-kind preview sets (test/validation); all match the preserved PC level definitions. Three integrity tests and 26 subtests pass (93 deselected; `runs/heartbeat-extra-fingerprints-tests.txt`). No runtime code changed. Kept the actual two-slot PC queue and its limits in the abilities plan; the cloud-reported `extra-ft` smoke check uses uniform curriculum, while pending `g995-extra` keeps the requested adaptive recipe. That smoke output was not archived, so it is not presented as a verified result of the PC queue. Refreshed stale planner-status cells from previously verified evidence and regenerated report/handoff. Both trainers and safety helpers remain healthy; training test sets remain unreported.
 
 - **29 Oct 2026, 00:24, Codex heartbeat on training PC:** merged cloud generated-data commits through `d5943ca`. The extra-level file is byte-identical to the existing PC output (six levels, 286/40/194/450/41/4 specs). Retained the PC-generated feasibility artifact without hand-editing values: seven shape fractions differ by 0.00001 between the PC and cloud artifacts and the latest reuse duration differs; all 826 candidates and level membership agree. Both source commits and differences are archived in `results/operations/extra-feasibility-reconciliation.json`. Pending extra training and its evaluation courses are unchanged. Two held-out-integrity tests and 12 subtests pass (93 deselected; `runs/heartbeat-extra-reconciliation-tests.txt`). No trainer, queue or watchdog restart was needed.
 

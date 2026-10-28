@@ -531,18 +531,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `eb6dc83` (2026-10-29 00:20, branch `main`): Merge verified offline neo-assist results and report table
+Generated on top of commit `f4a1733` (2026-10-29 00:25, branch `main`): Merge equivalent cloud extra-level feasibility evidence
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 76 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 79 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 34 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 51 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 34 |
-| `results/README.md` | `eb6dc83` 2026-10-29 00:20 | 0 |
-| `results/DATA.md` | `eb6dc83` 2026-10-29 00:20 | 0 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 37 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 54 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 37 |
+| `results/README.md` | `eb6dc83` 2026-10-29 00:20 | 3 |
+| `results/DATA.md` | `eb6dc83` 2026-10-29 00:20 | 3 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -701,6 +701,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **29 Oct 2026, 00:29, Codex heartbeat on training PC:** merged cloud test/documentation commits through `9f7a9a9`. Fingerprints now pin mixed families 14/15 and the six extra-kind preview sets (test/validation); all match the preserved PC level definitions. Three integrity tests and 26 subtests pass (93 deselected; `runs/heartbeat-extra-fingerprints-tests.txt`). No runtime code changed. Kept the actual two-slot PC queue and its limits in the abilities plan; the cloud-reported `extra-ft` smoke check uses uniform curriculum, while pending `g995-extra` keeps the requested adaptive recipe. That smoke output was not archived, so it is not presented as a verified result of the PC queue. Refreshed stale planner-status cells from previously verified evidence and regenerated report/handoff. Both trainers and safety helpers remain healthy; training test sets remain unreported.
 
 - **29 Oct 2026, 00:24, Codex heartbeat on training PC:** merged cloud generated-data commits through `d5943ca`. The extra-level file is byte-identical to the existing PC output (six levels, 286/40/194/450/41/4 specs). Retained the PC-generated feasibility artifact without hand-editing values: seven shape fractions differ by 0.00001 between the PC and cloud artifacts and the latest reuse duration differs; all 826 candidates and level membership agree. Both source commits and differences are archived in `results/operations/extra-feasibility-reconciliation.json`. Pending extra training and its evaluation courses are unchanged. Two held-out-integrity tests and 12 subtests pass (93 deselected; `runs/heartbeat-extra-reconciliation-tests.txt`). No trainer, queue or watchdog restart was needed.
 
