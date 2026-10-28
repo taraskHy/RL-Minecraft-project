@@ -176,9 +176,12 @@ its CPU; the training for them is queued for the PC
   takeoff (or a wide or run-up jump's), a search with the exact game physics
   finds an action sequence from its exact state, and the bot plays it.
   On the 218 validation neo courses: the final policy alone completes 0;
-  with planning at neos 49; planning every advanced jump 119 (55%), passing
-  214 of the 286 neos it reaches. Every one of the 869 plans played landed
-  exactly as searched. The offline bot (prismarine-physics, the live bot's
+  with planning at neos 49; planning every advanced jump 124 (57%), passing
+  221 of the 289 neos it reaches (measured with the search the bots
+  reproduce; a first run with batched searches made 119). Every one of the
+  900 plans played landed exactly as searched; a search prior from the
+  policy made it worse (111). Planning every jump and braking before a
+  second search are being measured. The offline bot (prismarine-physics, the live bot's
   engine) reproduces the simulator exactly with this planner; the live bot
   has it too (it stands still on the takeoff while the planner thinks), not
   yet run on a real server.
@@ -249,7 +252,7 @@ The retuned planner is confirmed in real Minecraft: 51/60 standard and 56/60 obs
 
 ## Last known state
 
-The cloud work is merged through `21188a6`. Integration checks pass (85 tests, 8 subtests, plus 6 focused checks after the cache-release change). Both `g995-adv` and `g995-ice` resumed their own iteration-49 checkpoint at 22:07, with `g995-extra` next. The latest user instruction limits both GPU compute and memory to 70%. The initial 10-second duty cycle produced unacceptable long 98% bursts; it has been replaced by shared 50-ms pacing with feedback from measured GPU usage, targeting headroom below 70%. This software control cannot guarantee every transient sample or the user's game stays below 70%.
+The cloud work is merged through `3ecc266`. The latest CPU merge checks pass (87 tests, 12 subtests; one CUDA test skipped to avoid extra GPU load). The earlier CUDA-enabled suite passed 85 tests and 8 subtests, with 6 focused checks after the cache-release change. Both `g995-adv` and `g995-ice` resumed their own iteration-49 checkpoint at 22:07, with `g995-extra` next. The latest user instruction limits both GPU compute and memory to 70%. The initial 10-second duty cycle produced unacceptable long 98% bursts; it has been replaced by shared 50-ms pacing with feedback from measured GPU usage, targeting headroom below 70%. This software control cannot guarantee every transient sample or the user's game stays below 70%.
 
 Overwatch was observed running at 22:04, with no trainers active and about 40% card memory already in use. Training now uses a 13% allocator cap per job, 1,024-course pools, 8,192 environments, rollout 64, and 32 minibatches; game ticks per iteration remain 524,288, while rollout shape and minibatch changes affect optimization. The earlier ice run exceeded its 28% allocator cap during PPO; original logs/config are retained under its `recovery/20261028-220658/` directory, and it resumed the saved checkpoint. Shared 70% compute feedback, thermal protection and keep-awake remain active. The local queue fills slots; a five-minute native heartbeat monitors progress and publishes results. Later recipes are selected from common validation levels 0-5; test scores do not select recipes.
 
@@ -308,6 +311,8 @@ The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
 5. The report discussion and conclusion are drafted. The cloud DOCX/PDF exports predate this merged source; rebuild and check pagination before submission.
 
 ## Update log
+
+- **28 Oct 2026, 22:18, Codex heartbeat on training PC:** merged seven cloud commits through `3ecc266`, preserving both session logs and current PC limits. The new assist course-file/retry fixes and held-out fingerprints pass `run.cmd test` on CPU: 87 passed, 1 CUDA test skipped to avoid extra GPU load, 12 subtests passed (`runs/heartbeat-cloud-merge-tests.txt`). The earlier full CUDA-enabled suite passed before these assist-only changes. Both trainers are progressing with the same 13% caps; ice iteration 99 validation is 96.83% (families 2/5, simulator), with no test evaluation yet. Refreshed report and archived logs. Keep the existing two-slot queue; do not start neo_pipeline until it inherits the PC controls.
 
 - **28 Oct 2026, 22:10, Codex on training PC:** merged cloud through `21188a6`; 85 tests and 8 subtests passed, then 6 focused checks passed after releasing unused validation cache. Regenerated extra feasibility/levels through the study command. Retuned planner live verification and neo export complete. Replaced rejected long-burst duty with 50-ms shared feedback pacing. Overwatch was found running; resumed both saved iteration-49 checkpoints with 13% allocator caps and smaller tensor working sets, preserving the ice OOM attempt and 41 uncheckpointed updates in recovery logs. Card-wide telemetry is archived in `results/operations/gpu-limit-verification.json`; a five-minute heartbeat monitors results and publication. Next: finish requested three recipes, select by validation only, report each test once.
 

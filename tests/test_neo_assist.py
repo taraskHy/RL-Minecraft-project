@@ -16,9 +16,9 @@ from parkour import courses as C
 from parkour import physics
 from parkour.env import CoursePool, on_obstacle
 from parkour.live import load_model
-from parkour.neo_assist import (AssistConfig, Rules, brake_plan, courses_from_file, evaluate_assisted,
-                                 official_neo_courses, plan_target, planned_takeoffs, random_neo_courses, spec_from_key,
-                                 specs_from_keys)
+from parkour.neo_assist import (AssistConfig, Rules, assist_fields, brake_plan, courses_from_file, evaluate_assisted,
+                                 jump_kind, mixed_courses, official_neo_courses, plan_target, planned_takeoffs,
+                                 random_neo_courses, spec_from_key, specs_from_keys)
 from parkour.neo_dagger import neo_takeoffs
 from parkour.paths import BRIDGE, CONFIGS, NODE, ROOT
 from parkour.train import evaluate
@@ -70,6 +70,15 @@ class NeoAssist(unittest.TestCase):
         self.assertEqual(len(rnd), 20)
         self.assertGreater(np.mean([len(neo_takeoffs(c)) for c in rnd]), 2)
         self.assertEqual([c.to_json() for c in rnd[:5]], [c.to_json() for c in random_neo_courses(13, n=5)])
+        mixed = mixed_courses(15, n=40)
+        kinds = {jump_kind(c, k, neo_takeoffs(c)) for c in mixed for k in range(c.n - 1)}
+        self.assertTrue({"neo", "wide", "momentum", "run-up (roof or ice)", "basic"} <= kinds, kinds)
+        self.assertEqual([c.to_json() for c in mixed[:5]], [c.to_json() for c in mixed_courses(15, n=5)])
+
+    def test_a_ladder_wall_is_not_a_neo(self):
+        for h in (2, 3, 4, 5):
+            self.assertEqual(neo_takeoffs(C.single_jump(C.JumpSpec(1, h, 0, (1, 1), ladder=1))), [])
+        self.assertEqual(neo_takeoffs(C.single_jump(C.JumpSpec(1, 0, 0, (1, 1), neo=1))), [0])
 
 
 def extra_kind_courses():
@@ -111,6 +120,19 @@ class Brakes(unittest.TestCase):
 
 
 class AssistExtraKinds(unittest.TestCase):
+    def test_course_file_fields(self):
+        cs = courses_from_file([c.to_json() for c in extra_kind_courses()])
+        cfg = AssistConfig(jumps="all", retries=1, retry_horizon=48)
+        for c in cs:
+            self.assertEqual(len(c.specs), c.n - 1)
+            f = assist_fields(c, cfg)
+            self.assertEqual(f["assist_takeoffs"], list(range(c.n - 1)))
+            for k, tgt, h in zip(f["assist_takeoffs"], f["assist_targets"], f["assist_retry_horizons"]):
+                sp = c.specs[k]
+                self.assertEqual(tgt, k + 2 if sp.bounce else k + 1)
+                self.assertEqual(h, 80 if sp.bounce else 64 if sp.ladder else 48)
+        self.assertEqual(specs_from_keys(["g1_dy0_l0_s1x1"], 5), [])  # cannot be aligned: no specs, not wrong ones
+
     def test_every_jump_planned_and_slime_plans_end_past_the_pad(self):
         cs = extra_kind_courses()
         self.assertTrue(any(c.slime for c in cs) and any(c.shapes for c in cs) and any(len(c.ladders) for c in cs))
@@ -175,7 +197,8 @@ class AssistBotParity(unittest.TestCase):
         self.check(AssistConfig(samples=256, iterations=8, approach=48, prior=0.5), official_neo_courses(2)[:6])
 
     def test_same_on_shaped_slime_and_ladder_courses(self):
-        self.check(AssistConfig(samples=256, iterations=8, jumps="all"), extra_kind_courses())
+        self.check(AssistConfig(samples=256, iterations=8, jumps="all", retries=1, brake=14, retry_horizon=48),
+                   extra_kind_courses())
 
     def test_same_with_brakes_and_retries(self):
         res, bot = self.check(AssistConfig(samples=64, iterations=3, jumps="advanced", retries=1, brake=14),
@@ -186,14 +209,13 @@ class AssistBotParity(unittest.TestCase):
     def check(self, cfg, cs):
         from parkour.live import SETTLE_TICKS
         model = load_model(ROOT / "results" / "final_policy.pt", "cpu")
+        cs = courses_from_file([c.to_json() for c in cs])  # as parkour.live reads a course file
         res = evaluate_assisted(model, CoursePool(cs, "cpu", C.GRID), "cpu", cfg, settle=SETTLE_TICKS)
         with tempfile.TemporaryDirectory() as d:
             pol, crs, out = (os.path.join(d, f) for f in ("policy.json", "courses.json", "episodes.jsonl"))
             model.export(pol)
-            with open(crs, "w") as f:
-                json.dump({"courses": [{**c.to_json(), "assist_takeoffs": planned_takeoffs(c, cfg.jumps),
-                                        "assist_targets": [plan_target(c, k) for k in planned_takeoffs(c, cfg.jumps)]}
-                                       for c in cs]}, f)
+            with open(crs, "w") as f:  # as parkour.live writes the bots' course file
+                json.dump({"courses": [{**c.to_json(), **assist_fields(c, cfg)} for c in cs]}, f)
             subprocess.run([str(NODE), str(BRIDGE / "offline_bot.js"), "--policy", pol, "--courses", crs, "--out", out,
                             "--settle", str(SETTLE_TICKS), "--assist", json.dumps(dataclasses.asdict(cfg)),
                             "--assist-python", sys.executable, "--assist-checkpoint", str(ROOT / "results" / "final_policy.pt"),

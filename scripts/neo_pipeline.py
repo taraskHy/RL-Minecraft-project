@@ -30,6 +30,7 @@ its runs land in runs/ like real ones, so move them away before
 """
 import argparse
 import json
+import os
 import shlex
 import subprocess
 import sys
@@ -43,7 +44,8 @@ DEMOS = ROOT / "runs" / "neo_demos_train.json"
 
 
 def run(cmd: list, dry: bool) -> None:
-    print("$ " + " ".join(shlex.quote(str(c)) for c in cmd), flush=True)
+    words = [str(c) for c in cmd]  # printed so that it pastes into the shell this runs in (cmd.exe on the PC)
+    print("> " + (subprocess.list2cmdline(words) if os.name == "nt" else " ".join(shlex.quote(w) for w in words)), flush=True)
     if not dry:
         subprocess.run([str(c) for c in cmd], check=True, cwd=str(ROOT))
 
@@ -72,6 +74,10 @@ def main():
     a = ap.parse_args()
     runs = ROOT / "runs"
     scores = runs / f"{a.name}_validation.jsonl"
+    taken = [p for p in [scores] + [x for r in range(1, a.rounds + 1) for x in (runs / f"{a.name}-r{r}", runs / f"{a.name}_r{r}.pt")]
+             if p.exists()]
+    if taken and not a.dry_run:  # parkour.train would continue an existing run directory and overwrite its checkpoints
+        raise SystemExit(f"--name {a.name} is taken (runs are never overwritten): {', '.join(str(p) for p in taken)}")
     cur = Path(a.start).resolve()
     best = score(cur, f"{a.name} round 0 (start)", scores, a)
     print(json.dumps({"round": 0, "checkpoint": str(cur), "validation_completed": best}), flush=True)

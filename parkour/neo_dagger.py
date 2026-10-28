@@ -54,7 +54,8 @@ ELITE = 0.05
 
 def neo_takeoffs(course: C.Course) -> list[int]:
     """Platform indices whose jump to the next platform goes around a wall."""
-    # Only non-platform blocks count: the line to a higher platform ends inside that platform.
+    # Only non-platform blocks count: the line to a higher platform ends inside that platform. Blocks under
+    # the target's own footprint (the wall a ladder climb's target stands on) are not in the way either.
     solid = {tuple(int(v) for v in b) for b in np.asarray(course.extra).reshape(-1, 3)}
     out = []
     p = course.platforms
@@ -65,6 +66,8 @@ def neo_takeoffs(course: C.Course) -> list[int]:
         blocked = False
         for t in np.linspace(0.0, 1.0, 41)[1:-1]:
             x, z = math.floor(a[0] + t * (b[0] - a[0])), math.floor(a[1] + t * (b[1] - a[1]))
+            if p[k + 1][0] <= x <= p[k + 1][1] and p[k + 1][2] <= z <= p[k + 1][3]:
+                continue
             if any((x, y, z) in solid for y in (y0, y0 + 1)):
                 blocked = True
                 break

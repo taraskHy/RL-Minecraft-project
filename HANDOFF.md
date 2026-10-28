@@ -92,8 +92,12 @@ More facts that hold now:
     Planning the wide and momentum jumps too (`--jumps advanced`): 119 of
     218, 214 of 286 neos passed. These rows (tagged `code 587c9b1`) ran an
     earlier default that searched up to 32 states at once (batch 32: same
-    method, other random draws); the current default, batch 1, is what the
-    bots reproduce, and the chosen setting is re-measured with it. Both bots
+    method, other random draws); re-measured with batch 1, which the bots
+    reproduce: 124 of 218, 221 of 289 neos passed, all 900 plans landed as
+    searched (`results/neo/assist_details/official2_advanced.json`: the 94
+    failed courses stop at 68 neos whose search found no landing, 22
+    ordinary jumps the policy missed and 4 momentum jumps). A search prior
+    from the policy (0.5) made it worse: 111 of 218. Both bots
     have it (`parkour.live --assist '{"jumps": "advanced"}'`: the bot pauses
     on the takeoff, a Python planner service searches, prismarine-physics
     checks the plan, the bot plays it); the offline bot matches the
@@ -445,7 +449,22 @@ needs the PC's GPU.
   matter (`--simplify`); a round without this collapsed
   (`runs/neo-dagger-collapsed`). Neo takeoffs are detected by wall blocks
   only (the first detector counted ordinary up-jumps: 1,090 of 2,526 were
-  real neos).
+  real neos), and not by blocks under the target (a ladder climb's wall
+  counted as a neo until 28 Oct evening; no held-out neo course changed).
+- Planning with the exact physics (`parkour/neo_assist.py`): a plan
+  searched from the bot's exact state lands exactly as searched, in the
+  simulator and in the offline bot (prismarine-physics), so what limits the
+  assist is only whether the search finds a landing from that state. A
+  policy prior in the search made it worse on validation (111 vs 119 of 218
+  neo courses). After a failed search, stopping on the takeoff and searching
+  again from the standstill finds a landing for about a third of the
+  failures (scratch experiment: 4 of 11; `--brake`).
+- prismarine-physics takes version rules from its own feature table, not
+  minecraft-data: in 1.21 soul sand and honey do not slow the player,
+  pressing jump on a ladder climbs, trapdoors over ladders are not
+  climbable. A slime bounce keeps the landing speed (upward), so how high it
+  goes depends on how the pad is hit: the assist plans a slime jump and the
+  exit after it as one plan.
 - `train.py`: `bc_decay` defaults to False, as in every neo run (the
   imitation weight was constant).
 
@@ -456,6 +475,7 @@ needs the PC's GPU.
 The first startup attempts hit Windows shared-memory spill (the dense ice friction grid alone was 8 GiB). Their logs are retained in `runs/startup-memory-spill-20261028/` (advanced: 8 updates, ice: 1; neither had a checkpoint). `--compact-ice` stores one byte per cell and reconstructs the exact float64 friction on lookup. Validation and test pools use `--eval-batch-size 256`, keeping the same course sets with bounded memory; unused cache is released between batches. The later 28% ice run exceeded its allocator limit during PPO, after saving iteration 49; its full original log and config are retained in `runs/g995-ice/recovery/20261028-220658/`, including 41 uncheckpointed updates. Both jobs resumed their own iteration-49 checkpoint at 22:07. With Overwatch open, all queued recipes use a 1,024-course training pool, 8,192 environments, rollout 64 and 32 minibatches; game ticks per PPO iteration remain 524,288. The changed minibatch count and rollout shape affect training dynamics and must be reported. Test sets and checkpoint selection remain unchanged. Test pools allocate only at final testing with `--test-once`.
 
 - `scripts/training_queue.py` reads `configs/training_queue.json`, keeps at most two logical training process trees, and writes `runs/training_queue_state.json`. Initial order: advanced and ice together, then extra. Later seeds use the best completed initial recipe on the common validation levels 0-5 (standard plus obstacles), never test scores.
+- Keep this queue as the sole training launcher. Before using `scripts/neo_pipeline.py`, integrate its stages with the two-slot/memory controls and `--test-once`; its direct training commands do not yet inherit these PC restrictions.
 - `runs/training_control.json`: `gaming=true` requests each job to stop cleanly at its next 50-update checkpoint and resume under the same run name with the three gaming flags; `gaming=false` does the reverse. `hold=true` prevents new starts. Do not launch a second queue.
 - `--test-once` validates every 50 iterations and tests only the selected best at completion. Resume restores iteration, optimizer, learning rate and validation best; simulator episodes/course pool restart, so it is not bit-identical continuation. Completed tested runs get a new name for further training.
 - Current watchdog command: `python scripts/gpu_watchdog.py --hot 65 --cool 58 --duty 0.55 --period 0.05 --utilization-target 0.7 --every 1`. The host duty ceiling is deliberately below the GPU busy-time limit because queued kernels continue briefly after host suspension. Keep `scripts/keep_awake.py` running. A five-minute native heartbeat in this chat monitors progress and publishes completed results; the local queue fills training slots immediately.
@@ -494,18 +514,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `d347b72` (2026-10-28 21:29, branch `main`): Bound shared GPU compute and memory; compact ice without physics changes
+Generated on top of commit `408de3d` (2026-10-28 22:10, branch `main`): Merge cloud abilities and verify bounded two-job GPU training
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 17 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 42 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | updated together with this snapshot | 0 |
-| `docs/design.md` | updated together with this snapshot | 0 |
-| `docs/report_draft.md` | updated together with this snapshot | 0 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 0 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 17 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 0 |
 | `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | updated together with this snapshot | 0 |
+| `results/DATA.md` | `408de3d` 2026-10-28 22:10 | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -531,7 +551,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `full-s1` | 999 | 0.52 | - | - | - | 94.2 | - |
 | `full-s2` | 999 | 0.52 | 949 | 93.0 | 93.1 | 91.9 | - |
 | `g995-adv` | 49 | 0.03 | 49 | 77.1 | - | - | - |
-| `g995-ice` | 49 | 0.03 | 49 | 95.6 | - | - | - |
+| `g995-ice` | 99 | 0.05 | 99 | 96.8 | - | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
 | `hp-envs4096` | 3999 | 0.52 | 3599 | 93.7 | 94.2 | 92.0 | - |
@@ -664,6 +684,8 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **28 Oct 2026, 22:18, Codex heartbeat on training PC:** merged seven cloud commits through `3ecc266`, preserving both session logs and current PC limits. The new assist course-file/retry fixes and held-out fingerprints pass `run.cmd test` on CPU: 87 passed, 1 CUDA test skipped to avoid extra GPU load, 12 subtests passed (`runs/heartbeat-cloud-merge-tests.txt`). The earlier full CUDA-enabled suite passed before these assist-only changes. Both trainers are progressing with the same 13% caps; ice iteration 99 validation is 96.83% (families 2/5, simulator), with no test evaluation yet. Refreshed report and archived logs. Keep the existing two-slot queue; do not start neo_pipeline until it inherits the PC controls.
+
 - **28 Oct 2026, 22:10, Codex on training PC:** merged cloud through `21188a6`; 85 tests and 8 subtests passed, then 6 focused checks passed after releasing unused validation cache. Regenerated extra feasibility/levels through the study command. Retuned planner live verification and neo export complete. Replaced rejected long-burst duty with 50-ms shared feedback pacing. Overwatch was found running; resumed both saved iteration-49 checkpoints with 13% allocator caps and smaller tensor working sets, preserving the ice OOM attempt and 41 uncheckpointed updates in recovery logs. Card-wide telemetry is archived in `results/operations/gpu-limit-verification.json`; a five-minute heartbeat monitors results and publication. Next: finish requested three recipes, select by validation only, report each test once.
 
 - **28 Oct 2026, 21:38, Codex on training PC:** confirmed retuned planner in real Minecraft: 51/60 standard, 56/60 obstacles, all simulator outcomes matched, zero server corrections; defaults adopted in Python and JS. Evidence archived by report. Shared 70% compute plus conservative per-job allocator caps and compact/batched memory allocation are being checked before queue restart.
@@ -673,6 +695,23 @@ At the end of a session, or after each result:
 Newest first. One entry per session; earlier history is in the
 [TEAM_STATUS update log](TEAM_STATUS.md#update-log) and `git log`.
 
+- **28 Oct 2026, late evening, Claude Code (the same cloud session after a
+  context reset, branch `claude/pensive-knuth-biwj11`, CPU only):** the
+  assist plans the new kinds (`--jumps all`; slime jumps planned to the
+  exit, longer ladder plans, shape-aware plan checks in the bots), brakes
+  and searches again after a failed search (`--brake`), reads course files
+  with their jump specs (a review found the planner service had none), and
+  has a `mixed` course set with every special kind (families 14/15);
+  `jumpeval` keeps the blocks of composite kinds; ladder walls no longer
+  count as neos; `scripts/neo_pipeline.py` runs learned-neo DAgger rounds
+  on the PC in one command. Validation so far (simulator, 218 neo courses):
+  `advanced` with the bots' search 124/218; the policy prior 111/218
+  (rejected). Running when this was written: `all` on random 13, `all` +
+  brake on official 2 and random 13, the extra feasibility study (writes
+  the shaped, slime and ladder levels). Next: choose on validation, run the
+  test sets once (official 1, random 12, mixed 14 after the level file),
+  the offline bot on `configs/neo_live_courses.json`, the per-kind preview,
+  `jumpeval --extra`, then this file, TEAM_STATUS and DATA.md.
 - **28 Oct 2026, evening, Claude Code (cloud session, continued again,
   branch `claude/pensive-knuth-biwj11`, CPU only):** the user asked for
   more parkour abilities (other blocks, head hitters) and consistent neos

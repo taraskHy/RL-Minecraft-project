@@ -120,29 +120,24 @@ def main(argv=None):
 
     out = Path(a.out).resolve()
     out.mkdir(parents=True, exist_ok=False)
-    if a.courses_file:
-        raw = json.loads(Path(a.courses_file).read_text())["courses"]
-        courses = [C.Course.from_json(d) for d in raw]
+    from .neo_assist import AssistConfig, assist_fields, courses_from_file
+    if a.courses_file:  # with their jump specs (Course.from_json leaves them out), which the assist plans by
+        courses = courses_from_file(json.loads(Path(a.courses_file).read_text())["courses"])
     else:
         courses = pick_courses(a.per_level, obstacles=a.obstacles)
-        raw = [c.to_json() for c in courses]
     course_json = [c.to_json() for c in courses]
     assist_cfg = None
     if a.assist:
         if a.planner:
             raise SystemExit("--assist needs the course list (not --planner)")
-        from .neo_assist import AssistConfig, plan_target, planned_takeoffs, specs_from_keys
         assist_cfg = AssistConfig(**{"batch": 1, **json.loads(a.assist)})
         if assist_cfg.batch != 1:
             raise SystemExit("the bots reproduce only searches with batch 1")
         if not assist_cfg.enabled:
             assist_cfg = None
     if assist_cfg is not None:
-        for c, d, r in zip(courses, course_json, raw):
-            if not c.specs and r.get("specs"):  # a course file: its jump types, so the simulator plans where the bot does
-                c.specs = specs_from_keys(r["specs"], c.n)
-            d["assist_takeoffs"] = planned_takeoffs(c, assist_cfg.jumps)
-            d["assist_targets"] = [plan_target(c, k) for k in d["assist_takeoffs"]]  # past a slime pad: its exit
+        for c, d in zip(courses, course_json):
+            d.update(assist_fields(c, assist_cfg))  # takeoffs, targets (past a slime pad: its exit), retry horizons
     (out / "courses.json").write_text(json.dumps({"courses": course_json}))
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     model = load_model(Path(a.checkpoint).resolve(), dev)
@@ -224,6 +219,7 @@ def main(argv=None):
         summary["assist"] = {"config": dataclasses.asdict(assist_cfg), "requests": len(log),
                              "found": sum(bool(x.get("found")) for x in log), "verified": sum(bool(x.get("verified")) for x in log),
                              "played": sum(bool(x.get("played")) for x in log),
+                             "braked": sum(bool(x.get("braked")) for x in log),
                              "planner_seconds": round(sum(x.get("seconds") or 0 for x in log), 1)}
     (out / "summary.json").write_text(json.dumps(summary, indent=1))
     lines = [f"# {summary['mode']}", "", f"Checkpoint `{a.checkpoint}`, {len(rows)} courses "

@@ -31,6 +31,14 @@ SETS = {  # (advanced levels, seed family, obstacle chance) -> sha1 prefix
 }
 
 
+ASSIST_SETS = {  # (parkour.neo_assist --set, family) -> sha1 prefix
+    ("official", TEST_SEED_FAMILY): "fc844f4979844e61",
+    ("official", VALIDATION_FAMILY): "3c74d2621dc577a8",
+    ("random", 12): "27d7547e0119a378",
+    ("random", 13): "1e5e4aef0e5b9034",
+}
+
+
 def fingerprint(courses: list[C.Course]) -> str:
     return hashlib.sha1(json.dumps([c.to_json() for c in courses], sort_keys=True).encode()).hexdigest()[:16]
 
@@ -42,6 +50,14 @@ class HeldOutFingerprints(unittest.TestCase):
             with self.subTest(advanced=adv, family=family):
                 cs = held_out_courses(levels[adv], 200, 10, obstacle_prob=obstacles, family=family)
                 self.assertEqual(fingerprint(cs), digest)
+
+    def test_assist_course_sets_are_unchanged(self):
+        # parkour.neo_assist's sets: the held-out neo courses (official) and the random neo courses; digests
+        # computed on top of a22d5ea, after checking that the ladder-wall rule of neo_takeoffs left them unchanged.
+        from parkour.neo_assist import course_set
+        for (name, family), digest in ASSIST_SETS.items():
+            with self.subTest(set=name, family=family):
+                self.assertEqual(fingerprint(course_set(name, family)), digest)
 
 
 if __name__ == "__main__":
