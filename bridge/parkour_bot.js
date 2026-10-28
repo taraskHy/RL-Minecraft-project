@@ -22,6 +22,15 @@ const { Vec3 } = require('vec3')
 const P = require('./policy')
 const A = require('./assist')
 const { Physics } = require('prismarine-physics')
+const path = require('path')
+// Shaped platforms (Course.shapes): the block state of each shape name, as /setblock writes it.
+const SHAPES = Object.fromEntries(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'configs', 'block_shapes.json'), 'utf8'))
+  .shapes.map(s => [s.name, s]))
+function stateString (name) {
+  const s = SHAPES[name]
+  const props = Object.entries(s.properties).map(([k, v]) => `${k}=${v}`).join(',')
+  return `minecraft:${s.block}` + (props ? `[${props}]` : '')
+}
 
 function parseArgs (argv) {
   const a = { port: 25570, host: '127.0.0.1', origin: '0,80,0', pad: '-20,100,-20', stall: 200, maxTicks: 3000, username: 'ParkourBot', viewer: '', style: 'stone', webViewer: 0, hold: 0, planner: '', fallRule: 'local', assist: '' }
@@ -105,6 +114,12 @@ function state () {
 function isSolid (x, y, z) {
   const b = bot.blockAt(new Vec3(x + OX, y + OY, z + OZ), false)
   return !!b && b.boundingBox === 'block'
+}
+
+// The top of a solid cell's collision shape as the bot sees it (1 for a full block).
+function topOf (x, y, z) {
+  const b = bot.blockAt(new Vec3(x + OX, y + OY, z + OZ), false)
+  return b && b.shapes.length ? Math.max(...b.shapes.map(q => q[4])) : 1
 }
 
 function applyAction (a) {
@@ -198,11 +213,17 @@ async function runCourse (c, index) {
     // Remove the previous course's beacon (it stands below the course area).
     await chatCommand(`/fill ${OX - 4} ${OY - 7} ${OZ - 4} ${OX + GRID[0] + 3} ${OY - 6} ${OZ + GRID[2] + 3} minecraft:air`)
   }
+  const shapes = c.shapes || {}
   for (const [k, [x0, x1, z0, z1, y]] of c.platforms.entries()) {
+    if (shapes[k]) continue // shaped platforms last: fences and walls would connect to blocks placed after them
     await chatCommand(`/fill ${x0 + OX} ${y + OY} ${z0 + OZ} ${x1 + OX} ${y + OY} ${z1 + OZ} ${blockFor(k, c.platforms.length, c.ice)}`)
   }
   const extra = c.extra || []
   for (const [x, y, z] of extra) await chatCommand(`/setblock ${x + OX} ${y + OY} ${z + OZ} ${OBSTACLE_BLOCK()}`)
+  for (const [k, name] of Object.entries(shapes)) {
+    const [x0, x1, z0, z1, y] = c.platforms[Number(k)]
+    await chatCommand(`/fill ${x0 + OX} ${y + OY} ${z0 + OZ} ${x1 + OX} ${y + OY} ${z1 + OZ} ${stateString(name)}`)
+  }
   if (args.style === 'rainbow') {
     // A beacon beam rising beside the goal, from a beacon far below the course (beams have no collision).
     const used = new Set()
@@ -227,6 +248,12 @@ async function runCourse (c, index) {
   }, 10000, 'teleport')
   await waitFor(() => c.platforms.every(([x0, x1, z0, z1, y]) => isSolid(x0, y, z0) && isSolid(x1, y, z1)), 10000, 'course blocks')
   await waitFor(() => extra.every(([x, y, z]) => isSolid(x, y, z)), 10000, 'obstacle blocks')
+  // Every shaped platform must be exactly its block state (the physics collides with its shape).
+  await waitFor(() => Object.entries(shapes).every(([k, name]) => {
+    const [x0, , z0, , y] = c.platforms[Number(k)]
+    const b = bot.blockAt(new Vec3(x0 + OX, y + OY, z0 + OZ), false)
+    return !!b && b.stateId === SHAPES[name].state
+  }), 10000, 'shaped blocks')
   const cells = []
   for (const [x0, x1, z0, z1, y] of c.platforms) for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) cells.push([x, y, z])
   cells.push(...extra)
@@ -245,7 +272,9 @@ async function runCourse (c, index) {
     extra: c.extra || [],
     planner: args.planner ? JSON.parse(args.planner) : null,
     fallRule: args.fallRule,
-    assist: assistConfig ? { config: assistConfig, takeoffs: c.assist_takeoffs || [] } : null
+    assist: assistConfig ? { config: assistConfig, takeoffs: c.assist_takeoffs || [] } : null,
+    shapes: c.shapes || null,
+    topOf
   })
   courseIndex = index
   await new Promise(resolve => { finish = resolve; episode = ep })

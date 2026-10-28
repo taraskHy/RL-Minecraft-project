@@ -22,7 +22,8 @@ configs/jump_levels.json)
      jumps from a runway, and sideways offsets of 3)
      python -m parkour.feasibility --extra  (writes configs/jump_feasibility_extra.json
      and configs/jump_levels_extra.json: head hitters, runways under a 2-high
-     roof, and ice runways, with a run-up strategy family; opt-in levels that
+     roof, and ice runways, with a run-up strategy family, and jumps onto
+     shaped blocks (slabs, soul sand, posts, ...); opt-in levels that
      load_levels(extra=True) appends)
 """
 from __future__ import annotations
@@ -37,7 +38,7 @@ import numpy as np
 import torch
 
 from . import physics
-from .courses import JumpSpec, _beam, single_jump
+from .courses import Course, JumpSpec, _beam, _platform_after, exit_spec, shape_geometry, single_jump
 from .env import CoursePool, on_obstacle, standing_on
 from .paths import CONFIGS
 
@@ -65,8 +66,8 @@ def candidate_specs():
         yield JumpSpec(gap, dy, lat, size)
 
 
-def _evaluate_chunk(specs, device, beam=False):
-    courses = [single_jump(s) for s in specs]
+def _evaluate_chunk(specs, device, beam=False, courses=None):
+    courses = courses or [single_jump(s) for s in specs]
     if beam:
         for c in courses:
             c.extra = np.array(_beam(c.platforms[0], c.platforms[1], 0), dtype=np.int64).reshape(-1, 3)
@@ -308,9 +309,45 @@ def _evaluate_runway_chunk(specs, device):
     return landed.view(ns, nk).float().mean(dim=1).cpu().numpy()
 
 
+FLAT_SHAPES = ("bottom_slab", "soul_sand", "dirt_path", "enchanting_table", "daylight_detector", "bottom_trapdoor",
+               "carpet")  # full footprint, top below a whole block
+POST_SHAPES = ("fence_post", "wall_post", "end_rod")  # 1x1 only, narrow
+
+
+def shape_specs():
+    flat = [JumpSpec(g, dy, lat, size, block=b) for b in FLAT_SHAPES for g in (1, 2, 3) for dy in (-1, 0, 1)
+            for lat in (0, 1) for size in ((1, 1), (2, 2))]
+    post = [JumpSpec(g, dy, lat, (1, 1), block=b) for b in POST_SHAPES for g in (1, 2, 3)
+            for dy in ((-2, -1, 0) if shape_geometry(b)[0] > 1 else (-1, 0)) for lat in (0, 1)]
+    return flat + post
+
+
+def exit_course(block: str, size: tuple) -> Course:
+    """A shaped takeoff (``size``) and the fixed exit jump after it, heading +X, as in a course."""
+    prev = np.array([4, 4 + size[0] - 1, 12, 12 + size[1] - 1, 8], dtype=np.int64)
+    new = _platform_after(prev, 0, exit_spec(block))
+    c = Course(np.stack([prev, new]), np.zeros(3), 0.0, specs=[exit_spec(block)], shapes={0: block})
+    centres = c.centers()
+    c.spawn = centres[0].copy()
+    d = centres[1] - centres[0]
+    c.spawn_yaw = float(math.atan2(-d[0], -d[2]))
+    return c
+
+
+def _evaluate_courses(courses, device):
+    """Straight-strategy forgiveness of ready-made two-platform courses (heading +X)."""
+    out = []
+    for i in range(0, len(courses), CHUNK):
+        part = courses[i:i + CHUNK]
+        specs = [c.specs[0] for c in part]
+        out.append(_evaluate_chunk(specs, device, courses=part))
+    return np.concatenate(out)
+
+
 EXTRA_LEVELS = (("head hitter", lambda r: r["kind"] == "roof" and r["forgiveness"] >= 0.05),
                 ("hard head hitter", lambda r: r["kind"] == "roof" and 0 < r["forgiveness"] < 0.05),
-                ("ice run-up", lambda r: r["kind"] == "ice" and r["forgiveness"] > 0))
+                ("ice run-up", lambda r: r["kind"] == "ice" and r["forgiveness"] > 0),
+                ("shaped blocks", lambda r: r["kind"] == "shape" and r["forgiveness"] > 0 and r["exit_forgiveness"] >= 0.05))
 
 
 def extra_study(device):
@@ -322,8 +359,19 @@ def extra_study(device):
         for sp, f in zip(specs, frac):
             rows.append({"kind": kind, "gap": sp.gap, "dy": sp.dy, "lateral": sp.lateral, "size": list(sp.size),
                          "runway": sp.runway, "ceiling": sp.ceiling, "ice": sp.ice, "forgiveness": round(float(f), 5)})
+    shaped = shape_specs()
+    frac = evaluate(shaped, device)
+    exits = {(b, sz): None for b in FLAT_SHAPES + POST_SHAPES for sz in ((1, 1), (2, 2))
+             if not (b in POST_SHAPES and sz != (1, 1))}
+    exit_f = _evaluate_courses([exit_course(b, sz) for b, sz in exits], device)
+    exits = {k: round(float(f), 5) for k, f in zip(exits, exit_f)}
+    for sp, f in zip(shaped, frac):
+        rows.append({"kind": "shape", "gap": sp.gap, "dy": sp.dy, "lateral": sp.lateral, "size": list(sp.size),
+                     "block": sp.block, "forgiveness": round(float(f), 5), "exit_forgiveness": exits[(sp.block, sp.size)]})
     out = {"method": "single run-up jumps from rest at the back of the runway; run-up strategies (jump at the "
-                     "runway's edge, hops before it, release after)",
+                     "runway's edge, hops before it, release after). Shaped blocks: the straight strategies of the "
+                     "basic study from a 1x1 stone block onto the shaped target, and from the shaped block over the "
+                     "fixed exit jump (exit_forgiveness)",
            "strategies": len(RUN_AIM_LATERAL) * len(RUN_EDGE) * len(RUN_HOP_FROM) * len(RUN_RELEASE),
            "horizon_ticks": RUN_HORIZON, "seconds": round(time.time() - t0, 1), "specs": rows}
     (CONFIGS / "jump_feasibility_extra.json").write_text(json.dumps(out, indent=1))
@@ -333,14 +381,14 @@ def extra_study(device):
         for r in rows:
             if not rule(r):
                 continue
-            base = {k: r[k] for k in ("gap", "dy", "lateral", "size", "runway", "ceiling", "ice")}
+            base = {k: r[k] for k in ("gap", "dy", "lateral", "size", "runway", "ceiling", "ice", "block") if k in r}
             members.append({**base, "side": 1})
             if r["lateral"]:
                 members.append({**base, "lateral": -r["lateral"], "side": 1})
         levels.append({"name": name, "specs": members})
     (CONFIGS / "jump_levels_extra.json").write_text(json.dumps({"source": "parkour.feasibility --extra",
                                                                 "levels": levels}, indent=1))
-    for kind in ("roof", "ice"):
+    for kind in ("roof", "ice", "shape"):
         rk = [r for r in rows if r["kind"] == kind]
         print(kind, f"{sum(r['forgiveness'] > 0 for r in rk)}/{len(rk)} possible")
     for L in levels:

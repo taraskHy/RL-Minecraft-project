@@ -314,6 +314,8 @@ def evaluate_planned(model, pool: CoursePool, device, cfg: PlannerConfig, stall_
 
     Scoring (success, falls, stalls) still uses the true course, as in train.evaluate.
     """
+    if pool.shape_grid is not None:
+        raise ValueError("the route planner does not support shaped platforms (Course.shapes)")
     n = pool.size
     env = ParkourEnv(pool, EnvConfig(num_envs=n, stall_ticks=stall_ticks, max_ticks=max_ticks, fall_rule=fall_rule), sampler=None)
     env.reset_all(torch.arange(n, device=device))

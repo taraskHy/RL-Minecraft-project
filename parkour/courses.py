@@ -43,12 +43,18 @@ they change nothing unless loaded with ``load_levels(extra=True)``):
   can land.
 * *ice*: ``ice`` 1 makes the runway ice (slipperiness 0.98: slow to speed
   up, faster at the end).
+* *shaped blocks*: ``block`` names the target's block shape (a bottom slab,
+  soul sand, a fence post, ...; configs/block_shapes.json), so its top is not
+  a whole block (``Course.shapes``). A fixed easy exit jump (1-block gap, to a
+  2x2 stone platform level with the shape's block row, or one row up after a
+  post) follows, so every other jump still starts from stone.
 """
 from __future__ import annotations
 
 import json
 import math
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -74,6 +80,7 @@ class JumpSpec:
     wall_at: int = 1  # neo: which gap cell (1 = right after the takeoff) holds the wall
     ceiling: int = 0  # head hitter (runway jumps): 1 roof over the runway after its first block, 2 also over the gap
     ice: int = 0  # 1: the runway is ice
+    block: str = ""  # shaped target: a shape name of configs/block_shapes.json ("" = stone)
 
     def key(self) -> str:
         k = f"g{self.gap}_dy{self.dy}_l{self.lateral}_s{self.size[0]}x{self.size[1]}"
@@ -87,12 +94,30 @@ class JumpSpec:
             k += f"_hh{self.ceiling}"
         if self.ice:
             k += f"_ice{self.ice}"
+        if self.block:
+            k += f"_b{self.block}"
         return k
 
 
 def _spec_from(d: dict) -> "JumpSpec":
     return JumpSpec(d["gap"], d["dy"], d["lateral"], tuple(d["size"]), d.get("neo", 0), d.get("side", 1),
-                    d.get("runway", 0), d.get("wall_at", 1), d.get("ceiling", 0), d.get("ice", 0))
+                    d.get("runway", 0), d.get("wall_at", 1), d.get("ceiling", 0), d.get("ice", 0), d.get("block", ""))
+
+
+@lru_cache(maxsize=None)
+def shape_geometry(name: str) -> tuple:
+    """(top, x0, x1, z0, z1) of a block shape inside its cell: the highest box top and the boxes' footprint."""
+    for d in json.loads((CONFIGS / "block_shapes.json").read_text())["shapes"]:
+        if d["name"] == name:
+            b = d["boxes"]
+            return (max(x[4] for x in b), min(x[0] for x in b), max(x[3] for x in b), min(x[2] for x in b),
+                    max(x[5] for x in b))
+    raise KeyError(name)
+
+
+def exit_spec(block: str) -> "JumpSpec":
+    """The fixed jump off a shaped platform: 1-block gap to 2x2 stone, one row up after a post (top above 1)."""
+    return JumpSpec(1, 1 if shape_geometry(block)[0] > 1 else 0, 0, (2, 2))
 
 
 @dataclass
@@ -106,6 +131,7 @@ class Course:
     name: str = ""
     extra: np.ndarray = field(default_factory=lambda: np.zeros((0, 3), dtype=np.int64))  # obstacle cells
     ice: list = field(default_factory=list)  # indices of platforms made of ice (optional; slipperiness 0.98)
+    shapes: dict = field(default_factory=dict)  # platform index -> block shape name (optional; default stone)
 
     @property
     def n(self) -> int:
@@ -131,7 +157,12 @@ class Course:
 
     def centers(self) -> np.ndarray:
         p = self.platforms.astype(np.float64)
-        return np.stack(((p[:, 0] + p[:, 1] + 1) / 2, p[:, 4] + 1, (p[:, 2] + p[:, 3] + 1) / 2), -1)
+        c = np.stack(((p[:, 0] + p[:, 1] + 1) / 2, p[:, 4] + 1, (p[:, 2] + p[:, 3] + 1) / 2), -1)
+        for k, name in self.shapes.items():  # a shaped platform: the centre of its footprint, on its top
+            top, x0, x1, z0, z1 = shape_geometry(name)
+            q = self.platforms[k]
+            c[k] = ((q[0] + x0 + q[1] + x1) / 2, q[4] + top, (q[2] + z0 + q[3] + z1) / 2)
+        return c
 
     def to_json(self) -> dict:
         d = {"platforms": self.platforms.tolist(), "spawn": self.spawn.tolist(), "spawn_yaw": self.spawn_yaw,
@@ -139,13 +170,16 @@ class Course:
              "extra": np.asarray(self.extra).reshape(-1, 3).tolist()}
         if self.ice:  # only when used, so the files of courses without ice are unchanged
             d["ice"] = [int(k) for k in self.ice]
+        if self.shapes:
+            d["shapes"] = {str(k): v for k, v in sorted(self.shapes.items())}
         return d
 
     @classmethod
     def from_json(cls, d: dict) -> "Course":
         return cls(np.array(d["platforms"], dtype=np.int64), np.array(d["spawn"], dtype=np.float64),
                    float(d["spawn_yaw"]), int(d.get("level", 0)), int(d.get("seed", 0)), name=d.get("name", ""),
-                   extra=np.array(d.get("extra", []), dtype=np.int64).reshape(-1, 3), ice=[int(k) for k in d.get("ice", [])])
+                   extra=np.array(d.get("extra", []), dtype=np.int64).reshape(-1, 3), ice=[int(k) for k in d.get("ice", [])],
+                   shapes={int(k): v for k, v in d.get("shapes", {}).items()})
 
 
 def load_levels(path: Path | None = None, advanced: bool = False, extra: bool = False) -> list[list[JumpSpec]]:
@@ -306,6 +340,11 @@ def _place(platforms: list, extras: list, heading: int, spec: JumpSpec, grid=GRI
             lo, hi = min(prev[0], new[0]), max(prev[1], new[1])
             if (open_dir > 0 and new[1] != hi) or (open_dir < 0 and new[0] != lo):
                 return None
+    if spec.block:
+        out = _platform_after(new, heading, exit_spec(spec.block))
+        if not _fits(out, platforms + added, grid, extras=extras):
+            return None
+        added.append(out)
     if spec.ceiling:
         cells = _ceiling(prev, new, heading, spec)
         allp = platforms + added
@@ -449,6 +488,7 @@ def generate(rng: np.random.Generator, levels: list[list[JumpSpec]], level: int,
     specs = []
     extras: list = []
     ice_runways: list = []
+    shaped: dict = {}
     if obstacle_prob > 0 and beam_ok is None:
         beam_ok = load_beam_ok()
     for _ in range(n_jumps):
@@ -461,8 +501,8 @@ def generate(rng: np.random.Generator, levels: list[list[JumpSpec]], level: int,
             h = heading
             if rng.random() < turn_prob or attempt >= 15:
                 h = (heading + int(rng.choice([1, 3]))) % 4
-            if spec.neo or spec.runway:
-                if len(platforms) + 1 + (1 if spec.runway else 0) > MAX_PLATFORMS:
+            if spec.neo or spec.runway or spec.block:
+                if len(platforms) + 1 + (1 if spec.runway else 0) + (1 if spec.block else 0) > MAX_PLATFORMS:
                     continue
                 placed_parts = _place(platforms, extras, h, spec, grid, wide_neo=wide_neo)
                 if placed_parts is None:
@@ -472,9 +512,13 @@ def generate(rng: np.random.Generator, levels: list[list[JumpSpec]], level: int,
                     specs.append(JumpSpec(1, 0, 0, (spec.runway, 1)))
                 if spec.ice:
                     ice_runways.append(len(platforms))
+                if spec.block:
+                    shaped[len(platforms)] = spec.block
                 platforms.extend(new_platforms)
                 extras.extend(wall)
                 specs.append(spec)
+                if spec.block:
+                    specs.append(exit_spec(spec.block))
                 heading = h
                 placed = True
                 break
@@ -500,7 +544,7 @@ def generate(rng: np.random.Generator, levels: list[list[JumpSpec]], level: int,
             break
     plats = np.stack(platforms)
     c = Course(plats, np.zeros(3), 0.0, level=level, seed=seed, specs=specs,
-               extra=np.array(extras, dtype=np.int64).reshape(-1, 3), ice=ice_runways)
+               extra=np.array(extras, dtype=np.int64).reshape(-1, 3), ice=ice_runways, shapes=shaped)
     centres = c.centers()
     c.spawn = centres[0].copy()
     d = centres[1] - centres[0]
@@ -529,7 +573,7 @@ def single_jump(spec: JumpSpec, takeoff: tuple = (1, 1), grid=(24, 16, 24), head
     if spec.ceiling:
         extra = extra + _ceiling(prev, new, heading, spec)
     c = Course(plats, np.zeros(3), 0.0, specs=[spec], extra=np.array(extra, dtype=np.int64).reshape(-1, 3),
-               ice=[0] if spec.ice else [])
+               ice=[0] if spec.ice else [], shapes={1: spec.block} if spec.block else {})
     centres = c.centers()
     c.spawn = centres[0].copy()
     d = centres[1] - centres[0]
@@ -546,20 +590,23 @@ def from_specs(steps: list, start=(4, 12, 30), start_size: int = 3, heading: int
     platforms = [np.array([x, x + start_size - 1, z, z + start_size - 1, y], dtype=np.int64)]
     extras: list = []
     ice: list = []
+    shaped: dict = {}
     for spec, turn in steps:
         heading = (heading + turn) % 4
-        if spec.neo or spec.runway:
+        if spec.neo or spec.runway or spec.block:
             placed = _place(platforms, extras, heading, spec, wide_neo=True)
             if placed is None:
                 raise ValueError(f"{spec.key()} does not fit after platform {len(platforms) - 1}")
             if spec.ice:
                 ice.append(len(platforms))
+            if spec.block:
+                shaped[len(platforms)] = spec.block
             platforms.extend(placed[0])
             extras.extend(placed[1])
         else:
             platforms.append(_platform_after(platforms[-1], heading, spec))
     c = Course(np.stack(platforms), np.zeros(3), 0.0, level=0, specs=[s for s, _ in steps], name=name,
-               extra=np.array(extras, dtype=np.int64).reshape(-1, 3), ice=ice)
+               extra=np.array(extras, dtype=np.int64).reshape(-1, 3), ice=ice, shapes=shaped)
     centres = c.centers()
     c.spawn = centres[0].copy()
     d = centres[1] - centres[0]

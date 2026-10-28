@@ -15,8 +15,8 @@ class Shapes(unittest.TestCase):
         world_cls = physics.World
 
         class ZeroShapes(world_cls):
-            def __init__(self, solid, slip=None, shape=None):
-                super().__init__(solid, slip, torch.zeros(solid.shape, dtype=torch.uint8))
+            def __init__(self, solid, slip=None, shape=None, slime=None):
+                super().__init__(solid, slip, torch.zeros(solid.shape, dtype=torch.uint8), slime)
 
         parity.physics.World = ZeroShapes
         try:
@@ -69,3 +69,38 @@ class Shapes(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipUnless(__import__("parkour.paths", fromlist=["NODE"]).NODE.exists(), "portable Node runtime not installed")
+class ShapedCoursesBotParity(unittest.TestCase):
+    def test_offline_bot_plays_shaped_courses_like_the_simulator(self):
+        import json
+        import os
+        import subprocess
+        import tempfile
+
+        from parkour import courses as C
+        from parkour.env import CoursePool
+        from parkour.feasibility import shape_specs
+        from parkour.live import SETTLE_TICKS, load_model
+        from parkour.paths import BRIDGE, NODE, ROOT
+        from parkour.train import evaluate
+        levels = C.load_levels() + [shape_specs()]
+        rng = np.random.default_rng(31)
+        cs = [C.generate(rng, levels, 6 if i % 3 else 2, 8, seed=i) for i in range(12)]
+        self.assertTrue(sum(bool(c.shapes) for c in cs) >= 8)
+        model = load_model(ROOT / "results" / "final_policy.pt", "cpu")
+        with torch.no_grad():
+            py = evaluate(model, CoursePool(cs, "cpu", C.GRID), "cpu", 200, settle=SETTLE_TICKS, per_course=True)["per_course"]
+        with tempfile.TemporaryDirectory() as d:
+            pol, crs, out = (os.path.join(d, f) for f in ("policy.json", "courses.json", "episodes.jsonl"))
+            model.export(pol)
+            with open(crs, "w") as f:
+                json.dump({"courses": [c.to_json() for c in cs]}, f)
+            subprocess.run([str(NODE), str(BRIDGE / "offline_bot.js"), "--policy", pol, "--courses", crs, "--out", out,
+                            "--settle", str(SETTLE_TICKS)], check=True, cwd=str(BRIDGE), capture_output=True)
+            js = [json.loads(line) for line in open(out) if line.strip()]
+        self.assertEqual([e["success"] for e in js], [bool(v) for v in py["success"]])
+        self.assertEqual([e["ticks"] for e in js], [int(v) for v in py["ticks"]])
+        self.assertEqual([e["cp"] for e in js], [round(pr * (c.n - 1)) for pr, c in zip(py["progress"], cs)])
+        self.assertGreater(sum(e["cp"] >= 2 for e in js), 6)  # most get past their first shaped platform

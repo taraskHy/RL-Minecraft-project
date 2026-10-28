@@ -11,12 +11,17 @@
 // service plans the bot's neos; every plan is checked with prismarine-physics before it is played.
 
 const fs = require('fs')
+const path = require('path')
 require('./physics_patch') // vanilla collision tolerance, as in the simulator
 const { Vec3 } = require('vec3')
 const { Physics } = require('prismarine-physics')
 const mcData = require('minecraft-data')('1.21.4')
 const P = require('./policy')
 const A = require('./assist')
+// Shaped platforms are the real block states (prismarine-block is a dependency of Mineflayer).
+const Block = require(require.resolve('prismarine-block', { paths: [path.dirname(require.resolve('mineflayer'))] }))('1.21.4')
+const STATES = Object.fromEntries(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'configs', 'block_shapes.json'), 'utf8'))
+  .shapes.map(s => [s.name, s.state]))
 
 const args = { settle: 10, stall: 200, maxTicks: 3000, planner: '', fallRule: 'local', assist: '' }
 for (let i = 2; i < process.argv.length; i += 2) {
@@ -29,29 +34,35 @@ const STONE = mcData.blocksByName.stone.id
 const ICE = mcData.blocksByName.ice.id
 const AIR = mcData.blocksByName.air.id
 
-function makeWorld (platforms, extra, ice) {
+function makeWorld (platforms, extra, ice, shapes) {
   const solid = new Set()
   const icy = new Set()
+  const shaped = new Map()
   for (const [k, [x0, x1, z0, z1, y]] of platforms.entries()) {
     const isIce = (ice || []).includes(k)
+    const shape = shapes ? shapes[k] : undefined
     for (let x = x0; x <= x1; x++) {
       for (let z = z0; z <= z1; z++) {
         solid.add(`${x},${y},${z}`)
         if (isIce) icy.add(`${x},${y},${z}`)
+        if (shape) shaped.set(`${x},${y},${z}`, Block.fromStateId(STATES[shape], 0))
       }
     }
   }
   for (const [x, y, z] of extra || []) solid.add(`${x},${y},${z}`)
   const isSolid = (x, y, z) => solid.has(`${x},${y},${z}`)
+  const topOf = (x, y, z) => { const b = shaped.get(`${x},${y},${z}`); return b ? Math.max(...b.shapes.map(q => q[4])) : 1 }
   const world = {
     getBlock (p) {
       const x = Math.floor(p.x); const y = Math.floor(p.y); const z = Math.floor(p.z)
+      const real = shaped.get(`${x},${y},${z}`)
+      if (real) return { type: real.type, shapes: real.shapes, boundingBox: real.boundingBox, position: new Vec3(x, y, z), metadata: real.metadata }
       const s = isSolid(x, y, z)
       const type = s ? (icy.has(`${x},${y},${z}`) ? ICE : STONE) : AIR
       return { type, shapes: s ? [[0, 0, 0, 1, 1, 1]] : [], boundingBox: s ? 'block' : 'empty', position: new Vec3(x, y, z), metadata: 0 }
     }
   }
-  return { world, isSolid }
+  return { world, isSolid, topOf }
 }
 
 function entityAt (pos, yaw) {
@@ -72,7 +83,7 @@ const service = assistConfig
 async function main () {
   let ok = 0
   for (const [index, c] of courses.entries()) {
-    const { world, isSolid } = makeWorld(c.platforms, c.extra, c.ice)
+    const { world, isSolid, topOf } = makeWorld(c.platforms, c.extra, c.ice, c.shapes)
     const physics = Physics(mcData, world)
     const e = entityAt(c.spawn, c.spawn_yaw)
     for (let t = 0; t < Number(args.settle); t++) physics.simulatePlayer(e, world)
@@ -82,7 +93,9 @@ async function main () {
       extra: c.extra || [],
       planner: args.planner ? JSON.parse(args.planner) : null,
       fallRule: args.fallRule,
-      assist: assistConfig ? { config: assistConfig, takeoffs: c.assist_takeoffs || [] } : null
+      assist: assistConfig ? { config: assistConfig, takeoffs: c.assist_takeoffs || [] } : null,
+      shapes: c.shapes || null,
+      topOf
     })
     for (;;) {
       const s = { pos: [e.pos.x, e.pos.y, e.pos.z], vel: [e.vel.x, e.vel.y, e.vel.z], yaw: e.yaw, onGround: e.onGround, jumpTicks: e.jumpTicks, collidedH: e.isCollidedHorizontally }

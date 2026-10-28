@@ -6,6 +6,7 @@
 //   { "cases": [ { "blocks": [[x,y,z], ...], "ice": [[x,y,z], ...] (optional: which of the blocks are ice),
 //                  "shapes": [[x,y,z,name], ...] (optional: blocks that are the block state of that name
 //                  in ../configs/block_shapes.json; their collision boxes come from prismarine-block),
+//                  "slime": [[x,y,z], ...] (optional: blocks that are slime blocks),
 //                  "pos": [x,y,z], "vel": [x,y,z],
 //                  "onGround": false, "jumpTicks": 0,
 //                  "ticks": [ { "yaw": 0.0, "c": [fwd, back, left, right, jump, sprint] }, ... ] } ] }
@@ -23,11 +24,13 @@ const STATES = Object.fromEntries(JSON.parse(fs.readFileSync(path.join(__dirname
 
 const STONE = mcData.blocksByName.stone.id
 const ICE = mcData.blocksByName.ice.id
+const SLIME = mcData.blocksByName.slime_block.id
 const AIR = mcData.blocksByName.air.id
 
-function makeWorld (blocks, ice, shapes) {
+function makeWorld (blocks, ice, shapes, slime) {
   const solid = new Set(blocks.map(b => `${b[0]},${b[1]},${b[2]}`))
   const icy = new Set((ice || []).map(b => `${b[0]},${b[1]},${b[2]}`))
+  const bouncy = new Set((slime || []).map(b => `${b[0]},${b[1]},${b[2]}`))
   const shaped = new Map((shapes || []).map(b => [`${b[0]},${b[1]},${b[2]}`, Block.fromStateId(STATES[b[3]], 0)]))
   return {
     getBlock (p) {
@@ -42,7 +45,7 @@ function makeWorld (blocks, ice, shapes) {
           isWaterlogged: false, getProperties () { return real.getProperties() } }
       }
       return {
-        type: isSolid ? (icy.has(key) ? ICE : STONE) : AIR,
+        type: isSolid ? (icy.has(key) ? ICE : bouncy.has(key) ? SLIME : STONE) : AIR,
         shapes: isSolid ? [[0, 0, 0, 1, 1, 1]] : [],
         boundingBox: isSolid ? 'block' : 'empty',
         position: new Vec3(x, y, z),
@@ -84,7 +87,7 @@ function makeEntity (c) {
 }
 
 function runCase (c) {
-  const world = makeWorld(c.blocks, c.ice, c.shapes)
+  const world = makeWorld(c.blocks, c.ice, c.shapes, c.slime)
   const physics = Physics(mcData, world)
   const e = makeEntity(c)
   const out = []

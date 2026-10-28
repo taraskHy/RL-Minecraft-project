@@ -7,9 +7,9 @@ bot in real Minecraft. This port covers what parkour courses use: air and full
 solid cubes with default slipperiness, and two opt-in extensions that change
 nothing unless passed: per-cell slipperiness (ice) and per-cell collision
 shapes (slabs, stairs, soul sand, carpets, trapdoors, fence and wall posts,
-..., ``World(shape=...)`` with the boxes of configs/block_shapes.json). Water,
-lava, ladders, slime, honey, cobwebs, sneaking, effects and elytra are not
-ported.
+..., ``World(shape=...)`` with the boxes of configs/block_shapes.json), and
+slime bounces (``World(slime=...)``, with slipperiness 0.8 in ``slip``). Water,
+lava, ladders, honey, cobwebs, sneaking, effects and elytra are not ported.
 
 Every expression keeps the operand order of the JavaScript source, in float64,
 so trajectories match the original to rounding error (see
@@ -51,6 +51,7 @@ AIR_SPRINT_ACCELERATION = AIRBORNE_ACCELERATION + AIRBORNE_ACCELERATION * 0.3
 AUTOJUMP_COOLDOWN = 10
 DEFAULT_SLIPPERINESS = 0.6
 ICE_SLIPPERINESS = 0.98  # ice and packed ice (blue ice: 0.989); only with World(slip=...)
+SLIME_SLIPPERINESS = 0.8  # slime blocks also bounce (World(slime=...))
 GROUND_INERTIA = 0.6 * 0.91  # default slipperiness * 0.91
 _INERTIA_CUBED = GROUND_INERTIA * GROUND_INERTIA * GROUND_INERTIA
 WALK_ACCELERATION = 0.1 * (0.1627714 / _INERTIA_CUBED)
@@ -105,7 +106,8 @@ class World:
     every solid cell is a full cube, through the original code path.
     """
 
-    def __init__(self, solid: torch.Tensor, slip: torch.Tensor | None = None, shape: torch.Tensor | None = None):
+    def __init__(self, solid: torch.Tensor, slip: torch.Tensor | None = None, shape: torch.Tensor | None = None,
+                 slime: torch.Tensor | None = None):
         if solid.dim() != 4:
             raise ValueError("solid must have shape (P, GX, GY, GZ)")
         self.solid = solid.to(torch.bool).contiguous()
@@ -115,6 +117,9 @@ class World:
         if slip is not None and tuple(slip.shape) != tuple(solid.shape):
             raise ValueError("slip must have the shape of solid")
         self.slip = None if slip is None else slip.to(torch.float64).contiguous().view(-1)
+        if slime is not None and tuple(slime.shape) != tuple(solid.shape):
+            raise ValueError("slime must have the shape of solid")
+        self.slime = None if slime is None else slime.to(torch.bool).contiguous().view(-1)
         self.shape_ids = None
         if shape is not None:
             if tuple(shape.shape) != tuple(solid.shape):
@@ -130,6 +135,13 @@ class World:
         inside = (ix >= 0) & (ix < gx) & (iy >= 0) & (iy < gy) & (iz >= 0) & (iz < gz)
         index = ((course * gx + ix.clamp(0, gx - 1)) * gy + iy.clamp(0, gy - 1)) * gz + iz.clamp(0, gz - 1)
         return self.flat[index] & inside
+
+    def slime_at(self, course, ix, iy, iz):
+        """Slime flags of integer cells (False outside the grid); needs ``slime``."""
+        gx, gy, gz = self.shape
+        inside = (ix >= 0) & (ix < gx) & (iy >= 0) & (iy < gy) & (iz >= 0) & (iz < gz)
+        index = ((course * gx + ix.clamp(0, gx - 1)) * gy + iy.clamp(0, gy - 1)) * gz + iz.clamp(0, gz - 1)
+        return self.slime[index] & inside
 
     def shapes(self, course, ix, iy, iz):
         """Shape ids (int64) of integer cells, 0 outside the grid; needs ``shape``."""
@@ -347,8 +359,14 @@ def _move(world: World, course: torch.Tensor, pos: torch.Tensor, vel: torch.Tens
     collided_h = hit_x | hit_z
     collided_v = hit_y
     new_on_ground = collided_v & (dy < 0)
-    new_vel = torch.stack((torch.where(hit_x, zero, dx), torch.where(hit_y, zero, dy),
-                           torch.where(hit_z, zero, dz)), dim=-1)
+    vy_after = torch.where(hit_y, zero, dy)
+    if world.slime is not None:
+        # A vertical collision with slime 0.2 below the feet reverses the velocity (no sneaking here).
+        bounce = hit_y & world.slime_at(course, torch.floor(new_pos[:, 0]).to(torch.int64),
+                                        torch.floor(new_pos[:, 1] - 0.2).to(torch.int64),
+                                        torch.floor(new_pos[:, 2]).to(torch.int64))
+        vy_after = torch.where(bounce, -dy, vy_after)
+    new_vel = torch.stack((torch.where(hit_x, zero, dx), vy_after, torch.where(hit_z, zero, dz)), dim=-1)
     return new_pos, new_vel, new_on_ground, collided_h, collided_v
 
 

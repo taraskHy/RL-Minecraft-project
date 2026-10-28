@@ -32,7 +32,7 @@ import numpy as np
 import torch
 
 from . import physics
-from .courses import Course, MAX_PLATFORMS, path_remaining
+from .courses import Course, MAX_PLATFORMS, path_remaining, shape_geometry
 
 ACTION_DIMS = (3, 3, 2, 2, 7)  # move (back/none/forward), strafe (left/none/right), jump, sprint, yaw step
 YAW_STEPS_DEG = (-20.0, -6.0, -1.5, 0.0, 1.5, 6.0, 20.0)
@@ -87,12 +87,25 @@ class EnvConfig:
 MAX_EXTRA = 256
 
 
+_SHAPE_TOPS = {}
+
+
+def shape_tops(device) -> torch.Tensor:
+    """(S,) highest box top of every shape id (1 for the full cube), for the scan on shaped pools."""
+    if device not in _SHAPE_TOPS:
+        names, boxes, counts = physics.shape_table()
+        tops = torch.tensor([float(boxes[i, :int(counts[i]), 4].max()) for i in range(len(names))], dtype=torch.float64)
+        _SHAPE_TOPS[device] = tops.to(device)
+    return _SHAPE_TOPS[device]
+
+
 class CoursePool:
     """Courses packed into tensors on one device."""
 
-    def __init__(self, courses: list[Course], device, grid, ice: bool | None = None):
+    def __init__(self, courses: list[Course], device, grid, ice: bool | None = None, shapes: bool | None = None):
         """``ice``: keep a slipperiness grid for ice platforms (default: if any course has ice; a pool
-        that will receive ice courses through ``replace`` needs True)."""
+        that will receive ice courses through ``replace`` needs True). ``shapes``: the same for shaped
+        platforms (``Course.shapes``: a collision shape grid and shape-aware tops and footprints)."""
         self.courses = courses
         self.device = device
         p = len(courses)
@@ -120,7 +133,13 @@ class CoursePool:
             for i, c in enumerate(courses):
                 self._set_ice(self.slip, i, c)
             self.slip = self.slip.to(device)
-        self.world = physics.World(solid.to(device), self.slip)
+        self.shape_grid = None
+        if any(c.shapes for c in courses) if shapes is None else shapes:
+            self.shape_grid = torch.zeros(solid.shape, dtype=torch.uint8)
+            for i, c in enumerate(courses):
+                self._set_shapes(self.shape_grid, i, c)
+            self.shape_grid = self.shape_grid.to(device)
+        self.world = physics.World(solid.to(device), self.slip, self.shape_grid)
         self.plat = plat.to(device)
         self.rem = rem.to(device)
         self.n = n.to(device)
@@ -130,6 +149,10 @@ class CoursePool:
         pf = self.plat.to(torch.float64)
         self.centre = torch.stack(((pf[..., 0] + pf[..., 1] + 1) / 2, pf[..., 4] + 1, (pf[..., 2] + pf[..., 3] + 1) / 2), -1)
         self.top = pf[..., 4] + 1
+        # Standing area of each platform: x0, x1, z0, z1 (the block faces; a shape's own footprint).
+        self.foot = torch.stack((pf[..., 0], pf[..., 1] + 1, pf[..., 2], pf[..., 3] + 1), -1)
+        for i, c in enumerate(courses):
+            self._set_geometry(i, c)
         self.size = p
         # Obstacle cells (walls, beams, pillars) per course, padded; standing on one ends the episode.
         self.extra = torch.full((p, MAX_EXTRA, 3), -10_000, dtype=torch.int64, device=device)
@@ -143,6 +166,22 @@ class CoursePool:
         cells = torch.as_tensor(course.ice_cells(), device=slip.device)
         if len(cells):
             slip[index, cells[:, 0], cells[:, 1], cells[:, 2]] = physics.ICE_SLIPPERINESS
+
+    @staticmethod
+    def _set_shapes(grid: torch.Tensor, index: int, course: Course) -> None:
+        grid[index] = 0
+        for k, name in course.shapes.items():
+            x0, x1, z0, z1, y = (int(v) for v in course.platforms[k])
+            grid[index, x0:x1 + 1, y, z0:z1 + 1] = physics.shape_id(name)
+
+    def _set_geometry(self, index: int, course: Course) -> None:
+        """Tops, footprints and centres of shaped platforms (others keep the whole-block values)."""
+        for k, name in course.shapes.items():
+            top, x0, x1, z0, z1 = shape_geometry(name)
+            q = [float(v) for v in course.platforms[k]]
+            self.top[index, k] = q[4] + top
+            self.foot[index, k] = torch.tensor((q[0] + x0, q[1] + x1, q[2] + z0, q[3] + z1), dtype=torch.float64)
+            self.centre[index, k] = torch.tensor(course.centers()[k], dtype=torch.float64)
 
     def _set_extra(self, index: int, course: Course) -> None:
         e = np.asarray(course.extra, dtype=np.int64).reshape(-1, 3)
@@ -171,6 +210,12 @@ class CoursePool:
         pf = self.plat[index].to(torch.float64)
         self.centre[index] = torch.stack(((pf[:, 0] + pf[:, 1] + 1) / 2, pf[:, 4] + 1, (pf[:, 2] + pf[:, 3] + 1) / 2), -1)
         self.top[index] = pf[:, 4] + 1
+        self.foot[index] = torch.stack((pf[:, 0], pf[:, 1] + 1, pf[:, 2], pf[:, 3] + 1), -1)
+        if self.shape_grid is not None:
+            self._set_shapes(self.shape_grid, index, course)  # the world reads this tensor's memory
+        elif course.shapes:
+            raise ValueError("this pool has no shape grid; build it with shapes=True")
+        self._set_geometry(index, course)
         self._set_extra(index, course)
         if self.slip is not None:
             self._set_ice(self.slip, index, course)  # the world reads this tensor's memory
@@ -186,11 +231,11 @@ def action_to_controls(action: torch.Tensor) -> torch.Tensor:
 
 def standing_on(pool: CoursePool, s: physics.PlayerState, course: torch.Tensor) -> torch.Tensor:
     """(N, K) bool: player stands on platform k (feet on its top face, footprint overlapping)."""
-    p = pool.plat[course].to(torch.float64)
+    f = pool.foot[course]
     x, y, z = s.pos[:, 0:1], s.pos[:, 1:2], s.pos[:, 2:3]
     w = physics.HALF_WIDTH
-    over = ((x + w > p[..., 0]) & (x - w < p[..., 1] + 1) & (z + w > p[..., 2]) & (z - w < p[..., 3] + 1))
-    level = (y - (p[..., 4] + 1)).abs() < STAND_EPS
+    over = ((x + w > f[..., 0]) & (x - w < f[..., 1]) & (z + w > f[..., 2]) & (z - w < f[..., 3]))
+    level = (y - pool.top[course]).abs() < STAND_EPS
     k = torch.arange(MAX_PLATFORMS, device=s.pos.device)[None, :]
     return over & level & s.on_ground[:, None] & (k < pool.n[course][:, None])
 
@@ -249,7 +294,10 @@ class Observer:
         valid = j < nplat[:, None]
         jc = j.clamp(max=MAX_PLATFORMS - 1)
         p = pool.plat[course[:, None], jc]  # (N, S, 5)
-        slots = self.slots(s, p, valid, j == nplat[:, None] - 1)
+        geometry = None
+        if pool.shape_grid is not None:  # shaped platforms: their own footprints and tops
+            geometry = (pool.foot[course[:, None], jc], pool.top[course[:, None], jc])
+        slots = self.slots(s, p, valid, j == nplat[:, None] - 1, geometry)
 
         scan = self.scan(pool, course, s, self.scan_a, self.scan_b)
 
@@ -285,13 +333,21 @@ class Observer:
         found = solid.any(-1)
         first = torch.argmax(solid.to(torch.int8), dim=-1)  # first True in top-down order
         top_cell = fy[:, None] + self.floor_levels[first]
-        h = torch.where(found, (top_cell + 1).to(torch.float64) - pos[:, 1:2], torch.full_like(px, NO_FLOOR))
+        if pool.world.shape_ids is None:
+            h = torch.where(found, (top_cell + 1).to(torch.float64) - pos[:, 1:2], torch.full_like(px, NO_FLOOR))
+        else:  # the top of the found block's shape (1 for a full block)
+            off = shape_tops(pool.world.device)[pool.world.shapes(course[:, None], ix, top_cell, iz)]
+            h = torch.where(found, (top_cell.to(torch.float64) + off) - pos[:, 1:2], torch.full_like(px, NO_FLOOR))
         clevels = fy[:, None, None] + self.ceiling_levels[None, None, :]
         ceiling = pool.world.lookup(course[:, None, None], ix[..., None], clevels, iz[..., None]).any(-1)
         return torch.stack((h / 3.0, ceiling.to(torch.float64)), -1).reshape(n, -1)
 
-    def slots(self, s: physics.PlayerState, p: torch.Tensor, valid: torch.Tensor, is_goal: torch.Tensor) -> torch.Tensor:
-        """(N, S * 11) slot features of platforms ``p`` (N, S, 5); also used by the route planner."""
+    def slots(self, s: physics.PlayerState, p: torch.Tensor, valid: torch.Tensor, is_goal: torch.Tensor,
+              geometry=None) -> torch.Tensor:
+        """(N, S * 11) slot features of platforms ``p`` (N, S, 5); also used by the route planner.
+
+        ``geometry`` (footprints (N, S, 4), tops (N, S)) replaces the whole-block faces of ``p``
+        (shaped platforms)."""
         n = p.shape[0]
         pos = s.pos
         sy, cy = torch.sin(s.yaw), torch.cos(s.yaw)
@@ -299,13 +355,15 @@ class Observer:
         rx, rz = cy, -sy
         p = p.to(torch.float64)
         x0, x1, z0, z1 = p[..., 0], p[..., 1] + 1, p[..., 2], p[..., 3] + 1
+        if geometry is not None:
+            x0, x1, z0, z1 = geometry[0].unbind(-1)
         cxs = torch.stack((x0, x1, x1, x0), -1).reshape(n, -1)
         czs = torch.stack((z0, z0, z1, z1), -1).reshape(n, -1)
         dx = cxs - pos[:, 0:1]
         dz = czs - pos[:, 2:3]
         cf, cr = dx * fx[:, None] + dz * fz[:, None], dx * rx[:, None] + dz * rz[:, None]
         corners = torch.stack((cf, cr), -1).reshape(n, PLATFORM_SLOTS, 8) / 4.0
-        dtop = ((p[..., 4] + 1) - pos[:, 1:2]) / 2.0
+        dtop = ((p[..., 4] + 1) - pos[:, 1:2]) / 2.0 if geometry is None else (geometry[1] - pos[:, 1:2]) / 2.0
         vf = valid.to(torch.float64)
         return torch.cat((vf[..., None], (is_goal & valid).to(torch.float64)[..., None],
                           corners.clamp(-10, 10) * vf[..., None], (dtop * vf)[..., None]), -1).reshape(n, -1)
