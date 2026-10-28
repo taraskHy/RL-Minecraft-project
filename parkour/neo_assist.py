@@ -111,7 +111,7 @@ def plan_once(model, pool: CoursePool, rules: "Rules", arrival: dict, kind: str,
               horizon: int, device):
     """One search from one state: (the first landing's actions or None, rounds used)."""
     pr = policy_prior(model, pool, [arrival], device, horizon) if cfg.prior > 0 else None
-    seed = request_seed(cfg.seed, arrival["course"], arrival["cp"], kind, attempt)
+    seed = request_seed(cfg.seed, arrival.get("seed_course", arrival["course"]), arrival["cp"], kind, attempt)
     f, r = search(pool, rules, [arrival], device, cfg, seed, pr, horizon)
     return (f[0][0] if f[0] else None), r[0]
 
@@ -495,10 +495,13 @@ def _arrival(env: ParkourEnv, i: int) -> dict:
 
 
 def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_ticks: int = 200,
-                      max_ticks: int = 4000, settle: int = 0, log=None, fall_rule: str = "local") -> dict:
+                      max_ticks: int = 4000, settle: int = 0, log=None, fall_rule: str = "local",
+                      course_offset: int = 0) -> dict:
     """First episode on every course of ``pool`` with the neo assist (``cfg.enabled``) or without it.
 
-    With the assist off this is ``train.evaluate(..., per_course=True)`` course by course.
+    With the assist off this is ``train.evaluate(..., per_course=True)`` course by course. ``course_offset``:
+    the index of the pool's first course in the whole course set, for a run in parts (``--part``): searches
+    are seeded and events numbered by that index, as in one run over the whole set.
     """
     n = pool.size
     if cfg.enabled and cfg.prior > 0:
@@ -594,7 +597,7 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
                 if not want:
                     continue
                 t0 = time.time()
-                arrivals = [_arrival(env, i) for i in want]
+                arrivals = [dict(_arrival(env, i), seed_course=course_offset + i) for i in want]
                 horizon = []
                 for i, arr in zip(want, arrivals):
                     k = arr["cp"] + 1 if kind == "approach" else arr["cp"]
@@ -624,7 +627,8 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
                 for j, i in enumerate(want):
                     c = int(cp[i])
                     k = c + 1 if kind == "approach" else c
-                    events.append({"course": i, "kind": kind, "takeoff": k, "target": arrivals[j]["target"], "tick": t + 1,
+                    events.append({"course": course_offset + i, "kind": kind, "takeoff": k, "target": arrivals[j]["target"],
+                                   "tick": t + 1,
                                    "after_plan": bool(ended[i]), "found": bool(found[j]),
                                    "plan_ticks": len(found[j][0]) if found[j] else 0, "rounds": rounds[j], "braked": False})
                     if kind == "approach":
@@ -701,6 +705,25 @@ def summarize(res: dict) -> dict:
     return out
 
 
+def merge_results(parts: list[dict]) -> dict:
+    """One result, as ``evaluate_assisted`` returns it, from the results of consecutive parts of a course set."""
+    out = {"per_course": [], "events": [], "plans": {}, "search_seconds": 0.0}
+    for p in parts:
+        out["per_course"] += p["per_course"]
+        out["events"] += p["events"]
+        for k, v in p["plans"].items():
+            out["plans"][k] = out["plans"].get(k, 0) + v
+        out["search_seconds"] = round(out["search_seconds"] + p["search_seconds"], 1)
+    return out
+
+
+def part_bounds(n: int, k: int, parts: int) -> tuple[int, int]:
+    """Courses [lo, hi) of part k (1-based) of ``parts`` contiguous parts of n courses."""
+    if not 1 <= k <= parts:
+        raise ValueError(f"part {k} of {parts}")
+    return round((k - 1) * n / parts), round(k * n / parts)
+
+
 def serve(model, courses: list[C.Course], cfg: AssistConfig, device, inp=None, out=None) -> None:
     """The bots' planner: one JSON request per line in, one plan per line out.
 
@@ -741,6 +764,47 @@ def serve(model, courses: list[C.Course], cfg: AssistConfig, device, inp=None, o
             out.flush()
 
 
+PARTS_DIR = ROOT / "runs" / "assist_parts"  # parts of split runs (--part / --parts), until they are merged
+
+
+def _part_command(a, k: int, n: int) -> list[str]:
+    """The command line of part k of n of the run that ``a`` describes."""
+    cmd = [sys.executable, "-m", "parkour.neo_assist", "--set", a.set, "--family", str(a.family), "--checkpoint",
+           a.checkpoint, "--tag", a.tag, "--name", a.name, "--part", f"{k}/{n}", "--threads", "1"]
+    if a.off:
+        cmd.append("--off")
+    if a.courses:
+        cmd += ["--courses", str(a.courses)]
+    if a.device:
+        cmd += ["--device", a.device]
+    for key in asdict(AssistConfig()):
+        if key != "enabled":
+            cmd += ["--" + key.replace("_", "-"), str(getattr(a, key))]
+    return cmd
+
+
+def _run_parts(a) -> list[dict]:
+    """Run the parts of a split run that are not finished yet (at most --jobs at once); return all parts."""
+    import subprocess
+    folder = PARTS_DIR / a.name
+    files = [folder / f"{k}of{a.parts}.json" for k in range(1, a.parts + 1)]
+    todo = [k for k, f in enumerate(files, 1) if not f.exists()]
+    running = []
+    while todo or running:
+        while todo and len(running) < max(1, a.jobs):
+            k = todo.pop(0)
+            log = open(folder / f"{k}of{a.parts}.log", "a")
+            running.append((k, subprocess.Popen(_part_command(a, k, a.parts), cwd=str(ROOT), stdout=log,
+                                                stderr=subprocess.STDOUT), log))
+        time.sleep(5)
+        for item in [r for r in running if r[1].poll() is not None]:
+            running.remove(item)
+            item[2].close()
+            if item[1].returncode != 0:
+                raise SystemExit(f"part {item[0]} of {a.parts} failed (see {folder / f'{item[0]}of{a.parts}.log'})")
+    return [json.loads(f.read_text()) for f in files]
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--checkpoint", default=str(ROOT / "results" / "final_policy.pt"))
@@ -752,6 +816,12 @@ def main(argv=None):
     ap.add_argument("--out", default="")
     ap.add_argument("--tag", default="")
     ap.add_argument("--details", default="", help="also write every course's outcome and every search to this JSON file")
+    ap.add_argument("--name", default="", help="a split run's name (--part, --parts): its parts are in runs/assist_parts/NAME")
+    ap.add_argument("--part", default="", help="K/N: only the K-th of N contiguous parts of the course set, seeded as in the "
+                                               "whole run; writes runs/assist_parts/NAME/KofN.json and no row")
+    ap.add_argument("--parts", type=int, default=0, help="N: run the unfinished parts of NAME (--jobs at once, one thread "
+                                                         "each), then merge them into one row; rerun it after an interruption")
+    ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--serve", action="store_true", help="plan for the bots: JSON lines on stdin/stdout (see serve)")
     ap.add_argument("--courses-file", default="", help="with --serve: the courses the bot plays")
     ap.add_argument("--realtime", action="store_true", help="with --serve: the live bot's planner (scripts/gpu_watchdog.py "
@@ -774,30 +844,65 @@ def main(argv=None):
         courses = courses_from_file(json.loads(Path(a.courses_file).read_text())["courses"])
         serve(load_model(Path(a.checkpoint), dev), courses, cfg, dev)
         return
-    courses = course_set(a.set, a.family)
-    if a.courses:
-        courses = courses[:a.courses]
-    model = load_model(Path(a.checkpoint), dev)
-    pool = CoursePool(courses, dev, C.GRID)
-    t0 = time.time()
-    res = evaluate_assisted(model, pool, dev, cfg, log=lambda d: print(json.dumps(d), flush=True))
+    if (a.part or a.parts) and not a.name:
+        raise SystemExit("--part and --parts need --name")
+    if (a.part or a.parts) and cfg.batch != 1:
+        raise SystemExit("a run in parts needs batch 1 (batched searches are seeded by tick, not by course)")
     test = a.family in TEST_FAMILIES
     ck = Path(a.checkpoint).resolve()
     ck_name = ck.relative_to(ROOT).as_posix() if ck.is_relative_to(ROOT) else ck.name
-    row = {"set": a.set, "family": a.family, "split": "test" if test else "validation",
-           "checkpoint": ck_name, "checkpoint_sha1": hashlib.sha1(ck.read_bytes()).hexdigest()[:12], "assist": not a.off,
-           "config": asdict(cfg), "tag": a.tag,
-           "measured": f"simulator (float64 port of prismarine-physics), {dev.upper() if dev == 'cpu' else 'CUDA'}",
-           **summarize(res), "seconds": round(time.time() - t0, 1)}
+    meta = {"set": a.set, "family": a.family, "split": "test" if test else "validation",
+            "checkpoint": ck_name, "checkpoint_sha1": hashlib.sha1(ck.read_bytes()).hexdigest()[:12], "assist": not a.off,
+            "config": asdict(cfg), "tag": a.tag,
+            "measured": f"simulator (float64 port of prismarine-physics), {dev.upper() if dev == 'cpu' else 'CUDA'}"}
     if a.courses:
-        row["first_courses_only"] = a.courses
+        meta["first_courses_only"] = a.courses
+    if a.parts:
+        folder = PARTS_DIR / a.name
+        folder.mkdir(parents=True, exist_ok=True)
+        merged = folder / "merged.json"
+        if merged.exists():  # the row was written already: never twice
+            print(merged.read_text())
+            return
+        parts = _run_parts(a)
+        if any(p["meta"] != meta for p in parts):
+            raise SystemExit(f"the parts in {folder} were run with other settings than these")
+        res = merge_results(parts)
+        row = {**meta, **summarize(res), "parts": a.parts, "seconds": round(sum(p["seconds"] for p in parts), 1)}
+    else:
+        courses = course_set(a.set, a.family)
+        if a.courses:
+            courses = courses[:a.courses]
+        lo, hi = 0, len(courses)
+        if a.part:
+            k, n = (int(v) for v in a.part.split("/"))
+            lo, hi = part_bounds(len(courses), k, n)
+            part_file = PARTS_DIR / a.name / f"{k}of{n}.json"
+            if part_file.exists():
+                print(f"{part_file} exists")
+                return
+        model = load_model(Path(a.checkpoint), dev)
+        pool = CoursePool(courses[lo:hi], dev, C.GRID)
+        t0 = time.time()
+        res = evaluate_assisted(model, pool, dev, cfg, log=lambda d: print(json.dumps(d), flush=True), course_offset=lo)
+        if a.part:
+            part_file.parent.mkdir(parents=True, exist_ok=True)
+            tmp = part_file.with_suffix(".tmp")
+            tmp.write_text(json.dumps({"meta": meta, "courses": [lo, hi], **res, "seconds": round(time.time() - t0, 1)}))
+            tmp.replace(part_file)  # whole or not at all, even if the run is stopped while writing
+            return
+        row = {**meta, **summarize(res), "seconds": round(time.time() - t0, 1)}
     out = Path(a.out) if a.out else ROOT / "results" / "neo" / ("assist_test.jsonl" if test else "assist_validation.jsonl")
     out.parent.mkdir(parents=True, exist_ok=True)
+    details = Path(a.details) if a.details else (ROOT / "results" / "neo" / "assist_details" / f"{a.name}.json"
+                                                 if a.parts else None)
+    if details:
+        details.parent.mkdir(parents=True, exist_ok=True)
+        details.write_text(json.dumps({"row": row, "per_course": res["per_course"], "events": res["events"]}))
     with open(out, "a") as fh:
         fh.write(json.dumps(row) + "\n")
-    if a.details:
-        Path(a.details).parent.mkdir(parents=True, exist_ok=True)
-        Path(a.details).write_text(json.dumps({"row": row, "per_course": res["per_course"], "events": res["events"]}))
+    if a.parts:
+        merged.write_text(json.dumps(row, indent=1))
     print(json.dumps(row, indent=1))
 
 

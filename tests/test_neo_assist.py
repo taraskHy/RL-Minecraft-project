@@ -17,8 +17,9 @@ from parkour import physics
 from parkour.env import CoursePool, on_obstacle
 from parkour.live import load_model
 from parkour.neo_assist import (AssistConfig, Rules, approach_platforms, assist_fields, brake_plan, courses_from_file,
-                                 evaluate_assisted, jump_kind, mixed_courses, official_neo_courses, plan_target,
-                                 planned_takeoffs, random_neo_courses, spec_from_key, specs_from_keys)
+                                 evaluate_assisted, jump_kind, merge_results, mixed_courses, official_neo_courses,
+                                 part_bounds, plan_target, planned_takeoffs, random_neo_courses, spec_from_key,
+                                 specs_from_keys)
 from parkour.neo_dagger import neo_takeoffs
 from parkour.paths import BRIDGE, CONFIGS, NODE, ROOT
 from parkour.train import evaluate
@@ -47,6 +48,18 @@ class NeoAssist(unittest.TestCase):
         self.assertGreater(res["plans"]["played"], 0)
         self.assertEqual(res["plans"]["landed_as_planned"], res["plans"]["played"])
         self.assertEqual(len(res["per_course"]), len(self.courses))
+
+    def test_a_run_in_parts_is_the_whole_run(self):
+        cfg = AssistConfig(samples=64, iterations=3, jumps="all", retries=1, brake=14)
+        whole = evaluate_assisted(self.model, CoursePool(self.courses, "cpu", C.GRID), "cpu", cfg)
+        parts = [evaluate_assisted(self.model, CoursePool(self.courses[lo:hi], "cpu", C.GRID), "cpu", cfg, course_offset=lo)
+                 for lo, hi in (part_bounds(6, 1, 2), part_bounds(6, 2, 2))]
+        merged = merge_results(parts)
+        self.assertEqual(merged["per_course"], whole["per_course"])
+        key = lambda e: (e["course"], e["tick"], e["kind"])  # noqa: E731
+        self.assertEqual(sorted(merged["events"], key=key), sorted(whole["events"], key=key))
+        self.assertEqual(merged["plans"], whole["plans"])
+        self.assertEqual([part_bounds(218, k, 4) for k in (1, 2, 3, 4)], [(0, 54), (54, 109), (109, 164), (164, 218)])
 
     def test_fast_obstacle_rule_is_the_environment_rule(self):
         pool = CoursePool(self.courses, "cpu", C.GRID)
