@@ -259,7 +259,10 @@ courses of each level.
 | hard head hitter | 31 | 21.6 | 15 |
 | head hitter | 187 | 68.2 | 26 |
 | ice run-up | 131 | 48.9 | 45 |
-| impossible | 119 | 0.8 | 118 |
+| ladder climb | 4 | 37.5 | 1 |
+| shaped blocks | 300 | 99.1 | 0 |
+| slime bounce | 41 | 39.9 | 22 |
+| impossible | 132 | 0.8 | 131 |
 
 Family 1 (test, `course_preview_family1.json`):
 

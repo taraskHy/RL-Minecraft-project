@@ -513,18 +513,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `8b918e2` (2026-10-28 21:46, branch `claude/pensive-knuth-biwj11`): Team status and handoff: 119 of 200 random neo courses with brake and retry
+Generated on top of commit `9f7a9a9` (2026-10-28 22:24, branch `claude/pensive-knuth-biwj11`): Plan: extra-ft smoke-tested with all six extra levels
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 53 |
-| `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `8b918e2` 2026-10-28 21:46 | 0 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 69 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 28 |
-| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 54 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 59 |
+| `HANDOFF.md` | `4c6761d` 2026-10-28 22:13 | 4 |
+| `TEAM_STATUS.md` | `4c6761d` 2026-10-28 22:13 | 4 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 75 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 34 |
+| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 60 |
 | `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | `21188a6` 2026-10-28 19:19 | 15 |
+| `results/DATA.md` | `4c6761d` 2026-10-28 22:13 | 4 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -662,7 +662,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 
 ### In `results/` but not yet in `results/DATA.md`
 
-`games/neo-assist-offline-all-brake/`
+Nothing: the data index names everything.
 
 <!-- END AUTO-SNAPSHOT -->
 
