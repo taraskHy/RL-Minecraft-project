@@ -3,9 +3,10 @@
 ## 1. Task
 
 A course is a chain of stone platforms floating in the void (Minecraft Java
-1.21.4). The player starts on platform 0 and must land on every platform in
-turn until it stands on the last one. Courses are generated procedurally, so
-every evaluation course is one the agent has never seen. Success means
+1.21.4). The player starts on platform 0 and must jump along the platforms
+until it stands on the last one. Landing on a later platform skips the ones
+in between. Courses are generated procedurally, so every evaluation course is
+one the agent has never seen. Success means
 standing on the goal platform; falling below the course or standing still for
 10 seconds ends the episode.
 
@@ -18,21 +19,30 @@ experiences in real Minecraft *is* prismarine-physics.
 
 `parkour/physics.py` ports that engine (version 1.11.1, the one Mineflayer
 4.39.0 uses) to batched PyTorch, keeping every expression and its operand
-order in float64. It covers what the courses contain: air and full cubes with
-default slipperiness (walking, sprinting, jumping, sprint-jump boost, air
-control, drag, gravity, axis-by-axis collision, step-up, the jump cooldown).
+order in float64, with one deliberate change that the bot makes too
+(`bridge/physics_patch.js`): block collisions use vanilla Minecraft's 1e-7
+tolerance (`COLLISION_EPSILON`). Without it, rounding can let a player resting
+against a block face slip into the block. The port covers what the courses contain:
+air and full cubes with default slipperiness (walking, sprinting, jumping,
+sprint-jump boost, air control, drag, gravity, axis-by-axis collision,
+step-up, the jump cooldown).
 
-Evidence (`tests/test_physics_parity.py`, run through Node on the real
-library): on 24,000 random ticks on the CPU and 75,000 on the GPU, in random
-block fields with pillars, steps, ceilings, gaps and edges, the largest
-position error was 1.4e-14 blocks and every on-ground, collision and
-jump-cooldown flag matched.
+Evidence (`results/physics_parity.json`, run through Node on the real library
+with the same tolerance patch): on 24,000 random ticks on the CPU and 75,000
+on the GPU, in random block fields with pillars, steps, ceilings, gaps and
+edges, the largest position error was 1.4e-14 blocks and every on-ground,
+collision and jump-cooldown flag matched. `tests/test_physics_parity.py` runs
+a smaller version (25,200 ticks).
 
-One Mineflayer detail is handled in the bridge: a 1.21 server reports its own
-sprinting speed modifier, which prismarine-physics keeps next to its own, so
-an unmodified bot sprints 1.3 x 1.3 times as fast as walking instead of 1.3.
-The bot removes the server-sent movement-speed attribute before every tick,
-which gives the vanilla client's behaviour and the simulator's.
+One Mineflayer detail: a 1.21 server sends its own sprinting speed modifier,
+under a different id from the one prismarine-physics adds, so if
+prismarine-physics read it the bot would sprint 1.3 x 1.3 times as fast as
+walking instead of 1.3. With the installed minecraft-data (3.117.0) it does
+not: an out-of-date attribute table stores the server's movement speed under
+the key `generic.step_height`. So the bot sprints at 1.3 times walking speed,
+like the vanilla client and the simulator (live replays match to 2.1e-14
+blocks). The bot also deletes any movement-speed attribute after each tick as
+a safeguard; in the live runs there was none to delete.
 
 ## 3. MDP
 
@@ -89,11 +99,15 @@ difficulty levels (`configs/jump_levels.json`), for example:
 
 ## 5. Courses and curriculum
 
-`parkour/courses.py` chains 5 to 12 jumps (training) or exactly 10 (test).
-Half the jumps of a level-L course come from level L and half from easier
-levels. Courses turn left or right with probability 0.25 per jump, keep one
-air block from every other platform and keep each flight path clear. The
-start yaw is the direction of the first jump plus up to 60 degrees of noise.
+`parkour/courses.py` chains 5 to 12 jumps (training) or 10 (test), and ends a
+course early when the next jump does not fit (training keeps courses with at
+least 2 jumps). Half the jumps of a level-L course come from level L and half
+from easier levels. Courses turn left or right with probability 0.25 per
+jump, keep one air block from every other platform and keep each new jump's
+flight path clear of the platforms already placed. A later platform can still
+sit in an earlier flight path (132 of the 11,850 test jumps, almost always the
+next platform). The start yaw is the direction of the first jump plus up to
+60 degrees of noise.
 
 The adaptive curriculum (`LevelSampler`) trains on levels up to a frontier
 (weight 1 each) plus the next level (weight 3), and moves the frontier up
@@ -101,8 +115,9 @@ when the success rate on that next level reaches 60% over at least 2,000
 episodes. The training pool holds 8,192 courses; one eighth is replaced with
 new courses every 20 iterations.
 
-**Held-out test set:** 200 courses per level (1,200), 10 jumps each, generated
-from a separate seed family, and checked to share no course with training.
+**Held-out test set:** 200 courses per level (1,200), 10 jumps each except 49
+that end early with 2 to 9, generated from a separate seed family, and
+checked to share no course with training.
 Every training run is evaluated on the same set with the deterministic
 (argmax) policy.
 
@@ -117,10 +132,11 @@ courses: the state is continuous and the course geometry changes every
 episode, so function approximation is required.
 
 **Stability.** The first runs (kept in `runs/_v1_unstable`, not used for
-results) twice made a catastrophic update: the approximate KL between the old
-and new policy jumped from about 0.004 to 1.3 (and once overflowed), success
-fell from about 80% to 15% within one iteration, and the run needed about 50
-iterations to recover. This is the known PPO failure where actions the old
+results) made a catastrophic update three times: the approximate KL between
+the old and new policy jumped from about 0.004 to 0.3 or 1.3 (and once
+overflowed), success fell from about 75-80% to 15-17% within two iterations,
+and getting back within 5 points of the earlier level took 20 to 100
+iterations. This is the known PPO failure where actions the old
 policy rarely chose get huge probability ratios: with a negative advantage the
 clipped objective does not bound them. The trainer now uses four standard
 safeguards: the log-ratio is clamped to +-20; dual clipping bounds the
@@ -131,7 +147,7 @@ of rsl_rl / legged_gym). All reported runs use this trainer. In the 3,000-
 iteration main run the update stop fired 45 times; once (iteration 1898) the
 two or three steps taken before it fired, at the learning-rate ceiling of
 1e-3, still caused a short dip (training success 94% to 70%, recovered within
-about 5 iterations, against about 50 before the safeguards). A lower ceiling
+about 5 iterations, against 20 to 100 before the safeguards). A lower ceiling
 (3e-4) is the next step for final-model training; the ablation runs keep 1e-3
 so that their arms stay comparable.
 

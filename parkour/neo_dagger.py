@@ -14,6 +14,18 @@ distinct ones per state are kept. The observations along them are built with
 the environment's own observer, so the output is (observation, action) pairs
 for the behaviour-cloning loss (train.py --bc-pairs).
 
+With ``--prior`` (default 0.7) the search starts from the policy's own action
+probabilities along its own play from each state, so the sequences it finds
+differ from what the bot does only where that makes the neo land. Without it
+the search's random choices in ticks that do not matter (sprinting in the air,
+strafing) become noisy labels, and imitating them on ordinary course states
+made a first round collapse.
+
+Then every found sequence is simplified (``--simplify``): tick by tick and
+action part by action part (move, strafe, jump, sprint, turn), the bot's own
+choice at that state is put back whenever the neo still lands with it. What
+is left are only the corrections that matter: clean labels for imitation.
+
 A takeoff is a neo's when the straight line between its centre and the next
 platform's centre passes through a block at body height (the wall).
 """
@@ -112,7 +124,37 @@ def state_of(arr: list[dict], device) -> physics.PlayerState:
                                t("collided_v", torch.bool))
 
 
-def search(pool: CoursePool, arrivals: list[dict], device, samples: int, iterations: int, keep: int, seed: int):
+HEADS = ("move", "strafe", "jump", "sprint", "yaw")
+
+
+def policy_prior(model, pool: CoursePool, arrivals: list[dict], device) -> dict:
+    """The policy's action probabilities along its own deterministic play from each arrival, (A, T, K) per head."""
+    obs_fn = Observer(device)
+    s = state_of(arrivals, device)
+    cidx = torch.tensor([a["course"] for a in arrivals], device=device)
+    cp = torch.tensor([a["cp"] for a in arrivals], device=device)
+    last = torch.tensor([a["last_action"] for a in arrivals], device=device)
+    steps = torch.tensor(YAW_STEPS_DEG, dtype=torch.float64, device=device) * (math.pi / 180)
+    probs = {k: [] for k in HEADS}
+    with torch.no_grad():
+        for t in range(HORIZON):
+            o = obs_fn(pool, cidx, s, cp, last)
+            logits = model.logits(model.norm(o))
+            acts = []
+            for k, lg in zip(HEADS, logits):
+                probs[k].append(torch.softmax(lg.float(), -1))
+                acts.append(lg.argmax(-1))
+            a = torch.stack(acts, -1)
+            y = s.yaw + steps[a[:, 4]]
+            s.yaw = torch.remainder(y + math.pi, 2 * math.pi) - math.pi
+            s = physics.simulate(pool.world, cidx, s, torch.stack((a[:, 0] == 2, a[:, 0] == 0, a[:, 1] == 0, a[:, 1] == 2,
+                                                                    a[:, 2] == 1, a[:, 3] == 1), -1))
+            last = a
+    return {k: torch.stack(v, 1) for k, v in probs.items()}
+
+
+def search(pool: CoursePool, arrivals: list[dict], device, samples: int, iterations: int, keep: int, seed: int,
+           prior: dict | None = None, prior_weight: float = 0.0):
     """Batched CEM: one action distribution per arrival, ``samples`` sequences each. Returns lists of actions."""
     gen = torch.Generator(device=device).manual_seed(seed)
     A, S, T = len(arrivals), samples, HORIZON
@@ -129,6 +171,11 @@ def search(pool: CoursePool, arrivals: list[dict], device, samples: int, iterati
          "jump": torch.tensor([0.7, 0.3], device=device).repeat(A, T, 1),
          "sprint": torch.tensor([0.2, 0.8], device=device).repeat(A, T, 1),
          "yaw": torch.tensor([0.05, 0.1, 0.15, 0.4, 0.15, 0.1, 0.05], device=device).repeat(A, T, 1)}
+    if prior is not None and prior_weight > 0:
+        for key in p:
+            p[key] = prior_weight * prior[key] + (1 - prior_weight) * p[key]
+            p[key] = p[key].clamp(min=0.01)
+            p[key] = p[key] / p[key].sum(-1, keepdim=True)
     found = [[] for _ in range(A)]
     seen = [set() for _ in range(A)]
     k_elite = max(1, int(S * ELITE))
@@ -183,6 +230,71 @@ def search(pool: CoursePool, arrivals: list[dict], device, samples: int, iterati
     return found
 
 
+def _rollout(model, pool, arrivals, idx, given, fixed, device):
+    """Play from each arrival: ``given`` actions where ``fixed`` is true, the policy's own choice elsewhere.
+
+    Returns (landed, land_tick, actions actually played)."""
+    obs_fn = Observer(device)
+    arr = [arrivals[i] for i in idx]
+    s = state_of(arr, device)
+    cidx = torch.tensor([a["course"] for a in arr], device=device)
+    cp = torch.tensor([a["cp"] for a in arr], device=device)
+    last = torch.tensor([a["last_action"] for a in arr], device=device)
+    target = cp + 1
+    tops = pool.top[cidx, cp].minimum(pool.top[cidx, target])
+    steps = torch.tensor(YAW_STEPS_DEG, dtype=torch.float64, device=device) * (math.pi / 180)
+    n, T = given.shape[0], given.shape[1]
+    played = torch.zeros_like(given)
+    alive = torch.ones(n, dtype=torch.bool, device=device)
+    landed = torch.zeros(n, dtype=torch.bool, device=device)
+    land_tick = torch.full((n,), T, dtype=torch.int64, device=device)
+    with torch.no_grad():
+        for t in range(T):
+            o = obs_fn(pool, cidx, s, cp, last)
+            own = torch.stack([lg.argmax(-1) for lg in model.logits(model.norm(o))], -1)
+            a = torch.where(fixed[:, t], given[:, t], own)
+            a = torch.where(landed[:, None], torch.zeros_like(a), a)
+            played[:, t] = a
+            y = s.yaw + steps[a[:, 4]]
+            s.yaw = torch.remainder(y + math.pi, 2 * math.pi) - math.pi
+            s = physics.simulate(pool.world, cidx, s, torch.stack((a[:, 0] == 2, a[:, 0] == 0, a[:, 1] == 0, a[:, 1] == 2,
+                                                                    a[:, 2] == 1, a[:, 3] == 1), -1))
+            alive &= ~on_obstacle(pool, s, cidx) & (s.pos[:, 1] > tops - 1.0)
+            now = standing_on(pool, s, cidx).gather(1, target[:, None]).squeeze(1) & alive & ~landed
+            land_tick = torch.where(now, torch.full_like(land_tick, t + 1), land_tick)
+            landed |= now
+            last = a
+    return landed, land_tick, played
+
+
+def simplify(model, pool: CoursePool, arrivals: list[dict], found: list, device, chunk: int = 4096) -> list:
+    """Put the policy's own choice back wherever the sequence still lands (greedy, tick by tick, part by part)."""
+    seqs = [(i, f) for i, fs in enumerate(found) for f in fs]
+    out = [[] for _ in found]
+    for c0 in range(0, len(seqs), chunk):
+        part = seqs[c0:c0 + chunk]
+        idx = [i for i, _ in part]
+        n, T = len(part), HORIZON
+        given = torch.zeros(n, T, 5, dtype=torch.int64, device=device)
+        fixed = torch.zeros(n, T, 5, dtype=torch.bool, device=device)
+        for j, (_, f) in enumerate(part):
+            given[j, :len(f)] = torch.as_tensor(f, device=device)
+            fixed[j, :len(f)] = True
+        lens = fixed[:, :, 0].sum(1)
+        for t in range(int(lens.max())):
+            for h in range(5):
+                trial = fixed.clone()
+                trial[:, t, h] = False
+                ok, _, _ = _rollout(model, pool, arrivals, idx, given, trial, device)
+                keep = ok & (t < lens)
+                fixed = torch.where(keep[:, None, None], trial, fixed)
+        ok, tick, played = _rollout(model, pool, arrivals, idx, given, fixed, device)
+        for j, (i, _) in enumerate(part):
+            if bool(ok[j]):
+                out[i].append(played[j, :int(tick[j])].cpu().numpy())
+    return out
+
+
 def pairs(pool: CoursePool, arrivals: list[dict], found: list, device):
     """Observations along each found sequence from its arrival state, with the actions."""
     obs_fn = Observer(device)
@@ -227,6 +339,8 @@ def main(argv=None):
     ap.add_argument("--iterations", type=int, default=25)
     ap.add_argument("--keep", type=int, default=8)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--prior", type=float, default=0.95, help="weight of the policy's own action probabilities in the search's start")
+    ap.add_argument("--simplify", type=int, default=1, help="1: keep only the corrections that matter (see above)")
     a = ap.parse_args(argv)
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     t0 = time.time()
@@ -237,10 +351,15 @@ def main(argv=None):
     pool = CoursePool(courses, dev, C.GRID)
     found = []
     for b in range(0, len(arrivals), a.batch):
-        found += search(pool, arrivals[b:b + a.batch], dev, a.samples, a.iterations, a.keep, a.seed + b)
+        part = arrivals[b:b + a.batch]
+        prior = policy_prior(model, pool, part, dev) if a.prior > 0 else None
+        found += search(pool, part, dev, a.samples, a.iterations, a.keep, a.seed + b, prior, a.prior)
         if (b // a.batch) % 10 == 0:
             ok = sum(bool(f) for f in found)
             print(json.dumps({"searched": len(found), "with_landing": ok, "seconds": round(time.time() - t0)}), flush=True)
+    if a.simplify:
+        found = simplify(model, pool, arrivals, found, dev)
+        print(json.dumps({"simplified_sequences": sum(len(f) for f in found), "seconds": round(time.time() - t0)}), flush=True)
     obs, act = pairs(pool, arrivals, found, dev)
     torch.save({"obs": obs, "act": act, "arrivals": len(arrivals), "with_landing": sum(bool(f) for f in found),
                 "sequences": sum(len(f) for f in found), "checkpoint": a.checkpoint}, a.out)

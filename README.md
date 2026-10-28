@@ -4,14 +4,14 @@ A bot that learns to run **parkour courses it has never seen** in Minecraft
 Java 1.21.4, and reach the goal.
 
 The agent is trained with PPO in a GPU simulator that reproduces Mineflayer's
-own physics engine to within 1e-14 blocks, on endlessly generated courses of
+own physics engine to about 1e-14 blocks, on endlessly generated courses of
 increasing difficulty. The trained network then drives a Mineflayer bot on a
 real Minecraft server, on new courses.
 
 > The earlier course project (wood and stone tools in Survival) is archived
 > on the `archive/survival` tag and the `codex/*` branches.
 
-**Status:** see [TEAM_STATUS.md](TEAM_STATUS.md) (one page, always current).
+**Status:** see [TEAM_STATUS.md](TEAM_STATUS.md) (updated by hand, so it can lag behind [results/README.md](results/README.md), which is generated from the run files).
 **Design and method:** [docs/design.md](docs/design.md).
 **Assistant handoff:** [HANDOFF.md](HANDOFF.md).
 
@@ -21,9 +21,9 @@ real Minecraft server, on new courses.
 | --- | --- | --- |
 | Unseen 10-jump courses, all 6 levels (1,200) | 97.1% (hardest level 90.5%) | simulator |
 | Unseen courses with obstacles (1,200) | 93.6% | simulator |
-| Every possible jump type from a standing start | all made (hardest level 99.6%) | simulator |
+| All 194 jump types of levels 0-5 from a standing start (wide and neo jumps not part of this test) | all made (hardest level 99.6%) | simulator |
 | The bot's JavaScript on Mineflayer's physics engine | 59/60 standard, 58/60 obstacle, 3/3 hand-designed; identical to the simulator | prismarine-physics, no server |
-| Physics port against the real library | 1.4e-14 blocks over 99,000 ticks | Node + prismarine-physics |
+| Physics port against the real library | 1.4e-14 blocks over 99,000 ticks (`results/physics_parity.json`) | Node + prismarine-physics |
 | **Real Minecraft 1.21.4 server** | **59/60 standard, 58/60 obstacle, 3/3 hand-designed; identical to the simulator, 0 server corrections** | real game, Mineflayer bot |
 
 Details, figures, the reward ablation and the other experiments:
@@ -59,10 +59,10 @@ run.cmd test              :: all checks, including physics parity against the re
 run.cmd train --run my-first-run --iterations 300
 ```
 
-A 300-iteration run (157 million game ticks) takes about 6 minutes on an RTX
-5080 and already solves most easy and medium unseen courses. Results go to
-`runs/my-first-run/` (`train_log.csv`, `eval_log.csv`, checkpoints and the
-exported `policy_best.json`).
+A 300-iteration run (157 million game ticks) takes 10 to 18 minutes on an RTX
+5080 (15.6 for `runs/main-s0`) and already solves most easy and medium unseen
+courses. Results go to `runs/my-first-run/` (`train_log.csv`, `eval_log.csv`,
+checkpoints and the exported `policy_best.json`).
 
 Play held-out courses with the trained policy:
 
@@ -72,14 +72,14 @@ run.cmd accept-eula --agree    :: once per PC, only if you accept https://aka.ms
 run.cmd live --checkpoint runs\my-first-run\checkpoints\best.pt --out runs\live-check --viewer YourMinecraftName
 ```
 
-With `--viewer`, join `127.0.0.1:25570` in Minecraft Java 1.21.4 and your
-camera follows the bot through every course.
+With `--viewer`, join `127.0.0.1:25570` in Minecraft Java 1.21.4. The bot puts
+you in spectator mode, and from the second course on your camera follows it.
 
 ## Rules that keep the results honest
 
 - Every reported number comes from files under `runs/` or `results/`, and
-  says whether it is the simulator, the offline JavaScript bot, or real
-  Minecraft.
+  says whether it is the simulator, the offline JavaScript bot, real
+  Minecraft, or (for physics parity) the real physics library.
 - Test courses come from a separate seed family and never appear in training.
 - Course building and the start teleport use server commands (the
   environment's reset); during an episode the bot only uses movement

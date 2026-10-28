@@ -1,9 +1,13 @@
 # Team status
 
 One page for everyone on the team: what works, what is running, what is open.
-Updated and pushed after every result. Every number is in
-[results/README.md](results/README.md) (generated from the run files); every
-piece of data is listed in [results/DATA.md](results/DATA.md).
+Updated and pushed regularly; the newest results can reach
+[results/README.md](results/README.md) first. The main results are in that
+README (generated from the run files); the rest, including the neo numbers,
+come from the files in `runs/`, `results/` and `configs/`. [results/DATA.md](results/DATA.md) lists most of
+the data; it was last updated on 28 October at 00:05, so newer data
+(`results/videos/`, `results/planner/`, the live2, planner, noroute and film
+games) is not in it yet.
 
 **Last updated:** 28 October 2026, 02:00.
 
@@ -17,8 +21,9 @@ the `codex/*` branches.
 How it works, in one paragraph: a Mineflayer bot moves with a physics library
 called prismarine-physics. We ported that library to the GPU (it matches the
 real one to 1e-14 blocks), generate endless random parkour courses at six
-difficulty levels, and train a neural network with PPO on 16,384 courses at
-once (about a million game ticks per second). The trained network then drives
+difficulty levels, and train a neural network with PPO on 16,384 parallel
+games that share a pool of 8,192 courses (about 170,000 game ticks per second,
+network updates included). The trained network then drives
 the Mineflayer bot on a real Minecraft server. Details: `docs/design.md`.
 
 ## Results
@@ -44,7 +49,8 @@ blocks.
   reward +53); falls drop from 100% to about 5%. See
   `results/figures/training_main-s0.png` (success, reward, losses, entropy,
   KL and learning rate, every iteration).
-- Every possible jump type is made from a standing start at every tested angle.
+- Every possible jump type (levels 0-5) is made from a standing start, all but
+  one at all 16 tested angles (that one at 15 of 16).
 - New course styles: 15-jump courses 95%, any start direction 97%, single
   blocks 91%, a turn at every jump 90%.
 
@@ -61,7 +67,8 @@ blocks.
 
 **Problems we found and fixed** (good presentation material):
 
-- PPO collapsed twice in the first runs (success 80% to 15% in one update):
+- PPO collapsed three times in the first runs (success 75-80% to about 15%
+  within two updates):
   fixed with a KL stop, dual clipping and a KL-adaptive learning rate
   (`results/figures/training__v1_unstable_main-s0.png` shows the collapse).
 - Minecraft centres whole-number `/tp` coordinates on the block, which broke
@@ -75,14 +82,15 @@ blocks.
 - **Single neos are possible** (a tick-by-tick search lands 16 of 18 layouts),
   but very tight: in the search, only 1 in 2,000 to 1 in 16,000 sampled
   action sequences landed one.
-- **Double and triple neos are impossible** in Minecraft's physics as
+- **No double or triple neo was found** in Minecraft's physics as
   Mineflayer runs it: 0 of 64 layouts landed (36 from standing, 28 with a
-  3-4 block run-up), searched with the same tool that found the single neos.
+  3-4 block run-up), searched with the same tool that found the single neos,
+  so we treat them as impossible.
 - **4-block jumps with a run-up:** the trained bot makes some that no
   scripted strategy makes (12-38% of start angles).
 - **Neo training** (`runs/advanced-ft3`, levels 0-8): the bot completes 99%
-  of easy courses and 83% overall, but levels 6 and 7 (neo courses) stayed
-  flat at about 70% and 30% for 850 iterations. Diagnosis
+  of easy courses and 83% overall, but levels 6 and 7 (the levels with neo
+  jumps) stayed flat at about 70% and 30% for 850 iterations. Diagnosis
   (`results/runs/advanced-ft3/jump_eval_advanced.json`): the bot makes
   none of the 13 neo jump types. On 11 of them it **does not fall: it
   refuses to jump** and stands still until the 10-second stall limit,
@@ -124,9 +132,9 @@ list and progress hidden): 85.4% of standard and 70.9% of obstacle courses
 in the simulator; in real Minecraft 55/60 standard and 37/60 obstacle
 courses, matching the simulator, 0 corrections. Better than the earlier
 no-route arm (82.4%) but below the planner on every large test set, and
-decoy pillars fool it (10 of its 23 obstacle-course falls end on top of an
-obstacle). So: **the planner is the "runs on a new map" model**; the learned
-one is the research comparison (report 7.12). Video:
+obstacles fool it (10 of its 23 obstacle-course falls end on top of one: 6
+on a beam, 4 on a decoy pillar). So: **the planner is the "runs on a new map"
+model**; the learned one is the research comparison (report 7.12). Video:
 `replay_295_learned_*` (level 5, a course the planner failed).
 
 ## Running now
@@ -149,8 +157,9 @@ one is the research comparison (report 7.12). Video:
   - `ghost_race_00_tour.mp4` and `ghost_race_01..06`: ten training stages
     of the same agent (untrained to 400 updates) run one unseen course at
     once, seen from above. The untrained bot falls at once; later stages get
-    further; the trained ones reach the goal. Level 5 is hard: every stage
-    falls at its first jump.
+    further; the trained ones reach the goal. Level 5 is hard: no stage
+    gets past the first jump (nine fall there; the 10-update stage jumps in
+    place on the start platform until the 10-second stall limit).
   - `real_minecraft_showcase.mp4` (35 s): the bot's own first-person view
     in **real Minecraft 1.21.4** on three hand-designed courses it never saw
     (`real_minecraft_tour/stairs/sprint.mp4` separately). All completed, 0
@@ -159,12 +168,14 @@ one is the research comparison (report 7.12). Video:
   replays and the ghost races, Overview camera), `results/replay_viewer.html`
   (real-game replays), `results/progress.html` (learning progress),
   `results/neo_preview.html` (neo attempts).
-- Figures: `results/figures/`. Data: `results/DATA.md`; every run's training
-  and evaluation logs are in `results/runs/` (now in Git too: before 28
-  October 01:50 a `.gitignore` rule kept them out of GitHub).
+- Figures: `results/figures/`. Data: `results/DATA.md`;
+  `python -m parkour.report` copies every run's training and evaluation logs to
+  `results/runs/` (now in Git too: before 28 October 01:50 a `.gitignore`
+  rule kept them out of GitHub). The last copy was at 07:55, so anything
+  logged after that is only in `runs/` so far.
 - Make new videos: `scripts/render_videos.py` (ghost races) and
   `scripts/film_pov.py` (real Minecraft, first person).
-- Watch it live: `run.cmd live --checkpoint resultsinal_policy.pt --out
+- Watch it live: `run.cmd live --checkpoint results\final_policy.pt --out
   runs\demo --viewer YourMinecraftName`, then join `127.0.0.1:25570` in
   Minecraft Java 1.21.4.
 
@@ -173,8 +184,8 @@ one is the research comparison (report 7.12). Video:
 1. More block types: slabs, ladders, ice and fences need physics ports
    (prismarine-physics has them) and new course pieces.
 2. Hand-built maps: extract the platform chain from a region of a real map.
-3. The report: `docs/report_draft.md` needs the hyperparameter section, the
-   neo results, the discussion and the conclusion.
+3. The report: `docs/report_draft.md` needs the latest neo results, the
+   discussion and the conclusion.
 
 ## Update log
 

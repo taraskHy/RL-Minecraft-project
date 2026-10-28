@@ -102,7 +102,7 @@ a { color: var(--sky); }
       </figure>
       <div style="display:grid;gap:14px">
         <h2>From falling off the first block to the goal</h2>
-        <p>The untrained network and the first two snapshots fall off at once. After 10 and 20 updates it gets two and five platforms in, then stops and stands still. From 35 updates on, every snapshot reaches the goal, and later ones are faster: 181 ticks at 35 updates, 156 at 400.</p>
+        <p>The untrained network and the first two snapshots fall off at once. After 10 and 20 updates it gets two and five platforms in, then makes no more progress: at 10 it stands still, and at 20 it hops on the spot. From 35 updates on, every snapshot reaches the goal, and later ones are faster: 181 ticks at 35 updates, 156 at 400.</p>
         <p class="muted">Recorded trajectories in Minecraft physics, rendered by our viewer. All seven races are in <span class="path">results/videos/</span>.</p>
       </div>
     </div>
@@ -111,11 +111,11 @@ a { color: var(--sky); }
   <section>
     <div class="eyebrow">Training</div>
     <h2>Main run: 1.57 billion game ticks in 2.6 hours</h2>
-    <p>16,384 courses run at once on one GPU, about a million game ticks per second. Every 50 updates the policy plays 1,200 held-out courses, 200 per difficulty level.</p>
+    <p>16,384 games run at once on one GPU, at about 170,000 game ticks per second including the network updates. Every 50 updates the policy plays 1,200 held-out courses, 200 per difficulty level.</p>
     <div class="panel">
       <div class="legend"><span><i style="background:var(--grass)"></i>all levels</span><span><i style="background:var(--sky)"></i>level 5, the hardest</span></div>
       <div class="chart" id="curve"></div>
-      <p class="muted" style="font-size:14px">Success on held-out courses, first evaluated after 50 updates. The dip at 1.0 B ticks was one bad update while the learning rate sat at its cap; it recovered by the next evaluation.</p>
+      <p class="muted" style="font-size:14px">Success on held-out courses, first evaluated after 50 updates. The dip at 1.0 B ticks was two bad updates in a row while the learning rate sat at its cap; it recovered by the next evaluation.</p>
     </div>
   </section>
 
@@ -141,7 +141,7 @@ a { color: var(--sky); }
     <div class="two">
       <ul class="facts">
         <li><b>16/18</b><span><span class="tag ok">possible</span> Single neo layouts (jumping around a wall) that a tick-by-tick search could land. Only 1 in 2,000 to 1 in 16,000 sampled move sequences works.</span></li>
-        <li><b>0/64</b><span><span class="tag no">impossible</span> Double and triple neo layouts, from standing and with a 3 to 4 block run-up. Searched with the same tool.</span></li>
+        <li><b>0/64</b><span><span class="tag no">none found</span> Double and triple neo layouts, 36 from standing and 28 with a 3 to 4 block run-up. The same search landed none of them, so we treat them as impossible.</span></li>
         <li><b>12-38%</b><span><span class="tag ok">found by the agent</span> Start angles from which the trained agent clears 4-block run-up jumps that none of 4,032 scripted strategies clears.</span></li>
       </ul>
       <div class="panel">
@@ -172,7 +172,7 @@ a { color: var(--sky); }
             <tr><td>60 with obstacles, real Minecraft</td><td>58/60</td><td>53/60</td><td>37/60</td></tr>
           </tbody>
         </table></div>
-        <p class="muted">Most planner failures follow a shortcut: a later platform is in reach, so it skips ahead, and that jump is harder than the course's own next one. The learned column is a model trained to find platforms itself from a wide block scan and a memory of its last landings. It is weaker, and decoy pillars fool it.</p>
+        <p class="muted">Most planner failures follow a shortcut: a later platform is in reach, so it skips ahead, and that jump is harder than the course's own next one. The learned column is a model trained to find platforms itself from a wide block scan and a memory of its last landings. It is weaker, and obstacles fool it: 10 of its 23 real-game failures with obstacles end standing on a beam or a pillar.</p>
       </div>
     </div>
   </section>
@@ -194,7 +194,7 @@ a { color: var(--sky); }
   </section>
 
   <footer>
-    <span>Everything here is generated from the run files in the project repository: numbers in <span class="path">results/README.md</span>, raw logs in <span class="path">results/runs/</span>, videos in <span class="path">results/videos/</span>.</span>
+    <span>Everything here comes from files in the project repository: main tables in <span class="path">results/README.md</span>, training logs and jump tests in <span class="path">results/runs/</span>, recorded games in <span class="path">results/games/</span>, the neo search in <span class="path">configs/jump_cem*.json</span>, the physics check in <span class="path">results/physics_parity.json</span>, videos in <span class="path">results/videos/</span>.</span>
   </footer>
 </div>
 

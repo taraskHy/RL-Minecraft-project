@@ -1,0 +1,32 @@
+{
+ "method": "parkour.parity.compare: random block fields (pillars, steps, ceilings, gaps, edges) and random inputs; the batched simulator against prismarine-physics 1.11.1 run through Node (bridge/physics_parity.js), with the same 1e-7 collision tolerance patch the bot uses.",
+ "runs": [
+  {
+   "device": "cpu",
+   "cases": 200,
+   "ticks_per_case": 120,
+   "ticks": 24000,
+   "seed": 100,
+   "seconds": 3.6,
+   "max_pos_err": 7.105427357601002e-15,
+   "max_vel_err": 5.551115123125783e-17,
+   "flag_mismatch_ticks": 0,
+   "exact_pos_ticks": 23860,
+   "diverged_cases": 0
+  },
+  {
+   "device": "cuda",
+   "cases": 500,
+   "ticks_per_case": 150,
+   "ticks": 75000,
+   "seed": 101,
+   "seconds": 12.5,
+   "max_pos_err": 1.4210854715202004e-14,
+   "max_vel_err": 1.1102230246251565e-16,
+   "flag_mismatch_ticks": 0,
+   "exact_pos_ticks": 71979,
+   "diverged_cases": 0
+  }
+ ],
+ "total_ticks": 99000
+}

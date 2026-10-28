@@ -25,7 +25,7 @@ and [results/DATA.md](results/DATA.md).
 ## Machine
 
 Intel Core Ultra 7 270K Plus (24 cores), 128 GB RAM, RTX 5080 16 GB,
-Windows 11, clock in JST. Checkout:
+Windows 11, clock in Israel time (UTC+2; Git Bash labels it JST). Checkout:
 `C:\Users\ethan\OneDrive\Desktop\etgar\RL\RL-Minecraft-parkour` (OneDrive
 folder). Python 3.12 venv in `.venv` (torch 2.11.0+cu128). Portable Node,
 Java and the 1.21.4 server jar in `.local` (ignored by Git). The Minecraft
@@ -39,11 +39,12 @@ holds it awake while training runs.
 
 **GPU temperature rule (user, 28 Oct):** above 65 C pause the GPU work,
 resume when cool. `scripts/gpu_watchdog.py` runs in the background: every
-10 s it reads nvidia-smi; above 65 C it suspends every GPU job of the
-project (train, neo_demos, cem, planner, jumpeval, stress, feasibility;
-suspended, so no state is lost) and resumes them below 58 C. Log:
-`runs/gpu_watchdog.log`. If the watchdog is ever killed while jobs are
-paused: `python scripts/gpu_watchdog.py --resume-all`.
+10 s it reads nvidia-smi; above 65 C it suspends the project's GPU jobs
+by name (train, neo_demos, cem, planner, jumpeval, stress, feasibility,
+cem_momentum_neo; suspended, so no state is lost) and resumes them below
+58 C. It does not cover `parkour.neo_dagger` (also a GPU job) or the live
+bot. Log: `runs/gpu_watchdog.log`. If the watchdog is ever killed while
+jobs are paused: `python scripts/gpu_watchdog.py --resume-all`.
 
 ## Key facts learned
 
@@ -51,7 +52,7 @@ paused: `python scripts/gpu_watchdog.py --resume-all`.
   collision tolerance** in both the simulator (`COLLISION_EPSILON`) and the
   bot (`bridge/physics_patch.js`). Without it a player resting against a face
   can slip into a block corner through rounding. Parity with the patched
-  engine: 1.4e-14 blocks.
+  engine: 1.4e-14 blocks over 99,000 ticks (`results/physics_parity.json`).
 - Searches must never start the player inside a block
   (`physics.inside_solid`): the engine lets a player walk out of a block it
   already overlaps (this faked three "double neo proofs" once).
@@ -62,11 +63,15 @@ paused: `python scripts/gpu_watchdog.py --resume-all`.
   collapsed (`runs/_v1_unstable`). One short dip remains at the 1e-3 LR cap.
 - Checkpoint selection uses the validation family (2); test families 1
   (standard) and 4 (obstacles) are only reported.
-- Neos: a single neo (wall flush with a 1-wide takeoff) is possible in all
-  18 layouts tried; double and triple neos were not found possible from a
-  standing start (`configs/jump_cem.json`) nor, so far, with a 3-4 block
-  run-up (`scripts/cem_momentum_neo.py`). In courses a neo must take off
-  from a 1-wide block. Standing on any obstacle ends an episode as a fall.
+- Neos: a single neo (wall flush with a 1-wide takeoff) is possible in 16 of
+  the 18 layouts tried (none for gap 3, dy +1 with the wall at gap cell 1
+  or 3). The search found no double or triple neo in 64 layouts (36 from a
+  standing start, `configs/jump_cem.json`; 28 with a 3-4 block run-up,
+  `configs/jump_cem_momentum.json`), so we treat them as impossible. The
+  default course generator (all test and validation sets) places a neo only
+  after a 1-wide takeoff; with `wide_neo` (hand-made courses,
+  `train --wide-neo`) a wider takeoff is allowed if the landing reaches the
+  wall's open end. Standing on any obstacle ends an episode as a fall.
 
 ## Where things are
 
