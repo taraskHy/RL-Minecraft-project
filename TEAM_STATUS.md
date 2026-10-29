@@ -10,7 +10,7 @@ the data: training runs, policies, the route planner and neo files, the game
 folders (including the v2, planner, noroute, neo and film games) and the
 videos.
 
-**Last updated:** 29 Oct 2026, 04:45, training PC: active-run validation refreshed; initial advanced/ice comparison already delivered.
+**Last updated:** 29 Oct 2026, 04:50, training PC: active-run validation refreshed; initial advanced/ice comparison already delivered.
 
 ## The project
 
@@ -321,6 +321,8 @@ The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
 5. The report discussion and conclusion are drafted. The cloud DOCX/PDF exports predate this merged source; rebuild and check pagination before submission.
 
 ## Update log
+
+- **29 Oct 2026, 04:50, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-ice-s4: iteration 699, validation 94.08%, selected best 449 (97.00%), 6 levels; g995-ice-s5: iteration 649, validation 95.33%, selected best 99 (97.00%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. No executable changes; prior checks remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 
 - **29 Oct 2026, 04:45, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-ice-s4: iteration 649, validation 94.50%, selected best 449 (97.00%), 6 levels; g995-ice-s5: iteration 599, validation 95.92%, selected best 99 (97.00%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. No executable changes; prior checks remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 
