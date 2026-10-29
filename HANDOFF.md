@@ -14,6 +14,58 @@ Read next: [TEAM_STATUS.md](TEAM_STATUS.md) (the team's page),
 [docs/design.md](docs/design.md) (method), [results/README.md](results/README.md)
 (every number, generated) and [results/DATA.md](results/DATA.md) (where the data is).
 
+## ON HOLD: the new-abilities test runs (paused 29 Oct, about 00:50 UTC)
+
+The user paused this task (cloud session, branch `claude/pensive-knuth-biwj11`,
+last commit before this note `d2b81dd`) to build a replay artifact. Nothing
+here touches the training PC; its jobs keep running.
+
+**Done** (all pushed; simulator unless said; plan and status in
+`docs/abilities_plan.md`):
+- New blocks and jump kinds, final levels (`configs/jump_levels_extra.json`,
+  fingerprinted): head hitters, ice run-ups, shaped blocks, slime bounces,
+  ladder climbs; alone, the final policy makes 99% of the shaped-block jumps,
+  68% head hitters, 49% ice, 40% slime, 38% ladders (`results/extra/`).
+- Planning assist options `--jumps all`, `--brake`, `--approach`, chosen on
+  validation by a rule fixed before the runs: `{"jumps": "all", "retries": 1,
+  "brake": 14, "retry_horizon": 48, "approach": 48}`. Validation: official
+  neo courses (family 2) 157/218 (brake only 147, advanced jumps 124, policy
+  alone 0); random neo courses (13) 135/200 (brake only 119, policy alone 27);
+  mixed courses (15) policy alone 37/200. Rows: `results/neo/assist_validation.jsonl`,
+  details `results/neo/assist_details/`.
+- Offline bot with `all` + brake on `configs/neo_live_courses.json`: 25/31,
+  the same as the simulator (`results/games/neo-assist-offline-all-brake`).
+- Test rows so far, policy alone: official 1 0/210, random 12 33/200, mixed
+  14 35/200 (`results/neo/assist_test.jsonl`).
+
+**Running in the cloud container when paused** (restart-safe; finished
+parts are kept, so after a restart rerun the same command):
+
+```text
+python -m parkour.neo_assist --set official --family 1 --threads 1 --jumps all --retries 1 --brake 14 --retry-horizon 48 --approach 48 --parts 4 --jobs 2 --tag "all_brake_approach; code cd81960" --name official1_all_brake_approach
+python -m parkour.neo_assist --set random --family 12 (same flags) --name random12_all_brake_approach
+then: --set mixed --family 15 (same flags) --name mixed15_all_brake_approach, and --set mixed --family 14 ... --name mixed14_all_brake_approach
+python scripts/extra_preview.py --family 2 --assist-per-level 20 --threads 1 --assist '{"jumps": "advanced"}' --assist '{"jumps": "all", "retries": 1, "brake": 14, "retry_horizon": 48}'
+```
+
+The tag must stay exactly `all_brake_approach; code cd81960` (each part
+checks it). Parts are in `runs/assist_parts/NAME/`; a finished run appends
+its row to `results/neo/assist_test.jsonl` (families 1, 12, 14) or
+`assist_validation.jsonl` (15) and writes `results/neo/assist_details/NAME.json`;
+the preview keeps finished kinds in `runs/extra_preview/family2/` and writes
+`results/extra/course_preview_family2.json` when all six are done.
+
+**To resume:** commit any new rows and details files; run the commands above
+for whatever has no `merged.json` yet; then `scripts/extra_preview.py
+--family 1` with the same arguments; the offline bot with the chosen setting
+(`python -m parkour.live --offline --checkpoint results/final_policy.pt
+--courses-file configs/neo_live_courses.json --assist '{"jumps": "all",
+"retries": 1, "brake": 14, "retry_horizon": 48, "approach": 48}' --out
+runs/neo-assist-offline-chosen`); `python -m parkour.report`; update section
+2 and 3 below, TEAM_STATUS, `results/DATA.md` (add `assist_parts`, the new
+details and preview files), `docs/abilities_plan.md`; a final review of `git
+diff e2381cc HEAD`; `pytest tests -q`; commit and push.
+
 ## 1. Goal and how the user works
 
 - Goal (since 27 Oct 2026): an RL bot that completes **unseen** Minecraft
