@@ -364,6 +364,26 @@ class StrictNeoMetric(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.model = load_model(ROOT / "results" / "final_policy.pt", "cpu")
+        cls.neo_model = load_model(ROOT / "results" / "neo_policy.pt", "cpu")
+
+    def test_the_rule(self):
+        # The values the checkpoint took (it only grows): the neo's takeoff, then its target, each before a later one.
+        self.assertTrue(NA.neo_done([3], {0, 1, 2, 3, 4, 10}))
+        self.assertFalse(NA.neo_done([3], {0, 1, 2, 4, 10}))  # jumped past the takeoff
+        self.assertFalse(NA.neo_done([3], {0, 1, 2, 3, 5, 10}))  # past the target (on it later, if at all, from 5 on)
+        self.assertFalse(NA.neo_done([3, 6], {0, 1, 2, 3, 4, 5, 6, 8, 9, 10}))  # every neo
+        self.assertTrue(NA.neo_done([9], set(range(11))))
+        self.assertTrue(NA.neo_done([], {0}))
+
+    def test_policy_alone_past_the_target_onto_the_goal_and_a_fall_after(self):
+        cs = single_neo_courses(SINGLE_VALIDATION_FAMILY, n=162)
+        self.assertEqual(neo_takeoffs(cs[60]), [cs[60].n - 2])
+        for i, want in ((161, (True, False)),  # stood on takeoff 6, then landed on 8, past its target 7
+                        (60, (True, True)),  # the target is the goal: the checkpoint takes it only in the last tick
+                        (34, (False, True))):  # did the neo from 3, fell after 7
+            pc = evaluate_assisted(self.neo_model, CoursePool(cs[i:i + 1], "cpu", C.GRID), "cpu",
+                                   AssistConfig(enabled=False))["per_course"][0]
+            self.assertEqual((pc["success"], pc["neo_done"]), want, i)
 
     def test_a_bypass_is_completed_but_not_neo_done(self):
         # Official validation course 1: the planner run of results/neo/assist_details/official2_all_brake_approach.json
@@ -405,7 +425,8 @@ class StrictNeoMetric(unittest.TestCase):
         old = summarize({"per_course": [{k: v for k, v in c.items() if k != "neo_done"} for c in pc], "events": [],
                          "plans": {}, "search_seconds": 0.0})  # cached parts of runs from before the metric
         self.assertNotIn("completed_neo_done", old)
-        self.assertEqual(old["by_level"]["6"], {"courses": 2, "completed": 1})
+        self.assertNotIn("by_level", old)  # their summary as before, so a rerun of the split run republishes its row
+        self.assertEqual(old["by_neo_count"], {"1": {"courses": 4, "completed": 2}})
         bare = summarize({"per_course": [{k: v for k, v in c.items() if k not in ("neo_done", "level")} for c in pc],
                           "events": [], "plans": {}, "search_seconds": 0.0})  # records without a level: as before
         self.assertNotIn("by_level", bare)

@@ -808,16 +808,24 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
         per_course.append({"success": bool(s[i]), "fell": bool(f[i]), "ticks": int(ln[i]), "progress": float(pr[i]),
                            "level": int(lv[i]), "neos": len(ks), "neos_reached": len(reached[i]),
                            "neos_passed": sum(1 for k in ks if k in reached[i] and (s[i] or cp_final[i] > k)),
-                           "neo_done": all(k in cps and k + 1 in cps for k in ks),
+                           "neo_done": neo_done(ks, cps),
                            "stopped_at": int(cp_final[i]) if not s[i] else None,
                            "stopped_at_neo": bool(not s[i] and int(cp_final[i]) in ks),
                            "stopped_at_kind": None if s[i] else jump_kind(pool.courses[i], int(cp_final[i]), ks)})
     return {"per_course": per_course, "events": events, "plans": plans, "search_seconds": round(search_seconds, 1)}
 
 
+def neo_done(takeoffs: list[int], values: set) -> bool:
+    """Every neo done as a neo: the checkpoint took the value of each neo's takeoff and of its target (``values``:
+    every value it took, the episode's last one included). It only grows, so the bot stood on the takeoff before on
+    any later platform, then on the target before on any later one."""
+    return all(k in values and k + 1 in values for k in takeoffs)
+
+
 def summarize(res: dict) -> dict:
     """Counts for one run: courses completed (also with every neo done as a neo, ``neo_done``), neo jumps reached
-    and passed, by neos per course and by level, and the searches."""
+    and passed, by neos per course and (records with ``neo_done``) by level, and the searches. Records from before
+    ``neo_done`` existed give the summary they gave then, so a split run's cached parts republish the same row."""
     pc = res["per_course"]
     strict = all("neo_done" in c for c in pc)  # (not in the cached parts of runs from before it existed)
     done = lambda c: int(c["success"] and c["neo_done"])  # noqa: E731
@@ -835,7 +843,7 @@ def summarize(res: dict) -> dict:
     for c in pc:
         key = str(c["neos"]) if c["neos"] < 5 else "5+"
         groups = [by.setdefault(key, {"courses": 0, "completed": 0})]
-        if "level" in c:  # (in every record of evaluate_assisted)
+        if strict and "level" in c:  # (records with neo_done: summaries of older records stay as they were)
             groups.append(by_level.setdefault(c["level"], {"courses": 0, "completed": 0}))
         for b in groups:
             b["courses"] += 1
