@@ -10,7 +10,7 @@ the data: training runs, policies, the route planner and neo files, the game
 folders (including the v2, planner, noroute, neo and film games) and the
 videos.
 
-**Last updated:** 29 Oct 2026, 05:05, training PC: active-run validation refreshed; initial advanced/ice comparison already delivered.
+**Last updated:** 29 Oct 2026, 05:11, training PC: ice seed 4 completed and notified; seeds 5/6 continue.
 
 ## The project
 
@@ -321,6 +321,8 @@ The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
 5. The report discussion and conclusion are drafted. The cloud DOCX/PDF exports predate this merged source; rebuild and check pagination before submission.
 
 ## Update log
+
+- **29 Oct 2026, 05:11, Codex heartbeat on training PC:** g995-ice-s4 completed all 1,000 iterations in the simulator. Validation-selected checkpoint 449: validation 97.0000%, final standard test 97.1667%, obstacle test 94.2500%; versus existing final policy checkpoint 699, differences are -0.5833/-1.2500/-1.0000 percentage points (validation/standard/obstacles). Comparison uses identical common levels 0-5, 200 courses per level and final test families 1/4. Exactly one final standard and obstacle test row at checkpoint 449; no evaluation rerun. Verified comparison: `results/operations/g995-ice-s4-comparison.json`. This completion notification is delivered in this chat now; do not repeat. Existing final policy files retained. Archived seed 5 validation through iteration 949 (96.00%), retained best 99 (97.00%). The queue automatically started g995-ice-s6 alongside g995-ice-s5 using the recipe selected from common validation only; exactly two unrestricted trainers, thermal watchdog (65/58 C) and keep-awake remain healthy. Cloud evaluation hold remains in effect. Report/handoff refreshed; independent completion audit and CSV checks pass. No executable changes; the 109-test CPU suite from 03:16 remains applicable.
 
 - **29 Oct 2026, 05:05, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-ice-s4: iteration 949, validation 96.17%, selected best 449 (97.00%), 6 levels; g995-ice-s5: iteration 849, validation 93.83%, selected best 99 (97.00%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. No executable changes; prior checks remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 

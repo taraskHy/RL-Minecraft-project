@@ -1,0 +1,38 @@
+{
+  "updated_at": "2026-10-29T05:10:46",
+  "measured": "Simulator, common levels 0-5, 200 courses per level, fixed validation family 2 and final test families 1/4. Training seed does not change these held-out course sets.",
+  "selection": "Checkpoint selected only from validation; archived data read without rerunning any evaluation.",
+  "baseline": {
+    "run": "obstacles-g995",
+    "checkpoint": "results/final_policy.pt",
+    "selected_iteration": 699,
+    "validation_success": 0.9758333333333333,
+    "standard_success": 0.9841666666666667,
+    "obstacle_success": 0.9525,
+    "sources": [
+      "results\\runs\\obstacles-g995\\summary.json",
+      "results\\runs\\obstacles-g995\\eval_log.csv",
+      "results\\runs\\obstacles-g995\\eval_obstacles_log.csv"
+    ]
+  },
+  "run": {
+    "run": "g995-ice-s4",
+    "selected_iteration": 449,
+    "validation_success": 0.97,
+    "standard_success": 0.9716666666666667,
+    "obstacle_success": 0.9425
+  },
+  "delta_pp": {
+    "validation_success": -0.5833333333333357,
+    "standard_success": -1.2500000000000067,
+    "obstacle_success": -1.0000000000000009
+  },
+  "sources": [
+    "results\\runs\\g995-ice-s4\\summary.json",
+    "results\\runs\\g995-ice-s4\\eval_val_log.csv",
+    "results\\runs\\g995-ice-s4\\eval_log.csv",
+    "results\\runs\\g995-ice-s4\\eval_obstacles_log.csv"
+  ],
+  "notification_delivered_at": "2026-10-29T05:11:33",
+  "notification_context": "Seed 4 completion comparison delivered in this chat with this heartbeat; do not repeat."
+}
