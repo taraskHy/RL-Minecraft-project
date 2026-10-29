@@ -609,18 +609,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `7781670` (2026-10-29 07:30, branch `main`): Archive validation progress for ice seeds 8 and 9
+Generated on top of commit `be6cb1c` (2026-10-29 07:35, branch `main`): Archive ice seed 8 completion and continue seeds 9 and 10
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 173 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 174 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 131 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 148 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 131 |
-| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 58 |
-| `results/DATA.md` | `a4d31ba` 2026-10-29 03:17 | 50 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 132 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 149 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 132 |
+| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 59 |
+| `results/DATA.md` | `a4d31ba` 2026-10-29 03:17 | 51 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -649,6 +649,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `g995-extra` | 999 | 0.52 | 849 | 90.7 | 91.2 | - | - |
 | `g995-ice` | 999 | 0.52 | 449 | 97.3 | 97.5 | - | - |
 | `g995-ice-s1` | 999 | 0.52 | 949 | 97.7 | 97.2 | - | - |
+| `g995-ice-s10` | 49 | 0.03 | 49 | 96.1 | - | - | - |
 | `g995-ice-s2` | 999 | 0.52 | 749 | 96.9 | 97.4 | - | - |
 | `g995-ice-s3` | 999 | 0.52 | 249 | 96.8 | 97.4 | - | - |
 | `g995-ice-s4` | 999 | 0.52 | 449 | 97.0 | 97.2 | - | - |
@@ -656,7 +657,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `g995-ice-s6` | 999 | 0.52 | 499 | 97.2 | 97.7 | - | - |
 | `g995-ice-s7` | 999 | 0.52 | 749 | 97.0 | 96.7 | - | - |
 | `g995-ice-s8` | 999 | 0.52 | 199 | 96.8 | 97.3 | - | - |
-| `g995-ice-s9` | 949 | 0.50 | 149 | 96.8 | - | - | - |
+| `g995-ice-s9` | 999 | 0.52 | 149 | 96.8 | 97.3 | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
 | `hp-envs4096` | 3999 | 0.52 | 3599 | 93.7 | 94.2 | 92.0 | - |
@@ -772,7 +773,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 
 ### In `results/` but not yet in `results/DATA.md`
 
-`operations/` (14 files), `report_draft.pdf`, `videos/ghost_race_02_level_1_course_0.mp4`, `videos/ghost_race_03_level_2_course_0.mp4`, `videos/ghost_race_04_level_3_course_0.mp4`, `videos/ghost_race_05_level_4_course_0.mp4`, `videos/replay_137_neo_policy_level_7_course_5.mp4`
+`operations/` (15 files), `report_draft.pdf`, `videos/ghost_race_02_level_1_course_0.mp4`, `videos/ghost_race_03_level_2_course_0.mp4`, `videos/ghost_race_04_level_3_course_0.mp4`, `videos/ghost_race_05_level_4_course_0.mp4`, `videos/replay_137_neo_policy_level_7_course_5.mp4`
 
 <!-- END AUTO-SNAPSHOT -->
 
@@ -789,6 +790,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **29 Oct 2026, 07:41, Codex heartbeat on training PC:** g995-ice-s9 completed all 1,000 iterations. Its checkpoint 149 was selected only by simulator validation families 2/5 (96.7500%, first maximum); final standard test 97.3333% and obstacle test 93.9167%, versus the existing final policy 97.5833% validation, 98.4167% standard and 95.2500% obstacles (differences -0.8333, -1.0833 and -1.3333 percentage points). Comparisons use common levels 0-5 and identical held-out course sets; validation has 100 courses per level from each family 2/5, and each test has 200 per level. Exactly one standard and one obstacle test row at the selected checkpoint; no evaluation rerun. Archived `results/operations/g995-ice-s9-comparison.json`; completion comparison delivered with this heartbeat, do not repeat. The queue automatically started seed 11 after seed 9 exited; seeds 10/11 occupy the two training slots. Seed 10 archived iteration 49 validation 96.0833%, also its selected best; seed 11 has no archived validation checkpoint yet. Both remain untested. Full GPU settings, unchanged rollout shape, thermal 65/58 C safeguards and keep-awake remain active; sampled GPU use 77-81%, temperature 40.9-43.8 C, memory 5,703/16,303 MiB. Final policy files retained. Cloud evaluation remains on hold; no new cloud commits. Report/handoff refreshed; CSV/summary checks passed, no executable changes and prior test suite remains applicable.
 
 - **29 Oct 2026, 07:35, Codex heartbeat on training PC:** g995-ice-s8 completed all 1,000 iterations. Its checkpoint 199 was selected only by simulator validation families 2/5 (96.8333%, first maximum); final standard test 97.3333% and obstacle test 95.25%, versus the existing final policy 97.5833% validation, 98.4167% standard and 95.25% obstacles (differences -0.75, -1.0833 and 0.00 percentage points). Comparisons use common levels 0-5 and identical held-out course sets; validation has 100 courses per level from each family 2/5, and each test has 200 per level. Exactly one standard and one obstacle test row at the selected checkpoint; no evaluation rerun. Archived `results/operations/g995-ice-s8-comparison.json`; completion comparison delivered with this heartbeat, do not repeat. The queue automatically started seed 10 after seed 8 exited; seeds 9/10 occupy the two training slots. Seed 9 archived iteration 949 validation 96.0833%, selected best 149 (96.7500%), still untested. Full GPU settings, unchanged rollout shape, thermal 65/58 C safeguards and keep-awake remain active; final policy files retained. Cloud evaluation remains on hold; no new cloud commits. Report/handoff refreshed; CSV/summary checks passed, no executable changes and prior test suite remains applicable.
 
