@@ -26,7 +26,8 @@ from parkour.neo_assist import (SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, TE
                                  approach_platforms, assist_fields, brake_plan, courses_from_file, evaluate_assisted,
                                  jump_kind, merge_results, mixed_courses, neo_level, official_neo_courses, part_bounds,
                                  plan_target, planned_takeoffs, random_neo_courses, single_neo_courses,
-                                 single_neo_hashes, single_neo_ok, single_neo_types, spec_from_key, specs_from_keys)
+                                 single_neo_hashes, single_neo_ok, single_neo_types, spec_from_key, specs_from_keys,
+                                 summarize)
 from parkour.neo_dagger import neo_takeoffs
 from parkour.paths import BRIDGE, CONFIGS, NODE, ROOT
 from parkour.train import course_hash, evaluate
@@ -346,6 +347,59 @@ class SingleNeoSets(unittest.TestCase):
                 with self.assertRaises(Stop):
                     T.train(T.TrainConfig(run=f"r{i}", device="cpu", test_once=True, **flags))
         self.assertEqual(seen, [False, False, True, False, True])
+
+
+class StrictNeoMetric(unittest.TestCase):
+    """neo_done: the bot stood on the neo's takeoff, then on its target (not past either)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.model = load_model(ROOT / "results" / "final_policy.pt", "cpu")
+
+    def test_a_bypass_is_completed_but_not_neo_done(self):
+        # Official validation course 1: the planner run of results/neo/assist_details/official2_all_brake_approach.json
+        # completed it with an approach plan from the platform before the neo's takeoff straight onto its target.
+        d = json.loads((ROOT / "results" / "neo" / "assist_details" / "official2_all_brake_approach.json").read_text())
+        res = evaluate_assisted(self.model, CoursePool(official_neo_courses(2)[1:2], "cpu", C.GRID), "cpu",
+                                AssistConfig(**d["row"]["config"]), course_offset=1)
+        pc = res["per_course"][0]
+        self.assertEqual({k: v for k, v in pc.items() if k != "neo_done"}, d["per_course"][1])  # the run, replayed
+        self.assertEqual(res["events"], [e for e in d["events"] if e["course"] == 1])
+        self.assertEqual((pc["success"], pc["neos"], pc["neos_reached"], pc["neo_done"]), (True, 1, 0, False))
+        self.assertEqual({k: summarize(res)[k] for k in ("completed", "completed_neo_done")},
+                         {"completed": 1, "completed_neo_done": 0})
+
+    def test_policy_alone_reports_it(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / "rows.jsonl"
+            NA.main(["--off", "--set", "single", "--family", str(SINGLE_VALIDATION_FAMILY), "--courses", "2",
+                     "--checkpoint", str(ROOT / "results" / "neo_policy.pt"), "--device", "cpu", "--out", str(out)])
+            row = json.loads(out.read_text().splitlines()[-1])
+        self.assertEqual((row["set"], row["split"], row["assist"], row["courses"]), ("single", "validation", False, 2))
+        self.assertEqual(list(row)[list(row).index("completed") + 1], "completed_neo_done")
+        self.assertEqual((row["completed"], row["completed_neo_done"]), (1, 1))  # the neo policy makes course 0's neo
+        self.assertEqual(row["by_level"], {"6": {"courses": 2, "completed": 1, "completed_neo_done": 1}})
+        with self.assertRaises(SystemExit):
+            NA.main(["--off", "--set", "single", "--family", "2", "--courses", "1", "--device", "cpu"])
+
+    def test_summary(self):
+        rec = dict(fell=False, neos=1, neos_reached=1, neos_passed=1, stopped_at_neo=False, stopped_at_kind=None)
+        pc = [dict(rec, success=True, neo_done=True, level=6), dict(rec, success=True, neo_done=False, level=7),
+              dict(rec, success=False, neo_done=True, level=6), dict(rec, success=False, neo_done=False, level=7)]
+        s = summarize({"per_course": pc, "events": [], "plans": {}, "search_seconds": 0.0})
+        self.assertEqual(list(s)[:3], ["courses", "completed", "completed_neo_done"])
+        self.assertEqual((s["completed"], s["completed_neo_done"]), (2, 1))
+        self.assertEqual(s["by_level"], {"6": {"courses": 2, "completed": 1, "completed_neo_done": 1},
+                                         "7": {"courses": 2, "completed": 1, "completed_neo_done": 0}})
+        self.assertEqual(s["by_neo_count"], {"1": {"courses": 4, "completed": 2, "completed_neo_done": 1}})
+        old = summarize({"per_course": [{k: v for k, v in c.items() if k != "neo_done"} for c in pc], "events": [],
+                         "plans": {}, "search_seconds": 0.0})  # cached parts of runs from before the metric
+        self.assertNotIn("completed_neo_done", old)
+        self.assertEqual(old["by_level"]["6"], {"courses": 2, "completed": 1})
+        bare = summarize({"per_course": [{k: v for k, v in c.items() if k not in ("neo_done", "level")} for c in pc],
+                          "events": [], "plans": {}, "search_seconds": 0.0})  # records without a level: as before
+        self.assertNotIn("by_level", bare)
+        self.assertEqual(bare["by_neo_count"], {"1": {"courses": 4, "completed": 2}})
 
 
 if __name__ == "__main__":

@@ -28,6 +28,12 @@ platform's own takeoff search (``--jumps all``) runs in the same tick. With
 ``--jumps advanced`` the search also runs at wide (3 sideways) and run-up
 jumps (momentum, head hitters, ice), with ``--jumps all`` at every jump.
 
+Every course's record says whether the bot did its neos as neos
+(``neo_done``): it stood on each neo's takeoff before on any later platform,
+then on the neo's target before on any later one, so a jump past the takeoff,
+or a target reached from further on, does not count. Rows count the courses
+completed that way (``completed_neo_done``) next to ``completed``.
+
 This is planning with an exact model of the game's physics. It measures
 what the bot does when it plans its neos, not what the network learned. The
 bots have it too (``parkour.live --assist``: the planner service ``--serve``,
@@ -565,7 +571,10 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
 
     With the assist off this is ``train.evaluate(..., per_course=True)`` course by course. ``course_offset``:
     the index of the pool's first course in the whole course set, for a run in parts (``--part``): searches
-    are seeded and events numbered by that index, as in one run over the whole set.
+    are seeded and events numbered by that index, as in one run over the whole set. ``neo_done`` per course:
+    every neo was done as a neo, the checkpoint (the furthest platform stood on) took the value of its takeoff
+    and then of its target, so the bot stood on the takeoff before on any later platform and then on the target
+    before on any later one.
     """
     n = pool.size
     if cfg.enabled and cfg.prior > 0:
@@ -610,6 +619,8 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
     fell = torch.zeros(n, dtype=torch.bool, device=device)
     length = torch.zeros(n, dtype=torch.int64, device=device)
     prog = torch.zeros(n, dtype=torch.float64, device=device)
+    took = torch.zeros_like(neo)  # the values the first episode's checkpoint took (neo_done); it starts at 0
+    took[:, 0] = True
     reached = [set() for _ in range(n)]
     events = []  # one per search: course, kind, takeoff, target, tick, after_plan (a plan or brake ended this tick), ...
     plans = {"played": 0, "landed_as_planned": 0, "brakes": 0}
@@ -640,6 +651,7 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
             finished |= done
             plan_len = torch.where(done, torch.zeros_like(plan_len), plan_len)
             cp = env.cp
+            took[rows, cp] = took[rows, cp] | ~finished  # (a finished episode's last value: from its progress)
             on = ~finished & env.state.on_ground
             for i in torch.nonzero(on & neo[rows, cp]).flatten().tolist():
                 reached[i].add(int(cp[i]))
@@ -724,12 +736,15 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
     s, f, ln, pr = (x.cpu().numpy() for x in (success, fell, length, prog))
     last = (pool.n - 1).cpu().numpy()
     cp_final = np.rint(pr * last).astype(int)
+    took = took.cpu().numpy()
     per_course = []
     for i in range(n):
         ks = takeoffs[i]
+        cps = set(np.flatnonzero(took[i]).tolist()) | {int(cp_final[i])}
         per_course.append({"success": bool(s[i]), "fell": bool(f[i]), "ticks": int(ln[i]), "progress": float(pr[i]),
                            "level": int(lv[i]), "neos": len(ks), "neos_reached": len(reached[i]),
                            "neos_passed": sum(1 for k in ks if k in reached[i] and (s[i] or cp_final[i] > k)),
+                           "neo_done": all(k in cps and k + 1 in cps for k in ks),
                            "stopped_at": int(cp_final[i]) if not s[i] else None,
                            "stopped_at_neo": bool(not s[i] and int(cp_final[i]) in ks),
                            "stopped_at_kind": None if s[i] else jump_kind(pool.courses[i], int(cp_final[i]), ks)})
@@ -737,22 +752,35 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
 
 
 def summarize(res: dict) -> dict:
-    """Counts for one run: courses completed, neo jumps reached and passed, by neos per course, and the searches."""
+    """Counts for one run: courses completed (also with every neo done as a neo, ``neo_done``), neo jumps reached
+    and passed, by neos per course and by level, and the searches."""
     pc = res["per_course"]
-    out = {"courses": len(pc), "completed": sum(c["success"] for c in pc), "fell": sum(c["fell"] for c in pc),
-           "neo_jumps": sum(c["neos"] for c in pc), "neo_jumps_reached": sum(c["neos_reached"] for c in pc),
-           "neo_jumps_passed": sum(c["neos_passed"] for c in pc),
-           "failed_at_a_neo": sum(c["stopped_at_neo"] for c in pc)}
+    strict = all("neo_done" in c for c in pc)  # (not in the cached parts of runs from before it existed)
+    done = lambda c: int(c["success"] and c["neo_done"])  # noqa: E731
+    out = {"courses": len(pc), "completed": sum(c["success"] for c in pc)}
+    if strict:
+        out["completed_neo_done"] = sum(done(c) for c in pc)
+    out.update({"fell": sum(c["fell"] for c in pc),
+                "neo_jumps": sum(c["neos"] for c in pc), "neo_jumps_reached": sum(c["neos_reached"] for c in pc),
+                "neo_jumps_passed": sum(c["neos_passed"] for c in pc),
+                "failed_at_a_neo": sum(c["stopped_at_neo"] for c in pc)})
     kinds = [c.get("stopped_at_kind") for c in pc if not c["success"] and c.get("stopped_at_kind")]
     if kinds:  # the jump each failed course stopped before
         out["failed_at"] = {k: kinds.count(k) for k in sorted(set(kinds))}
-    by = {}
+    by, by_level = {}, {}
     for c in pc:
         key = str(c["neos"]) if c["neos"] < 5 else "5+"
-        b = by.setdefault(key, {"courses": 0, "completed": 0})
-        b["courses"] += 1
-        b["completed"] += int(c["success"])
+        groups = [by.setdefault(key, {"courses": 0, "completed": 0})]
+        if "level" in c:  # (in every record of evaluate_assisted)
+            groups.append(by_level.setdefault(c["level"], {"courses": 0, "completed": 0}))
+        for b in groups:
+            b["courses"] += 1
+            b["completed"] += int(c["success"])
+            if strict:
+                b["completed_neo_done"] = b.get("completed_neo_done", 0) + done(c)
     out["by_neo_count"] = dict(sorted(by.items()))
+    if by_level:
+        out["by_level"] = {str(L): b for L, b in sorted(by_level.items())}
     ev = res["events"]
     if ev:
         out["searches"] = {}
