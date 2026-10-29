@@ -63,7 +63,19 @@ it 119 97.50% / 95.61%, it 149 97.17% / 95.56%.
 | `route-fill-b` | `route-bc-a` it 99 | slots 2-3 by the route policy (fill imitation 1.0), slot-1 imitation 0.3, PPO, entropy 0.001, lr 1e-4, 150 iterations | `runs/route-fill-b/` |
 | `route-ppo-c` | `route-fill-b` it 134 | as B with slot-1 imitation 0 (slot 1 by PPO only): does RL alone hold or improve the router? Stopped at 60 | `runs/route-ppo-c/` |
 | `route-imit-d` | `route-bc-a` it 99 | as B (same seed) with the PPO policy loss off (`--pg-coef 0`, imitation only): what PPO adds | `runs/route-imit-d/` |
-| `route-ppo-e` | scratch | pure PPO: no imitation at all, greedy fill, entropy 0.003, lr 3e-4, 300 iterations: can RL alone learn the router? | running |
+| `route-ppo-e` | scratch | pure PPO: no imitation at all, greedy fill, entropy 0.003, lr 3e-4; stopped at 120 of 300 (validation peaked at 39 and declined) | `runs/route-ppo-e/` |
+| `route-full-f` | scratch | the whole recipe in one run, new seed: fill by the policy (imitation 1.0), slot-1 imitation 1.0 falling to 0.3 by 100, entropy 0.001, lr 3e-4, 250 iterations | running |
+
+**Run E, result: RL alone beats the greedy planner.** Pure PPO from a random router, without any
+imitation, reached 96.61% / 93.39% on the full validation sets at its best checkpoint (it 39),
+against the planner's 92.78% / 89.00%: paired +3.8 points [+2.8, +4.9] standard and +4.4
+[+3.3, +5.6] obstacles, +4.1 [+3.3, +4.9] together (179 courses only the router completes, 31 only
+the planner; McNemar p = 2e-26; `router_validation_route-ppo-e_it39_*.json`). It learned its own
+route style (on multi-option decisions it picks the course's next platform 79-82% of the time,
+against 99% for the imitation runs), was less stable (a dip to 90% rollout success at iteration
+70; the KL stop often ended updates after a few minibatches) and declined after iteration 39 (95.3%
+/ 94.0% at 119 on the 100-per-level screen). Imitation of the course's next platform inside the RL
+loop adds about 1 point standard and 2 points obstacles on top (runs A, B, D).
 
 **Run D, result:** imitation only is as good as B within the noise. Full validation, local rule:
 D it 89 97.28% / 95.44%, it 104 97.28% / 95.50%, it 119 97.28% / 95.44%, it 149 97.39% / 95.33%,
