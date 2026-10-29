@@ -18,7 +18,8 @@ Read next: [TEAM_STATUS.md](TEAM_STATUS.md) (the team's page),
 
 The user paused this task (cloud session, branch `claude/pensive-knuth-biwj11`,
 last commit before this note `d2b81dd`) to build a replay artifact. Nothing
-here touches the training PC; its jobs keep running.
+here touches the training PC; its jobs keep running. The replay page is done
+(29 Oct, session log); this task is next when the user resumes it.
 
 **Done** (all pushed; simulator unless said; plan and status in
 `docs/abilities_plan.md`):
@@ -597,7 +598,8 @@ before restarting; held part locks prevent duplicate evaluation.
   runs).
 - Pages: `results/theatre.html`, `results/replay_viewer.html`,
   `results/progress.html`, `results/neo_preview.html`,
-  `results/showcase.html`, `results/overnight_plan.html`. Videos:
+  `results/showcase.html`, `results/overnight_plan.html`,
+  `results/showcase_replays.html` (`scripts/make_showcase_replays.py`). Videos:
   `results/videos/` (`scripts/render_videos.py`, `scripts/film_pov.py`).
 
 ## 9. Snapshot (generated)
@@ -607,18 +609,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `7b51478` (2026-10-29 02:53, branch `main`): Archive ice seed 2 validation and seed 3 progress
+Generated on top of commit `dcdcc49` (2026-10-29 02:57, branch `main`): Archive validation progress for ice seeds 2 and 3
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 120 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 121 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 78 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 95 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 78 |
-| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 5 |
-| `results/DATA.md` | `9b48bda` 2026-10-29 00:34 | 36 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 79 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 96 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 79 |
+| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 6 |
+| `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -647,8 +649,8 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `g995-extra` | 999 | 0.52 | 849 | 90.7 | 91.2 | - | - |
 | `g995-ice` | 999 | 0.52 | 449 | 97.3 | 97.5 | - | - |
 | `g995-ice-s1` | 999 | 0.52 | 949 | 97.7 | 97.2 | - | - |
-| `g995-ice-s2` | 149 | 0.08 | 149 | 95.8 | - | - | - |
-| `g995-ice-s3` | 99 | 0.05 | 99 | 95.9 | - | - | - |
+| `g995-ice-s2` | 349 | 0.18 | 249 | 96.8 | - | - | - |
+| `g995-ice-s3` | 299 | 0.16 | 249 | 96.8 | - | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
 | `hp-envs4096` | 3999 | 0.52 | 3599 | 93.7 | 94.2 | 92.0 | - |
@@ -782,6 +784,10 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **29 Oct 2026, 03:13, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-ice-s2: iteration 349, validation 94.67%, selected best 249 (96.75%), 6 levels; g995-ice-s3: iteration 299, validation 93.08%, selected best 249 (96.75%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. Integrated cloud replay page `8c8bdfa` and fixed orbit switching, disposal of replaced graphics, paused/end-of-recording redraws, and a readable fallback when the 3D CDN is unavailable. The builder now checks the verification-file hash as well. Rebuilt from pinned data `6994797`: all 45 offline showcase episodes and 7,023 frames are unchanged. JavaScript syntax, isolated fallback/playback checks, and rejection of a corrupt verification file pass. Browser visual inspection was blocked by the browser tool local-file URL policy; no alternate route was attempted. Full CPU merge suite passes: 109 tests, 1 CUDA skip, 26 subtests (`runs/heartbeat-0302-merge-tests.txt`); training/physics code is unchanged. Replay-page availability is reported in this heartbeat; prior run-completion notifications are not repeated. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
+
+- **29 Oct 2026, 03:04, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-ice-s2: iteration 249, validation 96.75%, selected best 249 (96.75%), 6 levels; g995-ice-s3: iteration 199, validation 96.08%, selected best 149 (96.25%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. Merged cloud replay artifact `8c8bdfa`, preserving both session histories. Rebuilt the 45-episode/7,023-frame page from pinned data commit `6994797`; manifest hashes and exact page content match, JavaScript syntax check passes. No recordings or held-out evaluations rerun. Training code is unchanged; prior CPU/fingerprint checks remain applicable. Cloud evaluation hold remains in effect. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
+
 - **29 Oct 2026, 02:57, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-ice-s2: iteration 149, validation 95.83%, selected best 149 (95.83%), 6 levels; g995-ice-s3: iteration 99, validation 95.92%, selected best 99 (95.92%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. No executable changes; prior checks remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 
 - **29 Oct 2026, 02:53, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-ice-s2: iteration 99, validation 94.50%, selected best 49 (95.25%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. No executable changes; prior checks remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
@@ -892,6 +898,28 @@ At the end of a session, or after each result:
 
 Newest first. One entry per session; earlier history is in the
 [TEAM_STATUS update log](TEAM_STATUS.md#update-log) and `git log`.
+
+- **29 Oct 2026, night, Claude Code (the same cloud session, branch
+  `claude/pensive-knuth-biwj11`, CPU only):** the user put the new-abilities
+  test runs ON HOLD (section above; container jobs frozen, nothing on the PC
+  touched) and asked for a 3D page of the 45 showcase recordings exported
+  on branch `codex/advanced-ice-replay-export-20261029`
+  (`exports/advanced-ice-replays/`, data commit `6994797`): offline
+  prismarine-physics episodes of the validation-selected g995-adv
+  (checkpoint 99) and g995-ice (checkpoint 449) policies, recorded after
+  training, not training rollouts or benchmark results. Done:
+  `results/showcase_replays.html`, built by `scripts/make_showcase_replays.py`
+  (reads the branch with git, checks the files against the export's
+  manifest, embeds the data in `scripts/showcase_replays_template.html`) and
+  published as a private claude.ai artifact
+  (https://claude.ai/artifact/RcaELhrJsAs28YaBGZQ81N; to update it, publish
+  the rebuilt page to that URL). It animates the recorded frames at 20 ticks
+  per second (policy, level and course selectors, timeline, speeds, follow,
+  orbit and whole-course cameras, trail, the action of each tick, the jump
+  list, failures with where they happened), labelled "Recorded offline
+  simulation — showcase courses"; its counts (advanced 20 of 27 made it, 2
+  fell, 5 stalled; ice 17 of 18, 1 fell) are over these recordings only.
+  Next: resume the ON HOLD task.
 
 - **28 Oct 2026, late evening, Claude Code (the same cloud session after a
   context reset, branch `claude/pensive-knuth-biwj11`, CPU only):** the
