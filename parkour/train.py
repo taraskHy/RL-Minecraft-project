@@ -491,6 +491,9 @@ def train(cfg: TrainConfig) -> Path:
             vals += held_out_courses(levels, cfg.val_per_level, cfg.eval_jumps, obstacle_prob=0.5,
                                      family=OBSTACLE_VALIDATION_FAMILY)
         test_hashes |= {course_hash(c) for c in vals}
+    if "advanced" in skills or (not skills and cfg.advanced):  # neos in training: none of the single-neo sets either
+        from .neo_assist import single_neo_hashes  # here: neo_assist imports this module
+        test_hashes |= single_neo_hashes()
     factory = CourseFactory(cfg, levels, test_hashes)
     train_courses = factory.make(cfg.pool_size)
     demos = load_demos(cfg.demos) if cfg.demos else []

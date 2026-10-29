@@ -77,10 +77,12 @@ def neo_takeoffs(course: C.Course) -> list[int]:
 
 
 def training_neo_courses(n: int, seed: int) -> list[C.Course]:
-    """Level-6/7 courses with at least one neo (also from wide takeoffs), none equal to a held-out course."""
+    """Level-6/7 courses with at least one neo (also from wide takeoffs), none equal to a held-out course (also
+    none of the single-neo sets, ``neo_assist.single_neo_courses``)."""
+    from .neo_assist import single_neo_hashes  # here: neo_assist imports this module
     levels = C.load_levels(advanced=True)
     held = held_out_courses(levels, 200, 10) + held_out_courses(levels, 100, 10, family=2)
-    exclude = {course_hash(c) for c in held}
+    exclude = {course_hash(c) for c in held} | single_neo_hashes()
     rng = np.random.default_rng([2026, 7, seed])
     out = []
     while len(out) < n:

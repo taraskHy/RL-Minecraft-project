@@ -1,5 +1,6 @@
 """Neo assist (parkour.neo_assist): off it is train.evaluate; on, its plans land where the search said,
 and the offline bot with the planner service plays exactly like the simulator."""
+import collections
 import dataclasses
 import json
 import math
@@ -8,21 +9,27 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
+from unittest import mock
 
 import numpy as np
 import torch
 
 from parkour import courses as C
+from parkour import neo_assist as NA
+from parkour import neo_dagger as ND
 from parkour import physics
+from parkour import train as T
 from parkour.env import CoursePool, on_obstacle
 from parkour.live import load_model
-from parkour.neo_assist import (AssistConfig, Rules, approach_platforms, assist_fields, brake_plan, courses_from_file,
-                                 evaluate_assisted, jump_kind, merge_results, mixed_courses, official_neo_courses,
-                                 part_bounds, plan_target, planned_takeoffs, random_neo_courses, spec_from_key,
-                                 specs_from_keys)
+from parkour.neo_assist import (SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, TEST_FAMILIES, AssistConfig, Rules,
+                                 approach_platforms, assist_fields, brake_plan, courses_from_file, evaluate_assisted,
+                                 jump_kind, merge_results, mixed_courses, neo_level, official_neo_courses, part_bounds,
+                                 plan_target, planned_takeoffs, random_neo_courses, single_neo_courses,
+                                 single_neo_hashes, single_neo_ok, single_neo_types, spec_from_key, specs_from_keys)
 from parkour.neo_dagger import neo_takeoffs
 from parkour.paths import BRIDGE, CONFIGS, NODE, ROOT
-from parkour.train import evaluate
+from parkour.train import course_hash, evaluate
 
 
 class NeoAssist(unittest.TestCase):
@@ -268,6 +275,77 @@ class AssistBotParity(unittest.TestCase):
         self.assertTrue(all(x["verified"] == x["found"] for x in bot))  # prismarine-physics agrees with every plan
         self.assertGreater(sum(x["played"] for x in bot), 0)
         return res, bot
+
+
+class SingleNeoSets(unittest.TestCase):
+    """The single-neo sets (--set single, families 40 and 41) and how they stay out of training."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.sets = {f: single_neo_courses(f) for f in (SINGLE_VALIDATION_FAMILY, SINGLE_TEST_FAMILY)}
+
+    def test_one_neo_at_its_position_and_every_type_and_position_equally_often(self):
+        types = single_neo_types()
+        self.assertEqual([s for _, s in types], neo_level())
+        self.assertEqual(collections.Counter(L for L, _ in types), {6: 22, 7: 10})
+        basic = {s for L in C.load_levels() for s in L}
+        for family, cs in self.sets.items():
+            self.assertEqual(len(cs), 320)
+            pairs = []
+            for i, c in enumerate(cs):
+                level, spec = types[i % 32]
+                k = (i % 32 + i // 32) % 10
+                self.assertEqual(neo_takeoffs(c), [k])
+                self.assertEqual([j for j, sp in enumerate(c.specs) if sp.neo], [k])
+                self.assertTrue(single_neo_ok(c, k))  # also: no wall cell in another jump's corridor
+                self.assertEqual((c.specs[k], c.n, c.level, c.seed), (spec, 11, level, i))
+                self.assertTrue(all(sp in basic for j, sp in enumerate(c.specs) if j != k))
+                if k == 0:  # a 1x1 start
+                    x0, x1, z0, z1, _ = c.platforms[0]
+                    self.assertEqual((x0, z0), (x1, z1))
+                pairs.append((spec.key(), k))
+            self.assertEqual(len(set(pairs)), 320)  # every type once at every position
+            self.assertEqual(set(collections.Counter(t for t, _ in pairs).values()), {10})
+            self.assertEqual(collections.Counter(k for _, k in pairs), {k: 32 for k in range(10)})
+        self.assertEqual([c.to_json() for c in single_neo_courses(SINGLE_VALIDATION_FAMILY, n=40)],
+                         [c.to_json() for c in self.sets[SINGLE_VALIDATION_FAMILY][:40]])  # a prefix: the same courses
+        self.assertIn(SINGLE_TEST_FAMILY, TEST_FAMILIES)
+        self.assertNotIn(SINGLE_VALIDATION_FAMILY, TEST_FAMILIES)
+
+    def test_kept_out_of_training(self):
+        hashes = single_neo_hashes()
+        self.assertEqual(hashes, {course_hash(c) for cs in self.sets.values() for c in cs})
+        self.assertEqual(len(hashes), 640)
+        original = T.held_out_courses
+        tiny = lambda levels, per_level, n_jumps, obstacle_prob=0.0, family=1, ice_prob=0.0: original(  # noqa: E731
+            levels, 1, 2, obstacle_prob=obstacle_prob, family=family, ice_prob=ice_prob)
+        # neo_dagger's training courses: one equal to a course of the sets is skipped.
+        with mock.patch.object(ND, "held_out_courses", tiny), mock.patch.object(NA, "single_neo_hashes", set):
+            first = ND.training_neo_courses(2, 0)
+        with mock.patch.object(ND, "held_out_courses", tiny), \
+                mock.patch.object(NA, "single_neo_hashes", lambda: {course_hash(first[0])}):
+            again = ND.training_neo_courses(2, 0)
+        self.assertEqual(len(again), 2)
+        self.assertNotIn(course_hash(first[0]), {course_hash(c) for c in again})
+
+        # train.py's CourseFactory: only when the training levels contain neos (--advanced, skills with advanced).
+        class Stop(Exception):
+            pass
+
+        seen = []
+
+        def factory(cfg, levels, exclude):
+            seen.append("single" in exclude)
+            raise Stop
+
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(T, "RUNS", Path(d)), \
+                mock.patch.object(T, "held_out_courses", tiny), mock.patch.object(T, "CourseFactory", factory), \
+                mock.patch.object(NA, "single_neo_hashes", lambda: {"single"}):
+            for i, flags in enumerate(({}, {"extra": True}, {"advanced": True}, {"skills": "basic,extra"},
+                                       {"skills": "basic,advanced,extra"})):
+                with self.assertRaises(Stop):
+                    T.train(T.TrainConfig(run=f"r{i}", device="cpu", test_once=True, **flags))
+        self.assertEqual(seen, [False, False, True, False, True])
 
 
 if __name__ == "__main__":

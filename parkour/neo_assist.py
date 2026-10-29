@@ -3,6 +3,7 @@
     python -m parkour.neo_assist --checkpoint results/final_policy.pt --set official --family 2
     python -m parkour.neo_assist --checkpoint results/final_policy.pt --set random --family 13 --prior 0.5
     python -m parkour.neo_assist --checkpoint results/final_policy.pt --set official --family 2 --off
+    python -m parkour.neo_assist --checkpoint results/final_policy.pt --set single --family 40 --off
 
 The policy plays every course as in ``train.evaluate`` (deterministic, the
 first episode per course). The first time it stands on a neo's takeoff block
@@ -44,6 +45,11 @@ Course sets (``--set``):
             neos, wide and momentum jumps, head hitters, ice run-ups, shaped
             blocks, slime bounces, ladder climbs; ``mixed_level``), families
             14 (test) and 15 (validation).
+  single    courses with exactly one neo (``single_neo_courses``): 320 per
+            family, 10 jumps, nine from levels 0-5 and one of the 32
+            single-neo types of levels 6 and 7, every type and every
+            position equally often; families 41 (test) and 40 (validation),
+            which nothing else uses and no training stream may contain.
 
 Settings are chosen on the validation families; the test families are run
 once with the chosen setting. Each run appends one JSON line to ``--out``
@@ -74,13 +80,15 @@ from .env import (OBS_DIM_EXT, STAND_EPS, YAW_STEPS_DEG, CoursePool, EnvConfig, 
 from .live import load_model
 from .neo_dagger import ELITE, HORIZON, neo_takeoffs
 from .paths import ROOT
-from .train import TEST_SEED_FAMILY, VALIDATION_FAMILY, held_out_courses
+from .train import TEST_SEED_FAMILY, VALIDATION_FAMILY, course_hash, held_out_courses
 
 RANDOM_TEST_FAMILY = 12
 RANDOM_VALIDATION_FAMILY = 13
 MIXED_TEST_FAMILY = 14
 MIXED_VALIDATION_FAMILY = 15
-TEST_FAMILIES = (TEST_SEED_FAMILY, RANDOM_TEST_FAMILY, MIXED_TEST_FAMILY)
+SINGLE_VALIDATION_FAMILY = 40  # the single-neo sets (families 18-39 are the routing work's)
+SINGLE_TEST_FAMILY = 41
+TEST_FAMILIES = (TEST_SEED_FAMILY, RANDOM_TEST_FAMILY, MIXED_TEST_FAMILY, SINGLE_TEST_FAMILY)
 HEADS = ("move", "strafe", "jump", "sprint", "yaw")
 
 
@@ -332,6 +340,57 @@ def mixed_courses(family: int, n: int = 200, n_jumps: int = 10) -> list[C.Course
     return [C.generate(rng, levels, 6, n_jumps, seed=i) for i in range(n)]
 
 
+def single_neo_types() -> list[tuple[int, C.JumpSpec]]:
+    """(level, spec) of the 32 single-neo jump types in ``neo_level``'s order: level 6's as listed in
+    configs/jump_levels_advanced.json, then level 7's."""
+    adv = C.load_levels(advanced=True)
+    return [(L, s) for L in (6, 7) for s in adv[L] if s.neo == 1]
+
+
+def single_neo_ok(course: C.Course, k: int) -> bool:
+    """Exactly one neo, at takeoff ``k``, by the wall rule (``neo_takeoffs``) and by the specs, and no wall cell
+    inside the flight corridor of another jump (``courses._corridor``)."""
+    if neo_takeoffs(course) != [k] or [j for j, sp in enumerate(course.specs) if sp.neo] != [k]:
+        return False
+    p = course.platforms
+    cells = [tuple(int(v) for v in e) for e in course.extra]
+    return not any(C._boxes_overlap(C._corridor(p[j], p[j + 1]), (x, x, y, y, z, z))
+                   for j in range(course.n - 1) if j != k for x, y, z in cells)
+
+
+SINGLE_MAX_DRAWS = 10_000  # draws of one single-neo course before giving up (the sets need at most a few dozen)
+
+
+def single_neo_courses(family: int, n: int = 320, n_jumps: int = 10) -> list[C.Course]:
+    """Courses with exactly one neo (``--set single``: families 40 validation, 41 test), by ``courses.generate_single_neo``.
+
+    Course i has the single-neo type i mod 32 (``single_neo_types``) as jump (i mod 32 + i div 32) mod ``n_jumps``,
+    so in 320 courses every type and every position comes equally often (each type once at every position). One
+    random stream, ``[2026, family, 6]``, used in course order (the first courses of a longer set are the same
+    courses), draws course i again until ``single_neo_ok``. Its level is its neo's own (6 or 7), its seed i.
+    """
+    types = single_neo_types()
+    basic = C.load_levels()
+    rng = np.random.default_rng([2026, family, 6])
+    out = []
+    for i in range(n):
+        level, spec = types[i % len(types)]
+        k = (i % len(types) + i // len(types)) % n_jumps
+        for _ in range(SINGLE_MAX_DRAWS):
+            c = C.generate_single_neo(rng, basic, spec, k, n_jumps, level=level, seed=i)
+            if c is not None and single_neo_ok(c, k):
+                break
+        else:
+            raise RuntimeError(f"no single-neo course {i} ({spec.key()} as jump {k}) in {SINGLE_MAX_DRAWS} draws")
+        out.append(c)
+    return out
+
+
+def single_neo_hashes() -> set:
+    """``train.course_hash`` of every course of both single-neo sets (320 each): no training course may equal one."""
+    return {course_hash(c) for f in (SINGLE_VALIDATION_FAMILY, SINGLE_TEST_FAMILY) for c in single_neo_courses(f)}
+
+
 def course_set(name: str, family: int) -> list[C.Course]:
     if name == "official":
         return official_neo_courses(family)
@@ -339,6 +398,8 @@ def course_set(name: str, family: int) -> list[C.Course]:
         return random_neo_courses(family)
     if name == "mixed":
         return mixed_courses(family)
+    if name == "single":
+        return single_neo_courses(family)
     raise ValueError(name)
 
 
@@ -844,7 +905,7 @@ def _run_parts(a, meta, count) -> list[dict]:
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--checkpoint", default=str(ROOT / "results" / "final_policy.pt"))
-    ap.add_argument("--set", choices=("official", "random", "mixed"), default="official")
+    ap.add_argument("--set", choices=("official", "random", "mixed", "single"), default="official")
     ap.add_argument("--family", type=int, default=VALIDATION_FAMILY)
     ap.add_argument("--off", action="store_true", help="the policy alone, for comparison")
     ap.add_argument("--courses", type=int, default=0, help="only the first N courses (quick checks)")
@@ -871,7 +932,8 @@ def main(argv=None):
     if a.threads:
         torch.set_num_threads(a.threads)
     valid = {"official": (TEST_SEED_FAMILY, VALIDATION_FAMILY), "random": (RANDOM_TEST_FAMILY, RANDOM_VALIDATION_FAMILY),
-             "mixed": (MIXED_TEST_FAMILY, MIXED_VALIDATION_FAMILY)}
+             "mixed": (MIXED_TEST_FAMILY, MIXED_VALIDATION_FAMILY),
+             "single": (SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY)}
     if a.family not in valid[a.set]:
         raise SystemExit(f"--set {a.set} has families {valid[a.set]} (test, validation)")
     cfg = AssistConfig(enabled=not a.off, **{k: getattr(a, k) for k in asdict(AssistConfig()) if k != "enabled"})

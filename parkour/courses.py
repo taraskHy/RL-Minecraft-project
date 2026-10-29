@@ -632,6 +632,76 @@ def generate(rng: np.random.Generator, levels: list[list[JumpSpec]], level: int,
     return c
 
 
+def generate_single_neo(rng: np.random.Generator, basic: list[list[JumpSpec]], neo: JumpSpec, position: int,
+                        n_jumps: int = 10, grid=GRID, turn_prob: float = 0.25, yaw_noise: float = math.radians(60),
+                        level: int = 0, seed: int = 0) -> Course | None:
+    """One course of ``n_jumps`` jumps whose jump ``position`` is the neo ``neo`` and all others ordinary
+    jumps from ``basic`` (plain jump levels, 0-5; opt-in: the single-neo sets of ``parkour.neo_assist``).
+
+    Start, turns, fit and spawn follow ``generate``; the start is 1x1 when the neo is the first jump (a neo
+    follows only a takeoff one block wide, ``_place`` without ``wide_neo``). An ordinary jump draws a level of
+    ``basic`` uniformly, then one of its specs, and is placed as ``generate`` places one. None if a jump does
+    not fit in 30 attempts. ``level`` and ``seed`` are only recorded on the course.
+    """
+    assert neo.neo and 0 <= position < n_jumps < MAX_PLATFORMS
+    gx, gy, gz = grid
+    s = 1 if position == 0 else int(rng.choice([1, 2, 3], p=[0.4, 0.3, 0.3]))
+    heading = int(rng.integers(4))
+    hx, hz = HEADINGS[heading]
+    y0 = int(rng.integers(10, gy - 14))
+    if hx > 0:
+        x0 = int(rng.integers(3, 10))
+    elif hx < 0:
+        x0 = int(rng.integers(gx - 10 - s, gx - 3 - s))
+    else:
+        x0 = int(rng.integers(8, gx - 8 - s))
+    if hz > 0:
+        z0 = int(rng.integers(3, 10))
+    elif hz < 0:
+        z0 = int(rng.integers(gz - 10 - s, gz - 3 - s))
+    else:
+        z0 = int(rng.integers(8, gz - 8 - s))
+    platforms = [np.array([x0, x0 + s - 1, z0, z0 + s - 1, y0], dtype=np.int64)]
+    specs = []
+    extras: list = []
+    for j in range(n_jumps):
+        placed = False
+        for attempt in range(30):
+            if j == position:
+                spec = neo
+            else:
+                lv = int(rng.integers(len(basic)))
+                spec = basic[lv][int(rng.integers(len(basic[lv])))]
+            h = heading
+            if rng.random() < turn_prob or attempt >= 15:
+                h = (heading + int(rng.choice([1, 3]))) % 4
+            if j == position:
+                placed_parts = _place(platforms, extras, h, spec, grid)
+                if placed_parts is None:
+                    continue
+                platforms.extend(placed_parts[0])
+                extras.extend(placed_parts[1])
+            else:
+                new = _platform_after(platforms[-1], h, spec)
+                if not _fits(new, platforms, grid, extras=extras):
+                    continue
+                platforms.append(new)
+            specs.append(spec)
+            heading = h
+            placed = True
+            break
+        if not placed:
+            return None
+    c = Course(np.stack(platforms), np.zeros(3), 0.0, level=level, seed=seed, specs=specs,
+               extra=np.array(extras, dtype=np.int64).reshape(-1, 3))
+    centres = c.centers()
+    c.spawn = centres[0].copy()
+    d = centres[1] - centres[0]
+    yaw_to = math.atan2(-d[0], -d[2])  # Mineflayer yaw that faces direction d
+    c.spawn_yaw = float(yaw_to + rng.uniform(-yaw_noise, yaw_noise))
+    return c
+
+
 def single_jump(spec: JumpSpec, takeoff: tuple = (1, 1), grid=(24, 16, 24), heading: int = 0) -> Course:
     """A two-platform course for one jump, used by the feasibility study.
 
