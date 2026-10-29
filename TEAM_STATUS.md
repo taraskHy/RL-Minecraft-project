@@ -158,8 +158,9 @@ its CPU; the training for them is queued for the PC
   takeoff to search again when a search finds nothing: 147 (67%), 246 of
   311 neos. On random courses of ordinary jumps where half the jumps are
   neos, planning every jump completes 106 of 200 (the policy alone 27),
-  with the stop-and-search-again 119. A plan over the two jumps before each
-  neo is being measured; then the
+  with the stop-and-search-again 119, and with one plan over the two jumps
+  before each neo as well 135. The same on the official courses is being
+  measured; then the
   test courses, once. The offline bot (prismarine-physics, the live bot's
   engine) reproduces the simulator exactly with this planner: on the 31
   neo-set courses the neo policy made 11 of in real Minecraft, the final
