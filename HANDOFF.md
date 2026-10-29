@@ -609,18 +609,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `be6cb1c` (2026-10-29 07:35, branch `main`): Archive ice seed 8 completion and continue seeds 9 and 10
+Generated on top of commit `eec0118` (2026-10-29 07:41, branch `main`): Archive ice seed 9 completion and continue seeds 10 and 11
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 174 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 175 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 132 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 149 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 132 |
-| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 59 |
-| `results/DATA.md` | `a4d31ba` 2026-10-29 03:17 | 51 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 133 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 150 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 133 |
+| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 60 |
+| `results/DATA.md` | `a4d31ba` 2026-10-29 03:17 | 52 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -649,7 +649,8 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `g995-extra` | 999 | 0.52 | 849 | 90.7 | 91.2 | - | - |
 | `g995-ice` | 999 | 0.52 | 449 | 97.3 | 97.5 | - | - |
 | `g995-ice-s1` | 999 | 0.52 | 949 | 97.7 | 97.2 | - | - |
-| `g995-ice-s10` | 49 | 0.03 | 49 | 96.1 | - | - | - |
+| `g995-ice-s10` | 149 | 0.08 | 149 | 96.4 | - | - | - |
+| `g995-ice-s11` | 49 | 0.03 | 49 | 96.2 | - | - | - |
 | `g995-ice-s2` | 999 | 0.52 | 749 | 96.9 | 97.4 | - | - |
 | `g995-ice-s3` | 999 | 0.52 | 249 | 96.8 | 97.4 | - | - |
 | `g995-ice-s4` | 999 | 0.52 | 449 | 97.0 | 97.2 | - | - |
@@ -790,6 +791,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **29 Oct 2026, 07:45, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-ice-s10: iteration 149, validation 96.42%, selected best 149 (96.42%), 6 levels; g995-ice-s11: iteration 49, validation 96.17%, selected best 49 (96.17%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. No executable changes; prior checks remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 
 - **29 Oct 2026, 07:41, Codex heartbeat on training PC:** g995-ice-s9 completed all 1,000 iterations. Its checkpoint 149 was selected only by simulator validation families 2/5 (96.7500%, first maximum); final standard test 97.3333% and obstacle test 93.9167%, versus the existing final policy 97.5833% validation, 98.4167% standard and 95.2500% obstacles (differences -0.8333, -1.0833 and -1.3333 percentage points). Comparisons use common levels 0-5 and identical held-out course sets; validation has 100 courses per level from each family 2/5, and each test has 200 per level. Exactly one standard and one obstacle test row at the selected checkpoint; no evaluation rerun. Archived `results/operations/g995-ice-s9-comparison.json`; completion comparison delivered with this heartbeat, do not repeat. The queue automatically started seed 11 after seed 9 exited; seeds 10/11 occupy the two training slots. Seed 10 archived iteration 49 validation 96.0833%, also its selected best; seed 11 has no archived validation checkpoint yet. Both remain untested. Full GPU settings, unchanged rollout shape, thermal 65/58 C safeguards and keep-awake remain active; sampled GPU use 77-81%, temperature 40.9-43.8 C, memory 5,703/16,303 MiB. Final policy files retained. Cloud evaluation remains on hold; no new cloud commits. Report/handoff refreshed; CSV/summary checks passed, no executable changes and prior test suite remains applicable.
 

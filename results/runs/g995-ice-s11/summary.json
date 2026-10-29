@@ -1,0 +1,100 @@
+{
+ "best": {
+  "iteration": 49,
+  "validation_success": 0.9616666666666667,
+  "test_success": null,
+  "validation_per_level": {
+   "0": {
+    "success": 0.985,
+    "fell": 0.015,
+    "progress": 0.9884999999999999,
+    "ticks_success": 118.22842639593908,
+    "n": 200
+   },
+   "1": {
+    "success": 0.985,
+    "fell": 0.015,
+    "progress": 0.9884999999999999,
+    "ticks_success": 121.05583756345177,
+    "n": 200
+   },
+   "2": {
+    "success": 1.0,
+    "fell": 0.0,
+    "progress": 1.0,
+    "ticks_success": 133.91,
+    "n": 200
+   },
+   "3": {
+    "success": 0.99,
+    "fell": 0.01,
+    "progress": 0.9954999999999999,
+    "ticks_success": 147.35353535353536,
+    "n": 200
+   },
+   "4": {
+    "success": 0.98,
+    "fell": 0.02,
+    "progress": 0.9948888888888888,
+    "ticks_success": 159.0612244897959,
+    "n": 200
+   },
+   "5": {
+    "success": 0.83,
+    "fell": 0.155,
+    "progress": 0.8965000000000001,
+    "ticks_success": 186.8975903614458,
+    "n": 200
+   }
+  }
+ },
+ "last_eval": {
+  "validation_success": 0.9616666666666667,
+  "validation_per_level": {
+   "0": {
+    "success": 0.985,
+    "fell": 0.015,
+    "progress": 0.9884999999999999,
+    "ticks_success": 118.22842639593908,
+    "n": 200
+   },
+   "1": {
+    "success": 0.985,
+    "fell": 0.015,
+    "progress": 0.9884999999999999,
+    "ticks_success": 121.05583756345177,
+    "n": 200
+   },
+   "2": {
+    "success": 1.0,
+    "fell": 0.0,
+    "progress": 1.0,
+    "ticks_success": 133.91,
+    "n": 200
+   },
+   "3": {
+    "success": 0.99,
+    "fell": 0.01,
+    "progress": 0.9954999999999999,
+    "ticks_success": 147.35353535353536,
+    "n": 200
+   },
+   "4": {
+    "success": 0.98,
+    "fell": 0.02,
+    "progress": 0.9948888888888888,
+    "ticks_success": 159.0612244897959,
+    "n": 200
+   },
+   "5": {
+    "success": 0.83,
+    "fell": 0.155,
+    "progress": 0.8965000000000001,
+    "ticks_success": 186.8975903614458,
+    "n": 200
+   }
+  }
+ },
+ "iteration": 49,
+ "env_steps": 26214400
+}
