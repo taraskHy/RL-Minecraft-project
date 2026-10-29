@@ -65,6 +65,7 @@ class RouteTrainConfig:
     minibatches: int = 4
     clip: float = 0.2
     ent_coef: float = 0.01
+    pg_coef: float = 1.0  # 0: no PPO policy loss (an imitation-only control)
     vf_coef: float = 0.5
     max_grad_norm: float = 1.0
     target_kl: float = 0.02  # stop an update's remaining minibatches above 1.5x this
@@ -377,7 +378,7 @@ def update(net, opt, b, cfg: RouteTrainConfig, bc_w: float, fb: dict | None = No
             ratio = torch.exp(logp - b["logp"][i])
             pg = -torch.min(ratio * adv, ratio.clamp(1 - cfg.clip, 1 + cfg.clip) * adv).mean()
             vl = 0.5 * (v - b["ret"][i]).pow(2).mean()
-            loss = pg + cfg.vf_coef * vl - cfg.ent_coef * ent.mean()
+            loss = cfg.pg_coef * pg + cfg.vf_coef * vl - cfg.ent_coef * ent.mean()
             lab = b["label"][i]
             has = (lab >= 0) & (b["ok"][i].sum(1) > 1)
             bc = torch.zeros((), device=lg.device)
