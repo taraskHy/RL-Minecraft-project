@@ -10,7 +10,7 @@ the data: training runs, policies, the route planner and neo files, the game
 folders (including the v2, planner, noroute, neo and film games) and the
 videos.
 
-**Last updated:** 29 Oct 2026, 04:02, training PC: ice seeds 2/3 complete and reported; seeds 4/5 continue.
+**Last updated:** 29 Oct 2026, 04:05, training PC: active-run validation refreshed; initial advanced/ice comparison already delivered.
 
 ## The project
 
@@ -321,6 +321,8 @@ The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
 5. The report discussion and conclusion are drafted. The cloud DOCX/PDF exports predate this merged source; rebuild and check pagination before submission.
 
 ## Update log
+
+- **29 Oct 2026, 04:05, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-ice-s4: iteration 99, validation 95.17%, selected best 49 (95.25%), 6 levels; g995-ice-s5: iteration 49, validation 93.58%, selected best 49 (93.58%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. No executable changes; prior checks remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 
 - **29 Oct 2026, 04:02, Codex heartbeat on training PC:** completed and archived both 1,000-iteration ice seeds in the simulator: g995-ice-s2: validation-selected checkpoint 749, validation 96.9167%, final standard 97.4167%, obstacles 94.9167% (vs existing final policy: -0.6667/-1.0000/-0.3333 percentage points, validation/standard/obstacles); g995-ice-s3: validation-selected checkpoint 249, validation 96.7500%, final standard 97.4167%, obstacles 94.0000% (vs existing final policy: -0.8333/-1.0000/-1.2500 percentage points, validation/standard/obstacles). Comparison uses identical common levels 0-5, 200 courses per level and final test families 1/4. Exactly one final standard and obstacle test row per run, at the validation-selected checkpoint; no evaluation rerun. Sources: `results/operations/g995-ice-s2-comparison.json` and `results/operations/g995-ice-s3-comparison.json`. This combined completion notification is delivered in this chat now; do not repeat. Existing final policy files retained. The queue automatically filled both slots with ice seeds 4/5 using the recipe selected from common validation only; seed 4 validation iteration 49 is 95.25%. Full-GPU settings, thermal watchdog (65/58 C) and keep-awake remain active. Cloud evaluation hold remains in effect. Report/handoff refreshed; independent result audit and CSV checks pass. No executable changes; the 109-test CPU suite from 03:16 remains applicable.
 

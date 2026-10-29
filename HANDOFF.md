@@ -609,18 +609,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `92ce08f` (2026-10-29 03:54, branch `main`): Archive ice seed validation at iterations 949 and 899
+Generated on top of commit `dc114f7` (2026-10-29 04:03, branch `main`): Report completed ice seeds 2 and 3; continue seeds 4 and 5
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 131 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 132 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 89 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 106 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 89 |
-| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 16 |
-| `results/DATA.md` | `a4d31ba` 2026-10-29 03:17 | 8 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 90 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 107 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 90 |
+| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 17 |
+| `results/DATA.md` | `a4d31ba` 2026-10-29 03:17 | 9 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -651,7 +651,8 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `g995-ice-s1` | 999 | 0.52 | 949 | 97.7 | 97.2 | - | - |
 | `g995-ice-s2` | 999 | 0.52 | 749 | 96.9 | 97.4 | - | - |
 | `g995-ice-s3` | 999 | 0.52 | 249 | 96.8 | 97.4 | - | - |
-| `g995-ice-s4` | 49 | 0.03 | 49 | 95.2 | - | - | - |
+| `g995-ice-s4` | 99 | 0.05 | 49 | 95.2 | - | - | - |
+| `g995-ice-s5` | 49 | 0.03 | 49 | 93.6 | - | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
 | `hp-envs4096` | 3999 | 0.52 | 3599 | 93.7 | 94.2 | 92.0 | - |
@@ -784,6 +785,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **29 Oct 2026, 04:05, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-ice-s4: iteration 99, validation 95.17%, selected best 49 (95.25%), 6 levels; g995-ice-s5: iteration 49, validation 93.58%, selected best 49 (93.58%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. No executable changes; prior checks remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 
 - **29 Oct 2026, 04:02, Codex heartbeat on training PC:** completed and archived both 1,000-iteration ice seeds in the simulator: g995-ice-s2: validation-selected checkpoint 749, validation 96.9167%, final standard 97.4167%, obstacles 94.9167% (vs existing final policy: -0.6667/-1.0000/-0.3333 percentage points, validation/standard/obstacles); g995-ice-s3: validation-selected checkpoint 249, validation 96.7500%, final standard 97.4167%, obstacles 94.0000% (vs existing final policy: -0.8333/-1.0000/-1.2500 percentage points, validation/standard/obstacles). Comparison uses identical common levels 0-5, 200 courses per level and final test families 1/4. Exactly one final standard and obstacle test row per run, at the validation-selected checkpoint; no evaluation rerun. Sources: `results/operations/g995-ice-s2-comparison.json` and `results/operations/g995-ice-s3-comparison.json`. This combined completion notification is delivered in this chat now; do not repeat. Existing final policy files retained. The queue automatically filled both slots with ice seeds 4/5 using the recipe selected from common validation only; seed 4 validation iteration 49 is 95.25%. Full-GPU settings, thermal watchdog (65/58 C) and keep-awake remain active. Cloud evaluation hold remains in effect. Report/handoff refreshed; independent result audit and CSV checks pass. No executable changes; the 109-test CPU suite from 03:16 remains applicable.
 
