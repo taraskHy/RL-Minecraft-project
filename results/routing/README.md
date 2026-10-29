@@ -61,8 +61,25 @@ it 119 97.50% / 95.61%, it 149 97.17% / 95.56%.
 | --- | --- | --- | --- |
 | `route-bc-a` | scratch | PPO + imitation of the course's next platform (weight 1.0, falling to 0.03 by iteration 150), entropy 0.01, greedy fill; stopped at 161 | `runs/route-bc-a/` |
 | `route-fill-b` | `route-bc-a` it 99 | slots 2-3 by the route policy (fill imitation 1.0), slot-1 imitation 0.3, PPO, entropy 0.001, lr 1e-4, 150 iterations | `runs/route-fill-b/` |
-| `route-ppo-c` | `route-fill-b` it 134 | as B with slot-1 imitation 0 (slot 1 by PPO only): does RL alone hold or improve the router? | running |
-| `route-imit-d` | `route-bc-a` it 99 | as B with the PPO policy loss off (imitation only): what PPO adds | planned |
+| `route-ppo-c` | `route-fill-b` it 134 | as B with slot-1 imitation 0 (slot 1 by PPO only): does RL alone hold or improve the router? Stopped at 60 | `runs/route-ppo-c/` |
+| `route-imit-d` | `route-bc-a` it 99 | as B (same seed) with the PPO policy loss off (`--pg-coef 0`, imitation only): what PPO adds | `runs/route-imit-d/` |
+| `route-ppo-e` | scratch | pure PPO: no imitation at all, greedy fill, entropy 0.003, lr 3e-4, 300 iterations: can RL alone learn the router? | running |
+
+**Run D, result:** imitation only is as good as B within the noise. Full validation, local rule:
+D it 89 97.28% / 95.44%, it 104 97.28% / 95.50%, it 119 97.28% / 95.44%, it 149 97.39% / 95.33%,
+against B's 97.39-97.56% / 95.56-95.67%. Paired, B it 134 minus D it 104: +0.2 points
+[-0.1, +0.5] over both sets (18 courses only B completes, 12 only D, McNemar p = 0.36); against
+D it 149: +0.2 [-0.1, +0.5], p = 0.23 (`route_paired_fill-b-it134_vs_imit-d-*_validation.json`).
+No clear difference: after the warm start, the router's quality comes from on-policy imitation of
+the course's next platform (with the learner's own states, as in DAgger), and PPO's policy loss adds
+at most a few tenths of a point. Run C (PPO without the imitation) drifted down.
+
+**Run C, result:** PPO alone did not improve the router. Its rollouts' success (sampled actions,
+training courses) stayed where run B ended (97.0% over iterations 40-60 against 96.9% over B's last
+30 iterations), its agreement with the course's next platform fell from 0.98 to 0.94, and
+validation (100 courses per level per set, deterministic) fell from B's 97.83% mean to
+96.5-97.3% (iterations 14 to 59). From a router already at the course list's level, the
+remaining improvements are below what PPO's noisy, mostly forced decisions can find.
 
 Observations so far: when the imitation weight decayed in run A, the policy's entropy rose (0.003 to
 0.022), its agreement with the course's next platform fell (0.997 to 0.94) and validation slipped;
