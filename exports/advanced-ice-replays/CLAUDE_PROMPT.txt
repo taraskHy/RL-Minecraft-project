@@ -1,6 +1,10 @@
+Pause your current cloud task and make this visualization your priority. First preserve your work and update HANDOFF.md: mark the previous task ON HOLD, summarize what is completed and what remains, and record its branch/commit, relevant files, active processes and exact next steps so you can resume it later. Safely stop or pause only jobs belonging to that previous cloud task, preserving their progress. Keep the training PC's queue and safety helpers running. Then focus on the artifact below.
+
 Continue the Minecraft visualization artifact you made before, using the new advanced and ice replay data. Create the working interactive artifact, not just an explanation.
 
 Use the attached replays.json (or unpack the attached archive). The archive includes README.md describing the schema and separate advanced.json and ice.json files. Those separate files contain the same episodes as the combined replays.json, so use either the combined file or concatenate the two separate episodes arrays, without duplicating episodes.
+
+The data are also published in repository taraskHy/RL-Minecraft-project, branch codex/advanced-ice-replay-export-20261029, under exports/advanced-ice-replays/. Fetch/read README.md, advanced.json and ice.json from that branch without resetting or overwriting your existing work. The data commit is 6994797fa6d6f71e41172867e388ff00af940d96.
 
 There are 45 recorded episodes: 27 advanced (levels 0-8, selected checkpoint 99) and 18 ice (levels 0-5, selected checkpoint 449), with 7,023 frames. Animate the real saved positions and yaw using the level geometry and ice/obstacle metadata. Follow the schema in README.md or the JSON metadata exactly: Y-up, positions at the bot's feet, 20 ticks/second, inclusive platform bounds.
 

@@ -45,8 +45,8 @@
       "sha256": "791430c2079ccbf996ddea7b06d977c0060001eef3866b448915e0ad65787c65"
     },
     "CLAUDE_PROMPT.txt": {
-      "bytes": 1565,
-      "sha256": "5e3da95ed4a0d4d84858ba270ecd54bf976981ae4c0a5bad6002eac442af0738"
+      "bytes": 2406,
+      "sha256": "9f89929fded2df8f28f3a63d5f1e0e974dac48e1298d879fe465f1bd33e5d302"
     },
     "export_replays.py": {
       "bytes": 8506,
