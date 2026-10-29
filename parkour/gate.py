@@ -252,10 +252,12 @@ class Experts:
 # GPU temperature -----------------------------------------------------------------------------------------------
 
 def gpu_temperature() -> float | None:
-    """The hottest GPU's temperature in degrees (nvidia-smi, as scripts/gpu_watchdog.py reads it), or None."""
+    """The hottest GPU's temperature in degrees (nvidia-smi, as scripts/gpu_watchdog.py reads it), or None. No
+    console window opens for it when the job runs without one (e.g. started by scripts/training_queue.py)."""
     try:
         out = subprocess.run(["nvidia-smi", "--query-gpu=temperature.gpu", "--format=csv,noheader,nounits"],
-                             capture_output=True, text=True, timeout=20).stdout
+                             capture_output=True, text=True, timeout=20,
+                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
         return max(float(v) for v in out.split())
     except (OSError, ValueError, subprocess.SubprocessError):
         return None
