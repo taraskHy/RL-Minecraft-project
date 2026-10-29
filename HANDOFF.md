@@ -607,18 +607,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `cc51f51` (2026-10-29 02:35, branch `main`): Merge cloud approach validation and archive training progress
+Generated on top of commit `b731d70` (2026-10-29 02:41, branch `main`): Merge remote-tracking branch 'origin/claude/pensive-knuth-biwj11'
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 111 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 117 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 69 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 86 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 69 |
-| `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | `9b48bda` 2026-10-29 00:34 | 27 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 75 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 92 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 75 |
+| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 2 |
+| `results/DATA.md` | `9b48bda` 2026-10-29 00:34 | 33 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -646,7 +646,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `g995-adv` | 999 | 0.52 | 99 | 81.8 | 82.3 | - | - |
 | `g995-extra` | 899 | 0.47 | 849 | 90.7 | - | - | - |
 | `g995-ice` | 999 | 0.52 | 449 | 97.3 | 97.5 | - | - |
-| `g995-ice-s1` | 899 | 0.47 | 599 | 96.2 | - | - | - |
+| `g995-ice-s1` | 949 | 0.50 | 949 | 97.7 | - | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
 | `hp-envs4096` | 3999 | 0.52 | 3599 | 93.7 | 94.2 | 92.0 | - |
@@ -779,6 +779,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **29 Oct 2026, 02:41, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-extra: iteration 899, validation 89.62%, selected best 849 (90.71%), 12 levels; g995-ice-s1: iteration 949, validation 97.67%, selected best 949 (97.67%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. Merged documentation-only cloud `2abdc47`, which records frozen cloud evaluation jobs and leaves PC training untouched. No executable changes; the full CPU suite (109 passed) and held-out fingerprint checks (3 passed, 26 subtests) from this session remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 
 - **29 Oct 2026, 02:38, Codex heartbeat on training PC:** merged cloud `cd81960`/`d2b81dd`/`39882fb` (data/docs only). CPU simulator official neo validation family 2 with approach: 157/218 (72.02%) versus brake/retry 147/218 (67.43%), +4.59 percentage points; archived detail/JSONL aggregates and shipped-checkpoint hashes verified. Newly archived policy-alone tests are official 0/210 and mixed 35/200; the mixed row and bins agree on 35 despite the commit message saying 30. No tests rerun for these results, and no test-based selection. The cloud evaluation hold is preserved and explicitly leaves PC training running; no cloud resume command was executed. Both complete session logs preserved. Current status docs reconciled. `run.cmd test -k HeldOutFingerprints`: 3 passed, 107 deselected, 26 subtests passed (`runs/heartbeat-0236-fingerprint-tests.txt`); the unchanged executable code also passed the full 109-check CPU suite minutes earlier. Existing two trainers, queue, thermal watchdog and keep-awake continue.
 
