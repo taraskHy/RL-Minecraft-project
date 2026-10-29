@@ -607,18 +607,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `449867f` (2026-10-29 02:42, branch `main`): Archive ice seed 949 validation and cloud pause note
+Generated on top of commit `5854d98` (2026-10-29 02:51, branch `main`): Report completed extra and ice seed 1; continue two-seed queue
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 118 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 119 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 76 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 93 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 76 |
-| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 3 |
-| `results/DATA.md` | `9b48bda` 2026-10-29 00:34 | 34 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 77 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 94 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 77 |
+| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 4 |
+| `results/DATA.md` | `9b48bda` 2026-10-29 00:34 | 35 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -647,7 +647,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `g995-extra` | 999 | 0.52 | 849 | 90.7 | 91.2 | - | - |
 | `g995-ice` | 999 | 0.52 | 449 | 97.3 | 97.5 | - | - |
 | `g995-ice-s1` | 999 | 0.52 | 949 | 97.7 | 97.2 | - | - |
-| `g995-ice-s2` | 49 | 0.03 | 49 | 95.2 | - | - | - |
+| `g995-ice-s2` | 99 | 0.05 | 49 | 95.2 | - | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
 | `hp-envs4096` | 3999 | 0.52 | 3599 | 93.7 | 94.2 | 92.0 | - |
@@ -780,6 +780,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **29 Oct 2026, 02:53, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-ice-s2: iteration 99, validation 94.50%, selected best 49 (95.25%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. No executable changes; prior checks remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 
 - **29 Oct 2026, 02:50, Codex heartbeat on training PC:** completed `g995-extra`; simulator validation-selected checkpoint 849, 90.71% across 12 levels. Final tests reported once: 91.21% standard and 89.33% obstacles across all 12; on identical common levels 0-5, 96.75%/93.75%, versus existing final policy 98.42%/95.25% (-1.67/-1.50 percentage points). One test row per set at the selected validation maximum verified. Evidence: `results/operations/g995-extra-comparison.json`. Completion notification delivered together with ice seed 1 in this heartbeat; do not repeat either. Queue automatically started `g995-ice-s3`; ice seeds 2 and 3 now occupy both slots. Ice remains the recipe selected by common validation (initial ice 97.33%, advanced 96.17%, extra 95.33%); tests were not used. Existing final policy retained. Both trainers are unrestricted; thermal-only watchdog and keep-awake verified. No executable changes; recent full CPU/fingerprint checks remain applicable.
 
