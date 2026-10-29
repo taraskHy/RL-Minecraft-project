@@ -43,7 +43,9 @@ The runs:
 | `skills-hh-ft` | `combined-distill` fine-tuned on head hitters and slime (skills mode, `--level-weights`, 500 iterations); not kept: validation mean 86.4% against 87.0% |
 | `neo-combined-r1` | a neo DAgger round on `combined-distill` (pairs `runs/neo_dagger_c1.pt`, 500 iterations, a snapshot every 50); not kept: no snapshot reaches `combined-distill`'s validation mean |
 | `neo-dagger4` | one more DAgger round on the neo policy (pairs `runs/neo_dagger_r4.pt`, 500 iterations, a snapshot every 50); its updates-250 snapshot was picked on the single-neo validation set (146 of 320 strict, the best of ten) |
-| `gate-smoke-1024`, `gate-smoke-8192` | smoke runs of the skill gate (`parkour/gate.py`, a few updates) that measured its speed; not results |
+| `gate-r1` | the skill gate (`parkour/gate.py`, `configs/gate_experts.json`): 150 updates; best validation mean 87.75% at update 100 against the one network's 86.98%, so adopted for the simulator; tested once (`test_eval.json`): 86.80% against 86.45% |
+| `gate-r1-swap1` | the first expert swap (`configs/gate_experts_swap1.json`: `neo-dagger4` updates 250 in the neo slot), 38 updates from `gate-r1`'s best.pt; best 87.35%, below 87.75%, so not kept |
+| `gate-smoke-1024`, `gate-smoke-8192`, `gate-smoke-fix-8192` | smoke runs of the skill gate (`parkour/gate.py`, a few updates) that measured its speed; not results |
 
 Checkpoints (`runs/NAME/checkpoints/best.pt`, `latest.pt`, and
 `updates_*.pt` snapshots for the progress run) are *local only* (about 14 MB
@@ -123,7 +125,7 @@ JavaScript on Mineflayer's physics engine without a server. Every folder's
 | `skill-replays-offline`, `skill-replays-live` | evidence only: the first 45 of those courses offline (identical to the -65 run), and the real-Minecraft run that stopped at course 14 (a 2x2 carpet breaks in mid-air in vanilla Minecraft; 14 episodes, no summary), before the structure-void fix in `bridge/parkour_bot.js` |
 | `skill-replays-untrained-offline`, `skill-replays-untrained-live` | the one network on 8 courses with block shapes no training level uses (stairs, top slab, top trapdoor, iron bars; `skill-replays-courses-untrained.json`, `scripts/make_untrained_shape_courses.py`): 6/8 in both, as the simulator |
 | `skill-replays-neo-network-*`, `skill-replays-neo-planner-*` | 16 fresh courses with exactly one neo (family 45, `skill-replays-courses-neo.json`, `scripts/make_neo_showcase_courses.py`), offline and real Minecraft: the one network alone 7/16, the final policy with the planner (`--assist`, the setting chosen on single-neo validation) 13/16, as the simulator |
-| `single41-offline-policy`, `single41-offline-planner` | the single-neo bot check: the first 64 test courses of family 41 (`single41-first64-courses.json`, `scripts/single_neo_bot_courses.py`) on the offline bot, policy alone (`neo-dagger4` updates 250) and planner mode; compared with `parkour.live`'s own simulator re-run from the same settled start (HANDOFF section 3) |
+| `single41-offline-policy`, `single41-offline-planner`, `single41-live-policy`, `single41-live-planner` | the single-neo bot check (offline, then **real Minecraft**): the first 64 test courses of family 41 (`single41-first64-courses.json`, `scripts/single_neo_bot_courses.py`) on the offline bot, policy alone (`neo-dagger4` updates 250) and planner mode; compared with `parkour.live`'s own simulator re-run from the same settled start (HANDOFF section 3): planner 58/64 and policy alone 26/64, the same courses in all three, 0 corrections |
 | `v2-tuned-planner-offline`, `v2-tuned-planner-offline-obstacles` | the same courses offline with the retuned planner (`cost=distance, align=2.0`): 51/60, 56/60 |
 | `live2-final`, `live2-obstacles`, `live2-showcase` | real Minecraft, first final policy, re-run with the collision-tolerance patch: 59/60, 58/60, 3/4 |
 | `recheck-std`, `recheck-obs`, `recheck-show` | the same re-check offline: identical |

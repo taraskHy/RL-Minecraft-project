@@ -449,7 +449,7 @@ done; `results/neo/assist_validation.jsonl`, per course in
 - **Bots:** the first 64 test courses (`results/games/single41-first64-courses.json`,
   `scripts/single_neo_bot_courses.py`) in the offline bot, both modes
   (`results/games/single41-offline-*`). **The gate of 17:49, made precise at
-  22:25 before the planner bot's result:** "matches the simulator" means
+  22:34, after an independent audit and before the planner bot's result:** "matches the simulator" means
   parity with the simulator played from the same start, `parkour.live`'s own
   re-run (the check of every earlier bot run). The bots settle 10 ticks on
   the start block (`SETTLE_TICKS`); the scored test started without
@@ -457,6 +457,25 @@ done; `results/neo/assist_validation.jsonl`, per course in
   alone: 26 completed in the bot and its re-run against 27 in the test, 19
   courses different, the bot equal to its re-run on 64 of 64). Each bot score
   is reported next to the test run's on the same 64 courses.
+- **Offline bot, first 64 test courses (CPU, settled start):** the bot
+  equals `parkour.live`'s simulator re-run on 64 of 64 courses in both modes
+  (largest replay difference 7.1e-15 blocks), so the gate is passed.
+  Planner mode 58 completed (its re-run 58; the scored test on the same 64:
+  57, 56 strict); policy alone 26 (re-run 26; scored test 27). The planner
+  found, verified and played 603 of 634 requests, 0 errors. Of the 7 courses
+  that start with their neo, the bot completed 6; course 10 jumped on its
+  first tick without a plan. Real Minecraft on the same 64 courses, both
+  modes, started at 22:43 (`runs/single41-live-*`; the live bot freezes its
+  physics and tick count while it waits for a plan). **Real Minecraft,
+  policy alone:** 26 of 64, the same outcome as the offline bot and the
+  simulator re-run on every course, 0 server corrections, largest replay
+  difference 2.1e-14 blocks. **Real Minecraft, planner mode:** 58 of 64
+  (90.6%), the same outcome as the offline bot and the simulator re-run on
+  every course, 0 server corrections, largest replay difference 2.1e-14
+  blocks; the planner found, verified and played 603 of 634 requests (as
+  offline), 0 errors. The protocol of 17:49 is complete: simulator test
+  86.25% (planner, played once), and the bots reproduce the simulator from
+  the same start in both modes, offline and in real Minecraft.
 - **Known planner difference in the bots:** the search for a takeoff runs
   after each tick's step, so a settled bot on a planned start platform plays
   the policy's first action first; if that is a jump, the first jump is the
@@ -586,8 +605,41 @@ on the GPU while the single-neo work uses the CPU. **Its rules, fixed at
   against the neo policy's 133 on family 40). The first gate (`gate-r1`)
   trains with the measurement's checkpoints, as fixed at 20:15; the swap is
   its first fine-tune.
-- Implementation: `parkour/gate.py` on branch `gate` (worktree
-  `../wt-gate`), reviewed before the training run.
+- Implementation: `parkour/gate.py`, `configs/gate_experts.json`,
+  `tests/test_gate.py`; reviewed three ways (18 issues, all fixed: among
+  them carried decisions valued by the current critic, the learning-rate
+  KL measured from each update's start, best.pt by the exact count-based
+  four-group mean); merged at 22:51 (`6946602`); 153 tests pass. A gate
+  fixed to one slot reproduces that expert exactly (3,600 of 3,600
+  validation courses for `combined-distill`). Training speed about 280,000
+  ticks/s. The GPU watchdog was restarted from the merged code at 22:52
+  (it now also pauses `parkour.gate`; gate jobs also hold 65/58 C
+  themselves). **`gate-r1`** (150 updates, 8,192 x 64, validation every 10,
+  snapshots at 50/100/150) started at 22:53 on the GPU (Ethan: "Yes, start
+  it"); the test is played only if its validation mean beats 4,175/4,800
+  (86.98%).
+- **`gate-r1` result (simulator):** best at update 100 (iteration 99):
+  validation mean 87.75% (4,212/4,800: basic 95.50, ice 97.50, advanced
+  69.17, extra 88.83), +0.77 over the one network. That is the best of 15
+  validations (the others after update 20: 86.5-87.5), so it is optimistic.
+  By the rule the gate replaces `combined-distill` as the shipped simulator
+  policy (the bots keep the one network: the gate is not ported to them) and
+  was **tested once: 86.80%** (basic 95.54, ice 96.33, advanced 67.67, extra
+  87.67; `runs/gate-r1/test_eval.json`) against the one network's 86.45%
+  (95.75, 96.83, 66.83, 86.38): +0.35 points, about 0.6 standard errors of
+  the difference, so a match, not a win; it gains on advanced (+0.8) and the
+  new kinds (+1.3) and loses on basic (-0.2) and ice (-0.5). Slot use per
+  group is in `summary.json` (on basic it picks the final policy for 18% of
+  decisions, `g995-ice` 21%, `combined-distill` 20%).
+- **First swap fine-tune `gate-r1-swap1`** (`configs/gate_experts_swap1.json`:
+  `neo-dagger4` updates 250 in the neo slot; from `gate-r1`'s best.pt, 38
+  updates, validation and a snapshot every 4) started at 23:17 on the GPU;
+  kept only if its validation mean is at least `gate-r1`'s 87.75%.
+  **Not kept:** its best is 87.35% (update 32: basic 95.5, ice 96.5,
+  advanced 68.7, extra 88.8; the ten validations 86.7-87.4), below 87.75%,
+  so the gate stays `gate-r1` with the neo policy in the neo slot; no test
+  is played for it. The new neo expert did not lift the advanced group,
+  which fits its single-neo margin being mostly the pick.
 
 **Next, by the user's choice (29 Oct): one network for every skill.** Distil
 the specialists (final policy, `g995-adv`, `g995-ice`, `g995-extra`, the
@@ -1032,17 +1084,17 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `031d7c3` (2026-10-29 20:19, branch `main`): Merge neo-single: single-neo sets (families 40 and 41), strict neo metric, opt-in planner levers
+Generated on top of commit `6946602` (2026-10-29 22:52, branch `main`): Merge gate: the skill gate (parkour/gate.py), swappable expert slots, semi-MDP PPO
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | updated together with this snapshot | 0 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 5 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `1a16df0` 2026-10-29 14:14 | 15 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 183 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 166 |
-| `results/README.md` | updated together with this snapshot | 0 |
+| `README.md` | `1a16df0` 2026-10-29 14:14 | 21 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 189 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 172 |
+| `results/README.md` | `2ceba5f` 2026-10-29 22:40 | 5 |
 | `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
@@ -1092,8 +1144,11 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `g995-ice-s7` | 999 | 0.52 | 749 | 97.0 | 96.7 | - | - |
 | `g995-ice-s8` | 999 | 0.52 | 199 | 96.8 | 97.3 | - | - |
 | `g995-ice-s9` | 999 | 0.52 | 149 | 96.8 | 97.3 | - | - |
+| `gate-r1` | 149 | 0.08 | 99 | 87.8 | 86.8 | - | - |
+| `gate-r1-swap1` | 37 | 0.02 | 31 | 87.4 | - | - | - |
 | `gate-smoke-1024` | 5 | 0.00 | 5 | 81.7 | - | - | - |
 | `gate-smoke-8192` | 4 | 0.00 | 4 | 84.4 | - | - | - |
+| `gate-smoke-fix-8192` | 5 | 0.00 | 2 | 84.4 | - | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
 | `hp-envs4096` | 3999 | 0.52 | 3599 | 93.7 | 94.2 | 92.0 | - |
@@ -1194,6 +1249,9 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `recheck-obs` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 58/60 | 96.7 | 100.0 |
 | `recheck-show` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 3/4 | 75.0 | 100.0 |
 | `recheck-std` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 59/60 | 98.3 | 100.0 |
+| `single41-live-planner` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 58/64 | 90.6 | 100.0 |
+| `single41-live-policy` | live (Minecraft 1.21.4 server) | `runs/neo-dagger4/checkpoints/updates_00250.pt` | 26/64 | 40.6 | 100.0 |
+| `single41-offline-planner` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 58/64 | 90.6 | 100.0 |
 | `single41-offline-policy` | offline (prismarine-physics, no server) | `runs/neo-dagger4/checkpoints/updates_00250.pt` | 26/64 | 40.6 | 100.0 |
 | `skill-replays-live-65` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 59/65 | 90.8 | 100.0 |
 | `skill-replays-neo-network-live` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 7/16 | 43.8 | 100.0 |

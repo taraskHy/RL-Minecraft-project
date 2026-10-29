@@ -10,7 +10,7 @@ the data: training runs, policies, the route planner and neo files, the game
 folders (including the v2, planner, noroute, neo and film games) and the
 videos.
 
-**Last updated:** 29 Oct 2026, 22:50, training PC (Claude): single neos meet the 85% goal on the test set (86.25% with the planner, narrowly); follow-up rounds not kept; gate headroom measured and the gate being built; replays of every new skill and block type on the results page; CPU capped at 85%.
+**Last updated:** 29 Oct 2026, 23:40, training PC (Claude): single neos meet the 85% goal on the test set (86.25% with the planner, narrowly) and the bots reproduce it in real Minecraft (58/64); the gate is built: 86.80% on test against the one network's 86.45%, a match; follow-up rounds not kept; replays of every new skill and block type on the results page; CPU capped at 85%.
 
 ## Team split / what we want next (29 Oct 2026)
 
@@ -309,6 +309,16 @@ one network already reach 93.08% when the best of them is picked per
 course, so the distinct experts add about 1 point. Realistic hopes are near
 the per-group +0.85.
 
+**The gate, built and trained (29 Oct, 22:53-23:14, GPU):** it picks one of
+the seven experts at the start and at every landing, from what they see plus
+the block kind of the current and next platform. Best validation mean 87.75%
+(update 100) against the one network's 86.98%, so by the rule it replaces
+the one network in the simulator (the bots keep the one network). Tested
+once: 86.80% against 86.45% (basic 95.5, ice 96.3, neo-momentum-wide 67.7,
+new kinds 87.7): a match, not a win, as the measurement predicted. The
+experts are swappable; the first swap (the newer neo snapshot into the neo
+slot) reached 87.35% after its fine-tune and is not kept.
+
 ## No course list: the bot finds its own route
 
 Requested from the side chat: run the trained bot on maps where nobody gives
@@ -408,11 +418,14 @@ The setting was chosen on validation by fixed rules: each change had to add at
 least 4 courses, and the search stopped at 89%. The test margin is small (4
 courses; 95% interval 82.0-89.6%), and counting a course only if every
 platform was a takeoff gives 271 (84.7%): 5 of the 276 skipped one ordinary
-platform's search. The offline bot is checking the first 64 test courses
-before real Minecraft. The bots settle 10 ticks on the start block, so they
-are compared with the simulator from the same settled start; a settled bot
-can take its first jump without a plan (a known difference, 7 of the 64
-courses start with their neo).
+platform's search. **In real Minecraft**, on the first 64 test courses
+(each neo type twice), the planner completes 58 and the policy alone 26,
+the same courses as the offline bot and the simulator from the same start,
+0 server corrections. The bots settle 10 ticks on the start block, so they
+are compared with the simulator from that settled start (the scored test
+started without settling: 57 and 27 on those courses); a settled bot can
+take its first jump without a plan, which cost one of the 7 courses that
+start with their neo.
 
 ## Codex stopped; handoff to Claude (29 Oct 2026, 12:49, Israel time)
 

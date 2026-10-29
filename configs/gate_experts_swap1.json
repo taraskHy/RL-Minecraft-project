@@ -1,0 +1,47 @@
+{
+ "what": "The skill gate's expert slots after the first swap (HANDOFF.md section 3, swap rule of 29 Oct 20:20): neo-dagger4 updates 250 replaces the neo policy in the neo slot, because on the slot's criterion, the single-neo validation set (family 40, strict metric, policy alone), it completes 146 of 320 against 133 (results/neo/assist_validation.jsonl; the best of ten snapshots, so the margin may be mostly the pick). Every other slot is as in configs/gate_experts.json. Used by gate-r1-swap1 (--init-from gate-r1's best.pt --swap).",
+ "slots": [
+  {
+   "slot": "final",
+   "skill": "basic",
+   "checkpoint": "results/final_policy.pt",
+   "sha1": "e4bfb177bc55ecabdf8b9dcaa807394de44db938"
+  },
+  {
+   "slot": "g995-ice",
+   "skill": "ice",
+   "checkpoint": "runs/g995-ice/checkpoints/best.pt",
+   "sha1": "fcfb988b078757a1f270789e751e1bdbf2d75b1d"
+  },
+  {
+   "slot": "neo",
+   "skill": "neo",
+   "checkpoint": "runs/neo-dagger4/checkpoints/updates_00250.pt",
+   "sha1": "da3801ff2cf5562c4db94db3b7f2b31497e081a8"
+  },
+  {
+   "slot": "g995-extra",
+   "skill": "extra",
+   "checkpoint": "runs/g995-extra/checkpoints/best.pt",
+   "sha1": "aa58dd6b5ada89dc65a87a4d9bdb749edb221e07"
+  },
+  {
+   "slot": "combined-distill",
+   "skill": "all",
+   "checkpoint": "runs/combined-distill/checkpoints/best.pt",
+   "sha1": "86fdbbd49a0a84ec9a3711268fdbe4a701ad6c13"
+  },
+  {
+   "slot": "skills-hh-ft",
+   "skill": "all",
+   "checkpoint": "runs/skills-hh-ft/checkpoints/best.pt",
+   "sha1": "86d6afb1e5ca2a0330684f698246c6f5f671bba1"
+  },
+  {
+   "slot": "neo-combined-r1",
+   "skill": "all",
+   "checkpoint": "runs/neo-combined-r1/checkpoints/best.pt",
+   "sha1": "f173d5b4d3921377b014f317a837a0f7c565e418"
+  }
+ ]
+}

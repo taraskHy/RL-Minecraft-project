@@ -1,0 +1,310 @@
+{
+ "best": {
+  "iteration": 2,
+  "updates": 3,
+  "validation_success": 0.84375,
+  "validation_groups": {
+   "basic": 0.9583333333333334,
+   "ice": 1.0,
+   "advanced": 0.5833333333333334,
+   "extra": 0.8333333333333334
+  },
+  "validation_counts": {
+   "basic": {
+    "completed": 23,
+    "courses": 24
+   },
+   "ice": {
+    "completed": 12,
+    "courses": 12
+   },
+   "advanced": {
+    "completed": 7,
+    "courses": 12
+   },
+   "extra": {
+    "completed": 20,
+    "courses": 24
+   }
+  },
+  "slot_usage": {
+   "basic": {
+    "decisions": {
+     "final": 0.1722689075630252,
+     "g995-ice": 0.0546218487394958,
+     "neo": 0.08403361344537816,
+     "g995-extra": 0.03361344537815126,
+     "combined-distill": 0.226890756302521,
+     "skills-hh-ft": 0.19747899159663865,
+     "neo-combined-r1": 0.23109243697478993
+    },
+    "ticks": {
+     "final": 0.15894411682111767,
+     "g995-ice": 0.04942431901151362,
+     "neo": 0.07862959842740803,
+     "g995-extra": 0.03004773939904521,
+     "combined-distill": 0.2218477955630441,
+     "skills-hh-ft": 0.22072451558550968,
+     "neo-combined-r1": 0.24038191519236168
+    },
+    "n_decisions": 238,
+    "n_ticks": 3561
+   },
+   "ice": {
+    "decisions": {
+     "final": 0.26666666666666666,
+     "g995-ice": 0.1,
+     "neo": 0.058333333333333334,
+     "g995-extra": 0.05,
+     "combined-distill": 0.15,
+     "skills-hh-ft": 0.21666666666666667,
+     "neo-combined-r1": 0.15833333333333333
+    },
+    "ticks": {
+     "final": 0.28192090395480224,
+     "g995-ice": 0.09661016949152543,
+     "neo": 0.05254237288135593,
+     "g995-extra": 0.05480225988700565,
+     "combined-distill": 0.16214689265536722,
+     "skills-hh-ft": 0.1864406779661017,
+     "neo-combined-r1": 0.1655367231638418
+    },
+    "n_decisions": 120,
+    "n_ticks": 1770
+   },
+   "advanced": {
+    "decisions": {
+     "final": 0.07258064516129033,
+     "g995-ice": 0.03225806451612903,
+     "neo": 0.06451612903225806,
+     "g995-extra": 0.03225806451612903,
+     "combined-distill": 0.23387096774193547,
+     "skills-hh-ft": 0.2661290322580645,
+     "neo-combined-r1": 0.29838709677419356
+    },
+    "ticks": {
+     "final": 0.07360406091370558,
+     "g995-ice": 0.029441624365482234,
+     "neo": 0.05482233502538071,
+     "g995-extra": 0.029441624365482234,
+     "combined-distill": 0.2467005076142132,
+     "skills-hh-ft": 0.25431472081218276,
+     "neo-combined-r1": 0.3116751269035533
+    },
+    "n_decisions": 124,
+    "n_ticks": 1970
+   },
+   "extra": {
+    "decisions": {
+     "final": 0.056818181818181816,
+     "g995-ice": 0.003787878787878788,
+     "neo": 0.026515151515151516,
+     "g995-extra": 0.09090909090909091,
+     "combined-distill": 0.3446969696969697,
+     "skills-hh-ft": 0.21212121212121213,
+     "neo-combined-r1": 0.26515151515151514
+    },
+    "ticks": {
+     "final": 0.06282082620386213,
+     "g995-ice": 0.0034221461745294547,
+     "neo": 0.024199462234172575,
+     "g995-extra": 0.10486433634808115,
+     "combined-distill": 0.35443656807626495,
+     "skills-hh-ft": 0.20215106330970423,
+     "neo-combined-r1": 0.24810559765338547
+    },
+    "n_decisions": 264,
+    "n_ticks": 4091
+   }
+  },
+  "seconds": 34.4
+ },
+ "last_eval": {
+  "iteration": 5,
+  "updates": 6,
+  "validation_success": 0.84375,
+  "validation_groups": {
+   "basic": 1.0,
+   "ice": 0.9166666666666666,
+   "advanced": 0.5833333333333334,
+   "extra": 0.875
+  },
+  "validation_counts": {
+   "basic": {
+    "completed": 24,
+    "courses": 24
+   },
+   "ice": {
+    "completed": 11,
+    "courses": 12
+   },
+   "advanced": {
+    "completed": 7,
+    "courses": 12
+   },
+   "extra": {
+    "completed": 21,
+    "courses": 24
+   }
+  },
+  "slot_usage": {
+   "basic": {
+    "decisions": {
+     "final": 0.09623430962343096,
+     "g995-ice": 0.058577405857740586,
+     "neo": 0.15481171548117154,
+     "g995-extra": 0.05439330543933055,
+     "combined-distill": 0.23430962343096234,
+     "skills-hh-ft": 0.2594142259414226,
+     "neo-combined-r1": 0.14225941422594143
+    },
+    "ticks": {
+     "final": 0.09438848920863309,
+     "g995-ice": 0.057841726618705035,
+     "neo": 0.13755395683453236,
+     "g995-extra": 0.05007194244604317,
+     "combined-distill": 0.2535251798561151,
+     "skills-hh-ft": 0.2552517985611511,
+     "neo-combined-r1": 0.15136690647482015
+    },
+    "n_decisions": 239,
+    "n_ticks": 3475
+   },
+   "ice": {
+    "decisions": {
+     "final": 0.12931034482758622,
+     "g995-ice": 0.12931034482758622,
+     "neo": 0.10344827586206896,
+     "g995-extra": 0.0603448275862069,
+     "combined-distill": 0.14655172413793102,
+     "skills-hh-ft": 0.1896551724137931,
+     "neo-combined-r1": 0.2413793103448276
+    },
+    "ticks": {
+     "final": 0.13305978898007034,
+     "g995-ice": 0.13774912075029308,
+     "neo": 0.08382180539273154,
+     "g995-extra": 0.047479484173505275,
+     "combined-distill": 0.15357561547479484,
+     "skills-hh-ft": 0.18640093786635403,
+     "neo-combined-r1": 0.25791324736225085
+    },
+    "n_decisions": 116,
+    "n_ticks": 1706
+   },
+   "advanced": {
+    "decisions": {
+     "final": 0.06611570247933884,
+     "g995-ice": 0.024793388429752067,
+     "neo": 0.14049586776859505,
+     "g995-extra": 0.01652892561983471,
+     "combined-distill": 0.36363636363636365,
+     "skills-hh-ft": 0.2892561983471074,
+     "neo-combined-r1": 0.09917355371900827
+    },
+    "ticks": {
+     "final": 0.06935817805383022,
+     "g995-ice": 0.024327122153209108,
+     "neo": 0.12836438923395446,
+     "g995-extra": 0.018115942028985508,
+     "combined-distill": 0.3669772256728778,
+     "skills-hh-ft": 0.2800207039337474,
+     "neo-combined-r1": 0.11283643892339544
+    },
+    "n_decisions": 121,
+    "n_ticks": 1932
+   },
+   "extra": {
+    "decisions": {
+     "final": 0.05090909090909091,
+     "g995-ice": 0.03272727272727273,
+     "neo": 0.02909090909090909,
+     "g995-extra": 0.09090909090909091,
+     "combined-distill": 0.36,
+     "skills-hh-ft": 0.2690909090909091,
+     "neo-combined-r1": 0.16727272727272727
+    },
+    "ticks": {
+     "final": 0.04876357753639935,
+     "g995-ice": 0.02403512826438641,
+     "neo": 0.024728449272012943,
+     "g995-extra": 0.09729604807025653,
+     "combined-distill": 0.3882597642708574,
+     "skills-hh-ft": 0.2433556736769124,
+     "neo-combined-r1": 0.17356135890917496
+    },
+    "n_decisions": 275,
+    "n_ticks": 4327
+   }
+  },
+  "seconds": 34.1
+ },
+ "iteration": 5,
+ "updates": 6,
+ "env_ticks": 3145728,
+ "env_steps": 3145728,
+ "minutes": 1.36,
+ "completed": true,
+ "slots": [
+  {
+   "slot": "final",
+   "skill": "basic",
+   "checkpoint": "results/final_policy.pt",
+   "sha1": "e4bfb177bc55ecabdf8b9dcaa807394de44db938"
+  },
+  {
+   "slot": "g995-ice",
+   "skill": "ice",
+   "checkpoint": "runs/g995-ice/checkpoints/best.pt",
+   "sha1": "fcfb988b078757a1f270789e751e1bdbf2d75b1d"
+  },
+  {
+   "slot": "neo",
+   "skill": "neo",
+   "checkpoint": "results/neo_policy.pt",
+   "sha1": "b1806cad6dc68f2bfa4a8e8a6c75a28b4b061a1d"
+  },
+  {
+   "slot": "g995-extra",
+   "skill": "extra",
+   "checkpoint": "runs/g995-extra/checkpoints/best.pt",
+   "sha1": "aa58dd6b5ada89dc65a87a4d9bdb749edb221e07"
+  },
+  {
+   "slot": "combined-distill",
+   "skill": "all",
+   "checkpoint": "runs/combined-distill/checkpoints/best.pt",
+   "sha1": "86fdbbd49a0a84ec9a3711268fdbe4a701ad6c13"
+  },
+  {
+   "slot": "skills-hh-ft",
+   "skill": "all",
+   "checkpoint": "runs/skills-hh-ft/checkpoints/best.pt",
+   "sha1": "86d6afb1e5ca2a0330684f698246c6f5f671bba1"
+  },
+  {
+   "slot": "neo-combined-r1",
+   "skill": "all",
+   "checkpoint": "runs/neo-combined-r1/checkpoints/best.pt",
+   "sha1": "f173d5b4d3921377b014f317a837a0f7c565e418"
+  }
+ ],
+ "swaps": [],
+ "validation": {
+  "split": "validation",
+  "per_level": 2,
+  "jumps": 10,
+  "groups": [
+   "basic",
+   "advanced",
+   "extra"
+  ],
+  "ice": true,
+  "stall_ticks": 200,
+  "max_ticks": 4000,
+  "compact_ice": true,
+  "batch_size": 600,
+  "as_measurement": false,
+  "courses": 72
+ }
+}
