@@ -10,7 +10,7 @@ the data: training runs, policies, the route planner and neo files, the game
 folders (including the v2, planner, noroute, neo and film games) and the
 videos.
 
-**Last updated:** 29 Oct 2026, 02:23, training PC: active-run validation refreshed; initial advanced/ice comparison already delivered.
+**Last updated:** 29 Oct 2026, 02:35, training PC: active-run validation refreshed; initial advanced/ice comparison already delivered.
 
 ## The project
 
@@ -184,8 +184,9 @@ its CPU; the training for them is queued for the PC
   takeoff to search again when a search finds nothing: 147 (67%), 246 of
   311 neos. On random courses of ordinary jumps where half the jumps are
   neos, planning every jump completes 106 of 200 (the policy alone 27),
-  with the stop-and-search-again 119. A plan over the two jumps before each
-  neo is being measured; then the
+  with the stop-and-search-again 119, and with one plan over the preceding jump
+  and the neo as well 135. The same on the official courses is being
+  measured; then the
   test courses, once. The offline bot (prismarine-physics, the live bot's
   engine) reproduces the simulator exactly with this planner: on the 31
   neo-set courses the neo policy made 11 of in real Minecraft, the final
@@ -318,6 +319,12 @@ The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
 5. The report discussion and conclusion are drafted. The cloud DOCX/PDF exports predate this merged source; rebuild and check pagination before submission.
 
 ## Update log
+
+- **29 Oct 2026, 02:35, Codex heartbeat on training PC:** merged cloud commits `711846a`/`c87068d`, data and docs only. CPU simulator random neo validation family 13: all-jump planning with brake/retry plus approach completes 135/200 courses (67.5%), versus 119/200 (59.5%) without approach: +8.0 percentage points; 332/392 reached neos passed. Detail and JSONL aggregates, checkpoint and dataset identities reconciled (`results/neo/assist_details/random13_all_brake_approach.json`). Approach jointly plans the preceding jump and the neo; corrected that wording and the abilities-plan status. Official-family approach validation remains pending. Both complete session logs retained; generated conflicts refreshed by report. Full CPU `run.cmd test`: 109 passed, 1 CUDA test skipped, 26 subtests passed (`runs/heartbeat-0228-merge-tests.txt`). No held-out tests rerun; two trainers and all existing helpers continue.
+
+- **29 Oct 2026, 02:35, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-extra: iteration 849, validation 90.71%, selected best 849 (90.71%), 12 levels; g995-ice-s1: iteration 849, validation 94.33%, selected best 599 (96.17%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. No executable changes; prior checks remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
+
+- **29 Oct 2026, 02:29, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-extra: iteration 799, validation 90.00%, selected best 799 (90.00%), 12 levels; g995-ice-s1: iteration 799, validation 87.33%, selected best 599 (96.17%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. No executable changes; prior checks remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 
 - **29 Oct 2026, 02:23, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-extra: iteration 749, validation 89.17%, selected best 699 (89.79%), 12 levels; g995-ice-s1: iteration 749, validation 96.08%, selected best 599 (96.17%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. No executable changes; prior checks remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 
