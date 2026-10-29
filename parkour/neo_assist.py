@@ -930,13 +930,14 @@ def serve(model, courses: list[C.Course], cfg: AssistConfig, device, inp=None, o
             out.flush()
 
 
-PARTS_DIR = ROOT / "runs" / "assist_parts"  # parts of split runs (--part / --parts), until they are merged
+PARTS_DIR = ROOT / "runs" / "assist_parts"  # parts of split runs (--part / --parts) until merged; --parts-dir
 
 
 def _part_command(a, k: int, n: int) -> list[str]:
     """The command line of part k of n of the run that ``a`` describes."""
     cmd = [sys.executable, "-m", "parkour.neo_assist", "--set", a.set, "--family", str(a.family), "--checkpoint",
-           a.checkpoint, "--tag", a.tag, "--name", a.name, "--part", f"{k}/{n}", "--threads", "1"]
+           a.checkpoint, "--tag", a.tag, "--name", a.name, "--parts-dir", a.parts_dir, "--part", f"{k}/{n}",
+           "--threads", "1"]
     if a.off:
         cmd.append("--off")
     if a.courses:
@@ -960,7 +961,7 @@ def _cached_part(path, meta, bounds):
 def _run_parts(a, meta, count) -> list[dict]:
     """Run the parts of a split run that are not finished yet (at most --jobs at once); return all parts."""
     import subprocess
-    folder = PARTS_DIR / a.name
+    folder = Path(a.parts_dir) / a.name
     files = [folder / f"{k}of{a.parts}.json" for k in range(1, a.parts + 1)]
     for k, f in enumerate(files, 1):
         if f.exists():
@@ -1015,11 +1016,14 @@ def main(argv=None):
     ap.add_argument("--out", default="")
     ap.add_argument("--tag", default="")
     ap.add_argument("--details", default="", help="also write every course's outcome and every search to this JSON file")
-    ap.add_argument("--name", default="", help="a split run's name (--part, --parts): its parts are in runs/assist_parts/NAME")
+    ap.add_argument("--name", default="", help="a split run's name (--part, --parts): its parts are in PARTS_DIR/NAME")
     ap.add_argument("--part", default="", help="K/N: only the K-th of N contiguous parts of the course set, seeded as in the "
-                                               "whole run; writes runs/assist_parts/NAME/KofN.json and no row")
+                                               "whole run; writes PARTS_DIR/NAME/KofN.json and no row")
     ap.add_argument("--parts", type=int, default=0, help="N: run the unfinished parts of NAME (--jobs at once, one thread "
                                                          "each), then merge them into one row; rerun it after an interruption")
+    ap.add_argument("--parts-dir", default=str(PARTS_DIR), help="where split runs keep their parts, logs, locks and "
+                                                                "merged row (default runs/assist_parts; e.g. a scratch "
+                                                                "folder for a check run, with --out and --details)")
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--serve", action="store_true", help="plan for the bots: JSON lines on stdin/stdout (see serve)")
     ap.add_argument("--courses-file", default="", help="with --serve: the courses the bot plays")
@@ -1056,7 +1060,8 @@ def main(argv=None):
         except ValueError as exc:
             raise SystemExit('--part must be K/N') from exc
         a.part = f'{k}/{n}'  # Equivalent spellings must own the same lock.
-    folder = PARTS_DIR / a.name
+    a.parts_dir = os.path.abspath(a.parts_dir)  # (the parts' own processes start in ROOT)
+    folder = Path(a.parts_dir) / a.name
     lock_name = 'manager.lock' if a.parts else 'part-' + a.part.replace('/', 'of') + '.lock'
     lock = cache_lock(folder / lock_name) if (a.part or a.parts) else nullcontext()
     with lock:
@@ -1081,7 +1086,7 @@ def _evaluate_cli(a, cfg, dev):
     if a.part or a.parts:
         meta['courses_sha256'] = hashlib.sha256(json.dumps([c.to_json() for c in courses], sort_keys=True).encode()).hexdigest()
     if a.parts:
-        folder = PARTS_DIR / a.name
+        folder = Path(a.parts_dir) / a.name
         folder.mkdir(parents=True, exist_ok=True)
         merged = folder / "merged.json"
         if merged.exists():  # Validate before republishing cached results to any requested destination.
@@ -1101,7 +1106,7 @@ def _evaluate_cli(a, cfg, dev):
         if a.part:
             k, n = (int(v) for v in a.part.split("/"))
             lo, hi = part_bounds(len(courses), k, n)
-            part_file = PARTS_DIR / a.name / f"{k}of{n}.json"
+            part_file = Path(a.parts_dir) / a.name / f"{k}of{n}.json"
             if part_file.exists():
                 _cached_part(part_file, meta, (lo, hi))
                 print(f"{part_file} exists")
