@@ -14,6 +14,30 @@ Read next: [TEAM_STATUS.md](TEAM_STATUS.md) (the team's page),
 [docs/design.md](docs/design.md) (method), [results/README.md](results/README.md)
 (every number, generated) and [results/DATA.md](results/DATA.md) (where the data is).
 
+## Codex stopped; handoff to Claude (29 Oct 2026, 12:49, Israel time)
+
+The user requested that Codex stop all work and commit so Claude can continue.
+The Codex heartbeat `minecraft-training-queue-follow-up` is **PAUSED** and
+Codex will do no further monitoring or project work after this handoff.
+The already-running PC queue remains active for Claude to take over: at the
+handoff check, seeds **18 and 19** occupied the two training slots, with one
+thermal watchdog and one keep-awake process. Recheck live processes and
+`runs/training_queue_state.json` before acting; never duplicate these jobs.
+
+- Existing results through seed 10 were already audited. Seed 10's full final
+  completion notification remains pending; the earlier delivery marker was
+  premature and has been corrected. Prior notifications through seed 9 stay delivered.
+- Seeds 11-17 completed automatically; their existing logs and summaries are
+  now archived by `run.cmd report`. Their comparison audits and notifications
+  are left for Claude. Do not rerun completed held-out tests.
+- Runtime/control evidence: `results/operations/claude-handoff-20261029.json`.
+  Keep the current full-GPU recipe and rollout shape; thermal-only 65/58 C
+  protection and keep-awake remain active. The final policy was not replaced.
+- The 08:47 push of `ce5edb9` failed before execution because automatic approval
+  review hit a usage limit. Check current Git remote synchronization on takeover.
+- Cloud new-abilities jobs remain on hold. This handoff does not authorize
+  executing the cloud resume commands below.
+
 ## ON HOLD: the new-abilities test runs (paused 29 Oct, about 00:50 UTC)
 
 The user paused this task (cloud session, branch `claude/pensive-knuth-biwj11`,
@@ -609,18 +633,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `291855e` (2026-10-29 08:40, branch `main`): Archive validation progress for ice seeds 10 and 11
+Generated on top of commit `ce5edb9` (2026-10-29 08:47, branch `main`): Archive ice seed 10 completion and continue seeds 11 and 12
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 187 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 188 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 145 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 162 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 145 |
-| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 72 |
-| `results/DATA.md` | `a4d31ba` 2026-10-29 03:17 | 64 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 146 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 163 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 146 |
+| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 73 |
+| `results/DATA.md` | `a4d31ba` 2026-10-29 03:17 | 65 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -650,7 +674,15 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `g995-ice` | 999 | 0.52 | 449 | 97.3 | 97.5 | - | - |
 | `g995-ice-s1` | 999 | 0.52 | 949 | 97.7 | 97.2 | - | - |
 | `g995-ice-s10` | 999 | 0.52 | 149 | 96.4 | 97.2 | - | - |
-| `g995-ice-s11` | 949 | 0.50 | 649 | 97.8 | - | - | - |
+| `g995-ice-s11` | 999 | 0.52 | 649 | 97.8 | 97.9 | - | - |
+| `g995-ice-s12` | 999 | 0.52 | 249 | 97.2 | 96.8 | - | - |
+| `g995-ice-s13` | 999 | 0.52 | 699 | 96.4 | 98.3 | - | - |
+| `g995-ice-s14` | 999 | 0.52 | 149 | 96.5 | 96.8 | - | - |
+| `g995-ice-s15` | 999 | 0.52 | 199 | 97.4 | 98.2 | - | - |
+| `g995-ice-s16` | 999 | 0.52 | 149 | 96.9 | 97.2 | - | - |
+| `g995-ice-s17` | 999 | 0.52 | 549 | 96.8 | 97.8 | - | - |
+| `g995-ice-s18` | 349 | 0.18 | 49 | 97.2 | - | - | - |
+| `g995-ice-s19` | 249 | 0.13 | 149 | 96.5 | - | - | - |
 | `g995-ice-s2` | 999 | 0.52 | 749 | 96.9 | 97.4 | - | - |
 | `g995-ice-s3` | 999 | 0.52 | 249 | 96.8 | 97.4 | - | - |
 | `g995-ice-s4` | 999 | 0.52 | 449 | 97.0 | 97.2 | - | - |
@@ -774,7 +806,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 
 ### In `results/` but not yet in `results/DATA.md`
 
-`operations/` (16 files), `report_draft.pdf`, `videos/ghost_race_02_level_1_course_0.mp4`, `videos/ghost_race_03_level_2_course_0.mp4`, `videos/ghost_race_04_level_3_course_0.mp4`, `videos/ghost_race_05_level_4_course_0.mp4`, `videos/replay_137_neo_policy_level_7_course_5.mp4`
+`operations/` (17 files), `report_draft.pdf`, `videos/ghost_race_02_level_1_course_0.mp4`, `videos/ghost_race_03_level_2_course_0.mp4`, `videos/ghost_race_04_level_3_course_0.mp4`, `videos/ghost_race_05_level_4_course_0.mp4`, `videos/replay_137_neo_policy_level_7_course_5.mp4`
 
 <!-- END AUTO-SNAPSHOT -->
 
@@ -792,7 +824,9 @@ At the end of a session, or after each result:
 
 ## Session log
 
-- **29 Oct 2026, 08:47, Codex heartbeat on training PC:** g995-ice-s10 completed all 1,000 iterations. Its checkpoint 149 was selected only by simulator validation families 2/5 (96.4167%, unique maximum); final standard test 97.2500% and obstacle test 94.0833%, versus the existing final policy 97.5833% validation, 98.4167% standard and 95.2500% obstacles (all three differences -1.1667 percentage points). Comparisons use common levels 0-5 and identical held-out course sets; validation has 100 courses per level from each family 2/5, and each test has 200 per level. Exactly one standard and one obstacle test row at the selected checkpoint; no evaluation rerun. Archived `results/operations/g995-ice-s10-comparison.json`; completion comparison delivered with this heartbeat, do not repeat. The queue automatically started seed 12 after seed 10 exited; seeds 11/12 occupy the two training slots. Seed 11 archived iteration 949 validation 95.2500%, selected best 649 (97.8333%); seed 12 has no archived validation checkpoint yet. Both remain untested. Full GPU settings, unchanged rollout shape, thermal 65/58 C safeguards and keep-awake remain active; final policy files retained. Cloud evaluation remains on hold; no new cloud commits. Report/handoff refreshed; independent CSV/summary checks passed, no executable changes and prior test suite remains applicable.
+- **29 Oct 2026, 12:49, Codex on training PC, handoff to Claude:** User requested stop all Codex work and commit. Paused the five-minute Codex heartbeat; all subagents are finished. Preserved the existing queue, two logical trainers (ice seeds 18/19), thermal-only watchdog and keep-awake for takeover. Seeds 11-17 completed automatically since the previous archive; `run.cmd report` copied their existing logs/summaries and active 18/19 snapshots into `results/runs/`. No evaluation or experiment was started. Seed 11-17 comparisons and final completion notifications are left for Claude; use the archived logs, never rerun test sets. Corrected seed 10 notification metadata: its 08:47 final message was not delivered, although commentary mentioned completion. The earlier push of `ce5edb9` was not executed because automatic approval review hit a usage limit. Current runtime/control evidence is in `results/operations/claude-handoff-20261029.json`. Cloud work remains on hold; final policy unchanged. Report and handoff refreshed; only data/docs changed. Next owner: Claude; inspect Git and current processes first, then handle pending archives/notifications as requested by the user.
+
+- **29 Oct 2026, 08:47, Codex heartbeat on training PC:** g995-ice-s10 completed all 1,000 iterations. Its checkpoint 149 was selected only by simulator validation families 2/5 (96.4167%, unique maximum); final standard test 97.2500% and obstacle test 94.0833%, versus the existing final policy 97.5833% validation, 98.4167% standard and 95.2500% obstacles (all three differences -1.1667 percentage points). Comparisons use common levels 0-5 and identical held-out course sets; validation has 100 courses per level from each family 2/5, and each test has 200 per level. Exactly one standard and one obstacle test row at the selected checkpoint; no evaluation rerun. Archived `results/operations/g995-ice-s10-comparison.json`; correction at handoff: the final completion comparison was not delivered after the approval-review failure, and remains pending. The queue automatically started seed 12 after seed 10 exited; seeds 11/12 occupy the two training slots. Seed 11 archived iteration 949 validation 95.2500%, selected best 649 (97.8333%); seed 12 has no archived validation checkpoint yet. Both remain untested. Full GPU settings, unchanged rollout shape, thermal 65/58 C safeguards and keep-awake remain active; final policy files retained. Cloud evaluation remains on hold; no new cloud commits. Report/handoff refreshed; independent CSV/summary checks passed, no executable changes and prior test suite remains applicable.
 
 - **29 Oct 2026, 08:40, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-ice-s10: iteration 899, validation 96.25%, selected best 149 (96.42%), 6 levels; g995-ice-s11: iteration 849, validation 96.00%, selected best 649 (97.83%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. No executable changes; prior checks remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 

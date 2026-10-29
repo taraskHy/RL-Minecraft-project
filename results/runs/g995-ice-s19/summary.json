@@ -1,0 +1,100 @@
+{
+ "best": {
+  "iteration": 149,
+  "validation_success": 0.965,
+  "test_success": null,
+  "validation_per_level": {
+   "0": {
+    "success": 0.99,
+    "fell": 0.01,
+    "progress": 0.9932500000000001,
+    "ticks_success": 119.15151515151516,
+    "n": 200
+   },
+   "1": {
+    "success": 1.0,
+    "fell": 0.0,
+    "progress": 1.0,
+    "ticks_success": 121.16,
+    "n": 200
+   },
+   "2": {
+    "success": 0.985,
+    "fell": 0.015,
+    "progress": 0.9934999999999999,
+    "ticks_success": 133.95939086294413,
+    "n": 200
+   },
+   "3": {
+    "success": 0.985,
+    "fell": 0.015,
+    "progress": 0.9919285714285714,
+    "ticks_success": 147.7766497461929,
+    "n": 200
+   },
+   "4": {
+    "success": 0.97,
+    "fell": 0.03,
+    "progress": 0.9878888888888889,
+    "ticks_success": 158.88659793814432,
+    "n": 200
+   },
+   "5": {
+    "success": 0.86,
+    "fell": 0.13,
+    "progress": 0.9115000000000001,
+    "ticks_success": 186.75581395348837,
+    "n": 200
+   }
+  }
+ },
+ "last_eval": {
+  "validation_success": 0.9608333333333333,
+  "validation_per_level": {
+   "0": {
+    "success": 0.99,
+    "fell": 0.01,
+    "progress": 0.9932500000000001,
+    "ticks_success": 117.64646464646465,
+    "n": 200
+   },
+   "1": {
+    "success": 0.98,
+    "fell": 0.02,
+    "progress": 0.9865,
+    "ticks_success": 120.57142857142857,
+    "n": 200
+   },
+   "2": {
+    "success": 1.0,
+    "fell": 0.0,
+    "progress": 1.0,
+    "ticks_success": 133.63,
+    "n": 200
+   },
+   "3": {
+    "success": 0.985,
+    "fell": 0.015,
+    "progress": 0.9909285714285714,
+    "ticks_success": 147.53299492385787,
+    "n": 200
+   },
+   "4": {
+    "success": 0.965,
+    "fell": 0.035,
+    "progress": 0.9789999999999999,
+    "ticks_success": 158.29533678756476,
+    "n": 200
+   },
+   "5": {
+    "success": 0.845,
+    "fell": 0.105,
+    "progress": 0.904,
+    "ticks_success": 192.1301775147929,
+    "n": 200
+   }
+  }
+ },
+ "iteration": 249,
+ "env_steps": 131072000
+}

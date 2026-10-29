@@ -1,0 +1,161 @@
+{
+  "captured_at": "2026-10-29T12:49:25+02:00",
+  "purpose": "User stopped Codex work and requested commit/handoff for Claude; no new experiments or evaluations.",
+  "codex_heartbeat": "PAUSED",
+  "queue_state_updated": "2026-10-29 12:49:20",
+  "jobs": {
+    "g995-adv": {
+      "status": "completed",
+      "pid": 12628
+    },
+    "g995-ice": {
+      "status": "completed",
+      "pid": 35680
+    },
+    "g995-extra": {
+      "status": "completed",
+      "pid": 48676
+    },
+    "g995-ice-s1": {
+      "status": "completed",
+      "pid": 26628
+    },
+    "g995-ice-s2": {
+      "status": "completed",
+      "pid": 57936
+    },
+    "g995-ice-s3": {
+      "status": "completed",
+      "pid": 49068
+    },
+    "g995-ice-s4": {
+      "status": "completed",
+      "pid": 34348
+    },
+    "g995-ice-s5": {
+      "status": "completed",
+      "pid": 44772
+    },
+    "g995-ice-s6": {
+      "status": "completed",
+      "pid": 47688
+    },
+    "g995-ice-s7": {
+      "status": "completed",
+      "pid": 19264
+    },
+    "g995-ice-s8": {
+      "status": "completed",
+      "pid": 52004
+    },
+    "g995-ice-s9": {
+      "status": "completed",
+      "pid": 46672
+    },
+    "g995-ice-s10": {
+      "status": "completed",
+      "pid": 18364
+    },
+    "g995-ice-s11": {
+      "status": "completed",
+      "pid": 5684
+    },
+    "g995-ice-s12": {
+      "status": "completed",
+      "pid": 54012
+    },
+    "g995-ice-s13": {
+      "status": "completed",
+      "pid": 53516
+    },
+    "g995-ice-s14": {
+      "status": "completed",
+      "pid": 25132
+    },
+    "g995-ice-s15": {
+      "status": "completed",
+      "pid": 47948
+    },
+    "g995-ice-s16": {
+      "status": "completed",
+      "pid": 25856
+    },
+    "g995-ice-s17": {
+      "status": "completed",
+      "pid": 4648
+    },
+    "g995-ice-s18": {
+      "status": "running",
+      "pid": 54128
+    },
+    "g995-ice-s19": {
+      "status": "running",
+      "pid": 34856
+    }
+  },
+  "control": {
+    "hold": false,
+    "memory_fraction_per_job": 0,
+    "gaming": false,
+    "shared_compute_duty": 1,
+    "small_memory": true
+  },
+  "observed_process_pairs": {
+    "queue": [
+      17632,
+      57820
+    ],
+    "watchdog": [
+      2452,
+      8152
+    ],
+    "keep_awake": [
+      57208,
+      10480
+    ],
+    "g995-ice-s18": [
+      54128,
+      38684
+    ],
+    "g995-ice-s19": [
+      34856,
+      49680
+    ]
+  },
+  "gpu_sample": {
+    "temperature_c": 42.88,
+    "utilization_percent": 79,
+    "memory_used_mib": 5719,
+    "memory_total_mib": 16303
+  },
+  "newly_archived_completed_runs": [
+    "g995-ice-s11",
+    "g995-ice-s12",
+    "g995-ice-s13",
+    "g995-ice-s14",
+    "g995-ice-s15",
+    "g995-ice-s16",
+    "g995-ice-s17"
+  ],
+  "pending_completion_comparisons": [
+    "g995-ice-s11",
+    "g995-ice-s12",
+    "g995-ice-s13",
+    "g995-ice-s14",
+    "g995-ice-s15",
+    "g995-ice-s16",
+    "g995-ice-s17"
+  ],
+  "pending_final_completion_notifications": [
+    "g995-ice-s10",
+    "g995-ice-s11",
+    "g995-ice-s12",
+    "g995-ice-s13",
+    "g995-ice-s14",
+    "g995-ice-s15",
+    "g995-ice-s16",
+    "g995-ice-s17"
+  ],
+  "cloud_evaluation": "ON HOLD; do not resume",
+  "notes": "Parent/child Python pairs are one logical job each. Read current queue state and processes before acting; do not restart completed jobs. Seed 10 was audited previously; seeds 11-17 report archives are preserved for Claude to audit without rerunning held-out tests."
+}

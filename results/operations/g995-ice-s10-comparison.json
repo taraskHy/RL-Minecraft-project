@@ -33,6 +33,7 @@
     "results\\runs\\g995-ice-s10\\eval_log.csv",
     "results\\runs\\g995-ice-s10\\eval_obstacles_log.csv"
   ],
-  "notification_delivered_at": "2026-10-29T08:47:16",
-  "notification_context": "Seed 10 completion comparison delivered in this chat with this heartbeat; do not repeat."
+  "notification_context": "The 08:47 commentary mentioned completion, but the full final notification was not delivered after the push approval-review failure. The earlier delivered marker was premature; Claude may deliver the archived comparison once.",
+  "notification_attempted_at": "2026-10-29T08:47:16",
+  "notification_status": "pending_final_delivery"
 }
