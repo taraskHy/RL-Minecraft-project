@@ -32,6 +32,8 @@ def test_offline_work_is_paused_but_live_services_and_helpers_are_not():
         'python -m parkour.live --offline --assist {}',
         'python -m parkour.neo_assist --serve',
         'python -m parkour.skills matrix --candidate a=b.pt',
+        'python -m parkour.route_train --run r',
+        'python -m parkour.routing.train --run r',
     ):
         assert G.pausable(command), command
     for command in (

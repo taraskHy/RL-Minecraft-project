@@ -33,7 +33,11 @@ courses; the same network then drives a Mineflayer bot on a real Minecraft
 - GPU (training PC): at most two training processes at once; above 65 C the
   GPU work pauses (`scripts/gpu_watchdog.py`, a rule from the user).
 - After each result: `python -m parkour.report` (refreshes `results/` and the
-  handoff snapshot), update `TEAM_STATUS.md`, commit, push.
+  handoff snapshot), update `TEAM_STATUS.md`, commit, push. That is for the
+  training PC, which has `runs/`; on any other PC (the routing work,
+  [docs/MISSION_ROUTING.md](docs/MISSION_ROUTING.md)) do not run the report
+  (it stops there) or `parkour.handoff`, and keep your status in your own
+  results folder and pull request.
 - Ask the user only about direction or their own decisions; they manage at a
   high level.
 

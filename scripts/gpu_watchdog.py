@@ -9,7 +9,8 @@ Every ``--every`` seconds it reads the GPU temperature (nvidia-smi). Above
 demonstration and jump searches, planner and jump evaluations: python
 processes running parkour.train, parkour.neo_demos, parkour.neo_dagger,
 parkour.cem, parkour.planner, parkour.jumpeval, parkour.stress,
-parkour.feasibility, parkour.neo_assist, parkour.skills or parkour.live --offline). With ``--pause-while`` (program
+parkour.feasibility, parkour.neo_assist, parkour.skills, any parkour.route*, router* or
+routing* module (the routing work, docs/MISSION_ROUTING.md) or parkour.live --offline). With ``--pause-while`` (program
 names as in Task Manager's details tab) they are also suspended while any of
 those programs runs, e.g. a game, and resumed when it has closed and the GPU
 is below ``--cool``.
@@ -35,7 +36,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LOG = ROOT / "runs" / "gpu_watchdog.log"
-GPU_JOBS = re.compile(r"(?:^|\s)-m\s+parkour\.(train|neo_demos|neo_dagger|neo_assist|cem|planner|jumpeval|stress|feasibility|live|skills)\b"
+GPU_JOBS = re.compile(r"(?:^|\s)-m\s+parkour\.(train|neo_demos|neo_dagger|neo_assist|cem|planner|jumpeval|stress|feasibility|live|skills|rout\w*)\b"
                       r"|cem_momentum")
 PROCESS_SUSPEND_RESUME = 0x0800
 

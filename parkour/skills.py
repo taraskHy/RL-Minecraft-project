@@ -4,6 +4,7 @@
     python -m parkour.skills matrix --part 1/2 ...      # every second candidate, for two processes on two GPU slots
     python -m parkour.skills choose results/skills/validation_matrix.part*.json --out results/skills/validation_matrix.json
     python -m parkour.skills matrix --split test --groups ice --candidate ... --out results/skills/test_ice.json
+    python -m parkour.skills matrix --split test --groups advanced --parts obstacles ...   # only what was never tested
 
 Simulator, deterministic policy. Every candidate plays the skills-mode held-out sets of the chosen groups
 (``parkour.train.skill_sets``: validation families 2/5 and ice 17 by default, 100 courses per level;
@@ -58,6 +59,8 @@ def evaluate_candidate(path: Path, sets: dict, device, batch_size: int, stall_ti
             out["per_level"].setdefault(part, {}).update({int(L): v for L, v in r["per_level"].items()})
         done = [v for v in res.values() if v]
         n = sum(v["n"] for v in done)
+        if not n:  # nothing to play in this group (for example the ice group with --parts obstacles)
+            continue
         out["groups"][g] = {"standard": (res.get("standard") or {}).get("success"),
                             "obstacles": (res.get("obstacles") or {}).get("success"),
                             "all": sum(v["success"] * v["n"] for v in done) / n, "n": n}
@@ -85,11 +88,12 @@ def matrix(a) -> None:
         k, n = (int(v) for v in a.part.split("/"))
         cands = dict(list(cands.items())[k - 1::n])
     groups = [g for g in a.groups.split(",") if g]
+    parts = [p for p in a.parts.split(",") if p]
     data = json.loads(out.read_text()) if out.exists() else {}
-    if data and (data["split"], data["groups"]) != (a.split, groups):
-        raise ValueError(f"{out} holds another split or other groups")
+    if data and (data["split"], data["groups"], data.get("parts", ["standard", "obstacles"])) != (a.split, groups, parts):
+        raise ValueError(f"{out} holds another split, other groups or other parts")
     data.update({"what": "parkour.skills matrix: success per skill group, simulator, deterministic policy",
-                 "split": a.split, "groups": groups, "per_level_courses": PER_LEVEL[a.split],
+                 "split": a.split, "groups": groups, "parts": parts, "per_level_courses": PER_LEVEL[a.split],
                  "families": ({"standard": T.VALIDATION_FAMILY, "obstacles": T.OBSTACLE_VALIDATION_FAMILY,
                                "ice": T.ICE_VALIDATION_FAMILY} if a.split == "validation" else
                               {"standard": T.TEST_SEED_FAMILY, "obstacles": T.OBSTACLE_TEST_FAMILY,
@@ -97,7 +101,7 @@ def matrix(a) -> None:
                  "level_ids": {g: [gid for gid, gg in T.level_groups().items() if gg == g] for g in groups}})
     data.setdefault("candidates", {})
     sets = T.skill_sets(a.split, PER_LEVEL[a.split], 10, [g for g in groups if g != "ice"], ice="ice" in groups)
-    sets = {g: sets[g] for g in groups}
+    sets = {g: {k: (v if k in parts else []) for k, v in sets[g].items()} for g in groups}
     out.parent.mkdir(parents=True, exist_ok=True)
     for name, path in cands.items():
         old = data["candidates"].get(name)
@@ -136,6 +140,7 @@ def main(argv=None):
     m.add_argument("--candidate", action="append", required=True, help="NAME=CHECKPOINT, in the order ties go")
     m.add_argument("--split", choices=("validation", "test"), default="validation")
     m.add_argument("--groups", default=",".join(T.GROUP_ORDER))
+    m.add_argument("--parts", default="standard,obstacles", help="the course sets to play: standard, obstacles or both")
     m.add_argument("--part", default="", help="K/N: only every N-th candidate, starting at the K-th")
     m.add_argument("--out", default="")
     m.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")

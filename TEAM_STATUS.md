@@ -258,7 +258,9 @@ policy jumps to them, no retraining. Only the goal position is given.
 For both policies, real Minecraft and the offline bot match the simulator on
 every course, 0 server corrections. If a drop onto any later, lower platform
 counts as a landing (the fall rule named `remaining`, evaluation only), the
-planner makes 94.5% and 91.4% in the simulator. With the first policy it also
+retuned planner makes 94.7% and 92.4% in the simulator
+(`results/planner/sim_test_*_tuned.json`; the earlier setting made 94.5% and
+91.4%). With the first policy it also
 completed the three hand-designed courses without a neo (tour, stairs,
 sprint) in real Minecraft, 0 server corrections; it was not run on the neo
 course. Most failures (first policy, simulator, report 7.11: 104 of 125

@@ -154,6 +154,11 @@ def test_matrix_and_the_fixed_choice_rules(monkeypatch, tmp_path):
     S.main(["matrix", "--device", "cpu", "--split", "test", "--groups", "ice", "--out", str(tmp_path / "t.json"), *cands[:2]])
     t = json.loads((tmp_path / "t.json").read_text())
     assert list(t["candidates"]["a"]["groups"]) == ["ice"] and t["families"]["ice"] == 16
+    S.main(["matrix", "--device", "cpu", "--split", "test", "--groups", "advanced,ice", "--parts", "obstacles",
+            "--out", str(tmp_path / "o.json"), *cands[:2]])  # only the sets never tested; ice has no obstacle set
+    o = json.loads((tmp_path / "o.json").read_text())["candidates"]["a"]
+    assert list(o["groups"]) == ["advanced"] and o["groups"]["advanced"]["standard"] is None
+    assert o["groups"]["advanced"]["n"] == 3 and list(o["per_level"]) == ["obstacles"]
     with pytest.raises(ValueError, match="validation only"):
         S.main(["choose", str(tmp_path / "t.json"), "--out", str(tmp_path / "bad.json")])
 

@@ -2,9 +2,12 @@
 import json
 import subprocess
 
+import pytest
+
 from parkour.paths import BRIDGE, NODE
 
 
+@pytest.mark.skipif(not NODE.exists(), reason="portable Node runtime not installed (run setup.cmd)")
 def test_service_failure_and_clean_shutdown():
     script = r"""
 const assert = require('assert/strict')

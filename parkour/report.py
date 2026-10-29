@@ -7,6 +7,10 @@ each run's small logs into OUT/runs/NAME/ for the record, and writes
 OUT/README.md (tables) and OUT/figures/*.png. All numbers are simulator
 results unless a table says otherwise. With the default OUT it also refreshes the
 generated snapshot in HANDOFF.md (parkour.handoff).
+
+It needs the training PC's runs/ folder: elsewhere (a fresh clone, another PC) it
+stops instead of rewriting results/README.md without the sections whose runs are
+missing; run `python -m parkour.handoff` there (or pass --force).
 """
 from __future__ import annotations
 
@@ -237,7 +241,7 @@ def archive(out: Path) -> None:
     out/games/NAME             bot runs (live, offline): courses, every tick (episodes.jsonl.gz),
                                summaries, and the server log of live runs
     """
-    sources = [(d, out / "runs" / d.name) for d in sorted(RUNS.iterdir())]
+    sources = [(d, out / "runs" / d.name) for d in sorted(RUNS.iterdir())] if RUNS.is_dir() else []
     if (RUNS / "_v1_unstable").is_dir():
         sources += [(d, out / "runs" / "_v1_unstable" / d.name) for d in sorted((RUNS / "_v1_unstable").iterdir())]
     for d, dst in sources:
@@ -377,7 +381,11 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", default=str(ROOT / "results"))
     ap.add_argument("--main", default="main-s0")
+    ap.add_argument("--force", action="store_true", help="write even without the training PC's runs/ folder")
     a = ap.parse_args(argv)
+    if not (RUNS / a.main / "eval_log.csv").exists() and not a.force:
+        raise SystemExit(f"{RUNS / a.main} is missing: this checkout does not have the training PC's runs/, and the report "
+                         "would drop the sections built from them. Run `python -m parkour.handoff` instead, or pass --force.")
     out = Path(a.out)
     (out / "figures").mkdir(parents=True, exist_ok=True)
 

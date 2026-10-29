@@ -599,6 +599,32 @@ PyPI's torch wheel is the CUDA build (about 3 GB with its dependencies)
 but runs on the CPU; `download.pytorch.org` was blocked there. Training
 needs the PC's GPU.
 
+**Another Windows PC with an NVIDIA GPU** (checked from a fresh clone on 29
+Oct): `setup.cmd` then `run.cmd test` (122 tests at `1a16df0` plus this
+update; without `setup.cmd`'s portable Node about 20 Node tests are skipped).
+Prerequisites and pitfalls (Python 3.12 with the `py` launcher, a Turing or
+newer GPU with a CUDA 12.8 driver, a short clone path outside OneDrive,
+quoting comma lists through `run.cmd`, `CUDA_VISIBLE_DEVICES=-1` for CPU
+checks, no `parkour.report` and no training queue there) are in
+[docs/MISSION_ROUTING.md](docs/MISSION_ROUTING.md) section 8.
+
+**What exists only on the training PC, and how to get it back.** Everything
+in Git is enough to train, evaluate and run the bots with the shipped
+policies: `results/final_policy.pt`, `final_policy_v1.pt`, `neo_policy.pt`
+and `noroute_policy.pt` (each run's small logs are in `results/runs/NAME/`).
+Local only (`runs/` and `.local/` are ignored by Git):
+
+| What | Where | How to regenerate (time on the RTX 5080, from `results/runs/NAME/train_log.csv`) |
+| --- | --- | --- |
+| Portable Node 24, Java 21, pnpm, the bot's packages, the 1.21.4 server jar | `.local/runtime`, `.local/server`, `bridge/node_modules` | `setup.cmd` (downloads, checksums verified) |
+| The EULA consent and the local server folder | `.local/minecraft-eula-consent.json`, `.local/servers/parkour` | only the PC's owner: `run.cmd accept-eula --agree` after reading the EULA; the server folder appears on the first `run.cmd live` |
+| The final policy's source runs | `runs/main-g995`, `runs/obstacles-g995` | not needed (the weights are `results/final_policy.pt`); `python -m parkour.train --run main-g995 --gamma 0.995` (3,000 iterations, 120 min), then `--run obstacles-g995 --gamma 0.995 --iterations 1000 --obstacle-prob 0.3 --init-from runs/main-g995/checkpoints/latest.pt` (44 min) |
+| The learned no-route model's run | `runs/noroute-v2` | not needed (`results/noroute_policy.pt`); `python -m parkour.train --run noroute-v2 --extended-obs --hide platforms,progress --obstacle-prob 0.3` (3,000 iterations, 191 min) |
+| The neo chain and its data | `runs/advanced-ft*`, `neo-*`, `runs/neo_demos*.json`, `runs/neo_dagger_r*.pt` | not needed (`results/neo_policy.pt` is byte-identical to `runs/neo-dagger3/checkpoints/best.pt`); the chain's flags are in each `results/runs/NAME/config.json` (about 270 min of training plus the searches) |
+| The specialists and ice seeds | `runs/g995-adv`, `g995-ice`, `g995-extra`, `g995-ice-s1..s19` | the queue recipe: `python -m parkour.train --run NAME --init-from results/final_policy.pt --obstacle-prob 0.3 --gamma 0.995 --iterations 1000 --test-once --compact-ice --eval-batch-size 256 --pool-size 1024 --num-envs 8192 --rollout 64 --minibatches 32` plus `--advanced`, `--ice-prob 0.3` (and `--seed N`) or `--extra` (70 to 194 min each) |
+| The one-network runs | `runs/combined-distill`, `runs/combined-union` | `configs/training_queue.json` (they need the specialists' checkpoints above) |
+| Operations state and raw game folders | `runs/training_queue_state.json`, `runs/gpu_watchdog.log`, `runs/queue_logs/`, game folders | not needed; the games' records are in `results/games/` |
+
 ## 7. Key facts learned
 
 - Physics: prismarine-physics 1.11.1 ported exactly, **plus vanilla's 1e-7
