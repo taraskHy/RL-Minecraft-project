@@ -4,10 +4,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: one reading column; the real-game video opens the page, then each claim sits beside its evidence. */
+/* Layout: one reading column; the real-game video opens the page, a skills table sums it up, then each claim sits beside its evidence. */
 :root {
   --bg: #edf2f7; --surface: #ffffff; --line: #d3dce6; --fg: #17212b; --muted: #546271;
-  --grass: #3b7d23; --sky: #3f7fd0; --gold: #a87500; --lava: #c0471c;
+  --grass: #3b7d23; --sky: #3f7fd0; --gold: #a87500; --lava: #c0471c; --tint: #e3efdc;
   --display: "Pixelify Sans", "Courier New", monospace;
   --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
@@ -15,20 +15,21 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0e141b; --surface: #16202a; --line: #2a3846; --fg: #e4ecf3; --muted: #93a3b3;
-    --grass: #7bc653; --sky: #7fb2f0; --gold: #f0c24b; --lava: #f07a4a; color-scheme: dark;
+    --grass: #7bc653; --sky: #7fb2f0; --gold: #f0c24b; --lava: #f07a4a; --tint: #1d2c1e; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0e141b; --surface: #16202a; --line: #2a3846; --fg: #e4ecf3; --muted: #93a3b3;
-  --grass: #7bc653; --sky: #7fb2f0; --gold: #f0c24b; --lava: #f07a4a; color-scheme: dark;
+  --grass: #7bc653; --sky: #7fb2f0; --gold: #f0c24b; --lava: #f07a4a; --tint: #1d2c1e; color-scheme: dark;
 }
 body { background: var(--bg); color: var(--fg); font: 400 17px/1.6 var(--body); }
 .wrap { max-width: 1080px; margin: 0 auto; padding-block: 40px 64px;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
   display: grid; gap: 56px; }
-h1, h2 { text-wrap: balance; margin: 0; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
 h1 { font: 700 clamp(36px, 6vw, 60px)/1.05 var(--display); letter-spacing: 0.01em; }
 h2 { font: 700 26px/1.2 var(--body); }
+h3 { font: 700 19px/1.3 var(--body); }
 p { margin: 0; max-width: 65ch; }
 .eyebrow { font: 500 13px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--grass); }
 .lede { font-size: 20px; color: var(--fg); }
@@ -36,9 +37,12 @@ p { margin: 0; max-width: 65ch; }
 code, .path { font: 400 14px var(--mono); }
 header { display: grid; gap: 14px; }
 section { display: grid; gap: 18px; }
+.stack { display: grid; gap: 14px; align-content: start; }
 .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
 .two > * { min-width: 0; }
-@media (max-width: 820px) { .two { grid-template-columns: minmax(0, 1fr); } }
+.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.three > * { min-width: 0; }
+@media (max-width: 820px) { .two, .three { grid-template-columns: minmax(0, 1fr); } }
 figure { margin: 0; display: grid; gap: 8px; }
 figcaption { font-size: 15px; color: var(--muted); max-width: 70ch; }
 video { width: 100%; max-width: 100%; aspect-ratio: 16 / 9; display: block; border-radius: 6px; background: #87b4e8; }
@@ -47,7 +51,7 @@ video { width: 100%; max-width: 100%; aspect-ratio: 16 / 9; display: block; bord
 .stat { background: var(--surface); padding: 18px 18px 16px; display: grid; gap: 4px; align-content: start; }
 .stat b { font: 700 clamp(30px, 4vw, 40px)/1 var(--display); font-variant-numeric: tabular-nums; }
 .stat span { font-size: 15px; color: var(--muted); line-height: 1.4; }
-.stat .where { font: 500 12px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--grass); }
+.where { font: 500 12px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--grass); }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; display: grid; gap: 10px; }
 .chart { position: relative; }
 .chart svg { width: 100%; height: auto; display: block; overflow: visible; }
@@ -61,11 +65,15 @@ ul.facts { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
 ul.facts li { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 14px; align-items: baseline; }
 ul.facts b { font: 700 22px/1.1 var(--display); font-variant-numeric: tabular-nums; }
 @media (max-width: 480px) { ul.facts li { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
-.tag { display: inline-block; font: 500 12px var(--mono); padding: 2px 8px; border-radius: 99px; border: 1px solid currentColor; }
+.tag { display: inline-block; font: 500 12px var(--mono); padding: 2px 8px; border-radius: 99px; border: 1px solid currentColor; white-space: nowrap; }
 .tag.ok { color: var(--grass); } .tag.no { color: var(--lava); } .tag.run { color: var(--gold); }
 table { border-collapse: collapse; width: 100%; font-size: 15px; font-variant-numeric: tabular-nums; }
-th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { font: 500 12px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+td.num, th.num { text-align: right; }
+td.best { background: var(--tint); font-weight: 700; }
+.skills td:first-child { font-weight: 600; }
+.skills td .where { display: block; margin-top: 2px; }
 .scroll { overflow-x: auto; }
 footer { font-size: 15px; color: var(--muted); display: grid; gap: 6px; }
 a { color: var(--sky); }
@@ -77,7 +85,7 @@ a { color: var(--sky); }
   <header>
     <div class="eyebrow">Reinforcement learning course project · October 2026</div>
     <h1>Learning Minecraft Parkour</h1>
-    <p class="lede">A PPO agent trained in a GPU copy of Minecraft's movement physics completes parkour courses it has never seen, and does the same in the real game.</p>
+    <p class="lede">A PPO agent trained in a GPU copy of Minecraft's movement physics completes parkour courses it has never seen, and does the same in the real game. It also learned neo jumps from demonstrations, runs on ice, and can find its own route.</p>
   </header>
 
   <section aria-label="Real Minecraft, first person">
@@ -94,13 +102,35 @@ a { color: var(--sky); }
   </section>
 
   <section>
+    <div class="eyebrow">Everything at a glance</div>
+    <h2>What the agent can do</h2>
+    <div class="scroll panel">
+      <table class="skills">
+        <thead><tr><th>Skill</th><th>Result</th><th>Policy</th></tr></thead>
+        <tbody>
+          <tr><td>Unseen courses, 6 difficulty levels</td><td>98.4% of 1,200 courses<span class="where">simulator</span>59/60<span class="where">real Minecraft</span></td><td>final policy</td></tr>
+          <tr><td>Head-hitter beams and decoy pillars</td><td>95.2% of 1,200 courses<span class="where">simulator</span>57/60<span class="where">real Minecraft</span></td><td>final policy</td></tr>
+          <tr><td>Every jump type of levels 0 to 5, from a standing start</td><td>all 194 made, the hardest level 99.1% of tries<span class="where">simulator</span></td><td>final policy</td></tr>
+          <tr><td>Ice</td><td>95.6% of 1,200 courses with every platform made of ice (98.4% on stone), never trained on ice<span class="where">simulator</span></td><td>final policy</td></tr>
+          <tr><td>Neo jumps around a wall</td><td>29.0% of 210 courses with a neo, up from 0%<span class="where">simulator</span>11/31 neo courses<span class="where">real Minecraft</span></td><td>neo policy</td></tr>
+          <tr><td>Neo jumps with a planning search</td><td>72.0% of 218 neo courses<span class="where">simulator, validation</span>25/31 neo courses<span class="where">offline bot</span></td><td>final policy + search</td></tr>
+          <tr><td>Head hitters, ice run-ups, shaped blocks, slime, ladders</td><td>91.2% of 2,400 courses over 12 levels<span class="where">simulator</span></td><td><code>g995-extra</code></td></tr>
+          <tr><td>No course list: route planner</td><td>92.3% of 1,200 courses<span class="where">simulator</span>51/60<span class="where">real Minecraft</span></td><td>final policy + planner</td></tr>
+          <tr><td>One network for every skill</td><td><span class="tag run">training now</span> distilled from the specialists above</td><td><code>combined-*</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted">Test courses are never seen in training; checkpoints are chosen on separate validation courses, and each test set is played once. The row marked validation is a validation result.</p>
+  </section>
+
+  <section>
     <div class="eyebrow">Watch it learn</div>
     <div class="two">
       <figure>
         <video src="videos/ghost_race_00_tour.mp4" autoplay muted loop playsinline controls></video>
         <figcaption>Ten snapshots of a separate short training run (not a final policy), from untrained to 400 updates, run one unseen course at the same time. Each colour is one stage of training.</figcaption>
       </figure>
-      <div style="display:grid;gap:14px">
+      <div class="stack">
         <h2>From falling off the first block to the goal</h2>
         <p>The untrained network and the first two snapshots fall off at once. After 10 and 20 updates it gets two and five platforms in, then makes no more progress: at 10 it stands still, and at 20 it hops on the spot. From 35 updates on, every snapshot reaches the goal, and later ones are faster: 181 ticks at 35 updates, 156 at 400.</p>
         <p class="muted">Recorded trajectories in Minecraft physics, rendered by our viewer. All seven races are in <span class="path">results/videos/</span>.</p>
@@ -112,18 +142,29 @@ a { color: var(--sky); }
     <div class="eyebrow">Training</div>
     <h2>Main run: 1.57 billion game ticks in 2.6 hours</h2>
     <p>16,384 games run at once on one GPU, at about 170,000 game ticks per second including the network updates. Every 50 updates the policy plays 1,200 held-out courses, 200 per difficulty level.</p>
-    <p>The curve is the first main run, with discount 0.99. The final policy uses discount 0.995, the only setting in our hyperparameter study that beat the defaults by more than 3 points on validation, in all three seeds. We trained it at full length, 3,000 updates and then 1,000 with obstacles, and chose its checkpoint on the simulator's validation courses: 97.6% there, against 96.6% for the first final policy.</p>
     <div class="panel">
       <div class="legend"><span><i style="background:var(--grass)"></i>all levels</span><span><i style="background:var(--sky)"></i>level 5, the hardest</span></div>
       <div class="chart" id="curve"></div>
-      <p class="muted" style="font-size:14px">Success on held-out courses, first evaluated after 50 updates. The dip at 1.0 B ticks was two bad updates in a row while the learning rate sat at its cap; it recovered by the next evaluation.</p>
+      <p class="muted" style="font-size:14px">Success on held-out courses of the first main run (discount 0.99), first evaluated after 50 updates. The dip at 1.0 B ticks was two bad updates in a row while the learning rate sat at its cap; it recovered by the next evaluation.</p>
+    </div>
+    <div class="two">
+      <div class="stack">
+        <h3>One hyperparameter made the final policy</h3>
+        <p>We changed one setting at a time around the defaults and trained each for 0.52 B ticks. Only a longer horizon, discount 0.995 instead of 0.99, beat the defaults by more than 3 points on validation, in all three seeds. We retrained the final policy with it at full length: 3,000 updates, then 1,000 with obstacles.</p>
+        <p>It completes 98.4% of the standard test courses and 95.2% with obstacles, against 97.1% and 93.6% for the first final policy. Level 5, the hardest, rose from 90.5% to 93.5%.</p>
+      </div>
+      <div class="panel">
+        <div class="legend"><span><i style="background:var(--grass)"></i>discount 0.995, three seeds</span><span><i style="background:var(--fg)"></i>other settings</span><span><i style="background:transparent;border:1px dashed var(--muted)"></i>defaults</span></div>
+        <div class="chart" id="hparams"></div>
+        <p class="muted" style="font-size:14px">Validation success after 0.52 B ticks, seed 0 unless marked (simulator). Defaults: mean of 2 seeds.</p>
+      </div>
     </div>
   </section>
 
   <section>
     <div class="eyebrow">Reward design</div>
     <div class="two">
-      <div style="display:grid;gap:14px">
+      <div class="stack">
         <h2>The fall penalty matters most</h2>
         <p>We removed one reward term at a time and trained each variant with 3 seeds. Without the fall penalty, the hardest level drops to 54 to 57% in every seed. Without the distance-to-goal reward, the final score is the same but learning takes about 3 times as many ticks to reach 80%.</p>
         <p>Hiding the platform positions, so the agent sees only nearby blocks and the goal direction, costs the most: 43% on level 5.</p>
@@ -138,62 +179,113 @@ a { color: var(--sky); }
 
   <section>
     <div class="eyebrow">Harder jumps</div>
-    <h2>Neo jumps, double neos and 4-block jumps</h2>
+    <h2>Neo jumps: learned from demonstrations</h2>
     <div class="two">
       <div style="display:grid;gap:28px">
         <ul class="facts">
           <li><b>16/18</b><span><span class="tag ok">possible</span> Single neo layouts (jumping around a wall) that a tick-by-tick search could land. Only 1 in 2,000 to 1 in 16,000 sampled move sequences works.</span></li>
           <li><b>13/13</b><span><span class="tag ok">learned</span> Single neo types of levels 6 and 7, the possible layouts that a scripted strategy also lands. The agent lands all 13 after learning from demonstrations, up from 0 with PPO alone. From a standing start the chosen neo policy lands 60.6% of tries on average, over 16 start angles in the simulator.</span></li>
           <li><b>0/64</b><span><span class="tag no">none found</span> Double and triple neo layouts, 36 from standing and 28 with a 3 to 4 block run-up. The same search landed none of them, so we treat them as impossible.</span></li>
-          <li><b>12-38%</b><span><span class="tag ok">found by the agent</span> Start angles from which the trained agent clears 4-block run-up jumps that none of 4,032 scripted strategies clears.</span></li>
         </ul>
         <figure>
           <video src="videos/real_minecraft_neo_level7.mp4" autoplay muted loop playsinline controls></video>
-          <figcaption>Real Minecraft, first person: the chosen neo policy (DAgger round 3) completes a held-out level-7 course with one neo in 164 ticks, with 0 server corrections. In the simulator it completes 56 of the 129 held-out test courses with one neo (43%).</figcaption>
+          <figcaption>Real Minecraft, first person: the chosen neo policy completes a held-out level-7 course with one neo in 164 ticks, with 0 server corrections. In the simulator it completes 56 of the 129 held-out test courses with one neo (43%).</figcaption>
+        </figure>
+        <figure>
+          <video src="videos/replay_137_neo_policy_level_7_course_5.mp4" preload="metadata" muted loop playsinline controls></video>
+          <figcaption>A recorded neo-policy game on a level-7 neo course, replayed in our 3D viewer.</figcaption>
         </figure>
       </div>
       <div class="panel">
-        <h2 style="font-size:20px">How the agent learned neos</h2>
-        <p>Trained on neo courses with PPO alone, the agent made none of the 13 neo jump types. On 11 of them it stood still until the 10-second stall limit, every time. Standing still cost less reward than a likely fall. A stall penalty made refusing count as a failure, but random exploration almost never finds the curved run a neo needs.</p>
-        <p>So we gave it examples. A search in the bot's own action space found 50,706 landing sequences, each checked in the environment, and the agent imitated 12,800 of them while PPO kept training. Three rounds of DAgger followed: the agent plays, the search looks for a landing from each neo takeoff it reaches, and the moves it finds become new examples. The search found a landing from 84% and 88% of those takeoffs in rounds 2 and 3, and from 93% in round 1, where a detection bug also counted one-block-up jumps as takeoffs: on that round's courses only 43% of the detected takeoffs were real neos.</p>
+        <h3>How the agent learned neos</h3>
+        <p>Trained on neo courses with PPO alone, the agent made none of the 13 neo jump types. On 11 of them it stood still until the 10-second stall limit, every time: standing still cost less reward than a likely fall. A stall penalty made refusing count as a failure, but random exploration almost never finds the curved run a neo needs.</p>
+        <p>So we gave it examples. A search in the bot's own action space found 50,706 landing sequences, each checked in the environment, and the agent imitated 12,800 of them while PPO kept training. Three rounds of DAgger followed: the agent plays, the search looks for a landing from each neo takeoff it reaches, and the moves it finds become new examples.</p>
         <p>On 210 held-out neo courses of levels 6 to 8, in the simulator:</p>
         <div class="scroll"><table>
-          <thead><tr><th>Neo policy</th><th>Courses done</th><th>Neos passed</th></tr></thead>
+          <thead><tr><th>Neo policy</th><th class="num">Courses done</th><th class="num">Neos passed</th></tr></thead>
           <tbody>
-            <tr><td>PPO with stall penalty</td><td>0%</td><td>0%</td></tr>
-            <tr><td>+ imitation</td><td>23.3%</td><td>36.1%</td></tr>
-            <tr><td>+ DAgger round 1</td><td>29.5%</td><td>43.4%</td></tr>
-            <tr><td>+ DAgger round 2</td><td>30.0%</td><td>46.9%</td></tr>
-            <tr><td>+ DAgger round 3, chosen</td><td>29.0%</td><td>43.3%</td></tr>
+            <tr><td>PPO with stall penalty</td><td class="num">0%</td><td class="num">0%</td></tr>
+            <tr><td>+ imitation</td><td class="num">23.3%</td><td class="num">36.1%</td></tr>
+            <tr><td>+ DAgger round 1</td><td class="num">29.5%</td><td class="num">43.4%</td></tr>
+            <tr><td>+ DAgger round 2</td><td class="num">30.0%</td><td class="num">46.9%</td></tr>
+            <tr><td>+ DAgger round 3, chosen</td><td class="num">29.0%</td><td class="num">43.3%</td></tr>
           </tbody>
         </table></div>
-        <p class="muted">Neos passed counts only the neo jumps the agent reached. Round 3 was chosen on the validation neo courses. Rounds 2 and 3 level off at about 30%. The chosen policy completes 56 of 129 courses with one neo and 5 of 81 with two or more. The neo policy is a separate fine-tune on levels 0 to 8; the final policy is trained on levels 0 to 5, without neos.</p>
-        <p id="neo-status"><span class="tag ok">11/31 in both</span> On 31 neo courses (the first 10 held-out test courses with a neo of levels 6, 7 and 8, and the hand-designed neo course), the chosen neo policy completes 11 in real Minecraft, the same 11 as in the simulator, with 0 server corrections. Each of them has one neo.</p>
+        <p class="muted">Neos passed counts only the neo jumps the agent reached. Round 3 was chosen on the validation neo courses. On 31 neo courses the chosen policy completes 11 in real Minecraft, the same 11 as in the simulator, with 0 server corrections.</p>
+        <h3>Planning the hard jumps</h3>
+        <p>A second route keeps the final policy and adds a search: when the bot stands on a planned takeoff, a cross-entropy search with the exact physics finds a move sequence from its exact state, and the bot plays it. With every jump planned, braking and an approach phase, it completes 72.0% of 218 validation neo courses in the simulator (the policy alone: 0%). With every jump planned and braking, the offline bot completes 25 of the 31 neo courses, the same courses as the simulator.</p>
       </div>
     </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">New ground</div>
+    <h2>Ice, head hitters, shaped blocks, slime and ladders</h2>
+    <div class="two">
+      <div class="stack">
+        <h3>Ice: nearly free</h3>
+        <p>The final policy was never trained on ice, yet it completes 95.6% of the standard test courses with every platform made of ice, against 98.4% on stone; the loss is mostly on level 5 (86.0% against 93.5%). On a new validation set with ice on 30% of the platforms it completes 97.5% (600 courses).</p>
+        <p>We still trained 20 seeds with ice on 30% of the platforms. On the ordinary validation courses they score 96.4 to 97.8%, around the final policy's 97.6%, and the best ice specialist reaches 97.8% on the ice set. All numbers are from the simulator.</p>
+      </div>
+      <div class="stack">
+        <h3>Five new block kinds</h3>
+        <p>We added head hitters, ice run-ups, shaped blocks (slabs, stairs, posts), slime bounces and ladder climbs to the physics; each matches prismarine-physics to 1.4e-14 blocks or better over 60,000 ticks. Alone, the final policy makes 99.1% of the shaped-block jumps, 68.2% of head hitters, 48.9% of ice run-ups, 39.9% of slime bounces and 37.5% of ladder climbs.</p>
+        <p>Trained on them for 1,000 updates, the specialist <code>g995-extra</code> completes 91.2% of 2,400 test courses over all 12 levels and 89.3% with obstacles. On the six new levels' validation courses it makes 86.1%, where the final policy makes 19.8%.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">One network for every skill</div>
+    <h2>Five specialists, distilled into one student</h2>
+    <p>Each skill above has its own network. To get one network that does everything, a student trains with PPO on courses that mix every skill, plus a term that pulls its action choices towards the right teacher on each course. A control run trains the same student with PPO alone. We first measured every candidate on the validation courses of each skill group, and picked the teachers and the starting point by rules fixed before the runs.</p>
+    <div class="scroll panel">
+      <table>
+        <thead><tr><th>Policy</th><th class="num">Basic</th><th class="num">Ice</th><th class="num">Neo, momentum, wide</th><th class="num">New block kinds</th><th class="num">Mean</th></tr></thead>
+        <tbody>
+          <tr><td>final policy</td><td class="num">97.6</td><td class="num">97.5</td><td class="num">23.5</td><td class="num">19.8</td><td class="num">59.6</td></tr>
+          <tr><td><code>g995-ice</code> (teacher: basic and ice)</td><td class="num best">97.3</td><td class="num best">97.8</td><td class="num">20.2</td><td class="num">19.8</td><td class="num">58.8</td></tr>
+          <tr><td><code>g995-adv</code></td><td class="num">96.2</td><td class="num">98.0</td><td class="num">53.0</td><td class="num">17.9</td><td class="num">66.3</td></tr>
+          <tr><td>neo policy (teacher: neo, momentum, wide)</td><td class="num">95.3</td><td class="num">94.3</td><td class="num best">66.5</td><td class="num">15.0</td><td class="num">67.8</td></tr>
+          <tr><td><code>g995-extra</code> (teacher: new kinds; student's start)</td><td class="num">95.3</td><td class="num">96.0</td><td class="num">19.5</td><td class="num best">86.1</td><td class="num best">74.2</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted">Validation success in %, simulator; 1,200 basic, 600 ice, 600 neo-momentum-wide and 1,200 new-kind courses, half with obstacles except ice. The basic teacher is chosen on the mean of basic and ice, where <code>g995-ice</code> scores highest (97.6, tied with one of its seeds). The 20 ice seeds were candidates too (basic 96.4 to 97.8, ice 96.3 to 97.8). <span class="tag run">training now</span> <code>combined-distill</code> and <code>combined-union</code>, 1,000 updates each since 29 October, 13:58; the checkpoint is chosen on the mean over the four groups, and each is tested once.</p>
   </section>
 
   <section>
     <div class="eyebrow">No course list</div>
     <div class="two">
       <figure>
-        <video src="videos/real_minecraft_showcase_no_course_list.mp4" autoplay muted loop playsinline controls></video>
+        <video src="videos/real_minecraft_showcase_no_course_list.mp4" preload="metadata" muted loop playsinline controls></video>
         <figcaption>Real Minecraft, first person, with no list of platforms: a route planner finds them in the blocks around the bot. Recorded with the first final policy.</figcaption>
       </figure>
-      <div style="display:grid;gap:14px">
+      <div class="stack">
         <h2>The bot finds its own route</h2>
-        <p>After every landing, a simple planner groups the blocks within 12 blocks into platforms, leaves out walls, pillars and head-hitter beams, and picks the next three: easy jumps toward the goal. The trained policy jumps to them, unchanged. Only the goal's position is given.</p>
+        <p>After every landing, a simple planner groups the blocks within 12 blocks into platforms, leaves out walls, pillars and head-hitter beams, and picks the next three: short jumps toward the goal. The trained policy jumps to them, unchanged. Only the goal's position is given.</p>
         <div class="scroll"><table>
-          <thead><tr><th>Unseen courses</th><th>List given</th><th>Planner</th><th>Learned</th></tr></thead>
+          <thead><tr><th>Unseen courses</th><th class="num">List given</th><th class="num">Planner</th><th class="num">Learned</th></tr></thead>
           <tbody>
-            <tr><td>1,200 standard, simulator</td><td>98.4%</td><td>90.9%</td><td>85.4%</td></tr>
-            <tr><td>1,200 with obstacles, simulator</td><td>95.2%</td><td>88.1%</td><td>70.9%</td></tr>
-            <tr><td>60 standard, real Minecraft</td><td>59/60</td><td>50/60</td><td>55/60</td></tr>
-            <tr><td>60 with obstacles, real Minecraft</td><td>57/60</td><td>55/60</td><td>37/60</td></tr>
+            <tr><td>1,200 standard, simulator</td><td class="num">98.4%</td><td class="num">92.3%</td><td class="num">85.4%</td></tr>
+            <tr><td>1,200 with obstacles, simulator</td><td class="num">95.2%</td><td class="num">90.5%</td><td class="num">70.9%</td></tr>
+            <tr><td>60 standard, real Minecraft</td><td class="num">59/60</td><td class="num">51/60</td><td class="num">55/60</td></tr>
+            <tr><td>60 with obstacles, real Minecraft</td><td class="num">57/60</td><td class="num">56/60</td><td class="num">37/60</td></tr>
           </tbody>
         </table></div>
-        <p class="muted">The first two columns use the final policy; with the first final policy the planner made 89.6% and 86.2% in the simulator. Most planner failures follow a shortcut: a later platform is in reach, so it skips ahead, and that jump is harder than the course's own next one. The learned column is a model trained to find platforms itself from a wide block scan and a memory of its last landings. It is weaker on the 1,200-course sets, and obstacles fool it: 10 of its 23 real-game failures with obstacles end standing on a beam or a pillar.</p>
+        <p class="muted">The planner's settings were tuned on validation courses. Most of its failures are route choices, not jumps: it skips ahead to a platform that is in reach but harder to land. The learned column is a model trained to find platforms itself from a wide block scan and a memory of its last landings; decoy pillars fool it.</p>
+        <p><span class="tag run">next</span> A route policy trained by RL, to beat the planner, is a teammate's mission on his own PC (<span class="path">docs/MISSION_ROUTING.md</span>).</p>
       </div>
+    </div>
+    <div class="two">
+      <figure>
+        <video src="videos/replay_240_no_course_list_level_5_course_6_obstacles.mp4" preload="metadata" muted loop playsinline controls></video>
+        <figcaption>A real-Minecraft planner game on a level-5 obstacle course, replayed in 3D with the plan drawn as numbered cyan platforms (first final policy).</figcaption>
+      </figure>
+      <figure>
+        <video src="videos/replay_295_learned_no_course_list_level_5_course_1.mp4" preload="metadata" muted loop playsinline controls></video>
+        <figcaption>The learned no-route model in real Minecraft, on a level-5 course the planner failed with the first final policy.</figcaption>
+      </figure>
     </div>
   </section>
 
@@ -202,19 +294,42 @@ a { color: var(--sky); }
     <h2>The same courses succeed and fail in both</h2>
     <div class="scroll panel">
       <table>
-        <thead><tr><th>Unseen courses</th><th>Simulator</th><th>Bot, no server</th><th>Real Minecraft</th></tr></thead>
+        <thead><tr><th>Unseen courses</th><th class="num">Simulator</th><th class="num">Bot, no server</th><th class="num">Real Minecraft</th></tr></thead>
         <tbody>
-          <tr><td>10 jumps, all 6 levels</td><td>59/60</td><td>59/60</td><td>59/60</td></tr>
-          <tr><td>with obstacles</td><td>57/60</td><td>57/60</td><td>57/60</td></tr>
-          <tr><td>hand-designed</td><td>3/4</td><td>3/4</td><td>3/4</td></tr>
+          <tr><td>10 jumps, all 6 levels</td><td class="num">59/60</td><td class="num">59/60</td><td class="num">59/60</td></tr>
+          <tr><td>with obstacles</td><td class="num">57/60</td><td class="num">57/60</td><td class="num">57/60</td></tr>
+          <tr><td>hand-designed</td><td class="num">3/4</td><td class="num">3/4</td><td class="num">3/4</td></tr>
+          <tr><td>route planner, standard and obstacles</td><td class="num">51/60, 56/60</td><td class="num">51/60, 56/60</td><td class="num">51/60, 56/60</td></tr>
+          <tr><td>learned no-route model, standard and obstacles</td><td class="num">55/60, 37/60</td><td class="num">55/60, 37/60</td><td class="num">55/60, 37/60</td></tr>
+          <tr><td>neo policy, 31 neo courses</td><td class="num">11/31</td><td class="num">11/31</td><td class="num">11/31</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="muted">All rows use the final policy. The hand-designed miss is the neo course, which is outside this policy's training. Our PyTorch port of prismarine-physics, the engine Mineflayer moves bots with, matches the original to 1.4e-14 blocks over 99,000 ticks. The bot runs the exported network in JavaScript, in step with the server's ticks.</p>
+    <p class="muted">The first four rows use the final policy. In every one of these runs the outcome matched the simulator on every course, and the server corrected the bot's position 0 times. The hand-designed miss is the neo course, which is outside the final policy's training. Our PyTorch port of prismarine-physics, the engine Mineflayer moves bots with, matches the original to 1.4e-14 blocks over 99,000 ticks. The bot runs the exported network in JavaScript, in step with the server's ticks.</p>
+  </section>
+
+  <section>
+    <div class="eyebrow">More videos</div>
+    <h2>The three hand-designed courses, one by one</h2>
+    <div class="three">
+      <figure>
+        <video src="videos/real_minecraft_tour.mp4" preload="metadata" muted loop playsinline controls></video>
+        <figcaption>The tour course.</figcaption>
+      </figure>
+      <figure>
+        <video src="videos/real_minecraft_stairs.mp4" preload="metadata" muted loop playsinline controls></video>
+        <figcaption>The stairs course.</figcaption>
+      </figure>
+      <figure>
+        <video src="videos/real_minecraft_sprint.mp4" preload="metadata" muted loop playsinline controls></video>
+        <figcaption>The sprint course.</figcaption>
+      </figure>
+    </div>
+    <p class="muted">Real Minecraft 1.21.4, the bot's own view, first final policy with the course list given.</p>
   </section>
 
   <footer>
-    <span>The numbers here come from files in the project repository: main tables in <span class="path">results/README.md</span>, training logs and jump tests in <span class="path">results/runs/</span>, recorded games in <span class="path">results/games/</span>, the neo search in <span class="path">configs/jump_cem*.json</span>, the neo jump tests, demonstration counts, DAgger collection logs, detector check and the split by number of neos per course in <span class="path">results/neo/</span>, the physics check in <span class="path">results/physics_parity.json</span>, videos in <span class="path">results/videos/</span>.</span>
+    <span>The numbers here come from files in the project repository: main tables in <span class="path">results/README.md</span>; training logs and jump tests in <span class="path">results/runs/</span>; recorded games in <span class="path">results/games/</span>; the neo search, demonstrations and DAgger logs in <span class="path">results/neo/</span>; ice in <span class="path">results/ice_preview.json</span>; the new block kinds in <span class="path">results/extra/</span> and <span class="path">results/physics_parity_*.json</span>; the specialists and ice seeds in <span class="path">results/operations/</span>; the one-network matrix in <span class="path">results/skills/validation_matrix.json</span>; the planner in <span class="path">results/planner/</span>; videos in <span class="path">results/videos/</span>.</span>
   </footer>
 </div>
 
@@ -229,6 +344,21 @@ const ARMS = [
   ['no fall penalty', 55.2, 54.0, 57.0],
   ['platforms hidden', 43.0, 39.0, 47.5]
 ]
+// Validation success after 0.52 B ticks per hyperparameter run (results/README.md); defaults 91.8 (2 seeds).
+const HP = [
+  ['discount 0.995, seed 1', 95.8, true],
+  ['discount 0.995', 95.2, true],
+  ['discount 0.995, seed 2', 95.2, true],
+  ['larger network', 94.5, false],
+  ['entropy 0.001', 94.3, false],
+  ['smaller network', 92.5, false],
+  ['target KL 0.02', 92.2, false],
+  ['4,096 games', 91.5, false],
+  ['entropy 0.02', 91.0, false],
+  ['target KL 0.005', 89.7, false],
+  ['discount 0.98', 89.2, false]
+]
+const HP_DEFAULT = 91.8
 const NS = 'http://www.w3.org/2000/svg'
 function el (tag, attrs, parent) {
   const e = document.createElementNS(NS, tag)
@@ -237,6 +367,7 @@ function el (tag, attrs, parent) {
   return e
 }
 function text (parent, x, y, s, anchor) { const t = el('text', { x, y, 'text-anchor': anchor || 'start' }, parent); t.textContent = s; return t }
+function tipFor (box) { const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; box.appendChild(tip); return tip }
 
 function drawCurve () {
   const box = document.getElementById('curve')
@@ -245,7 +376,7 @@ function drawCurve () {
   const x = v => L + v / 1.6 * (W - L - R)
   const y = v => T + (1 - v / 100) * (H - T - B)
   for (let v = 0; v <= 100; v += 25) { el('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), class: 'grid' }, svg); text(svg, L - 8, y(v) + 4, v + '%', 'end') }
-  for (let v = 0; v <= 1.6; v += 0.4) text(svg, x(v), H - 12, v.toFixed(1) + ' B', 'middle')
+  for (let v = 0; v <= 1.6; v += 0.4) text(svg, x(v), H - 12, v.toFixed(1) + ' B', v > 1.5 ? 'end' : 'middle')
   el('line', { x1: L, x2: W - R, y1: y(0), y2: y(0), class: 'axis' }, svg)
   const series = [[1, 'var(--grass)'], [2, 'var(--sky)']]
   for (const [i, c] of series) {
@@ -254,7 +385,7 @@ function drawCurve () {
     el('circle', { cx: x(last[0]), cy: y(last[i]), r: 4, fill: c }, svg)
   }
   const hair = el('line', { y1: T, y2: y(0), class: 'axis', 'stroke-dasharray': '3 3', visibility: 'hidden' }, svg)
-  const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; box.appendChild(tip)
+  const tip = tipFor(box)
   const hit = el('rect', { x: L, y: T, width: W - L - R, height: H - T - B, fill: 'transparent' }, svg)
   hit.addEventListener('pointermove', ev => {
     const r = svg.getBoundingClientRect()
@@ -270,31 +401,51 @@ function drawCurve () {
   hit.addEventListener('pointerleave', () => { tip.hidden = true; hair.setAttribute('visibility', 'hidden') })
 }
 
-function drawAblation () {
-  const box = document.getElementById('ablation')
-  const W = 480; const rowH = 40; const L = 150; const R = 40; const T = 6; const B = 30
-  const H = T + ARMS.length * rowH + B
-  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Level-5 success per reward variant; removing the fall penalty or hiding platforms costs the most' }, box)
-  const x = v => L + (v - 30) / 60 * (W - L - R)
-  for (let v = 30; v <= 90; v += 15) { el('line', { x1: x(v), x2: x(v), y1: T, y2: H - B, class: 'grid' }, svg); text(svg, x(v), H - 10, v + '%', 'middle') }
-  const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; box.appendChild(tip)
-  ARMS.forEach(([name, mean, lo, hi], k) => {
+function drawRows (id, rows, lo, hi, step, label, mark) {
+  const box = document.getElementById(id)
+  const W = 480; const rowH = 34; const L = 184; const R = 40; const T = 6; const B = 30
+  const H = T + rows.length * rowH + B
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': label }, box)
+  const x = v => L + (v - lo) / (hi - lo) * (W - L - R)
+  for (let v = lo; v <= hi; v += step) { el('line', { x1: x(v), x2: x(v), y1: T, y2: H - B, class: 'grid' }, svg); text(svg, x(v), H - 10, v + '%', 'middle') }
+  const tip = tipFor(box)
+  rows.forEach((row, k) => {
     const cy = T + k * rowH + rowH / 2
-    const hot = name === 'no fall penalty'
-    const t = text(svg, L - 12, cy + 4, name, 'end')
-    if (hot) t.style.fill = 'var(--lava)'
-    el('rect', { x: x(lo), y: cy - 5, width: Math.max(2, x(hi) - x(lo)), height: 10, rx: 4, fill: 'var(--line)', stroke: 'var(--muted)', 'stroke-width': 0.5 }, svg)
-    el('circle', { cx: x(mean), cy, r: 6, fill: hot ? 'var(--lava)' : 'var(--fg)', stroke: 'var(--surface)', 'stroke-width': 2 }, svg)
-    const hit = el('rect', { x: L - 140, y: cy - rowH / 2, width: W - L + 140 - R + 30, height: rowH, fill: 'transparent' }, svg)
+    const t = text(svg, L - 12, cy + 4, row[0], 'end')
+    const shown = mark(svg, x, cy, row, t)
+    const hit = el('rect', { x: 0, y: cy - rowH / 2, width: W, height: rowH, fill: 'transparent' }, svg)
     hit.addEventListener('pointerenter', () => {
       const r = svg.getBoundingClientRect()
       tip.hidden = false
-      tip.style.left = (x(mean) / W * r.width) + 'px'
+      tip.style.left = (x(shown.v) / W * r.width) + 'px'
       tip.style.top = ((cy - 6) / H * r.height) + 'px'
-      tip.textContent = `${name}: ${mean}% (seeds ${lo}-${hi}%)`
+      tip.textContent = shown.text
     })
     hit.addEventListener('pointerleave', () => { tip.hidden = true })
   })
+  return { svg, x, T, H, B }
 }
-drawCurve(); drawAblation()
+
+function drawAblation () {
+  drawRows('ablation', ARMS, 30, 90, 15, 'Level-5 success per reward variant; removing the fall penalty or hiding platforms costs the most',
+    (svg, x, cy, [name, mean, lo, hi], t) => {
+      const hot = name === 'no fall penalty'
+      if (hot) t.style.fill = 'var(--lava)'
+      el('rect', { x: x(lo), y: cy - 5, width: Math.max(2, x(hi) - x(lo)), height: 10, rx: 4, fill: 'var(--line)', stroke: 'var(--muted)', 'stroke-width': 0.5 }, svg)
+      el('circle', { cx: x(mean), cy, r: 6, fill: hot ? 'var(--lava)' : 'var(--fg)', stroke: 'var(--surface)', 'stroke-width': 2 }, svg)
+      return { v: mean, text: `${name}: ${mean}% (seeds ${lo}-${hi}%)` }
+    })
+}
+
+function drawHparams () {
+  const c = drawRows('hparams', HP, 88, 97, 3, 'Validation success per hyperparameter setting; discount 0.995 is best in all three seeds',
+    (svg, x, cy, [name, v, g995]) => {
+      el('line', { x1: x(88), x2: x(v), y1: cy, y2: cy, stroke: 'var(--line)', 'stroke-width': 2 }, svg)
+      el('circle', { cx: x(v), cy, r: 6, fill: g995 ? 'var(--grass)' : 'var(--fg)', stroke: 'var(--surface)', 'stroke-width': 2 }, svg)
+      return { v, text: `${name}: ${v}% validation` }
+    })
+  el('line', { x1: c.x(HP_DEFAULT), x2: c.x(HP_DEFAULT), y1: c.T, y2: c.H - c.B, stroke: 'var(--muted)', 'stroke-dasharray': '4 3', 'stroke-width': 1.5 }, c.svg)
+  text(c.svg, c.x(HP_DEFAULT) + 4, c.H - c.B - 4, 'defaults ' + HP_DEFAULT + '%', 'start')
+}
+drawCurve(); drawAblation(); drawHparams()
 </script>
