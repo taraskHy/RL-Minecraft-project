@@ -1084,17 +1084,17 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `6946602` (2026-10-29 22:52, branch `main`): Merge gate: the skill gate (parkour/gate.py), swappable expert slots, semi-MDP PPO
+Generated on top of commit `6426c18` (2026-10-29 23:58, branch `main`): Gate trained and tested (a match); single neos reproduced in real Minecraft
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 5 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 6 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `1a16df0` 2026-10-29 14:14 | 21 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 189 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 172 |
-| `results/README.md` | `2ceba5f` 2026-10-29 22:40 | 5 |
+| `TEAM_STATUS.md` | `6426c18` 2026-10-29 23:58 | 0 |
+| `README.md` | `1a16df0` 2026-10-29 14:14 | 22 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 190 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 173 |
+| `results/README.md` | `2ceba5f` 2026-10-29 22:40 | 6 |
 | `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
@@ -1298,6 +1298,7 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **30 Oct 2026, 00:00, Claude (Claude Code, training PC):** the skill gate built, reviewed, merged (`6946602`) and trained (`gate-r1`): validation 87.75% against 86.98%, so it replaces the one network in the simulator; tested once 86.80% against 86.45%, a match; the first expert swap is not kept. Single neos: the bots reproduce the simulator from the same start on the first 64 test courses, offline and in real Minecraft (planner 58/64, policy alone 26/64, 0 corrections). The replay page now holds 89 courses in 210 recordings: the one-neo courses with the planner (13/16, every completion did its neo) and the one network (7/16), and the never-trained shapes (6/8); results page version 17. GPU watchdog restarted from the merged code. Next: a fix for the settled-start first jump in the planner (to be chosen on validation), and whatever the user asks next.
 - **29 Oct 2026, 22:50, Claude (Claude Code, training PC):** single neos at 85%: the sets (families 40/41), the strict metric and the planner levers merged (`031d7c3`); on validation the final policy with the planner and 3 search restarts reaches 286 of 320 (89.4%, levers stopped by the 89% rule); the test, played once, 276 of 320 (86.25%): the goal is met under the pre-registered rule, narrowly (caveats and an independent audit in section 3). Follow-up rounds (head hitters and slime, neos in the one network, one more neo round) not kept; gate headroom measured (per-course ceiling +7.1, mostly chance; the gate gets built, with swappable experts). Replays of every new skill and block type, offline and in real Minecraft (59/65 as the simulator; carpets needed a structure void in real Minecraft, `bridge/parkour_bot.js`), on the results page (version 15); the CPU cap of 85% (AGENTS.md). Next: the bot check of the single-neo test courses, the gate's training on the GPU, the one-neo and untrained-shape replays on the page.
 - **29 Oct 2026, 17:00, Claude (Claude Code, training PC):** `combined-distill` and `combined-union` finished and were tested once; `combined-distill` won on validation (87.0% vs 84.7% over the four groups) and is shipped as `results/combined_policy.*` (`scripts/export_combined.py`). Per-group test comparison with every specialist (`results/skills/combined_test_comparison.json`, `scripts/combined_compare.py`): the specialists' existing test rows reused, only the pairs never tested played once (`results/skills/test_matrix_*.json`), except the final policy's 600 standard courses at extra levels 9-11, first played on 28 Oct (`results/extra/course_preview_family1.json`) and replayed with identical results. The margins over the best specialist (+2.9, +1.1) are about 1.5 and 1.1 standard errors of one test: a match, not a win (an independent check corrected the page and these files to say so, and "three specialists", not five). Started `skills-hh-ft` (head hitters and slime, section 3) from it; collected the neo DAgger demonstrations from it (`runs/neo_dagger_c1.pt`); the round itself is held for the new top priority, single neos at 85% (section 3). Skill-gate headroom script ready (`scripts/gate_headroom.py`, run after the fine-tunes). Report run; results page version 9. Next: the single-neo sets, baselines and failure analysis.
 

@@ -5,7 +5,7 @@
 The user asked on 29 October 2026 for replays of stairs too. configs/block_shapes.json (the physics) has four
 shapes that no level of any table uses, so no policy has ever jumped onto them. Each gets two courses, fixed
 before any outcome was seen: courses.generate on the extra group's table, on a copy whose shaped-blocks level
-keeps only the specs of a trained type with the same top, the block swapped for the untrained one:
+keeps only the specs of a trained type with nearly the same top, the block swapped for the untrained one:
 stairs, top slab and top trapdoor (top 1.0) from the dirt-path specs (top 0.9375); iron bars (a thin post, top
 1.0) from the end-rod specs (a thicker post, top 1.0). Stream numpy default_rng([2026, 44, k]) with k = 10..13,
 continuing scripts/make_skill_replays.py's ten trained types (k = 0..9) in seed family 44; seeds 0 and 1;
@@ -31,7 +31,7 @@ FAMILY = 44
 SEEDS = 2
 N_JUMPS = 10
 SHAPED_LEVEL = 12  # global id of the shaped-blocks level
-UNTRAINED = (  # k, shape, the trained type whose specs it takes (same top)
+UNTRAINED = (  # k, shape, the trained type whose specs it takes (top 0.9375 or 1.0 against the shape's 1.0)
     (10, "stairs", "dirt_path"),
     (11, "top_slab", "dirt_path"),
     (12, "top_trapdoor", "dirt_path"),

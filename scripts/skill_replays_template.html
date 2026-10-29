@@ -3,7 +3,8 @@
 <style>
 /* Layout: the honest source label and the kind / block type / recording / course selectors on top; the 3D stage with
    its event timeline and controls beside the list of courses; the legend of every block kind drawn; below, the
-   recording's facts and its jumps, then the per-kind, own-jump and per-block-type counts of the embedded recordings.
+   recording's facts and its jumps, then the per-kind, own-jump, neo, planner and per-block-type counts of the embedded
+   recordings. A recording is a place (real Minecraft, offline physics) and a player (the one network, or the planner).
    Same visual language as Parkour Showcase Replays (scripts/showcase_replays_template.html).
    Tokens: page colours (both themes), scene colours (blocks, the bot, trails: the same in both themes; sky, fog, light
    and the hitbox outline follow the theme), overlay colours on the 3D view (the same in both themes, since they sit on
@@ -11,6 +12,7 @@
 :root {
   --bg: #e8edf2; --panel: #f9fbfc; --fg: #172029; --muted: #55616d; --line: #d2d9e0; --chip: #eef2f5;
   --accent: #3b8c3a; --accent-ink: #ffffff; --good: #22783f; --bad: #b3352f; --warn: #946700; --live: #c4601c; --off: #6a4fc0;
+  --plan: #0b7a70;
   --swatch-line: rgba(0, 0, 0, 0.18);
   --font-display: "Silkscreen", "Courier New", monospace;
   --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
@@ -23,15 +25,17 @@
   --shape-bottom_slab: #c3c6c8; --shape-soul_sand: #5b4434; --shape-dirt_path: #9a7b45; --shape-enchanting_table: #7a2731;
   --shape-daylight_detector: #c2a878; --shape-bottom_trapdoor: #b88e52; --shape-carpet: #eef0f0; --shape-fence_post: #7f5c30;
   --shape-wall_post: #6f6f6f; --shape-end_rod: #f2ede2; --shape-end_rod-glow: #4a4536; --shape-other: #b08d5a;
-  /* scene: the bot, its hitbox outline, its trail and the whole path */
+  /* scene: the shapes no training level uses (stairs: every facing one colour) */
+  --shape-stairs: #b5714c; --shape-top_slab: #9db4c9; --shape-top_trapdoor: #d9b56f; --shape-iron_bars: #4d5961;
+  /* scene: the bot, its hitbox outline, its trail and the whole path; a planner's planned ticks on the trail */
   --bot-skin: #c99b77; --bot-hair: #3b2716; --bot-pants: #3d4aa6; --bot-shoe: #555555; --bot-eyes: #2a3b8f;
   --hitbox: #e0157f;
-  --trail-live: #ff8a3d; --trail-off: #b18cff; --ghost: #ffffff;
+  --trail-live: #ff8a3d; --trail-off: #b18cff; --trail-plan: #00d1b2; --ghost: #ffffff;
   /* scene: sky, fog and light (follow the theme) */
   --sky-top: #5f97e8; --sky-mid: #9cc4ec; --sky-low: #d9ecfb; --fog: #c9e0f6;
   --light-sky: #ffffff; --light-ground: #6b7a5a; --light-sun: #fff4dd;
   /* overlays on the 3D view */
-  --hud-fg: #f4f7fa; --hud-dim: #c9d4de; --hud-bg: rgba(10, 16, 22, 0.34); --hud-shadow: rgba(0, 0, 0, 0.75); --tag-bg: rgba(10, 16, 22, 0.55); --keys-bg: rgba(10, 16, 22, 0.42);
+  --hud-fg: #f4f7fa; --hud-dim: #c9d4de; --hud-plan: #6ff2dc; --hud-bg: rgba(10, 16, 22, 0.34); --hud-shadow: rgba(0, 0, 0, 0.75); --tag-bg: rgba(10, 16, 22, 0.55); --keys-bg: rgba(10, 16, 22, 0.42);
   --key-fg: #dbe4ec; --key-bg: rgba(255, 255, 255, 0.08); --key-line: rgba(255, 255, 255, 0.28); --key-on-fg: #10210f; --key-on-bg: #8fe08b; --cap-fg: #e7eef4;
   --banner-fg: #ffffff; --banner-bg: rgba(0, 0, 0, 0.5); --banner-success: rgba(26, 112, 56, 0.85); --banner-fell: rgba(165, 45, 40, 0.88); --banner-truncated: rgba(128, 92, 0, 0.88);
 }
@@ -39,6 +43,7 @@
   :root:not([data-theme="light"]) {
     --bg: #0e1317; --panel: #151c22; --fg: #e5eaef; --muted: #94a1ad; --line: #263039; --chip: #1b242c;
     --accent: #6cc46a; --accent-ink: #0c1a0c; --good: #5ac487; --bad: #f07a72; --warn: #e0b04a; --live: #f2995a; --off: #b9a2ff;
+    --plan: #3fd6c3;
     --swatch-line: rgba(255, 255, 255, 0.22);
     --blk-roof: #75849a;
     --hitbox: #ff5aa8;
@@ -50,6 +55,7 @@
 :root[data-theme="dark"] {
   --bg: #0e1317; --panel: #151c22; --fg: #e5eaef; --muted: #94a1ad; --line: #263039; --chip: #1b242c;
   --accent: #6cc46a; --accent-ink: #0c1a0c; --good: #5ac487; --bad: #f07a72; --warn: #e0b04a; --live: #f2995a; --off: #b9a2ff;
+  --plan: #3fd6c3;
   --swatch-line: rgba(255, 255, 255, 0.22);
   --blk-roof: #75849a;
   --hitbox: #ff5aa8;
@@ -82,11 +88,15 @@ canvas#c.orbiting { touch-action: none; cursor: grab; }
 .hud { position: absolute; left: 12px; top: 12px; font-family: var(--font-mono); font-size: 12px; line-height: 1.45; color: var(--hud-fg); text-shadow: 0 1px 2px var(--hud-shadow); display: grid; gap: 1px; pointer-events: none; font-variant-numeric: tabular-nums; max-width: calc(100% - 24px); background: var(--hud-bg); padding: 6px 9px; border-radius: 6px; }
 .hud b { font-family: var(--font-display); font-weight: 400; font-size: 15px; }
 .hud .dim { color: var(--hud-dim); }
+.hud .plan { color: var(--hud-plan); }
 .banner { position: absolute; right: 12px; top: 12px; font: 600 13px var(--font-body); color: var(--banner-fg); padding: 4px 12px; border-radius: 999px; background: var(--banner-bg); }
 .banner.success { background: var(--banner-success); }
 .banner.fell { background: var(--banner-fell); }
 .banner.truncated { background: var(--banner-truncated); }
-.srcTag { position: absolute; right: 12px; bottom: 10px; font: 600 11px var(--font-body); letter-spacing: 0.03em; color: var(--banner-fg); background: var(--tag-bg); border-radius: 4px; padding: 3px 8px; pointer-events: none; }
+/* On the last tick the outcome banner shows at the top right: the HUD keeps clear of it (--banner-w: its measured width). */
+.box.ended .hud { max-width: calc(100% - 36px - var(--banner-w, 160px)); }
+/* The source tag wraps rather than reach the action keys (left 12 px, 272 px wide, 12 px apart). */
+.srcTag { position: absolute; right: 12px; bottom: 10px; max-width: calc(100% - 308px); text-align: right; font: 600 11px var(--font-body); letter-spacing: 0.03em; color: var(--banner-fg); background: var(--tag-bg); border-radius: 4px; padding: 3px 8px; pointer-events: none; }
 .keys { position: absolute; left: 12px; bottom: 10px; display: grid; grid-template-columns: repeat(3, 26px) 6px 58px 52px 46px; grid-template-rows: auto 26px 26px; gap: 3px; padding: 6px 7px 7px; border-radius: 6px; background: var(--keys-bg); pointer-events: none; transform-origin: left bottom; }
 .key { display: grid; place-items: center; font: 600 11px var(--font-mono); color: var(--key-fg); background: var(--key-bg); border: 1px solid var(--key-line); border-radius: 4px; }
 .key.on { color: var(--key-on-fg); background: var(--key-on-bg); border-color: var(--key-on-bg); }
@@ -132,6 +142,11 @@ ol.jumps li { display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; ga
 ol.jumps li .k { font-family: var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
 ol.jumps li .st { font: 600 11px var(--font-body); }
 ol.jumps li[data-added] .d { color: var(--muted); }
+ol.jumps li .tag { display: inline-block; font: 600 10px var(--font-body); letter-spacing: 0.04em; text-transform: uppercase; padding: 0 5px; margin-right: 6px; border-radius: 3px; border: 1px solid currentColor; vertical-align: 1px; line-height: 1.5; }
+ol.jumps li .tag.neo { color: var(--accent); }
+ol.jumps li .tag.plan { color: var(--plan); }
+ol.jumps li .tag.policy, ol.jumps li .tag.none { color: var(--muted); }
+ol.jumps li .pl { display: block; color: var(--muted); font-size: 11.5px; }
 ol.jumps li.done .st { color: var(--good); }
 ol.jumps li.now { background: color-mix(in srgb, var(--accent) 16%, transparent); }
 ol.jumps li.now .st { color: var(--accent); }
@@ -163,17 +178,25 @@ table.stats td.bad { color: var(--bad); font-weight: 600; }
   h1 { font-size: 20px; }
   .filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 10px; }
   .filters select, #course { width: 100%; }
-  .filters label[for="run"] { grid-column: 1; grid-row: 2; }
-  .filters .count { grid-column: 2; grid-row: 2; align-self: end; padding-bottom: 2px; }
+  .filters label[for="run"] { grid-column: 1 / -1; grid-row: 2; }
   .filters label[for="course"] { grid-column: 1 / -1; grid-row: 3; }
+  .filters .count { grid-column: 1 / -1; grid-row: 4; padding-bottom: 0; }
   .box { aspect-ratio: 4 / 5; }
   .keys { transform: scale(0.74); left: 8px; bottom: 30px; }
   .hud { font-size: 10.5px; left: 8px; top: 8px; padding: 5px 7px; } .hud b { font-size: 13px; } .hud .opt { display: none; }
   .banner { right: 8px; top: auto; bottom: 30px; }
-  .srcTag { left: 0; right: 0; bottom: 0; border-radius: 0; text-align: center; padding: 3px 6px; font-size: 10.5px; }
+  .box.ended .hud { max-width: calc(100% - 24px); }
+  /* Full width under the keys, on one line: the player is in the HUD (its second line) and the Recording selector. */
+  .srcTag { left: 0; right: 0; bottom: 0; max-width: none; border-radius: 0; text-align: center; padding: 3px 6px; font-size: 10.5px; }
+  .srcTag .who { display: none; }
   table.stats th, table.stats td { padding: 3px 4px; }
   table.stats td .note { display: block; }
+  dl.facts { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  dl.facts dt { margin-top: 7px; font-size: 12px; }
+  dl.facts dt:first-child { margin-top: 0; }
 }
+/* Too narrow for the outcome banner beside the scaled keys (201 px from the left): above them instead. */
+@media (max-width: 420px) { .banner { bottom: 100px; } }
 @media (max-width: 400px) { table.stats { font-size: 12px; } table.stats th, table.stats td { padding: 3px 2px; } }
 @media (prefers-reduced-motion: reduce) { .row, .btn { transition: none; } }
 </style>
@@ -250,8 +273,9 @@ table.stats td.bad { color: var(--bad); font-weight: 600; }
     <span><i class="outline" style="border-color: var(--hitbox)"></i>the bot’s 0.6 × 1.8 × 0.6 hitbox</span>
     <span id="legendLive"><i class="line" style="background: var(--trail-live)"></i>trail, real Minecraft</span>
     <span id="legendOff"><i class="line" style="background: var(--trail-off)"></i>trail, offline physics</span>
+    <span id="legendPlan"><i class="line" style="background: var(--trail-plan)"></i>trail where the planner plays a planned sequence</span>
     <span class="tlkey">Start, goal, roofs and walls are stone in the game; their colours and the beam over the goal are this page’s markers. Each shaped block is drawn box by box from its collision shape: fence and wall posts to their collision height, 1.5, with the top half see-through (in the game a post looks 1 block high), and ladders as their 3/16-block collision box (in the game a flat texture on the wall). Not drawn: the structure void that real Minecraft has under every carpet (a block with no collision box); the simulator and the offline bot have air there.</span>
-    <span class="tlkey">Timeline under the view: the coloured band marks ticks in the air, the steps climb with each new platform reached, the bar after the end shows the outcome (green made it, red fell, amber stalled) and the thin line is the shown tick. Drag it, or focus it and use the arrow keys (Shift for 20 ticks), Home, End and Space.</span>
+    <span class="tlkey">Timeline under the view: the coloured band marks ticks in the air, the steps climb with each new platform reached, the bar after the end shows the outcome (green made it, red fell, amber stalled) and the thin line is the shown tick. On a planner recording a second band marks the ticks of planned sequences (teal) and of a brake before a second search (amber); the policy plays the other ticks. Drag it, or focus it and use the arrow keys (Shift for 20 ticks), Home, End and Space.</span>
   </div>
 
   <div class="below">
@@ -262,7 +286,7 @@ table.stats td.bad { color: var(--bad); font-weight: 600; }
     <section class="card" aria-labelledby="jumpsTitle">
       <h3 id="jumpsTitle">Jumps on this course</h3>
       <ol class="jumps" id="jumps"></ol>
-      <p class="cap">Each line is the jump from one platform to the next, as the course generator recorded it; the grey lines are the jumps it adds itself (the step onto a runway, the exit off a shaped block or a slime pad). Heights are between the platforms’ tops, so a jump onto or off a shaped block can rise or drop within one block row. The highlighted line follows the bot.</p>
+      <p class="cap" id="jumpsCap">Each line is the jump from one platform to the next, as the course generator recorded it; the grey lines are the jumps it adds itself (the step onto a runway, the exit off a shaped block or a slime pad). Heights are between the platforms’ tops, so a jump onto or off a shaped block can rise or drop within one block row. The highlighted line follows the bot. On a one-neo course the neo tag marks its neo; on a planner recording each jump says whether a planned sequence made it (planned) or the policy did (policy), and what its searches found.</p>
     </section>
   </div>
 
@@ -279,6 +303,12 @@ table.stats td.bad { color: var(--bad); font-weight: 600; }
       <h3 id="typesTitle">Shaped platforms, per block type</h3>
       <div class="tablebox"><table class="stats" id="typeStats"></table></div>
       <p class="cap" id="typeCap"></p>
+      <h3 class="next" id="neoTitle">Neos done, one neo per course</h3>
+      <div class="tablebox"><table class="stats" id="neoStats"></table></div>
+      <p class="cap" id="neoCap"></p>
+      <h3 class="next" id="planTitle">Planner recordings: who chose each move</h3>
+      <div class="tablebox"><table class="stats" id="planStats"></table></div>
+      <p class="cap" id="planCap"></p>
     </section>
   </div>
 
@@ -297,14 +327,28 @@ const TICK_HZ = DATA.tick_hz // 20 ticks per second: time = frame / 20
 const COL = Object.fromEntries(DATA.frame_columns.map((c, i) => [c, i])) // x y z vx vy vz yaw on_ground jump_ticks platform_reached
 const YAW_STEPS = DATA.yaw_steps_degrees
 const KINDS = Object.fromEntries(DATA.kinds.map(k => [k.token, k]))
-const SKILL_KINDS = DATA.kinds.filter(k => k.set === 'skill')
-const TYPE_KINDS = DATA.kinds.filter(k => k.set === 'type')
-const TYPES = DATA.block_types // the trained block types, in the course set's order
+const kindsOf = set => DATA.kinds.filter(k => k.set === set)
+const SKILL_KINDS = kindsOf('skill')
+const TYPE_KINDS = kindsOf('type') // one trained block type per course
+const NEO_KINDS = kindsOf('neo') // one neo per course
+const UNTRAINED_KINDS = kindsOf('untrained') // the shapes no training level uses
+const TYPES = DATA.block_types // the trained block types in the course set's order, then the never-trained shapes
 const TYPE = Object.fromEntries(TYPES.map(t => [t.name, t]))
+const TRAINED_TYPES = TYPES.filter(t => t.trained)
+const UNTRAINED_TYPES = TYPES.filter(t => !t.trained)
+const SHAPE_TYPE = {} // a shape of configs/block_shapes.json -> its block type (the four stairs facings are one type)
+for (const t of TYPES) for (const s of t.shapes) SHAPE_TYPE[s] = t.name
+const typeOf = shape => SHAPE_TYPE[shape] || (shape.startsWith('stairs_') ? 'stairs' : shape)
 const FEAT = DATA.features // feature token -> { one, many, about }
 const COURSES = Object.fromEntries(DATA.courses.map(c => [c.id, c]))
-const RUNS = Object.fromEntries(DATA.runs.map(r => [r.run, r]))
-const RUN_IDS = DATA.runs.map(r => r.run)
+const SETS = Object.fromEntries(DATA.course_sets.map(s => [s.id, s]))
+const PLAYERS = DATA.players // network: the one network; planner: the final policy with the search
+const RECS = DATA.recordings // [{ id, where, player }], the page's order
+const REC = Object.fromEntries(RECS.map(r => [r.id, r]))
+const REC_IDS = RECS.map(r => r.id)
+const PLACES = [...new Set(RECS.map(r => r.where))] // live, offline
+const PLAYER_IDS = [...new Set(RECS.map(r => r.player))] // network, planner
+const recOf = (player, where) => (RECS.find(r => r.player === player && r.where === where) || {}).id
 const EPS = DATA.episodes
 const ROOT = document.documentElement
 // Every colour is a CSS token (the page's :root), read when it is used, so the view follows the theme.
@@ -312,20 +356,34 @@ function cssVar (name) { const s = getComputedStyle(ROOT); return s.getPropertyV
 const plural = (n, w, ws) => `${n} ${n === 1 ? w : (ws || w + 's')}`
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1)
 const listing = xs => xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1]
-const typeLabel = name => TYPE[name] ? TYPE[name].label : name.replace(/_/g, ' ')
+const listingOr = xs => xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' or ' + xs[xs.length - 1]
+const typeLabel = name => TYPE[typeOf(name)] ? TYPE[typeOf(name)].label : name.replace(/_/g, ' ')
+// A platform's shape by name; stairs say which way they rise (their facing: the upper step's side).
+const shapeLabel = name => name.startsWith('stairs_') ? `${typeLabel(name)} rising ${name.slice(7)}` : typeLabel(name)
+const withArticle = s => /^(stairs|iron bars|soul sand)/.test(s) ? s : (/^[aeiou]/.test(s) ? 'an ' : 'a ') + s
 const num = v => String(Math.round(v * 1e4) / 1e4) // block lengths, at most 4 decimals (shapes are in 1/16 blocks)
 const SUP = { '-': '⁻', 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹' }
 // 2.4e-13 as 2.4×10⁻¹³ (no hyphen, so it does not break across lines)
 const sci = v => { if (v === 0) return '0'; const [m, e] = v.toExponential(1).split('e'); return `${m}×10${String(Number(e)).split('').map(ch => SUP[ch]).join('')}` }
-const RUN_LOOK = {
+const WHERE_LOOK = {
   live: { name: 'Real Minecraft', short: 'Real MC', inText: 'in real Minecraft', trail: '--trail-live', token: 'live',
-    long: 'real Minecraft 1.21.4: the Mineflayer bot on a local server, driven by the network one game tick at a time',
+    long: 'real Minecraft 1.21.4: the Mineflayer bot on a local server, one game tick at a time',
     tag: 'Real Minecraft 1.21.4 · recorded on a local server' },
   offline: { name: 'Offline physics', short: 'Offline', inText: 'offline', trail: '--trail-off', token: 'off',
     long: 'the bot’s offline physics: the same JavaScript episode loop on prismarine-physics (Minecraft 1.21.4’s movement engine as Mineflayer runs it), no server',
     tag: 'Offline physics · prismarine-physics, no server' }
 }
-const runLook = r => RUN_LOOK[r] || { name: r, short: r, inText: r, trail: '--fg', token: 'muted', long: r, tag: r }
+const PLAYER_LOOK = { network: { name: 'one network', short: 'network' }, planner: { name: 'planner', short: 'planner' } }
+// A recording: its place and its player. The one network's recordings keep the place's short names where no planner
+// plays (inText), so the 65 skill courses read as before.
+function recLook (id) {
+  const r = REC[id] || { where: id, player: 'network' }
+  const w = WHERE_LOOK[r.where] || { name: r.where, short: r.where, inText: r.where, trail: '--fg', token: 'muted', long: r.where, tag: r.where }
+  const p = PLAYER_LOOK[r.player] || { name: r.player, short: r.player }
+  return { ...w, where: r.where, player: r.player, playerName: p.name, name: `${w.name} · ${p.name}`, short: `${w.short} · ${p.short}`,
+    inText: `${w.inText} (${p.name})`, placeText: w.inText, placeTag: w.tag, tag: `${w.tag} · ${p.name}` }
+}
+const playerOf = rec => (REC[rec] || { player: 'network' }).player
 const RESULT = { success: 'Made it', fell: 'Fell', truncated: 'Stalled' }
 // The bots' rules (bridge/policy.js Episode, parkour.live --stall 200): the goal counts as reached by the standing
 // rule; a fall is more than one block below the platforms around the bot (or standing on an extra cell); a stall is
@@ -336,7 +394,9 @@ const RESULT_LONG = {
   truncated: '200 ticks (10 s) without reaching a new platform, the stall limit'
 }
 const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-const KIND_SW = { 'head-hitter': '--blk-roof', 'hard-head-hitter': '--blk-roof', 'ice-run-up': '--blk-ice', shaped: '--shape-other', slime: '--blk-slime', ladder: '--blk-ladder', neo: '--blk-wall', ice: '--blk-ice' }
+const KIND_SW = { 'head-hitter': '--blk-roof', 'hard-head-hitter': '--blk-roof', 'ice-run-up': '--blk-ice', shaped: '--shape-other', slime: '--blk-slime', ladder: '--blk-ladder', neo: '--blk-wall', ice: '--blk-ice', 'neo-single': '--blk-wall' }
+// Who chose a tick's action on a planner recording (the episode's control: [start, end, kind, search]).
+const CTL_POLICY = 0; const CTL_PLAN = 1; const CTL_BRAKE = 2
 const LEG_ADDED = { runway: 'step onto a runway', exit: 'exit off a shaped block', bounce_exit: 'exit after a bounce' }
 const LEG_ADDED_MANY = { runway: 'steps onto a runway', exit: 'exits off a shaped block', bounce_exit: 'exits after a bounce' }
 
@@ -382,14 +442,25 @@ function overBlock (cells, x, y, z) {
 
 // ---------- the embedded set: per course, its shaped platforms by type; per course and recording, its episode ----------
 for (const c of DATA.courses) {
-  c.typeCount = {}
-  for (const s of Object.values(c.shapes || {})) c.typeCount[s] = (c.typeCount[s] || 0) + 1
+  c.typeCount = {} // shaped platforms per block type (stairs of every facing are one type)
+  for (const s of Object.values(c.shapes || {})) c.typeCount[typeOf(s)] = (c.typeCount[typeOf(s)] || 0) + 1
   c.roles = {}
   for (const r of c.extra_roles || []) c.roles[r] = (c.roles[r] || 0) + 1
   c.legs = c.legs || c.specs.map(() => 'drawn')
   c.own_jumps = c.own_jumps || []
 }
-const BY = {} // course id -> run -> episode
+// The one-neo courses: the frames where the platform reached first took the neo's takeoff and its target. Done as a
+// neo: it took both values (parkour.neo_assist.neo_done), so the bot stood on the takeoff before on any later platform,
+// then on the target before on any later one.
+function neoInfo (e) {
+  const nb = e.c.neo
+  if (!nb) return null
+  const k = nb.jump; let atK = -1; let atK1 = -1
+  e.frames.forEach((f, i) => { const p = f[COL.platform_reached]; if (p === k && atK < 0) atK = i; if (p === k + 1 && atK1 < 0) atK1 = i })
+  const last = e.frames[e.frames.length - 1][COL.platform_reached]
+  return { k, atK, atK1, done: atK >= 0 && atK1 >= 0, reached: last >= k, passed: last >= k + 1 }
+}
+const BY = {} // course id -> recording -> episode
 // Grounded frames whose hitbox is over no block top: the physics moves vertically first (at the previous tick's x
 // and z), then sideways, so a tick can land and end past the edge, still on the ground.
 const EDGE = { grounded: 0, past: 0 }
@@ -398,6 +469,7 @@ const EDGE = { grounded: 0, past: 0 }
   for (const e of EPS) {
     e.c = COURSES[e.course]; e.k = KINDS[e.c.kind]
     e.label = e.k.levels.length > 1 ? `${e.k.label} · level ${e.c.level} · seed ${e.c.seed}` : `${e.k.label} · seed ${e.c.seed}`
+    e.player = e.player || playerOf(e.run); e.where = e.where || (REC[e.run] || { where: e.run }).where
     ;(BY[e.course] = BY[e.course] || {})[e.run] = e
     const cc = cellsOf[e.course] || (cellsOf[e.course] = courseCells(e.c).cells)
     e.past = new Set()
@@ -406,14 +478,27 @@ const EDGE = { grounded: 0, past: 0 }
       EDGE.grounded++
       if (!overBlock(cc, f[COL.x], f[COL.y], f[COL.z])) { EDGE.past++; e.past.add(i) }
     })
+    // A planner recording: per tick, who chose the action (the builder's control segments) and the search behind it.
+    if (e.control) {
+      e.ctl = new Uint8Array(e.ticks); e.ctlSearch = new Int16Array(e.ticks).fill(-1)
+      for (const [s, end, kind, n] of e.control) for (let i = s; i < end; i++) { e.ctl[i] = kind === 'plan' ? CTL_PLAN : CTL_BRAKE; e.ctlSearch[i] = n }
+    }
+    e.neo = neoInfo(e)
   }
 }
-const kindSwatch = c => KINDS[c.kind].set === 'type' ? `--shape-${KINDS[c.kind].block_type}` : (KIND_SW[c.kind] || '--muted')
-function kindOk (c, kind) { return kind === 'all' || (kind === 'types' ? KINDS[c.kind].set === 'type' : c.kind === kind) }
+const recsOf = c => REC_IDS.filter(r => BY[c.id] && BY[c.id][r]) // the recordings a course has
+const isTyped = k => k.set === 'type' || k.set === 'untrained'
+const kindSwatch = c => isTyped(KINDS[c.kind]) ? `--shape-${KINDS[c.kind].block_type}` : (KIND_SW[c.kind] || '--muted')
+function kindOk (c, kind) {
+  if (kind === 'all') return true
+  if (kind === 'types') return KINDS[c.kind].set === 'type'
+  if (kind === 'untrained') return KINDS[c.kind].set === 'untrained'
+  return c.kind === kind
+}
 function typeOk (c, type) { return type === 'all' || !!c.typeCount[type] }
 const typePlatforms = name => DATA.courses.reduce((s, c) => s + (c.typeCount[name] || 0), 0)
 const typeCourses = name => DATA.courses.filter(c => c.typeCount[name]).length
-const hasLive = !!RUNS.live
+const hasLive = PLACES.includes('live')
 let ep = EPS[0] // the recording shown
 let view = [] // the episodes the filters allow
 let t = 0 // the shown time, in ticks (fractional between frames)
@@ -423,23 +508,35 @@ let t = 0 // the shown time, in ticks (fractional between frames)
 // passed when it is at least through + 1 (a shaped block or a slime pad: the exit platform after it).
 const ownOf = (c, f) => c.own_jumps.filter(o => o[0] === f)
 const featWord = (f, n) => n === 1 ? FEAT[f].one : FEAT[f].many
-function ownTally (courses, f, run) {
-  const x = { n: 0, reached: 0, passed: 0 }
-  for (const c of courses) for (const o of ownOf(c, f)) { const e = BY[c.id][run]; x.n++; if (e.platform_reached >= o[1]) x.reached++; if (e.platform_reached >= o[2] + 1) x.passed++ }
+// done: the one-neo courses' neos done as neos (neoInfo), in that recording.
+function ownTally (courses, f, rec) {
+  const x = { n: 0, reached: 0, passed: 0, done: 0 }
+  for (const c of courses) {
+    const e = BY[c.id][rec]
+    if (!e) continue
+    for (const o of ownOf(c, f)) { x.n++; if (e.platform_reached >= o[1]) x.reached++; if (e.platform_reached >= o[2] + 1) x.passed++ }
+    if (f === 'neo' && e.neo && e.neo.done) x.done++
+  }
   return x
 }
-const madeEverywhere = c => RUN_IDS.every(r => BY[c.id][r].success) && BY[c.id][RUN_IDS[0]].sim_success
+// Made in every recording of the course and in every player's simulator run.
+const madeEverywhere = c => recsOf(c).every(r => BY[c.id][r].success) && recsOf(c).every(r => BY[c.id][r].sim_success)
+// How a recording is named in running text: with its player where two players played the courses in question.
+const recsOfCourses = cs => REC_IDS.filter(r => cs.some(c => BY[c.id][r]))
+const sayRec = (r, recs) => new Set(recs.map(playerOf)).size > 1 ? recLook(r).inText : recLook(r).placeText
 function kindOwnText (k) {
   const cs = DATA.courses.filter(c => c.kind === k.token)
+  const recs = recsOfCourses(cs)
   return k.features.map(f => {
     const withOne = cs.filter(c => ownOf(c, f).length)
     const n = withOne.reduce((s, c) => s + ownOf(c, f).length, 0)
     if (!n) return `no ${FEAT[f].many} on its ${plural(cs.length, 'course')}`
-    const per = RUN_IDS.map(r => { const x = ownTally(withOne, f, r); return `${x.passed} of ${x.reached} reached ${runLook(r).inText}` })
+    const per = recs.map(r => { const x = ownTally(withOne, f, r); return `${x.passed} of ${x.reached} reached ${sayRec(r, recs)}` })
     const made = cs.filter(madeEverywhere)
     const none = made.length && made.every(c => !ownOf(c, f).length) ? `; the ${plural(made.length, 'course')} made in every recording and in the simulator ${made.length === 1 ? 'has' : 'have'} none` : ''
     const where = withOne.length <= 4 ? ` (${listing(withOne.map(c => c.id))})` : ''
-    return `${n} ${featWord(f, n)} on ${plural(withOne.length, 'course')} of ${cs.length}${where}: passed ${listing(per)}${none}`
+    const done = f === 'neo' && withOne.some(c => c.neo) ? `; done as a neo (stood on its takeoff, then on its target): ${listing(recs.map(r => `${ownTally(withOne, f, r).done} ${sayRec(r, recs)}`))}` : ''
+    return `${n} ${featWord(f, n)} on ${plural(withOne.length, 'course')} of ${cs.length}${where}: passed ${listing(per)}${none}${done}`
   }).join('. ')
 }
 function courseOwnText (e) {
@@ -457,14 +554,51 @@ function courseOwnText (e) {
 }
 
 // ---------- header and honest labels, from the embedded data ----------
+const nOfSet = set => DATA.courses.filter(c => c.set === set).length
+// The planner, in the honest label: who chose its moves in each place (planTotals) and who was playing when it failed.
+function plannerLabel () {
+  const rows = RECS.filter(r => r.player === 'planner').map(r => {
+    const es = EPS.filter(e => e.run === r.id)
+    const x = es.map(planTotals).reduce((a, y) => ({ plan: a.plan + y.plan, brake: a.brake + y.brake, policy: a.policy + y.policy }), { plan: 0, brake: 0, policy: 0 })
+    const fails = es.filter(e => !e.success)
+    return { ...x, place: recLook(r.id).placeText, ticks: es.reduce((s, e) => s + e.ticks, 0), fails: fails.length,
+      atPolicy: fails.filter(e => e.ticks && e.ctl[e.ticks - 1] === CTL_POLICY).length, fell: fails.every(e => e.result === 'fell') }
+  })
+  const n = v => v.toLocaleString('en')
+  const what = x => (x.fell ? 'fall' : 'failure') + (x.fails === 1 ? '' : 's')
+  const say = x => `a search in the simulator’s physics from the bot’s exact state planned ${n(x.plan)} of its ${n(x.ticks)} moves` +
+    (x.brake ? ` and brakes took ${n(x.brake)}` : '') + `; ${PLAYERS.planner.file} chose the other ${n(x.policy)}` +
+    (!x.fails ? '' : x.atPolicy === x.fails ? ` and was playing at ${x.fails === 1 ? 'the planner’s one' : `each of the planner’s ${x.fails}`} ${what(x)}`
+      : ` and was playing at ${x.atPolicy} of the planner’s ${x.fails} ${what(x)}`)
+  const key = x => [x.plan, x.brake, x.policy, x.ticks, x.fails, x.atPolicy, x.fell].join()
+  const same = rows.every(x => key(x) === key(rows[0]))
+  return 'The planner is not the one network: ' + (same ? `${rows.length > 1 ? 'in each place ' : ''}${say(rows[0])}` : rows.map(x => `${x.place}, ${say(x)}`).join('; ')) + '.'
+}
 {
-  const nC = DATA.courses.length; const fams = listing(DATA.course_set.families.map(String))
-  const where = hasLive && RUNS.offline ? 'recorded in <b>real Minecraft 1.21.4</b> and in the bot’s <b>offline physics</b>'
+  const nC = DATA.courses.length
+  const where = hasLive && PLACES.includes('offline') ? 'recorded in <b>real Minecraft 1.21.4</b> and in the bot’s <b>offline physics</b>'
     : hasLive ? 'recorded in <b>real Minecraft 1.21.4</b>' : 'recorded in the bot’s <b>offline physics</b> (no real-Minecraft recording on this page)'
-  $('sub').innerHTML = `One network plays ${nC} fresh courses of the skills added after levels 0-5, each ${where}, animated tick by tick.`
-  $('honest').textContent = `Seed families ${fams}, never used to train, choose or test a policy; not benchmark results. Every course is shown, failures included.`
+  const parts = []
+  if (SETS.skills) parts.push(`${nOfSet('skills')} of the skills added after levels 0-5`)
+  if (SETS.neo) parts.push(`${nOfSet('neo')} with one neo each`)
+  if (SETS.untrained) parts.push(`${nOfSet('untrained')} with block shapes no training level uses`)
+  const planner = PLAYERS.planner ? ` On the ${nOfSet('neo')} one-neo courses the <b>planner</b> plays too: the final policy, with a search set to plan every jump.` : ''
+  $('sub').innerHTML = `One network plays ${nC} fresh courses (${listing(parts)}), each ${where}, animated tick by tick.${planner}`
+  const fam = []
+  if (SETS.skills) {
+    const f = SETS.skills.families
+    fam.push(`${f[0]} and ${f[1]} (the skills)`, `${f[2]} with k = 0 to ${TRAINED_TYPES.length - 1} (one trained block type per course)`)
+  }
+  if (SETS.untrained) {
+    const k = SETS.untrained.k
+    fam.push(`${SETS.untrained.families[0]} with k = ${k[0]} to ${k[k.length - 1]} (the never-trained shapes)`)
+  }
+  if (SETS.neo) fam.push(`${SETS.neo.families[0]} (one neo per course)`)
+  $('honest').textContent = `Fresh courses, never used to train, choose or test a policy: seed families ${listing(fam)}. Not benchmark results.` +
+    (PLAYERS.planner ? ' ' + plannerLabel() : '') + ' Every course is shown, failures included.'
   if (!hasLive) $('legendLive').hidden = true
-  if (!RUNS.offline) $('legendOff').hidden = true
+  if (!PLACES.includes('offline')) $('legendOff').hidden = true
+  if (!PLAYERS.planner) $('legendPlan').hidden = true
 }
 
 // ---------- jump descriptions from the course itself (spec keys: parkour/courses.py JumpSpec.key) ----------
@@ -481,7 +615,7 @@ function describeJump (c, j) {
   const leg = c.legs[j]
   const parts = []
   if (leg === 'runway') parts.push('step onto the runway of the next jump (added by the generator)')
-  if (leg === 'exit') parts.push(`exit off the ${typeLabel(shapeAt(c, j))} (added by the generator)`)
+  if (leg === 'exit') parts.push(`exit off the ${shapeLabel(shapeAt(c, j))} (added by the generator)`)
   if (leg === 'bounce_exit') parts.push('exit after the bounce (added by the generator)')
   const gap = Number(g); const inset = insetOf(c, j) + insetOf(c, j + 1)
   parts.push((gap ? `${gap}-block gap` : 'no gap') + (inset ? ` (${num(gap + inset)} between the blocks’ edges)` : ''))
@@ -503,7 +637,8 @@ function describeJump (c, j) {
     parts.push(`head hitter: a roof${air} the runway` + (Number(hh) >= 2 ? ', continued over the gap' : ''))
   }
   if (Number(ice)) parts.push('the runway is ice')
-  if (block) parts.push(`onto a ${typeLabel(block)}`)
+  // The platform's own shape: on the stairs courses every spec names stairs_north, and each platform is turned.
+  if (block) parts.push(`onto ${withArticle(shapeLabel(shapeAt(c, j + 1) || block))}${TYPE[typeOf(block)] && !TYPE[typeOf(block)].trained ? ' (never trained)' : ''}`)
   if (slime) parts.push(`onto a slime pad, bouncing to an exit ${slime} up`)
   if (ladder) parts.push('up a ladder on the wall')
   return parts.join(' · ')
@@ -529,7 +664,7 @@ function blocksText (c) {
   if (slime.length) parts.push(`slime: ${which(slime)}`)
   const byType = {}
   for (const [k, s] of Object.entries(c.shapes || {})) (byType[s] = byType[s] || []).push(k)
-  for (const [s, ks] of Object.entries(byType)) parts.push(`${typeLabel(s)}: ${which(ks)}`)
+  for (const [s, ks] of Object.entries(byType)) parts.push(`${shapeLabel(s)}${TYPE[typeOf(s)] && !TYPE[typeOf(s)].trained ? ' (never trained)' : ''}: ${which(ks)}`)
   if ((c.ladders || []).length) parts.push(plural(c.ladders.length, 'ladder block'))
   if (c.roles.roof) parts.push(plural(c.roles.roof, 'head-hitter roof block'))
   if (c.roles.neo) parts.push(plural(c.roles.neo, 'neo wall block'))
@@ -539,7 +674,7 @@ function blocksText (c) {
 }
 // The course's jumps: those drawn from the level tables and those the generator added, and why it stopped early.
 function legsText (c) {
-  const cs = DATA.course_set; const drawn = c.legs.filter(k => k === 'drawn').length
+  const cs = SETS[c.set]; const drawn = c.legs.filter(k => k === 'drawn').length
   const added = Object.keys(LEG_ADDED).map(k => [k, c.legs.filter(x => x === k).length]).filter(([, n]) => n)
   const nAdded = added.reduce((s, [, n]) => s + n, 0)
   let s = `${plural(c.legs.length, 'jump')} from platform to platform: ${drawn} drawn from the level tables`
@@ -547,37 +682,148 @@ function legsText (c) {
   if (drawn < cs.jumps) s += `; the generator asks for ${cs.jumps} and stopped ${c.platforms.length >= cs.max_platforms ? `at its ${cs.max_platforms}-platform limit` : 'when no further jump fitted (30 tries)'}`
   return s
 }
+// The player of a recording, in full.
+// The search's start: with prior 0 it never consults the policy (parkour.neo_assist plan_once / search).
+const priorText = a => a.prior > 0 ? `its start mixes in the policy’s action probabilities with weight ${a.prior}` : 'prior 0: the policy is not consulted'
+function playerText (e) {
+  if (e.player === 'planner' && PLAYERS.planner) {
+    const p = PLAYERS.planner; const a = p.assist
+    return `the planner, not the one network: ${p.file} (the final policy, levels 0-5 and obstacles) with parkour.neo_assist’s search, set to plan every jump. ` +
+      `When the bot first stands on a takeoff it pauses, and a cross-entropy search over the policy’s discrete action set (${priorText(a)}), with an exact model of the physics (the simulator’s, from the bot’s exact state), looks for a sequence that lands on the next platform; the bot checks it with prismarine-physics and plays it. ` +
+      'When a takeoff’s first search finds none, the bot brakes to a stop and searches once more; when that one finds none too, the policy plays the jump. The policy chooses every move without a plan, each course’s first included. ' +
+      `Setting (summary.json): jumps ${a.jumps}, retries ${a.retries}, brake ${a.brake} ticks, retry horizon ${a.retry_horizon} ticks, restarts ${a.restarts}`
+  }
+  const p = PLAYERS.network
+  return `the one network: ${p.file} (the distilled student ${p.run}, iteration ${p.iteration}) alone; every action is its own`
+}
+// The one-neo courses: where the neo is, and whether this recording did it as a neo.
+function neoText (e) {
+  const n = e.neo; const c = e.c; const k = n.k
+  const types = SETS.neo && SETS.neo.single_neo_types ? `of the ${SETS.neo.single_neo_types} single-neo types ` : ''
+  const at = `jump ${k} → ${k + 1} (jumps count from 0), type ${c.neo.type} ${types}(${c.neo.spec}): ${describeJump(c, k)}`
+  const end = `${e.result === 'fell' ? 'fell' : 'stalled'} at tick ${e.ticks}`
+  let st
+  if (n.done) st = `done: the bot stood on its takeoff (platform ${k}) ${n.atK ? `from tick ${n.atK}` : 'from the start'}, then landed on its target (platform ${k + 1}) at tick ${n.atK1}`
+  else if (n.passed) st = 'passed, but not as a neo: the platform reached skipped its takeoff or its target'
+  else if (n.reached) st = `not done: the bot reached its takeoff ${n.atK ? `at tick ${n.atK}` : 'at the start'} and ${end}`
+  else st = `not reached: the bot ${end} with platform ${e.platform_reached} reached, before the neo’s takeoff`
+  return `${at}. ${cap(st)}`
+}
+// A planner recording: its searches and who chose its actions (the control segments).
+function planTotals (e) {
+  const sum = kind => e.control.filter(x => x[2] === kind).reduce((s, x) => s + x[1] - x[0], 0)
+  const plan = sum('plan'); const brake = sum('brake')
+  return { plan, brake, policy: e.ticks - plan - brake, plans: e.control.filter(x => x[2] === 'plan').length, brakes: e.control.filter(x => x[2] === 'brake').length }
+}
+function planText (e) {
+  const S = e.searches || []; const x = planTotals(e)
+  if (!S.length) {
+    const ground = e.frames.slice(1, -1).some(f => f[COL.on_ground])
+    return 'no search ran: the bot asks for a plan only while it stands on the ground, and the first action is always the policy’s, chosen on the start state; ' +
+      (ground ? 'here it never stood on a takeoff' : 'here the bot left the ground on its first tick and never stood on it again') + `, so the policy chose all ${e.ticks} actions`
+  }
+  const none = S.filter(s => !s.found).length
+  const parts = [x.plan ? `${x.plan} came from planned sequences` : 'none came from a plan']
+  if (x.brake) parts.push(`${x.brake} from ${x.brakes === 1 ? 'a brake' : 'brakes'}`)
+  parts.push(`${x.policy} from the policy (${PLAYERS.planner.file}): ${policyParts(e).join('; ')}`)
+  return `${plural(S.length, 'search', 'searches')}: ${x.plans ? `${plural(x.plans, 'plan')} found, checked with prismarine-physics and played` : 'no plan found'}` +
+    (none && x.plans ? `; ${none} found none` : '') +
+    (x.brakes ? ` (then ${plural(x.brakes, 'brake')} of ${PLAYERS.planner.assist.brake} ticks before a second search)` : '') +
+    `. Of the ${e.ticks} actions, ${listing(parts)}`
+}
+// The policy's stretches of a planner recording (the ticks no plan or brake covers), each with what led to it.
+function policyParts (e) {
+  const S = e.searches || []; const out = []
+  for (let i = 0; i < e.ticks;) {
+    if (e.ctl[i]) { i++; continue }
+    let j = i
+    while (j < e.ticks && !e.ctl[j]) j++
+    const next = S.find(s => s.tick === j) // the search when the stretch ends: the bot stands on that takeoff
+    const until = next ? `until it stood on platform ${next.takeoff} at tick ${j}`
+      : j < e.ticks ? `until tick ${j}` : e.result === 'success' ? `until it reached the goal at tick ${j}` : `until it ${e.result === 'fell' ? 'fell' : 'stalled'} at tick ${j}`
+    if (i === 0) {
+      const g = e.frames.findIndex((f, k) => k > 0 && f[COL.on_ground])
+      out.push(j === 1 ? 'the first action, chosen on the start state before any search'
+        : g === j && next && next.takeoff > 0 ? `the first ${j} (ticks 0 to ${j - 1}): the first, chosen on the start state, took off, and the bot stood on the ground again only at tick ${j}, on platform ${next.takeoff}, so the policy played ${next.takeoff === 1 ? 'jump 0 → 1' : `the way from platform 0 to platform ${next.takeoff}`}`
+          : `the first ${j} (ticks 0 to ${j - 1}), before the first search, ${until}`)
+    } else {
+      const s = S.find(x => x.tick === i)
+      out.push(`the ${j - i} from tick ${i}` + (s && !s.found ? `, after the ${s.kind === 'retry' ? 'second search' : 'search'} from platform ${s.takeoff} found none,` : '') + ` ${until}`)
+    }
+    i = j
+  }
+  return out
+}
 function renderFacts () {
   const dl = $('facts'); dl.innerHTML = ''
   const c = ep.c; const n = c.platforms.length - 1
-  fact(dl, 'Kind', ep.k.set === 'type' ? `${ep.k.label} (one block type per course): ${ep.k.about}` : `${ep.k.label}: ${ep.k.about}`)
+  const kindNote = ep.k.set === 'type' ? ' (one block type per course)' : ep.k.set === 'untrained' ? ' (one never-trained shape per course)' : ''
+  fact(dl, 'Kind', `${ep.k.label}${kindNote}: ${ep.k.about}`)
   fact(dl, 'Course', `${c.id}: level ${c.level}, seed family ${c.family}, seed ${c.seed}; ${legsText(c)}`)
-  fact(dl, 'Recording', runLook(ep.run).long)
+  if (ep.neo) fact(dl, 'The neo', neoText(ep), ep.neo.done ? 'good' : 'bad')
+  fact(dl, 'Player', playerText(ep))
+  fact(dl, 'Recording', recLook(ep.run).long)
   fact(dl, 'Outcome', `${RESULT[ep.result]}: ${RESULT_LONG[ep.result]}`, ep.result === 'success' ? 'good' : ep.result === 'fell' ? 'bad' : 'warn')
   fact(dl, 'Reached', `platform ${ep.platform_reached} of ${n}`)
   fact(dl, 'Length', `${ep.ticks} ticks, ${(ep.ticks / TICK_HZ).toFixed(2)} s`)
-  fact(dl, 'Simulator', ep.sim_success ? `made it on the same course (${ep.sim_ticks} ticks)` : `did not make it on the same course (its episode ended at tick ${ep.sim_ticks})`, ep.sim_success ? 'good' : 'bad')
-  for (const r of DATA.runs) {
-    const o = BY[ep.course][r.run]
-    if (o && o !== ep) fact(dl, runLook(r.run).name, `${RESULT[o.result].toLowerCase()} on the same course, platform ${o.platform_reached} of ${n}, ${o.ticks} ticks`, o.success ? 'good' : o.result === 'fell' ? 'bad' : 'warn')
+  const who = ep.player === 'planner' ? 'the planner in the training simulator (the same search, parkour.neo_assist.evaluate_assisted) ' : ''
+  fact(dl, 'Simulator', ep.sim_success ? `${who}made it on the same course (${ep.sim_ticks} ticks)` : `${who}did not make it on the same course (its episode ended at tick ${ep.sim_ticks})`, ep.sim_success ? 'good' : 'bad')
+  for (const r of recsOf(c)) {
+    const o = BY[c.id][r]
+    if (o !== ep) fact(dl, cap(recLook(r).name), `${RESULT[o.result].toLowerCase()} on the same course, platform ${o.platform_reached} of ${n}, ${o.ticks} ticks${o.neo ? `; the neo ${o.neo.done ? 'done' : 'not done'}` : ''}`, o.success ? 'good' : o.result === 'fell' ? 'bad' : 'warn')
   }
+  if (ep.control) fact(dl, 'Planned moves', planText(ep))
   fact(dl, 'Own jumps here', courseOwnText(ep))
   fact(dl, 'Own jumps, kind', `${cap(ep.k.label)}: ${kindOwnText(ep.k)}`)
   fact(dl, 'Replay check', replayText(ep))
-  if (ep.run === 'live') {
+  if (ep.where === 'live') {
     const k = ep.server_corrections
     fact(dl, 'Server corrections', k === null || k === undefined ? 'not recorded' : k === 0 ? '0 (the server never moved the bot; it accepted every tick)' : `${k} (times the server moved the bot during the episode)`)
   }
   fact(dl, 'Blocks', blocksText(c))
   fact(dl, 'Link', `add #${c.id} to this page’s address for this course, or #${ep.id} for this recording`)
 }
+// A planner recording's searches from takeoff k and what they gave (null: no search there).
+function jumpPlan (e, k) {
+  const ss = (e.searches || []).map((s, i) => [s, i]).filter(([s]) => s.takeoff === k)
+  if (!ss.length) return null
+  const seg = i => (e.control || []).find(x => x[3] === i)
+  const parts = ss.map(([s, i]) => {
+    const what = s.kind === 'retry' ? 'second search' : 'search'
+    const g = seg(i)
+    if (s.played) return `${what} at tick ${s.tick}: a plan of ${g[1] - g[0]} ticks, checked and played`
+    return `${what} at tick ${s.tick}: none found (${s.rounds} rounds)${g ? `, then a ${g[1] - g[0]}-tick brake` : ''}`
+  })
+  const played = ss.some(([s]) => s.played)
+  return { played, text: parts.join('; ') + (played ? '' : '; then the policy plays') }
+}
+// Jump 0 → 1 with no search on the start platform: the policy's first action took off and the bot did not stand on the
+// ground again until after the jump (or never).
+function firstJumpText (e) {
+  const g = e.frames.findIndex((f, i) => i > 0 && f[COL.on_ground])
+  if (g === 1) return 'no search here'
+  const after = g < 0 ? `never stood on the ground again (it ${e.result === 'fell' ? 'fell' : 'stalled'} at tick ${e.ticks})`
+    : `stood on the ground again only at tick ${g}, on platform ${e.frames[g][COL.platform_reached]}`
+  return `no search: the policy’s first action, chosen on the start state before any search, took off on this jump, and the bot ${after}, so the policy played this jump`
+}
 function renderJumps () {
   const ol = $('jumps'); ol.innerHTML = ''
   ep.c.specs.forEach((key, k) => {
     const li = document.createElement('li')
-    li.innerHTML = '<span class="k"></span><span class="d"></span><span class="st"></span>'
+    li.innerHTML = '<span class="k"></span><span class="d"><span class="tags"></span><span class="txt"></span><span class="pl"></span></span><span class="st"></span>'
     li.querySelector('.k').textContent = `${k} → ${k + 1}`
-    li.querySelector('.d').textContent = describeJump(ep.c, k)
+    li.querySelector('.txt').textContent = describeJump(ep.c, k)
+    const tags = li.querySelector('.tags'); const pl = li.querySelector('.pl')
+    const tag = (cls, text, title) => { const s = document.createElement('span'); s.className = 'tag ' + cls; s.textContent = text; if (title) s.title = title; tags.appendChild(s) }
+    if (ep.c.neo && ep.c.neo.jump === k) tag('neo', 'neo', 'this course’s one neo')
+    if (ep.control) {
+      const p = jumpPlan(ep, k)
+      if (p) { tag(p.played ? 'plan' : 'policy', p.played ? 'planned' : 'policy'); pl.textContent = p.text; if (p.played) pl.classList.add('plan') } else if (ep.platform_reached >= k) {
+        tag('policy', 'policy')
+        pl.textContent = k === 0 ? firstJumpText(ep) : 'no search here'
+      }
+    }
+    pl.hidden = !pl.textContent
     if (ep.c.legs[k] !== 'drawn') li.dataset.added = ep.c.legs[k]
     li.title = key
     ol.appendChild(li)
@@ -607,84 +853,208 @@ function keepVisible (box, el) {
   if (r.top < b.top) box.scrollTop -= b.top - r.top
   else if (r.bottom > b.bottom) box.scrollTop += r.bottom - b.bottom
 }
-// Counts from the embedded recordings only.
+// Counts from the embedded recordings only. A row is a kind and a player (the one network everywhere, the planner on the
+// one-neo courses); the columns are the places, then the player's own simulator run.
+const statGroups = () => [['Skills added after levels 0-5', SKILL_KINDS], ['One block type per course', TYPE_KINDS],
+  ['One neo per course', NEO_KINDS], ['Never trained', UNTRAINED_KINDS]].filter(([, ks]) => ks.length)
+const playersOfKind = k => PLAYER_IDS.filter(p => DATA.courses.some(c => c.kind === k.token && recsOf(c).some(r => playerOf(r) === p)))
 function renderStats () {
-  const runs = RUN_IDS
   const ids = pred => DATA.courses.filter(pred).map(c => c.id)
-  const made = (list, run) => list.filter(id => BY[id][run].success).length
-  const sim = list => list.filter(id => BY[id][runs[0]].sim_success).length // the simulator plays each course once; every run carries it
-  const agree = list => list.filter(id => new Set(runs.map(r => BY[id][r].success).concat([BY[id][runs[0]].sim_success])).size === 1).length
+  const made = (list, rec) => list.filter(id => BY[id][rec] && BY[id][rec].success).length
+  const recsP = (id, p) => recsOf(COURSES[id]).filter(r => playerOf(r) === p)
+  // Each player's simulator run plays each course once; all of that player's recordings carry it.
+  const sim = (list, p) => list.filter(id => BY[id][recsP(id, p)[0]].sim_success).length
+  const agree = (list, p) => list.filter(id => new Set(recsP(id, p).map(r => BY[id][r].success).concat([BY[id][recsP(id, p)[0]].sim_success])).size === 1).length
   const sw = v => `<span class="sw" style="background: var(${v})"></span>`
-  const cells = list => `<td>${list.length}</td>` + runs.map(r => `<td>${made(list, r)}</td>`).join('') + `<td>${sim(list)}</td><td>${agree(list)}</td>`
-  const runHeads = runs.map(r => `<th>${runLook(r).short}</th>`).join('')
-  const kindRow = k => `<tr><td>${sw(kindSwatch(COURSES[ids(c => c.kind === k.token)[0]]))}${k.label}</td>${cells(ids(c => c.kind === k.token))}</tr>`
-  const span = 4 + runs.length // kind, courses, one column per recording, simulator, agree
-  $('stats').innerHTML = `<thead><tr><th>Kind</th><th>Courses</th>${runHeads}<th>Sim.</th><th>Agree</th></tr></thead><tbody>` +
-    `<tr><th colspan="${span}">Skills added after levels 0-5</th></tr>` + SKILL_KINDS.map(kindRow).join('') +
-    (TYPE_KINDS.length ? `<tr><th colspan="${span}">One block type per course</th></tr>` + TYPE_KINDS.map(kindRow).join('') : '') +
-    `</tbody><tfoot><tr><td>All</td>${cells(ids(() => true))}</tr></tfoot>`
+  const placeHeads = PLACES.map(w => `<th>${(WHERE_LOOK[w] || { short: w }).short}</th>`).join('')
+  const cells = (list, p) => `<td>${list.length}</td>` + PLACES.map(w => { const r = recOf(p, w); return `<td>${r ? made(list, r) : '–'}</td>` }).join('') + `<td>${sim(list, p)}</td><td>${agree(list, p)}</td>`
+  const who = (k, p) => playersOfKind(k).length > 1 ? ` <span class="note">· ${PLAYER_LOOK[p].name}</span>` : ''
+  // Under the "Never trained" heading a row needs only the shape's name.
+  const rowLabel = k => k.set === 'untrained' ? cap(typeLabel(k.block_type)) : k.label
+  const kindRows = k => playersOfKind(k).map(p => {
+    const list = ids(c => c.kind === k.token)
+    return `<tr><td>${sw(kindSwatch(COURSES[list[0]]))}${rowLabel(k)}${who(k, p)}</td>${cells(list, p)}</tr>`
+  }).join('')
+  const span = 4 + PLACES.length // kind, courses, one column per place, simulator, agree
+  const allRow = p => {
+    const list = ids(c => recsOf(c).some(r => playerOf(r) === p))
+    return `<tr><td>All${PLAYER_IDS.length > 1 ? ` <span class="note">· ${PLAYER_LOOK[p].name}</span>` : ''}</td>${cells(list, p)}</tr>`
+  }
+  $('stats').innerHTML = `<thead><tr><th>Kind</th><th>Courses</th>${placeHeads}<th>Sim.</th><th>Agree</th></tr></thead><tbody>` +
+    statGroups().map(([g, ks]) => `<tr><th colspan="${span}">${g}</th></tr>` + ks.map(kindRows).join('')).join('') +
+    `</tbody><tfoot>${PLAYER_IDS.map(allRow).join('')}</tfoot>`
   const frames = EPS.reduce((s, e) => s + e.frames.length, 0)
-  $('statsCap').textContent = `Courses made, counted from the ${EPS.length} recordings embedded here (${frames.toLocaleString('en')} frames) only: ` +
-    listing(runs.map(r => { const s = runLook(r).name; return s.charAt(0).toLowerCase() + s.slice(1) })) + ', and the training simulator on the same courses (Sim.); Agree counts courses with the same outcome everywhere. ' +
+  const lower = s => s.charAt(0).toLowerCase() + s.slice(1)
+  $('statsCap').textContent = `Courses made, counted from the ${EPS.length} recordings embedded here (${frames.toLocaleString('en')} frames) only: per player, ` +
+    listing(PLACES.map(w => lower((WHERE_LOOK[w] || { name: w }).name))) + ', and the training simulator on the same courses (Sim.: the player’s own simulator run, for the planner the same search in the simulator); Agree counts courses with the same outcome in both places and the simulator. ' +
     'A course mixes the kind’s own jumps with easier ones, so a course made or missed says little about the kind’s own jumps: the next table counts those. Showcase counts on a few fresh courses per kind, not test scores.'
-  // Each kind's own jumps: passed / reached per recording.
-  const ownRow = (k, f, label) => {
+  // Each kind's own jumps: passed / reached per place, for each player.
+  const ownRow = (k, f, label, p) => {
     const cs = DATA.courses.filter(c => c.kind === k.token)
     const n = cs.reduce((s, c) => s + ownOf(c, f).length, 0)
-    const runCells = runs.map(r => { const x = ownTally(cs, f, r); return `<td class="${x.passed < x.reached ? 'bad' : ''}">${x.passed}/${x.reached}</td>` }).join('')
-    return `<tr><td>${sw(kindSwatch(cs[0]))}${label}</td><td>${n}</td><td>${cs.filter(c => ownOf(c, f).length).length}</td>${runCells}</tr>`
+    const placeCells = PLACES.map(w => {
+      const r = recOf(p, w)
+      if (!r) return '<td>–</td>'
+      const x = ownTally(cs, f, r)
+      return `<td class="${x.passed < x.reached ? 'bad' : ''}">${x.passed}/${x.reached}</td>`
+    }).join('')
+    return `<tr><td>${sw(kindSwatch(cs[0]))}${label}${who(k, p)}</td><td>${n}</td><td>${cs.filter(c => ownOf(c, f).length).length}</td>${placeCells}</tr>`
   }
-  const span2 = 3 + runs.length
-  $('ownStats').innerHTML = `<thead><tr><th>Kind · own jump</th><th>Jumps</th><th>Courses</th>${runHeads}</tr></thead><tbody>` +
-    `<tr><th colspan="${span2}">Skills added after levels 0-5</th></tr>` +
-    SKILL_KINDS.flatMap(k => k.features.map(f => ownRow(k, f, `${k.label} · ${FEAT[f].many}`))).join('') +
-    (TYPE_KINDS.length ? `<tr><th colspan="${span2}">One block type per course</th></tr>` + TYPE_KINDS.flatMap(k => k.features.map(f => ownRow(k, f, `${cap(typeLabel(k.block_type))} landings`))).join('') : '') +
+  const span2 = 3 + PLACES.length
+  const ownLabel = (k, f) => isTyped(k) ? `${cap(typeLabel(k.block_type))} landings` : k.set === 'neo' ? `${k.label}` : `${k.label} · ${FEAT[f].many}`
+  $('ownStats').innerHTML = `<thead><tr><th>Kind · own jump</th><th>Jumps</th><th>Courses</th>${placeHeads}</tr></thead><tbody>` +
+    statGroups().map(([g, ks]) => `<tr><th colspan="${span2}">${g}</th></tr>` + ks.flatMap(k => k.features.flatMap(f => playersOfKind(k).map(p => ownRow(k, f, ownLabel(k, f), p)))).join('')).join('') +
     '</tbody>'
   const used = [...new Set(DATA.kinds.flatMap(k => k.features))]
-  $('ownCap').textContent = `Per recording, passed / reached: a jump counts as reached when the bot stood on its takeoff (a runway jump: on the runway), and as passed when it reached the next platform (a shaped block or a slime pad: the exit platform after it), from the recorded platform reached; red where the bot missed one. Jumps: on the kind’s courses; Courses: how many of them have one. ` +
-    used.map(f => `${cap(FEAT[f].many)}: ${FEAT[f].about}`).join('. ') + '. The simulator’s summary records only its outcome and length per course, so it has no column here.'
-  const typeCells = list => `<td>${list.length}</td>` + runs.map(r => `<td>${made(list, r)}</td>`).join('') + `<td>${sim(list)}</td>`
-  const typeRow = x => `<tr><td>${sw('--shape-' + x.name)}${cap(x.label)} <span class="note">· ${x.spec_count} specs</span></td><td>${typePlatforms(x.name)}</td>${typeCells(ids(c => c.typeCount[x.name]))}</tr>`
-  $('typeStats').innerHTML = `<thead><tr><th>Block type</th><th>Platforms</th><th>Courses</th>${runHeads}<th>Sim.</th></tr></thead><tbody>` +
-    TYPES.map(typeRow).join('') +
-    `</tbody><tfoot><tr><td>All types <span class="note">· ${TYPES.reduce((s, x) => s + x.spec_count, 0)} specs</span></td><td>${TYPES.reduce((s, x) => s + typePlatforms(x.name), 0)}</td>${typeCells(ids(c => Object.keys(c.typeCount).length))}</tr></tfoot>`
+  $('ownCap').textContent = `Per place, passed / reached: a jump counts as reached when the bot stood on its takeoff (a runway jump: on the runway), and as passed when it reached the next platform (a shaped block or a slime pad: the exit platform after it), from the recorded platform reached; red where the bot missed one. Jumps: on the kind’s courses; Courses: how many of them have one. ` +
+    used.map(f => `${cap(FEAT[f].many)}: ${FEAT[f].about}`).join('. ') + '. The simulator’s summary records only its outcome and length per course, so it has no column here.' +
+    (NEO_KINDS.length ? ' The one-neo courses’ neos done as neos are counted on the right.' : '')
+  // Shaped platforms per block type: only the one network plays courses with shaped platforms.
+  const typeCells = list => `<td>${list.length}</td>` + PLACES.map(w => { const r = recOf('network', w); return `<td>${r ? made(list, r) : '–'}</td>` }).join('') + `<td>${sim(list, 'network')}</td>`
+  const typeRow = x => `<tr><td>${sw('--shape-' + x.name)}${cap(x.label)} <span class="note">· ${x.trained ? '' : 'never trained, '}${x.spec_count} specs</span></td><td>${typePlatforms(x.name)}</td>${typeCells(ids(c => c.typeCount[x.name]))}</tr>`
+  const total = (label, xs) => xs.length ? `<tr><td>${label} <span class="note">· ${xs.reduce((s, x) => s + x.spec_count, 0)} specs</span></td><td>${xs.reduce((s, x) => s + typePlatforms(x.name), 0)}</td>${typeCells(ids(c => xs.some(x => c.typeCount[x.name])))}</tr>` : ''
+  const span3 = 4 + PLACES.length // block type, platforms, courses, one column per place, simulator
+  const both = TRAINED_TYPES.length && UNTRAINED_TYPES.length
+  $('typeStats').innerHTML = `<thead><tr><th>Block type</th><th>Platforms</th><th>Courses</th>${placeHeads}<th>Sim.</th></tr></thead><tbody>` +
+    (both ? `<tr><th colspan="${span3}">Trained</th></tr>` : '') + TRAINED_TYPES.map(typeRow).join('') +
+    (UNTRAINED_TYPES.length ? `<tr><th colspan="${span3}">Never trained</th></tr>` + UNTRAINED_TYPES.map(typeRow).join('') : '') +
+    `</tbody><tfoot>${total(both ? 'All trained types' : 'All types', TRAINED_TYPES)}${total(both ? 'All never-trained shapes' : 'All types', UNTRAINED_TYPES)}</tfoot>`
   const sl = DATA.shaped_level
-  $('typeCap').textContent = `Specs: the jumps onto that type among the ${sl.specs} of the shaped-blocks level (global level ${sl.global}, level ${sl.local_in_extra_file} of configs/jump_levels_extra.json) the policy trained on. ` +
-    `Platforms: shaped platforms of that type on all ${DATA.courses.length} courses; Courses: the courses with at least one, of every kind (easier levels mix into each course, so slime and ladder courses have some too); a course with two types counts in both rows and once in All types. ` +
-    'Then how many of those courses each recording and the simulator completed. Counted from the embedded data only.'
+  const bases = {}
+  for (const x of UNTRAINED_TYPES) (bases[x.based_on] = bases[x.based_on] || []).push(x.label)
+  const baseText = Object.entries(bases).map(([b, xs]) => `the ${typeLabel(b)} jumps for ${listing(xs)}`)
+  $('typeCap').textContent = `Specs: the jumps onto that type among the ${sl.specs} of the shaped-blocks level (global level ${sl.global}, level ${sl.local_in_extra_file} of configs/jump_levels_extra.json) the policy trained on` +
+    (UNTRAINED_TYPES.length ? `; the never-trained shapes are in no level of any training table (their courses use ${listing(baseText)}, with the block swapped). ` : '. ') +
+    `Platforms: shaped platforms of that type on all ${DATA.courses.length} courses${UNTRAINED_TYPES.some(x => x.name === 'stairs') ? ' (stairs: every facing)' : ''}; Courses: the courses with at least one, of every kind (easier levels mix into each course, so slime and ladder courses have some too); a course with two types counts in both rows and once in its total. ` +
+    'Then how many of those courses the one network completed in each place and in the simulator (no planner recording has a shaped platform). Counted from the embedded data only.'
+  // The one-neo courses: neos done as neos, per player and place.
+  const neoCs = DATA.courses.filter(c => c.neo)
+  if (!neoCs.length) {
+    for (const id of ['neoTitle', 'neoStats', 'neoCap']) $(id).hidden = true
+  } else {
+    const ps = PLAYER_IDS.filter(p => neoCs.some(c => recsOf(c).some(r => playerOf(r) === p)))
+    const neoEps = (p, w) => { const r = recOf(p, w); return r ? neoCs.map(c => BY[c.id][r]).filter(Boolean) : [] }
+    const neoRow = p => `<tr><td>${cap(PLAYER_LOOK[p].name)}</td><td>${neoCs.length}</td>` + PLACES.map(w => {
+      const es = neoEps(p, w)
+      return es.length ? `<td>${es.filter(e => e.neo.done).length} · ${es.filter(e => e.success).length}</td>` : '<td>–</td>'
+    }).join('') + '</tr>'
+    $('neoStats').innerHTML = `<thead><tr><th>Player</th><th>Courses</th>${PLACES.map(w => `<th>${(WHERE_LOOK[w] || { short: w }).short}: done · made</th>`).join('')}</tr></thead><tbody>${ps.map(neoRow).join('')}</tbody>`
+    const all = ps.flatMap(p => PLACES.flatMap(w => neoEps(p, w)))
+    const madeAll = all.filter(e => e.success)
+    $('neoCap').textContent = `The ${neoCs.length} courses with exactly one neo, per place: done, the neos done as neos (the bot stood on the neo’s takeoff before on any later platform, then on its target before on any later one: the platform reached took both values, the rule of parkour.neo_assist.neo_done), and made, the courses completed; from the embedded frames. ` +
+      `${madeAll.filter(e => e.neo.done).length} of the ${madeAll.length} completed recordings did their neo as a neo. The neo is jump ${listingOr([...new Set(neoCs.map(c => c.neo.jump))].sort((a, b) => a - b).map(String))} (one per course; jumps count from 0).`
+  }
+  // Planner recordings: who chose each move (the control segments the builder derived from the searches).
+  const pRecs = RECS.filter(r => r.player === 'planner')
+  if (!pRecs.length) {
+    for (const id of ['planTitle', 'planStats', 'planCap']) $(id).hidden = true
+  } else {
+    const rowsP = pRecs.map(r => {
+      const es = EPS.filter(e => e.run === r.id)
+      const S = es.reduce((s, e) => s + e.searches.length, 0)
+      const x = es.map(planTotals).reduce((a, y) => ({ plan: a.plan + y.plan, brake: a.brake + y.brake, policy: a.policy + y.policy, plans: a.plans + y.plans, brakes: a.brakes + y.brakes }), { plan: 0, brake: 0, policy: 0, plans: 0, brakes: 0 })
+      const ticks = es.reduce((s, e) => s + e.ticks, 0)
+      return `<tr><td>${(WHERE_LOOK[r.where] || { short: r.where }).short}</td><td>${S}</td><td>${x.plans}</td><td>${x.brakes}</td><td>${x.plan.toLocaleString('en')} · ${x.brake} · ${x.policy} <span class="note">of ${ticks.toLocaleString('en')}</span></td></tr>`
+    })
+    $('planStats').innerHTML = '<thead><tr><th>Planner</th><th>Searches</th><th>Plans</th><th>Brakes</th><th>Ticks: plan · brake · policy</th></tr></thead><tbody>' + rowsP.join('') + '</tbody>'
+    const runsP = DATA.runs.filter(r => r.player === 'planner')
+    const a = PLAYERS.planner.assist
+    const counts = r => `${r.assist.requests} searches, ${r.assist.played} plans played, ${r.assist.braked} brakes and ${r.assist.planner_errors} planner errors`
+    const same = runsP.every(r => counts(r) === counts(runsP[0]))
+    // The neos the planner did, each by a played plan: the plan of a search on the neo's takeoff ends where the bot
+    // first stands on the neo's target.
+    const byPlan = e => e.control.some(([, end, kind, n]) => kind === 'plan' && e.searches[n].takeoff === e.neo.k && end === e.neo.atK1)
+    const neoPlans = pRecs.map(r => { const es = EPS.filter(e => e.run === r.id && e.neo && e.neo.done); return { r, done: es.length, plan: es.filter(byPlan).length } })
+    const neoSame = neoPlans.every(x => x.done === neoPlans[0].done && x.plan === neoPlans[0].plan)
+    const neoText = x => `${x.plan} of the ${x.done} neos it did`
+    $('planCap').textContent = 'On the planner’s recordings, the searches, the plans played, the brakes, and the ticks whose action came from a plan, a brake or the policy (' + PLAYERS.planner.file + '); ' +
+      `summary.json counts the same: ${same ? `${counts(runsP[0])} in each place` : listing(runsP.map(r => `${counts(r)} ${recLook(r.run).placeText}`))}. ` +
+      `The searches took ${listing(runsP.map(r => `${Math.round(r.assist.planner_seconds)} s ${recLook(r.run).placeText}`))}, while the bot waited. ` +
+      (neoPlans.some(x => x.done) ? `Played plans made ${neoSame ? `${neoText(neoPlans[0])} in each place` : listing(neoPlans.map(x => `${neoText(x)} ${recLook(x.r.id).placeText}`))} (each the plan of a search on the neo’s takeoff, ending where the bot first stood on its target). ` : '') +
+      `The records hold the searches, not the planned actions: a tick counts as planned from a played plan’s search to the first tick on which the bot stands on the plan’s target (the search cuts every plan there, and the next search comes on exactly that tick), a brake as the ${a.brake} ticks after a takeoff’s first search that found nothing (when the second search also finds nothing, the policy plays the jump), and the policy has every other tick, the first one of each course included.`
+  }
 }
 function renderNotes () {
-  const p = DATA.policy; const cset = DATA.course_set
-  const runs = DATA.runs.map(r => `${runLook(r.run).name}: <code>${r.dir}</code> (${r.mode}; ${r.courses} courses in ${Math.round(r.wall_seconds)} s; ` +
-    `replay of every episode in the Python simulator: ${r.replay_exact_episodes} of ${r.courses} within 10⁻⁶ blocks on every tick, largest difference ${sci(r.replay_max_pos_err)} blocks)`).join('; ')
-  const famText = `families ${cset.families[0]} (the extra kinds and the advanced levels), ${cset.families[1]} (the ice courses) and ${cset.families[2]} (one block type per course: type k of the shaped-blocks level, k = 0 to ${TYPES.length - 1} in the order ${TYPES.map(x => x.name).join(', ')}, from the stream default_rng([2026, ${cset.families[2]}, k]), on a copy of the level table whose shaped level keeps only that type’s jumps)`
-  const skill = SKILL_KINDS.map(k => `${k.label.toLowerCase()} (${DATA.courses.filter(c => c.kind === k.token).length})`)
-  const nType = DATA.courses.filter(c => KINDS[c.kind].set === 'type').length
+  const np = PLAYERS.network; const pp = PLAYERS.planner
+  const setName = { skills: 'the 65 skill courses', neo: 'the one-neo courses', untrained: 'the never-trained shapes' }
+  const runs = DATA.runs.map(r => `${cap(recLook(r.run).name)}, ${setName[r.set] || r.set}: <code>${r.dir}</code> (${r.mode}; ${r.courses} courses in ${Math.round(r.wall_seconds)} s; ` +
+    `replay of every episode in the Python simulator: ${r.replay_exact_episodes} of ${r.courses} within 10⁻⁶ blocks on every tick, largest difference ${sci(r.replay_max_pos_err)} blocks` +
+    (r.assist ? `; ${r.assist.requests} searches, ${r.assist.played} plans played, ${r.assist.braked} brakes, ${r.assist.planner_errors} planner errors, ${Math.round(r.assist.planner_seconds)} s of searching` : '') + ')').join('; ')
   const drawn = DATA.courses.map(c => c.legs.filter(k => k === 'drawn').length); const legs = DATA.courses.map(c => c.legs.length)
-  $('notes').innerHTML = `Policy: <code>${p.file}</code> (sha256 <code>${p.sha256}</code>), the distilled student <code>${p.run}</code> at iteration ${p.iteration}, chosen by ${p.selection} (<code>${p.provenance}</code>). The skills shown are the ones added after levels 0-5 and obstacles, which the earlier <code>results/final_policy.pt</code> covers. ` +
-    `Courses: <code>${cset.file}</code> (sha256 <code>${cset.sha256}</code>), fixed by <code>${cset.builder}</code>: ${cset.fixed}. ` +
-    `The first ${cset.first_courses} are ${listing(skill)}; the other ${nType} have one trained block type each (${TYPE_KINDS.length ? TYPE_KINDS[0].seeds : 0} per type: ${listing(TYPES.map(x => x.label))}). ` +
-    `They are built as <code>parkour.train.skill_sets</code> builds each group’s held-out courses, no obstacles, from seed ${famText}. ` +
-    `The generator draws up to ${cset.jumps} jumps per course and stops at ${cset.max_platforms} platforms or when no jump fits; it adds a step onto the runway before every runway jump and an exit jump after every shaped block and slime pad, so these courses have ${Math.min(...drawn)} to ${Math.max(...drawn)} drawn jumps and ${Math.min(...legs)} to ${Math.max(...legs)} platform-to-platform jumps. ` +
-    `Recordings made with <code>parkour.live --courses-file</code>: ${runs}. ` +
+  let text = `Players. The one network: <code>${np.file}</code> (sha256 <code>${np.sha256}</code>), the distilled student <code>${np.run}</code> at iteration ${np.iteration}, chosen by ${np.selection} (<code>${np.provenance}</code>). ` +
+    `It covers levels 0-5 and the skills added after them${SETS.untrained ? ' (the never-trained shapes are in no training level)' : ''}` +
+    (pp ? `; <code>${pp.file}</code>, levels 0-5 and obstacles only, is the planner’s policy. ` : '. ')
+  if (pp) {
+    const a = pp.assist; const c = pp.chosen; const al = pp.alone
+    const cfg = Object.entries(a).filter(([k]) => k !== 'enabled').map(([k, v]) => `${k.replace(/_/g, ' ')} ${v}`).join(', ')
+    text += `The planner, not the one network: <code>${pp.file}</code> (sha256 <code>${pp.sha256}</code>), the final policy for levels 0-5 and obstacles, saved from <code>${pp.source}</code> at iteration ${pp.iteration}${pp.source_note ? ` (${pp.source_note})` : ''}${/optimizer state removed/.test(pp.source_note || '') ? ', so its hash differs from that file’s' : ''}; bot export <code>${pp.export}</code>. ` +
+      `It plays with <code>parkour.neo_assist</code>’s search, set to plan every jump: <code>parkour.live --assist '${JSON.stringify(pp.assist_json)}'</code>; each run’s summary.json holds the whole setting: ${cfg}. ` +
+      (c ? `The setting was chosen on the single-neo validation set, family ${c.family}: ${c.completed} of ${c.courses} courses completed there (measured: ${c.measured}; <code>${c.file}</code>, row “${c.tag}”). ` : '') +
+      `When the bot first stands on a takeoff it pauses; a cross-entropy search over the policy’s discrete action set (${priorText(a)}; ${a.samples} sequences per round, up to ${a.iterations} rounds, for a neo up to ${a.restarts} more searches with new seeds) simulates them in the training simulator’s physics from the bot’s exact state and keeps the first that lands on the next platform within ${a.horizon} ticks; the bot replays it with prismarine-physics on its own world and plays it only if it lands there too. When a takeoff’s first search finds none, the bot brakes to a stop (${a.brake} ticks: “back” for up to 6 ticks, then no keys) and searches once more, with up to ${a.retry_horizon} ticks; when that one finds none too, the policy plays the jump. ` +
+      `This is planning with an exact model of the game’s physics, not the one network; <code>${pp.file}</code> chooses every move without a plan, each course’s first included. It shows what the bot does when it plans its jumps. ` +
+      (al ? `Alone, <code>${pp.file}</code> completed ${al.completed} of the ${al.courses} courses of the same single-neo validation set and passed ${al.neo_jumps_passed} of the ${al.neo_jumps_reached} neos it reached (measured: ${al.measured}; <code>${al.file}</code>, row “${al.tag}”). ` : '') +
+      'Its records hold every search (bridge/policy.js Episode.record “assist”, one entry per request of bridge/assist.js: the tick, the takeoff, takeoff or second search, whether the search found a sequence, whether prismarine-physics verified it, whether it was played, whether the bot braked, its rounds and seconds), not the planned actions, and the actions do not say who chose them. ' +
+      'The page marks a tick as planned from a played plan’s search to the first tick on which the bot stands on the plan’s target: the search cuts every plan at that tick and the bot asks for its next plan on the tick a plan ends, and the builder checks that every played plan reaches its target within its horizon and that the next search comes on exactly that tick, or that the plan ended the episode on the goal. ' +
+      `A brake is the ${a.brake} ticks after a takeoff’s first search that found nothing (their keys have the brake’s form, and the second search comes when they end); when the second search also finds nothing, the policy plays the jump. Every other tick, the first one included, is the policy’s. `
+  }
+  const s = SETS.skills
+  if (s) {
+    const skill = SKILL_KINDS.map(k => `${k.label.toLowerCase()} (${DATA.courses.filter(c => c.kind === k.token).length})`)
+    const nType = DATA.courses.filter(c => KINDS[c.kind].set === 'type').length
+    const famText = `families ${s.families[0]} (the extra kinds and the advanced levels), ${s.families[1]} (the ice courses) and ${s.families[2]} (one block type per course: type k of the shaped-blocks level, k = 0 to ${TRAINED_TYPES.length - 1} in the order ${TRAINED_TYPES.map(x => x.name).join(', ')}, from the stream default_rng([2026, ${s.families[2]}, k]), on a copy of the level table whose shaped level keeps only that type’s jumps)`
+    text += `Courses. <code>${s.file}</code> (sha256 <code>${s.sha256}</code>), fixed by <code>${s.builder}</code>: ${s.fixed}. ` +
+      `The first ${s.first_courses} are ${listing(skill)}; the other ${nType} have one trained block type each (${TYPE_KINDS.length ? TYPE_KINDS[0].seeds : 0} per type: ${listing(TRAINED_TYPES.map(x => x.label))}). ` +
+      `They are built as <code>parkour.train.skill_sets</code> builds each group’s held-out courses, no obstacles, from seed ${famText}. `
+  }
+  const n = SETS.neo
+  if (n) {
+    const cs = DATA.courses.filter(c => c.neo)
+    text += `<code>${n.file}</code> (sha256 <code>${n.sha256}</code>), fixed by <code>${n.builder}</code> ${n.fixed}: ${cs.length} courses with exactly one neo, from <code>parkour.neo_assist.single_neo_courses</code> with its own seed family ${n.families[0]} (the generator of the single-neo sets of families 40 and 41); of its first ${n.single_neo_types} courses, which hold each of the ${n.single_neo_types} single-neo types of levels 6 and 7 once, the even-numbered ones. ` +
+      `The neo is jump ${listingOr([...new Set(cs.map(c => c.neo.jump))].sort((a, b) => a - b).map(String))} (one per course; jumps count from 0); the other jumps are ordinary jumps of levels 0-5. The nine advanced-level courses above hold neos only on some of their jumps. `
+  }
+  const u = SETS.untrained
+  if (u) {
+    // The trained type whose jumps each shape's courses use, with both tops (configs/block_shapes.json).
+    const bases = {}
+    for (const x of UNTRAINED_TYPES) (bases[x.based_on] = bases[x.based_on] || []).push(x)
+    const from = Object.entries(bases).map(([b, xs]) => `the ${typeLabel(b)} jumps (top ${TYPE[b].top}) for ${listing(xs.map(x => x.label))}`).join('; ')
+    const height = Object.entries(bases).map(([b, xs]) => {
+      const byDiff = {}
+      for (const x of xs) (byDiff[num(x.top - TYPE[b].top)] = byDiff[num(x.top - TYPE[b].top)] || []).push(x.label)
+      return Object.entries(byDiff).map(([d, ls]) => Number(d) === 0 ? `the ${listing(ls)} landings are as high as the ${typeLabel(b)} ones`
+        : `the ${listing(ls)} landings are ${num(Math.abs(Number(d)))} blocks ${Number(d) > 0 ? 'higher' : 'lower'} than the ${typeLabel(b)} landings they replace`).join(', ')
+    }).join('; ')
+    const tops = [...new Set(UNTRAINED_TYPES.map(x => x.top))]
+    text += `<code>${u.file}</code> (sha256 <code>${u.sha256}</code>), fixed by <code>${u.builder}</code> ${u.fixed}: ${UNTRAINED_KINDS.length ? UNTRAINED_KINDS[0].seeds : 0} courses for each of ${listing(UNTRAINED_TYPES.map(x => x.label))}, the shapes of configs/block_shapes.json that no training level uses, from the streams default_rng([2026, ${u.families[0]}, k]) with k = ${u.k.join(', ')}: <code>courses.generate</code> on the extra group’s table, its shaped-blocks level keeping only one trained type’s jumps, with the block swapped and no obstacles: ${from}. ` +
+      (tops.length === 1 ? `All ${UNTRAINED_TYPES.length} shapes have top ${tops[0]}, so ${height}. ` : `Their tops: ${listing(UNTRAINED_TYPES.map(x => `${x.label} ${x.top}`))}; ${height}. `) +
+      'Every stairs platform is turned to rise the way the bot travels (from the previous platform’s centre to its own). '
+  }
+  const any = DATA.course_sets[0]
+  text += `The generators draw up to ${any.jumps} jumps per course and stop at ${any.max_platforms} platforms or when no jump fits; they add a step onto the runway before every runway jump and an exit jump after every shaped block and slime pad, so the courses here have ${Math.min(...drawn)} to ${Math.max(...drawn)} drawn jumps and ${Math.min(...legs)} to ${Math.max(...legs)} platform-to-platform jumps. ` +
+    `Recordings made with <code>parkour.live --courses-file</code>: ${runs}. `
+  $('notes').innerHTML = text +
     'Every frame is drawn at the recorded feet position, with the recorded velocity and state (Y up, one unit per block, 20 ticks per second, rounded to 6 decimals here): frame 0 is the start state, frame t + 1 the state after the action of tick t. ' +
     'The facing, a compass bearing (0° north, −Z; 90° east, +X), is reconstructed: the start facing plus each action’s turn (a positive step turns left), wrapped after every turn as the bots do. ' +
-    'The platform reached is reconstructed with the bots’ standing rule: on the ground at a platform’s top height with the 0.6 × 0.6 hitbox overlapping its footprint (a shaped block’s own top and footprint); any overlap counts, so a ladder climb ends as the bot steps from the ladder’s top onto the goal’s edge. ' +
+    'The platform reached is reconstructed with the bots’ standing rule: on the ground at a platform’s top height with the 0.6 × 0.6 hitbox overlapping its footprint (a shaped block’s own top and footprint; for stairs the upper step’s height); any overlap counts, so a ladder climb ends as the bot steps from the ladder’s top onto the goal’s edge. ' +
     'The bot is drawn inside its 0.6 × 1.8 × 0.6 hitbox (the outline), the box the physics collides and stands on; the figure is narrower than that box. The figure’s lowest point is at the recorded feet height on every frame, and its legs swing with the recorded speed only while the replay plays. ' +
     `The physics moves vertically first, at the previous tick’s x and z, and then sideways, so a tick can land on a block and end past its edge, still on the ground: ${EDGE.past.toLocaleString('en')} of the ${EDGE.grounded.toLocaleString('en')} grounded frames here (the readouts say so on those ticks). ` +
     'Blocks are drawn where the bots’ physics has them; the roles of the extra blocks (roof, neo wall, wall under a ladder) and the jumps that placed them come from rebuilding them from each course’s own jump specs. Real Minecraft also has a structure void under every carpet platform, which keeps vanilla Minecraft from breaking a carpet with air below it; it has no collision box and is not drawn, and the simulator and the offline bot have air there. ' +
     'Between ticks the view interpolates the position and turns the shortest way. The readouts show the current tick’s recorded position, velocity and ground state; the facing and the platform are reconstructed as described above. Nothing is simulated in this page, and every outcome is as recorded, failures included.'
 }
+// A swatch per block type, filled where its boxes are (stairs: the lower half, then the upper step).
 function renderLegendShapes () {
   const box = $('legendShapes'); box.innerHTML = ''
   for (const x of TYPES) {
     const s = document.createElement('span'); const i = document.createElement('i')
-    const shape = DATA.shapes[x.name]
-    const w = Math.max(...shape.boxes.map(b => b[3])) - Math.min(...shape.boxes.map(b => b[0]))
-    const pct = Math.round(100 * Math.min(1, x.top))
-    i.style.background = `linear-gradient(to top, var(--shape-${x.name}) ${pct}%, transparent ${pct}%)`
+    const boxes = x.shapes.flatMap(n => (DATA.shapes[n] || { boxes: [] }).boxes)
+    if (!boxes.length) continue
+    const w = Math.max(...boxes.map(b => b[3])) - Math.min(...boxes.map(b => b[0]))
+    const lo = Math.round(100 * Math.min(...boxes.map(b => b[1]))); const hi = Math.round(100 * Math.min(1, x.top))
+    const col = `var(--shape-${x.name})`
+    if (x.name === 'stairs') i.style.background = `linear-gradient(to right, transparent 50%, ${col} 50%) top / 100% 50% no-repeat, linear-gradient(${col}, ${col}) bottom / 100% 50% no-repeat`
+    else i.style.background = `linear-gradient(to top, transparent ${lo}%, ${col} ${lo}%, ${col} ${hi}%, transparent ${hi}%)`
     if (w < 1) i.style.width = `${Math.max(3, Math.round(11 * w))}px`
-    s.append(i, `${x.label} (top ${x.top})`)
+    s.append(i, `${x.label} (top ${x.top}${x.trained ? '' : ', never trained'})`)
     box.appendChild(s)
   }
 }
@@ -692,22 +1062,45 @@ function renderLegendShapes () {
 // ---------- filters and the list ----------
 function fillFilters () {
   const ks = $('kind'); ks.innerHTML = ''
+  const nOf = pred => DATA.courses.filter(pred).length
   option(ks, 'all', `All kinds (${plural(DATA.courses.length, 'course')})`)
-  const g1 = group(ks, 'Skills added after levels 0-5')
-  for (const k of SKILL_KINDS) option(g1, k.token, `${k.label} (${DATA.courses.filter(c => c.kind === k.token).length})`)
+  if (SKILL_KINDS.length) {
+    const g1 = group(ks, 'Skills added after levels 0-5')
+    for (const k of SKILL_KINDS) option(g1, k.token, `${k.label} (${nOf(c => c.kind === k.token)})`)
+  }
   if (TYPE_KINDS.length) {
     const g2 = group(ks, `One block type per course (seed family ${TYPE_KINDS[0].family})`)
-    option(g2, 'types', `All block-type courses (${DATA.courses.filter(c => kindOk(c, 'types')).length})`)
-    for (const k of TYPE_KINDS) option(g2, k.token, `${k.label} (${DATA.courses.filter(c => c.kind === k.token).length})`)
+    option(g2, 'types', `All block-type courses (${nOf(c => kindOk(c, 'types'))})`)
+    for (const k of TYPE_KINDS) option(g2, k.token, `${k.label} (${nOf(c => c.kind === k.token)})`)
+  }
+  if (NEO_KINDS.length) {
+    const g3 = group(ks, `One neo per course (seed family ${NEO_KINDS[0].family})`)
+    for (const k of NEO_KINDS) option(g3, k.token, `${k.label} (${nOf(c => c.kind === k.token)})`)
+  }
+  if (UNTRAINED_KINDS.length) {
+    const g4 = group(ks, 'Never trained')
+    option(g4, 'untrained', `All never-trained shapes (${nOf(c => kindOk(c, 'untrained'))})`)
+    for (const k of UNTRAINED_KINDS) option(g4, k.token, `${k.label} (${nOf(c => c.kind === k.token)})`)
   }
   const ts = $('btype'); ts.innerHTML = ''
   option(ts, 'all', 'Any block')
-  const g3 = group(ts, 'Courses with a platform of this type')
-  for (const x of TYPES) option(g3, x.name, `${cap(x.label)} · ${plural(typePlatforms(x.name), 'platform')} on ${plural(typeCourses(x.name), 'course')}`)
-  const rs = $('run'); rs.innerHTML = ''
-  for (const r of DATA.runs) option(rs, r.run, runLook(r.run).name)
+  if (TRAINED_TYPES.length) {
+    const g5 = group(ts, 'Courses with a platform of this type')
+    for (const x of TRAINED_TYPES) option(g5, x.name, `${cap(x.label)} · ${plural(typePlatforms(x.name), 'platform')} on ${plural(typeCourses(x.name), 'course')}`)
+  }
+  if (UNTRAINED_TYPES.length) {
+    const g6 = group(ts, 'Never trained (no training specs)')
+    for (const x of UNTRAINED_TYPES) option(g6, x.name, `${cap(x.label)} · never trained, ${x.spec_count} specs · ${plural(typePlatforms(x.name), 'platform')} on ${plural(typeCourses(x.name), 'course')}`)
+  }
+  fillRecs(ep ? ep.c : DATA.courses[0])
 }
-// pick(e) opens a recording; withRun names the recording in each row (the list without the 3D view holds both).
+// The recording selector lists the recordings the shown course has (the one-neo courses: four, the others: two).
+function fillRecs (c) {
+  const rs = $('run'); rs.innerHTML = ''
+  for (const r of recsOf(c)) option(rs, r, recLook(r).name)
+  rs.value = ep && ep.c === c ? ep.run : recsOf(c)[0]
+}
+// pick(e) opens a recording; withRun names the recording in each row (the list without the 3D view holds them all).
 function renderList (type, pick, withRun) {
   const box = $('list'); box.innerHTML = ''
   if (!view.length) { box.innerHTML = '<p class="empty">No course matches these filters.</p>'; return }
@@ -715,10 +1108,13 @@ function renderList (type, pick, withRun) {
     const b = document.createElement('button'); b.className = 'row'; b.type = 'button'; b.setAttribute('aria-current', String(e === ep))
     b.innerHTML = '<span class="sw"></span><span class="name"></span><span class="pill"></span><span class="info"></span>'
     b.querySelector('.sw').style.background = `var(${kindSwatch(e.c)})`
-    b.querySelector('.name').textContent = (withRun ? runLook(e.run).short + ' · ' : '') + e.label
+    // Filtered to one kind, a row leaves out the kind's name (the selector shows it), so its level and seed stay visible.
+    const name = !withRun && $('kind').value === e.c.kind && e.label.startsWith(e.k.label + ' · ') ? e.label.slice(e.k.label.length + 3) : e.label
+    b.querySelector('.name').textContent = (withRun ? recLook(e.run).short + ' · ' : '') + name
     const pill = b.querySelector('.pill'); pill.classList.add(e.result); pill.textContent = RESULT[e.result]
     const extra = type && type !== 'all' ? ` · ${plural(e.c.typeCount[type], typeLabel(type) + ' platform')}` : ''
-    b.querySelector('.info').textContent = `platform ${e.platform_reached}/${e.c.platforms.length - 1} · ${e.ticks} ticks · ${(e.ticks / TICK_HZ).toFixed(2)} s · simulator ${e.sim_success ? 'made it' : 'did not'}${extra}`
+    const neo = e.neo ? ` · neo at jump ${e.neo.k}: ${e.neo.done ? 'done' : 'not done'}` : ''
+    b.querySelector('.info').textContent = `platform ${e.platform_reached}/${e.c.platforms.length - 1} · ${e.ticks} ticks · ${(e.ticks / TICK_HZ).toFixed(2)} s · simulator ${e.sim_success ? 'made it' : 'did not'}${neo}${extra}`
     b.onclick = () => pick(e)
     box.appendChild(b)
   }
@@ -729,13 +1125,13 @@ function markRow () {
   const idx = view.indexOf(ep)
   if (idx >= 0 && rows[idx]) { rows[idx].setAttribute('aria-current', 'true'); keepVisible($('list'), rows[idx]) }
 }
-// A bare token in the link: a course id (slime-1, shaped-carpet-0: played in the first recording) or an episode id
-// (slime-1-offline).
+// A bare token in the link: a course id (slime-1, neo-single-0, untrained-stairs-0: played in the course's first
+// recording, the one network in real Minecraft) or an episode id (slime-1-offline, neo-single-0-planner-live).
 function fromHash () {
   let tok = ''
   try { tok = decodeURIComponent((location.hash || '').slice(1)) } catch (err) { return null }
   if (!tok) return null
-  return EPS.find(e => e.id === tok) || (BY[tok] ? (DATA.runs.map(r => BY[tok][r.run]).find(Boolean) || null) : null)
+  return EPS.find(e => e.id === tok) || (BY[tok] ? (REC_IDS.map(r => BY[tok][r]).find(Boolean) || null) : null)
 }
 
 // ---------- the view without the 3D library: the recording details and the list stay available ----------
@@ -746,8 +1142,8 @@ if (typeof THREE === 'undefined') {
   $('play').textContent = 'Play'
   $('timeline').hidden = true
   view = EPS.slice()
-  const show = e => { ep = e; renderFacts(); renderJumps(); $('course').value = e.id; markRow() }
-  for (const e of EPS) option($('course'), e.id, `${runLook(e.run).name} · ${e.label} · ${RESULT[e.result]}`)
+  const show = e => { ep = e; renderFacts(); renderJumps(); $('course').value = e.id; fillRecs(e.c); markRow() }
+  for (const e of EPS) option($('course'), e.id, `${recLook(e.run).name} · ${e.label} · ${RESULT[e.result]}`)
   $('course').onchange = () => show(EPS.find(e => e.id === $('course').value))
   $('listCount').textContent = `${EPS.length} recordings`
   fillFilters(); renderStats(); renderNotes(); renderLegendShapes(); renderList('all', show, true); show(fromHash() || EPS[0])
@@ -779,7 +1175,7 @@ function pixelTexture (base, vary, seed, pattern) {
   return t
 }
 // Shaped blocks: a texture pattern per type (the colour is the type's token); the boxes are their collision shapes.
-const SHAPE_PATTERN = { bottom_slab: 'stone', soul_sand: 'ore', dirt_path: 'edge', enchanting_table: 'edge', daylight_detector: 'wood', bottom_trapdoor: 'wood', carpet: 'edge', fence_post: 'wood', wall_post: 'stone', end_rod: 'edge' }
+const SHAPE_PATTERN = { bottom_slab: 'stone', soul_sand: 'ore', dirt_path: 'edge', enchanting_table: 'edge', daylight_detector: 'wood', bottom_trapdoor: 'wood', carpet: 'edge', fence_post: 'wood', wall_post: 'stone', end_rod: 'edge', stairs: 'stone', top_slab: 'stone', top_trapdoor: 'wood', iron_bars: 'edge' }
 const MATS = {}
 function mat (key) {
   if (MATS[key]) return MATS[key]
@@ -797,7 +1193,7 @@ function mat (key) {
   else if (key === 'stone1') m = new THREE.MeshLambertMaterial({ map: tex('--blk-stone2', 0.18, 41, 'stone') })
   else if (key.startsWith('shape:') || key.startsWith('shapeTop:')) {
     // shapeTop: the part of a box above its cell (a post's top half block), see-through as in the game's look.
-    const top = key.startsWith('shapeTop:'); const name = key.slice(top ? 9 : 6); const known = name in SHAPE_PATTERN
+    const top = key.startsWith('shapeTop:'); const name = typeOf(key.slice(top ? 9 : 6)); const known = name in SHAPE_PATTERN
     m = new THREE.MeshLambertMaterial({ map: tex(known ? `--shape-${name}` : '--shape-other', 0.12, 43 + name.length, SHAPE_PATTERN[name] || 'edge') })
     if (name === 'end_rod') m.emissive = new THREE.Color(cssVar('--shape-end_rod-glow'))
     if (top) { m.transparent = true; m.opacity = 0.35; m.depthWrite = false }
@@ -977,15 +1373,26 @@ scene.add(hitbox)
 const marker = new THREE.Mesh(new THREE.ConeGeometry(0.4, 0.9, 4), new THREE.MeshBasicMaterial({ color: cssVar('--ghost'), fog: false }))
 marker.rotation.x = Math.PI; marker.visible = false; scene.add(marker)
 let trail = null; let ghostPath = null
-function lineFor (e, color, opacity) {
+// colors: one RGB per frame (the trail); without, the whole line in ``color``.
+function lineFor (e, color, opacity, colors) {
   const pts = e.frames.map(f => new THREE.Vector3(f[COL.x], f[COL.y] + 0.04, f[COL.z]))
-  return new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color, transparent: true, opacity, fog: false }))
+  const geo = new THREE.BufferGeometry().setFromPoints(pts)
+  if (colors) geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+  return new THREE.Line(geo, new THREE.LineBasicMaterial({ color: colors ? 0xffffff : color, vertexColors: !!colors, transparent: true, opacity, fog: false }))
 }
-// The run's colour on the bot, its trail, the marker; the whole path in the ghost colour.
+// The trail's colour per frame: the place's colour, and on a planner recording the plan colour where the frame
+// follows a planned action (frame i + 1 is the state after the action of tick i).
+function trailColors (e) {
+  const base = new THREE.Color(cssVar(recLook(e.run).trail)); const plan = new THREE.Color(cssVar('--trail-plan'))
+  const out = new Float32Array(e.frames.length * 3)
+  e.frames.forEach((f, i) => { const c = e.ctl && i > 0 && e.ctl[i - 1] === CTL_PLAN ? plan : base; out[3 * i] = c.r; out[3 * i + 1] = c.g; out[3 * i + 2] = c.b })
+  return out
+}
+// The recording's place colour on the bot, its trail, the marker; the whole path in the ghost colour.
 function paintRun () {
-  const c = cssVar(runLook(ep.run).trail)
+  const c = cssVar(recLook(ep.run).trail)
   player.userData.mats.shirt.color.set(c); marker.material.color.set(c)
-  if (trail) trail.material.color.set(c)
+  if (trail) trail.geometry.setAttribute('color', new THREE.BufferAttribute(trailColors(ep), 3))
   if (ghostPath) ghostPath.material.color.set(cssVar('--ghost'))
 }
 // A theme change repaints the sky, fog, light, blocks, bot and hitbox from the tokens.
@@ -1034,41 +1441,52 @@ function stateAt (e, tt) {
 // ---------- selection ----------
 let playing = !reduceMotion; let lastTime = null; let lastT = 0
 const camPos = new THREE.Vector3(); const camLook = new THREE.Vector3()
-// Kind and block type combine; when the pair has no course, the filter not just changed gives way. Switching the
-// recording keeps the course, the shown tick and play or pause, so the two recordings can be compared.
+// Kind and block type combine; when the pair has no course, the filter not just changed gives way. The list shows the
+// chosen recording (curRec); where none of the filtered courses has it (a planner recording outside the one-neo
+// courses), the one network's recording in the same place. Switching the recording keeps the course, the shown tick
+// and play or pause, so the recordings of a course can be compared.
+let curRec = REC_IDS[0]
+const networkRec = rec => recOf('network', (REC[rec] || { where: 'live' }).where) || REC_IDS[0]
 function applyFilters (changed) {
-  let kind = $('kind').value; let type = $('btype').value; const run = $('run').value
+  let kind = $('kind').value; let type = $('btype').value
   if (!DATA.courses.some(c => kindOk(c, kind) && typeOk(c, type))) {
     if (changed === 'btype') { kind = 'all'; $('kind').value = 'all' } else { type = 'all'; $('btype').value = 'all' }
   }
+  if (!DATA.courses.some(c => kindOk(c, kind) && typeOk(c, type) && BY[c.id][curRec])) curRec = networkRec(curRec)
+  const run = curRec
   view = EPS.filter(e => e.run === run && kindOk(e.c, kind) && typeOk(e.c, type))
   const cs = $('course'); cs.innerHTML = ''
   for (const e of view) option(cs, e.id, `${e.label} · ${RESULT[e.result]}`)
   const made = view.filter(e => e.success).length
-  $('count').textContent = `${plural(view.length, 'course')} · ${made} made · ${runLook(run).name}`
-  $('listCount').textContent = `${view.length} shown · ${runLook(run).name}`
+  $('count').textContent = `${plural(view.length, 'course')} · ${made} made · ${recLook(run).name}`
+  $('listCount').textContent = `${view.length} shown · ${recLook(run).name}`
   renderList(type, e => select(e))
   if (!view.length) return
   if (!view.includes(ep)) {
     const same = view.find(e => e.course === ep.course)
     select(same || view[0], changed === 'run' && !!same)
-  } else { cs.value = ep.id; markRow() }
+  } else { cs.value = ep.id; markRow(); fillRecs(ep.c) }
 }
 function select (e, keepTime) {
   const before = ep; const wasPlaying = playing; const tt = t
-  ep = e
+  ep = e; curRec = e.run
   $('course').value = e.id
+  fillRecs(e.c)
   markRow()
   if (!keepTime || before.c !== e.c) buildCourse(e.c)
   for (const path of [trail, ghostPath]) {
     if (path) { scene.remove(path); path.geometry.dispose(); path.material.dispose() }
   }
-  trail = lineFor(e, cssVar(runLook(e.run).trail), 0.95); scene.add(trail)
+  trail = lineFor(e, cssVar(recLook(e.run).trail), 0.95, trailColors(e)); scene.add(trail)
   ghostPath = lineFor(e, cssVar('--ghost'), 0.35); scene.add(ghostPath)
   trail.visible = $('trail').checked; ghostPath.visible = $('ghost').checked
   paintRun()
   $('timeline').setAttribute('aria-valuemax', String(e.frames.length - 1))
-  $('srcTag').textContent = runLook(e.run).tag
+  { // the place, then the player (hidden on phones, where the HUD names it)
+    const lk = recLook(e.run); const tag = $('srcTag'); const who = document.createElement('span')
+    who.className = 'who'; who.textContent = ` · ${lk.playerName}`
+    tag.textContent = lk.placeTag; tag.append(who)
+  }
   if (keepTime) { t = Math.min(tt, e.frames.length - 1); setPlaying(wasPlaying && t < e.frames.length - 1) } else {
     t = 0; setPlaying(!reduceMotion)
     const c = centre(e.c)
@@ -1083,7 +1501,7 @@ function select (e, keepTime) {
 function openFromHash () {
   const e = fromHash()
   if (!e || e === ep) return false
-  $('run').value = e.run; $('kind').value = e.c.kind; $('btype').value = 'all'
+  curRec = e.run; $('kind').value = e.c.kind; $('btype').value = 'all'
   ep = e; applyFilters('hash'); select(e)
   return true
 }
@@ -1094,6 +1512,22 @@ const COMPASS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', '
 // Mineflayer's yaw (0 = north, -Z; growing counter-clockwise seen from above) as a compass bearing (clockwise, 90 = east).
 const bearing = yaw => (360 - ((yaw * 180 / Math.PI) % 360 + 360) % 360) % 360
 let hudKey = ''
+// The one-neo courses: the neo at frame i, from the platform reached (neoInfo).
+function neoNow (e, i) {
+  const n = e.neo; const p = e.frames[i][COL.platform_reached]; const end = i >= e.frames.length - 1
+  if (n.done && i >= n.atK1) return `done at tick ${n.atK1}`
+  if (p < n.k) return end ? 'not reached' : 'ahead'
+  if (p === n.k) return end ? `${e.result === 'fell' ? 'fell' : 'stalled'} here, not done` : 'next'
+  return 'passed, not as a neo'
+}
+// A planner recording: who chose the action of tick i (the step from frame i to i + 1).
+function playingText (e, i) {
+  if (i >= e.ticks) return 'episode over'
+  const k = e.ctl[i]; const n = e.ctlSearch[i]; const s = n >= 0 ? e.searches[n] : null
+  if (k === CTL_PLAN) return `planned move · search at tick ${s.tick}, ${s.takeoff} → ${s.target}`
+  if (k === CTL_BRAKE) return `brake · the search at tick ${s.tick} found none`
+  return `policy move · ${PLAYERS.planner.file.split('/').pop()}`
+}
 function renderHud (s) {
   const key = ep.id + ':' + s.i
   if (key === hudKey) return
@@ -1107,12 +1541,20 @@ function renderHud (s) {
     `<span>x${fmt(F[COL.x])}  y${fmt(F[COL.y])}  z${fmt(F[COL.z])}</span>` +
     `<span class="opt">speed ${hs.toFixed(2)} blocks/s · facing ${b.toFixed(1)}° (${COMPASS[Math.round(b / 22.5) % 16]})</span>` +
     `<span class="opt">${ground}${F[COL.jump_ticks] ? ` · jump cooldown ${F[COL.jump_ticks]}` : ''}</span>` +
-    `<span>platform ${F[COL.platform_reached]} / ${n}</span>`
+    `<span>platform ${F[COL.platform_reached]} / ${n}</span>` +
+    (ep.neo ? `<span class="opt">neo: jump ${ep.neo.k} → ${ep.neo.k + 1} · ${neoNow(ep, s.i)}</span>` : '') +
+    (ep.ctl ? '<span class="plan"></span>' : '')
   $('hud').querySelector('b').textContent = ep.label
-  $('hud').querySelector('.dim').textContent = `${runLook(ep.run).name} · level ${ep.c.level} · recorded outcome: ${RESULT[ep.result].toLowerCase()} at tick ${ep.ticks}`
+  $('hud').querySelector('.dim').textContent = `${recLook(ep.run).name} · level ${ep.c.level} · recorded outcome: ${RESULT[ep.result].toLowerCase()} at tick ${ep.ticks}`
+  if (ep.ctl) $('hud').querySelector('.plan').textContent = playingText(ep, s.i)
+  const ctl = ep.ctl && s.i < ep.ticks ? ep.ctl[s.i] : -1
+  $('keys').querySelector('.cap').textContent = ctl < 0 ? 'Action this tick' : `Action this tick · ${ctl === CTL_PLAN ? 'planned' : ctl === CTL_BRAKE ? 'brake' : 'policy'}`
   const done = s.i >= ep.frames.length - 1
   const ban = $('banner'); ban.hidden = !done
   if (done) { ban.className = 'banner ' + ep.result; ban.textContent = `${RESULT[ep.result]} · tick ${ep.ticks}` }
+  // While the banner shows, the HUD keeps clear of it (the CSS reads the banner's width).
+  $('box').classList.toggle('ended', done)
+  if (done) $('box').style.setProperty('--banner-w', `${ban.offsetWidth}px`)
   // The action taken at this tick (the step from frame i to i + 1); none after the last one.
   const a = s.i < ep.actions.length ? ep.actions[s.i] : null
   const on = (cls, v) => $('keys').querySelector('.' + cls).classList.toggle('on', !!v)
@@ -1127,7 +1569,7 @@ function renderHud (s) {
   markJumps(F[COL.platform_reached])
 }
 let COLORS = null
-function readColors () { COLORS = Object.fromEntries(['fg', 'line', 'accent', 'good', 'bad', 'warn', 'live', 'off', 'muted'].map(k => [k, cssVar('--' + k)])) }
+function readColors () { COLORS = Object.fromEntries(['fg', 'line', 'accent', 'good', 'bad', 'warn', 'live', 'off', 'muted', 'plan'].map(k => [k, cssVar('--' + k)])) }
 function refreshColors () { readColors(); refreshScene(); hudKey = ''; pose(true) }
 const TL_PAD_L = 10; const TL_PAD_R = 18 // the outcome bar sits in the right padding, past the last tick
 function drawTimeline () {
@@ -1141,10 +1583,19 @@ function drawTimeline () {
   const X = i => TL_PAD_L + (w - TL_PAD_L - TL_PAD_R) * (N ? i / N : 0)
   // Upper band: the ticks in the air.
   g.fillStyle = COLORS.line; g.fillRect(X(0), 5, X(N) - X(0), 7)
-  g.fillStyle = COLORS[runLook(ep.run).token] || COLORS.muted
+  g.fillStyle = COLORS[recLook(ep.run).token] || COLORS.muted
   for (let i = 0; i < N; i++) if (!F[i + 1][COL.on_ground]) g.fillRect(X(i), 5, Math.max(1, X(i + 1) - X(i)), 7)
+  // A planner recording: who chose each tick's action, in a band under it (planned sequences, brakes; the policy: none).
+  if (ep.ctl) {
+    for (let i = 0; i < N; i++) {
+      if (!ep.ctl[i]) continue
+      g.fillStyle = ep.ctl[i] === CTL_PLAN ? COLORS.plan : COLORS.warn
+      g.fillRect(X(i), 14, Math.max(1, X(i + 1) - X(i)), 4)
+    }
+  }
   // Below: the platform reached, a staircase from the start (bottom) to the goal (top).
-  const Y = k => h - 5 - (h - 22) * (n ? k / n : 0)
+  const top = ep.ctl ? 22 : 17
+  const Y = k => h - 5 - (h - 5 - top) * (n ? k / n : 0)
   g.globalAlpha = 0.25; g.fillStyle = COLORS.fg; g.fillRect(X(0), Y(n), X(N) - X(0), 1); g.globalAlpha = 1
   g.strokeStyle = COLORS.fg; g.lineWidth = 1.5; g.beginPath()
   g.moveTo(X(0), Y(F[0][COL.platform_reached]))
@@ -1310,7 +1761,7 @@ $('trail').onchange = () => { if (trail) trail.visible = $('trail').checked; inv
 $('ghost').onchange = () => { if (ghostPath) ghostPath.visible = $('ghost').checked; invalidate() }
 $('kind').onchange = () => applyFilters('kind')
 $('btype').onchange = () => applyFilters('btype')
-$('run').onchange = () => applyFilters('run')
+$('run').onchange = () => { curRec = $('run').value; applyFilters('run') }
 $('course').onchange = () => { const e = EPS.find(x => x.id === $('course').value); if (e) select(e) }
 // Space plays or pauses everywhere but in form fields and on the page's buttons (a course row is chosen with Enter or
 // a click); the arrow keys step one tick.
@@ -1327,11 +1778,11 @@ if (window.matchMedia) {
 }
 new MutationObserver(refreshColors).observe(ROOT, { attributes: true, attributeFilter: ['data-theme'] })
 
-// Start: the recording named in the link (#slime-1, or #slime-1-offline for one recording), else the first course of
-// the set in the first recording, whatever its outcome.
+// Start: the recording named in the link (#slime-1, or #slime-1-offline for one recording; #neo-single-0-planner-live),
+// else the first course of the set in the first recording, whatever its outcome.
 fillFilters(); renderStats(); renderNotes(); renderLegendShapes()
 const start = fromHash() || EPS[0]
-$('run').value = start.run; $('kind').value = start === EPS[0] ? 'all' : start.c.kind; $('btype').value = 'all'
+curRec = start.run; $('kind').value = start === EPS[0] ? 'all' : start.c.kind; $('btype').value = 'all'
 ep = start
 applyFilters('start')
 select(start)
