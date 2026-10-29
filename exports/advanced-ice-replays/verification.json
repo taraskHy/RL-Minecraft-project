@@ -1,0 +1,29 @@
+{
+  "cpu_physics_replay_checks": [
+    {
+      "run": "g995-adv",
+      "course_index": 0,
+      "level": 0,
+      "max_pos_err": 0.0,
+      "first_divergence_tick": null,
+      "ticks": 121
+    },
+    {
+      "run": "g995-adv",
+      "course_index": 21,
+      "level": 7,
+      "max_pos_err": 0.0,
+      "first_divergence_tick": null,
+      "ticks": 237
+    },
+    {
+      "run": "g995-ice",
+      "course_index": 12,
+      "level": 4,
+      "max_pos_err": 0.0,
+      "first_divergence_tick": null,
+      "ticks": 180
+    }
+  ],
+  "all_within_1e_6_blocks": true
+}
