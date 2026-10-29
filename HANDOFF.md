@@ -43,7 +43,7 @@ thermal watchdog and one keep-awake process. Recheck live processes and
 The user paused this task (cloud session, branch `claude/pensive-knuth-biwj11`,
 last commit before this note `d2b81dd`) to build a replay artifact. Nothing
 here touches the training PC; its jobs keep running. The replay page is done
-(29 Oct, session log); this task is next when the user resumes it.
+(29 Oct, session log); this task stays on hold until the user resumes it.
 
 **Done** (all pushed; simulator unless said; plan and status in
 `docs/abilities_plan.md`):
@@ -223,6 +223,14 @@ More facts that hold now:
   last commits record finished results only. Check the processes there.
 
 ## 3. What is left to do
+
+**Next, by the user's choice (29 Oct): one network for every skill.** Distil
+the specialists (final policy, `g995-adv`, `g995-ice`, `g995-extra`, the
+neo policy) into one student next to PPO, on courses that mix every skill;
+the design, its evidence and the steps are in
+[docs/combine_policies.md](docs/combine_policies.md). The user's local
+session on the PC implements it and starts the training; the cloud session
+starts none.
 
 **PC completion update, 28 Oct 21:38:** cloud merged through `21188a6`; neo files shipped; retuned planner verified on both real-Minecraft sets (51/60 and 56/60, zero corrections) and adopted in Python/JS. Items 1, 2, 4 and 5 below describe the completed integration steps and ongoing merge/watchdog procedure. The latest user request (29 Oct) permits 100% GPU use, with the temperature rule retained.
 
@@ -1072,6 +1080,19 @@ At the end of a session, or after each result:
 
 Newest first. One entry per session; earlier history is in the
 [TEAM_STATUS update log](TEAM_STATUS.md#update-log) and `git log`.
+
+- **29 Oct 2026, night, later, Claude Code (the same cloud session, branch
+  `claude/pensive-knuth-biwj11`):** the user asked how to combine the
+  specialist policies and chose one network: distil the specialists into
+  one student with a KL term next to PPO, with plain training on every
+  skill as the control run. `docs/combine_policies.md` holds the design,
+  the facts it rests on (one network and one 255-number observation for
+  all; the observation has no block types; validation and test never had
+  ice; `courses.generate` mixes in all easier levels; seed families 16/17
+  free) and the steps. The user stopped the research early and will have
+  their local session on the PC implement and train it; nothing was
+  implemented or run here. The paused assist test runs stay on hold.
+  Next (local session): the steps in that file.
 
 - **29 Oct 2026, night, Claude Code (the same cloud session, branch
   `claude/pensive-knuth-biwj11`, CPU only):** the user put the new-abilities
