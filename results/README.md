@@ -238,7 +238,10 @@ are the chosen settings.
 | validation | random (family 13) | `final_policy` | all, brake | all | 119/200 (59.5) | 320/396 | 1534/1534 |
 | validation | mixed (family 15) | `final_policy` | policy alone |  | 37/200 (18.5) | 0/19 |  |
 | validation | random (family 13) | `final_policy` | all, brake, approach | all | 135/200 (67.5) | 332/392 | 1448/1448 |
+| validation | official (family 2) | `final_policy` | all, brake, approach | all | 157/218 (72.0) | 228/281 | 2197/2197 |
 | test | random (family 12) | `final_policy` | policy alone |  | 33/200 (16.5) | 1/162 |  |
+| test | official (family 1) | `final_policy` | policy alone |  | 0/210 (0.0) | 0/124 |  |
+| test | mixed (family 14) | `final_policy` | policy alone |  | 35/200 (17.5) | 0/16 |  |
 
 The assist in the bots, on the neo course set of the neo policy's runs (`configs/neo_live_courses.json`:
 the first 10 held-out test courses with a neo of levels 6, 7 and 8, and the showcase neo course; the

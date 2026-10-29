@@ -14,6 +14,58 @@ Read next: [TEAM_STATUS.md](TEAM_STATUS.md) (the team's page),
 [docs/design.md](docs/design.md) (method), [results/README.md](results/README.md)
 (every number, generated) and [results/DATA.md](results/DATA.md) (where the data is).
 
+## ON HOLD: the new-abilities test runs (paused 29 Oct, about 00:50 UTC)
+
+The user paused this task (cloud session, branch `claude/pensive-knuth-biwj11`,
+last commit before this note `d2b81dd`) to build a replay artifact. Nothing
+here touches the training PC; its jobs keep running.
+
+**Done** (all pushed; simulator unless said; plan and status in
+`docs/abilities_plan.md`):
+- New blocks and jump kinds, final levels (`configs/jump_levels_extra.json`,
+  fingerprinted): head hitters, ice run-ups, shaped blocks, slime bounces,
+  ladder climbs; alone, the final policy makes 99% of the shaped-block jumps,
+  68% head hitters, 49% ice, 40% slime, 38% ladders (`results/extra/`).
+- Planning assist options `--jumps all`, `--brake`, `--approach`, chosen on
+  validation by a rule fixed before the runs: `{"jumps": "all", "retries": 1,
+  "brake": 14, "retry_horizon": 48, "approach": 48}`. Validation: official
+  neo courses (family 2) 157/218 (brake only 147, advanced jumps 124, policy
+  alone 0); random neo courses (13) 135/200 (brake only 119, policy alone 27);
+  mixed courses (15) policy alone 37/200. Rows: `results/neo/assist_validation.jsonl`,
+  details `results/neo/assist_details/`.
+- Offline bot with `all` + brake on `configs/neo_live_courses.json`: 25/31,
+  the same as the simulator (`results/games/neo-assist-offline-all-brake`).
+- Test rows so far, policy alone: official 1 0/210, random 12 33/200, mixed
+  14 35/200 (`results/neo/assist_test.jsonl`).
+
+**Running in the cloud container when paused** (restart-safe; finished
+parts are kept, so after a restart rerun the same command):
+
+```text
+python -m parkour.neo_assist --set official --family 1 --threads 1 --jumps all --retries 1 --brake 14 --retry-horizon 48 --approach 48 --parts 4 --jobs 2 --tag "all_brake_approach; code cd81960" --name official1_all_brake_approach
+python -m parkour.neo_assist --set random --family 12 (same flags) --name random12_all_brake_approach
+then: --set mixed --family 15 (same flags) --name mixed15_all_brake_approach, and --set mixed --family 14 ... --name mixed14_all_brake_approach
+python scripts/extra_preview.py --family 2 --assist-per-level 20 --threads 1 --assist '{"jumps": "advanced"}' --assist '{"jumps": "all", "retries": 1, "brake": 14, "retry_horizon": 48}'
+```
+
+The tag must stay exactly `all_brake_approach; code cd81960` (each part
+checks it). Parts are in `runs/assist_parts/NAME/`; a finished run appends
+its row to `results/neo/assist_test.jsonl` (families 1, 12, 14) or
+`assist_validation.jsonl` (15) and writes `results/neo/assist_details/NAME.json`;
+the preview keeps finished kinds in `runs/extra_preview/family2/` and writes
+`results/extra/course_preview_family2.json` when all six are done.
+
+**To resume:** commit any new rows and details files; run the commands above
+for whatever has no `merged.json` yet; then `scripts/extra_preview.py
+--family 1` with the same arguments; the offline bot with the chosen setting
+(`python -m parkour.live --offline --checkpoint results/final_policy.pt
+--courses-file configs/neo_live_courses.json --assist '{"jumps": "all",
+"retries": 1, "brake": 14, "retry_horizon": 48, "approach": 48}' --out
+runs/neo-assist-offline-chosen`); `python -m parkour.report`; update section
+2 and 3 below, TEAM_STATUS, `results/DATA.md` (add `assist_parts`, the new
+details and preview files), `docs/abilities_plan.md`; a final review of `git
+diff e2381cc HEAD`; `pytest tests -q`; commit and push.
+
 ## 1. Goal and how the user works
 
 - Goal (since 27 Oct 2026): an RL bot that completes **unseen** Minecraft
@@ -101,7 +153,9 @@ More facts that hold now:
     (`--jumps all`) with a stop and a second search after a failed one
     (`--retries 1 --brake 14 --retry-horizon 48`): 147 of 218, 246 of 311
     neos (`official2_all_brake.json`; 17 of 93 second searches found a
-    landing). Random neo courses (family 13): the policy alone 27 of 200,
+    landing). Adding approach planning completes 157/218 official validation
+    courses (72.02%; `official2_all_brake_approach.json`), versus 147/218
+    (67.43%) without approach. Random neo courses (family 13): the policy alone 27 of 200,
     planning every jump 106 (`random13_all.json`), with brake and retry 119,
     320 of 396 neos (`random13_all_brake.json`), and with an approach plan
     over the preceding jump and the neo (`--approach 48`) 135, 332 of 392
@@ -550,18 +604,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `0b142c2` (2026-10-29 02:23, branch `main`): Archive extra and ice seed 749 validation results
+Generated on top of commit `cc51f51` (2026-10-29 02:35, branch `main`): Merge cloud approach validation and archive training progress
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 108 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 111 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 66 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 83 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 66 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 69 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 86 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 69 |
 | `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | `9b48bda` 2026-10-29 00:34 | 24 |
+| `results/DATA.md` | `9b48bda` 2026-10-29 00:34 | 27 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -587,9 +641,9 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `full-s1` | 999 | 0.52 | - | - | - | 94.2 | - |
 | `full-s2` | 999 | 0.52 | 949 | 93.0 | 93.1 | 91.9 | - |
 | `g995-adv` | 999 | 0.52 | 99 | 81.8 | 82.3 | - | - |
-| `g995-extra` | 849 | 0.45 | 849 | 90.7 | - | - | - |
+| `g995-extra` | 899 | 0.47 | 849 | 90.7 | - | - | - |
 | `g995-ice` | 999 | 0.52 | 449 | 97.3 | 97.5 | - | - |
-| `g995-ice-s1` | 849 | 0.45 | 599 | 96.2 | - | - | - |
+| `g995-ice-s1` | 899 | 0.47 | 599 | 96.2 | - | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
 | `hp-envs4096` | 3999 | 0.52 | 3599 | 93.7 | 94.2 | 92.0 | - |
@@ -722,6 +776,10 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **29 Oct 2026, 02:38, Codex heartbeat on training PC:** merged cloud `cd81960`/`d2b81dd`/`39882fb` (data/docs only). CPU simulator official neo validation family 2 with approach: 157/218 (72.02%) versus brake/retry 147/218 (67.43%), +4.59 percentage points; archived detail/JSONL aggregates and shipped-checkpoint hashes verified. Newly archived policy-alone tests are official 0/210 and mixed 35/200; the mixed row and bins agree on 35 despite the commit message saying 30. No tests rerun for these results, and no test-based selection. The cloud evaluation hold is preserved and explicitly leaves PC training running; no cloud resume command was executed. Both complete session logs preserved. Current status docs reconciled. `run.cmd test -k HeldOutFingerprints`: 3 passed, 107 deselected, 26 subtests passed (`runs/heartbeat-0236-fingerprint-tests.txt`); the unchanged executable code also passed the full 109-check CPU suite minutes earlier. Existing two trainers, queue, thermal watchdog and keep-awake continue.
+
+- **29 Oct 2026, 02:37, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-extra: iteration 899, validation 89.62%, selected best 849 (90.71%), 12 levels; g995-ice-s1: iteration 899, validation 95.67%, selected best 599 (96.17%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. No executable changes; prior checks remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 
 - **29 Oct 2026, 02:35, Codex heartbeat on training PC:** merged cloud commits `711846a`/`c87068d`, data and docs only. CPU simulator random neo validation family 13: all-jump planning with brake/retry plus approach completes 135/200 courses (67.5%), versus 119/200 (59.5%) without approach: +8.0 percentage points; 332/392 reached neos passed. Detail and JSONL aggregates, checkpoint and dataset identities reconciled (`results/neo/assist_details/random13_all_brake_approach.json`). Approach jointly plans the preceding jump and the neo; corrected that wording and the abilities-plan status. Official-family approach validation remains pending. Both complete session logs retained; generated conflicts refreshed by report. Full CPU `run.cmd test`: 109 passed, 1 CUDA test skipped, 26 subtests passed (`runs/heartbeat-0228-merge-tests.txt`). No held-out tests rerun; two trainers and all existing helpers continue.
 
