@@ -2,6 +2,7 @@
 and the offline bot with the planner service plays exactly like the simulator."""
 import collections
 import dataclasses
+import io
 import json
 import math
 import os
@@ -22,12 +23,12 @@ from parkour import physics
 from parkour import train as T
 from parkour.env import CoursePool, on_obstacle
 from parkour.live import load_model
-from parkour.neo_assist import (SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, TEST_FAMILIES, AssistConfig, Rules,
-                                 approach_platforms, assist_fields, brake_plan, courses_from_file, evaluate_assisted,
-                                 jump_kind, merge_results, mixed_courses, neo_level, official_neo_courses, part_bounds,
-                                 plan_target, planned_takeoffs, random_neo_courses, single_neo_courses,
-                                 single_neo_hashes, single_neo_ok, single_neo_types, spec_from_key, specs_from_keys,
-                                 summarize)
+from parkour.neo_assist import (NEO_LEVERS, SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, TEST_FAMILIES, AssistConfig,
+                                 Rules, approach_platforms, assist_fields, brake_plan, config_meta, courses_from_file,
+                                 evaluate_assisted, jump_kind, merge_results, mixed_courses, neo_level,
+                                 official_neo_courses, part_bounds, plan_once, plan_target, planned_takeoffs,
+                                 random_neo_courses, request_seed, serve, single_neo_courses, single_neo_hashes,
+                                 single_neo_ok, single_neo_types, spec_from_key, specs_from_keys, summarize)
 from parkour.neo_dagger import neo_takeoffs
 from parkour.paths import BRIDGE, CONFIGS, NODE, ROOT
 from parkour.train import course_hash, evaluate
@@ -252,6 +253,14 @@ class AssistBotParity(unittest.TestCase):
         self.assertGreater(res["plans"]["brakes"], 0)
         self.assertEqual(sum(x.get("braked", False) for x in bot), res["plans"]["brakes"])
 
+    def test_same_with_the_neo_levers(self):
+        cfg = AssistConfig(samples=64, iterations=3, jumps="neo", approach=48, retries=1, brake=14, restarts=1,
+                           approach_touch=1, neo_samples=96, neo_iterations=4)  # passed to the service as strings
+        res, bot = self.check(cfg, single_neo_courses(SINGLE_VALIDATION_FAMILY, n=4))
+        self.assertTrue(any(e["found"] and e["restarts"] == 1 for e in res["events"]))  # landed after a restart
+        by_course = sorted(res["events"], key=lambda e: e["course"])  # the bot's log: course by course
+        self.assertEqual([x["kind"] for x in bot], [e["kind"] for e in by_course])
+
     def check(self, cfg, cs):
         from parkour.live import SETTLE_TICKS
         model = load_model(ROOT / "results" / "final_policy.pt", "cpu")
@@ -379,6 +388,7 @@ class StrictNeoMetric(unittest.TestCase):
         self.assertEqual(list(row)[list(row).index("completed") + 1], "completed_neo_done")
         self.assertEqual((row["completed"], row["completed_neo_done"]), (1, 1))  # the neo policy makes course 0's neo
         self.assertEqual(row["by_level"], {"6": {"courses": 2, "completed": 1, "completed_neo_done": 1}})
+        self.assertFalse(set(NEO_LEVERS) & set(row["config"]))  # levers off: the config as before they existed
         with self.assertRaises(SystemExit):
             NA.main(["--off", "--set", "single", "--family", "2", "--courses", "1", "--device", "cpu"])
 
@@ -400,6 +410,105 @@ class StrictNeoMetric(unittest.TestCase):
                           "events": [], "plans": {}, "search_seconds": 0.0})  # records without a level: as before
         self.assertNotIn("by_level", bare)
         self.assertEqual(bare["by_neo_count"], {"1": {"courses": 4, "completed": 2}})
+
+
+class NeoLevers(unittest.TestCase):
+    """restarts, neo_samples, neo_iterations, approach_touch: only at neos, off at 0, the same in the bots' service."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.model = load_model(ROOT / "results" / "final_policy.pt", "cpu")
+
+    def test_off_the_planner_plays_as_before(self):
+        def before(model, pool, rules, arrival, kind, attempt, cfg, horizon, device):  # plan_once of 4762c22
+            pr = NA.policy_prior(model, pool, [arrival], device, horizon) if cfg.prior > 0 else None
+            seed = request_seed(cfg.seed, arrival.get("seed_course", arrival["course"]), arrival["cp"], kind, attempt)
+            f, r = NA.search(pool, rules, [arrival], device, cfg, seed, pr, horizon)
+            return (f[0][0] if f[0] else None), r[0], 0
+
+        cs = single_neo_courses(SINGLE_VALIDATION_FAMILY, n=4)  # (also compared with a run of 4762c22's code itself)
+        cfg = AssistConfig(samples=32, iterations=2, jumps="neo", approach=48, retries=1, brake=14, retry_horizon=48)
+        self.assertFalse(any(getattr(cfg, k) for k in NEO_LEVERS))
+        now = evaluate_assisted(self.model, CoursePool(cs, "cpu", C.GRID), "cpu", cfg)
+        with mock.patch.object(NA, "plan_once", before):
+            ref = evaluate_assisted(self.model, CoursePool(cs, "cpu", C.GRID), "cpu", cfg)
+        for key in ("per_course", "events", "plans"):
+            self.assertEqual(now[key], ref[key], key)
+        self.assertEqual({e["kind"] for e in now["events"]}, {"approach", "takeoff", "retry"})
+        self.assertGreater(now["plans"]["brakes"], 0)
+        self.assertNotIn("restarts", now["events"][0])
+        for c in now["per_course"]:  # standing on the takeoff counts it as reached
+            self.assertTrue(not c["neo_done"] or c["neos_reached"] == c["neos"])
+        self.assertEqual(config_meta(cfg), {k: v for k, v in dataclasses.asdict(cfg).items() if k not in NEO_LEVERS})
+
+    def test_levers_act_at_neos_only(self):
+        c = single_neo_courses(SINGLE_VALIDATION_FAMILY, n=3)[2]
+        k = neo_takeoffs(c)[0]
+        self.assertEqual(k, 2)
+        pool = CoursePool([c], "cpu", C.GRID)
+        calls = []
+
+        def search(pool_, rules, arrivals, device, cfg, seed, prior=None, horizon=32):  # lands on the calls in hit
+            calls.append((seed, cfg.samples, cfg.iterations, arrivals[0].get("touch")))
+            return ([[np.zeros((3, 5), dtype=np.int64)]] if len(calls) in hit else [[]]), [cfg.iterations]
+
+        def plan(cp, kind, attempt, cfg):
+            calls.clear()
+            arrival = {"course": 0, "cp": cp, "seed_course": 7}
+            seq, rounds, restarts = plan_once(None, pool, Rules(pool), arrival, kind, attempt, cfg, 32, "cpu")
+            return seq is not None, rounds, restarts
+
+        cfg = AssistConfig(samples=64, iterations=3, restarts=2, neo_samples=256, neo_iterations=5, approach_touch=1)
+        with mock.patch.object(NA, "search", search):
+            hit = {2}  # the neo's takeoff: found by the first restart, with the next seed
+            self.assertEqual(plan(k, "takeoff", 0, cfg), (True, 10, 1))
+            s = request_seed(0, 7, k, "takeoff", 0)
+            self.assertEqual(calls, [(s, 256, 5, None), (s + 1_000_000_007, 256, 5, None)])
+            hit = set()  # the approach before it must stand on the takeoff first; 1 + 2 searches without a landing
+            self.assertEqual(plan(k - 1, "approach", 0, cfg), (False, 15, 2))
+            s = request_seed(0, 7, k - 1, "approach", 0)
+            self.assertEqual(calls, [(s + r * 1_000_000_007, 256, 5, k) for r in range(3)])
+            self.assertEqual(plan(k, "retry", 1, cfg), (False, 15, 2))  # its retries
+            self.assertEqual(calls[0], (request_seed(0, 7, k, "retry", 1), 256, 5, None))
+            for cp, kind in ((k + 1, "takeoff"), (k + 1, "approach"), (k - 1, "takeoff")):  # not a neo's: as before
+                self.assertEqual(plan(cp, kind, 0, cfg), (False, 3, 0))
+                self.assertEqual(calls, [(request_seed(0, 7, cp, kind, 0), 64, 3, None)])
+            off = AssistConfig(samples=64, iterations=3)
+            self.assertEqual(plan(k, "takeoff", 0, off), (False, 3, 0))
+            self.assertEqual(calls, [(request_seed(0, 7, k, "takeoff", 0), 64, 3, None)])
+        with self.assertRaises(ValueError):  # batched searches cannot apply them per request
+            evaluate_assisted(self.model, pool, "cpu", dataclasses.replace(cfg, batch=4))
+
+    def test_service_plans_as_the_simulator_with_restarts_and_touch(self):
+        cs = single_neo_courses(SINGLE_VALIDATION_FAMILY, n=5)  # course 4: the approach plan lands after a restart
+        cfg = AssistConfig(samples=64, iterations=3, jumps="neo", approach=48, restarts=1, approach_touch=1)
+        calls = []
+        real = NA.plan_once
+
+        def spy(model, pool, rules, arrival, kind, attempt, cfg_, horizon, device):
+            out = real(model, pool, rules, arrival, kind, attempt, cfg_, horizon, device)
+            calls.append((arrival, kind, attempt, out))
+            return out
+
+        with mock.patch.object(NA, "plan_once", spy):
+            res = evaluate_assisted(self.model, CoursePool(cs[4:], "cpu", C.GRID), "cpu", cfg, course_offset=4)
+        approaches = [x for x in calls if x[1] == "approach"]
+        self.assertTrue(any(out[0] is not None and out[2] == 1 for _, _, _, out in approaches))
+        self.assertEqual([e.get("restarts") for e in res["events"]], [out[2] for _, _, _, out in calls])
+        lines = [json.dumps({"index": 4, "cp": a["cp"], "target": a["target"], "kind": kind, "attempt": attempt,
+                             "state": {"pos": a["pos"], "vel": a["vel"], "yaw": a["yaw"], "onGround": a["on_ground"],
+                                       "jumpTicks": a["jump_ticks"], "collidedH": a["collided_h"]},
+                             "lastAction": a["last_action"]}) for a, kind, attempt, _ in calls]
+        out = io.StringIO()
+        serve(self.model, cs, cfg, "cpu", inp=io.StringIO("\n".join(lines) + "\n"), out=out)
+        answers = [json.loads(x) for x in out.getvalue().splitlines()]
+        self.assertEqual(len(answers), len(calls))
+        for (_, _, _, (seq, rounds, restarts)), ans in zip(calls, answers):
+            self.assertEqual(ans["plan"], None if seq is None else seq.tolist())
+            self.assertEqual((ans["rounds"], ans["restarts"]), (rounds, restarts))
+        # The approach plan stood on the neo's takeoff before it landed on the target: the neo is done.
+        self.assertEqual(res["plans"]["landed_as_planned"], res["plans"]["played"])
+        self.assertTrue(res["per_course"][0]["neo_done"])
 
 
 if __name__ == "__main__":

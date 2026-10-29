@@ -28,6 +28,15 @@ platform's own takeoff search (``--jumps all``) runs in the same tick. With
 ``--jumps advanced`` the search also runs at wide (3 sideways) and run-up
 jumps (momentum, head hitters, ice), with ``--jumps all`` at every jump.
 
+Opt-in levers for the searches of a neo (at its takeoff, before it with
+``--approach``, and its retries; all off at 0): ``--restarts N`` searches
+again from the same state with a new seed when a search lands nothing, up to
+N times; ``--neo-samples`` and ``--neo-iterations`` replace ``--samples`` and
+``--iterations`` there; ``--approach-touch 1`` counts an approach plan only
+if it stands on the neo's takeoff before it lands on the neo's target. They
+act in ``plan_once``, so the bots' planner service uses them too (they need
+``--batch 1``). Rows list them in their config only when they are set.
+
 Every course's record says whether the bot did its neos as neos
 (``neo_done``): it stood on each neo's takeoff before on any later platform,
 then on the neo's target before on any later one, so a jump past the takeoff,
@@ -73,7 +82,7 @@ import re
 import sys
 import time
 from parkour.run_cache import append_jsonl_once, cache_lock, write_json_atomic
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 
 import numpy as np
@@ -114,23 +123,58 @@ class AssistConfig:
     brake: int = 0  # >0: after a search without a landing, first stop on the takeoff (brake_plan, this many ticks), then retry
     batch: int = 1  # arrival states searched together; 1: every search has its own seed (the bots reproduce it)
     seed: int = 0
+    # Opt-in levers for the searches of a neo (neo_request: its takeoff, approach and retries); 0 is off. Integers,
+    # not bools: the command line and the bots' planner service pass every field as str(value).
+    restarts: int = 0  # a search that lands nothing runs again from the same state with a new seed, this many times
+    neo_samples: int = 0  # >0: replaces samples there
+    neo_iterations: int = 0  # >0: replaces iterations there
+    approach_touch: int = 0  # 1: an approach plan counts only if it stands on the neo's takeoff before it lands
 
 
+NEO_LEVERS = ("restarts", "neo_samples", "neo_iterations", "approach_touch")
 KIND_CODE = {"takeoff": 0, "retry": 1, "approach": 2}
 
 
-def request_seed(seed: int, course: int, cp: int, kind: str, attempt: int) -> int:
-    """The search seed of one request: the same in the simulator and in the bots' planner service."""
-    return seed * 1_000_003 + course * 4099 + cp * 67 + KIND_CODE[kind] * 7 + attempt
+def request_seed(seed: int, course: int, cp: int, kind: str, attempt: int, restart: int = 0) -> int:
+    """The search seed of one request (``restart`` r > 0: its r-th search again after none landed, ``restarts``): the
+    same in the simulator and in the bots' planner service."""
+    return seed * 1_000_003 + course * 4099 + cp * 67 + KIND_CODE[kind] * 7 + attempt + restart * 1_000_000_007
+
+
+def config_meta(cfg: "AssistConfig") -> dict:
+    """The config a run's row records: every field, the neo levers only when set (rows from before they existed,
+    and the cached parts of split runs, stay valid)."""
+    return {k: v for k, v in asdict(cfg).items() if k not in NEO_LEVERS or v}
+
+
+def neo_request(course: C.Course, cp: int, kind: str) -> bool:
+    """Whether a request is a neo's: the takeoff it plans (``cp``, for an approach the next one) is a neo takeoff."""
+    return (cp + 1 if kind == "approach" else cp) in neo_takeoffs(course)
 
 
 def plan_once(model, pool: CoursePool, rules: "Rules", arrival: dict, kind: str, attempt: int, cfg: "AssistConfig",
               horizon: int, device):
-    """One search from one state: (the first landing's actions or None, rounds used)."""
+    """One search from one state: (the first landing's actions or None, rounds used, restarts used).
+
+    For a neo's request (``neo_request``) the neo levers apply: ``neo_samples`` and ``neo_iterations`` replace
+    ``samples`` and ``iterations``, an approach plan must stand on the neo's takeoff before it lands
+    (``approach_touch``), and while no search has landed, the search runs again from the same state with the next
+    seed, up to ``restarts`` times."""
+    neo = neo_request(pool.courses[arrival["course"]], arrival["cp"], kind)
+    if neo:
+        cfg = replace(cfg, samples=cfg.neo_samples or cfg.samples, iterations=cfg.neo_iterations or cfg.iterations)
+        if kind == "approach" and cfg.approach_touch:
+            arrival = dict(arrival, touch=arrival["cp"] + 1)
     pr = policy_prior(model, pool, [arrival], device, horizon) if cfg.prior > 0 else None
-    seed = request_seed(cfg.seed, arrival.get("seed_course", arrival["course"]), arrival["cp"], kind, attempt)
-    f, r = search(pool, rules, [arrival], device, cfg, seed, pr, horizon)
-    return (f[0][0] if f[0] else None), r[0]
+    rounds = 0
+    for restart in range(1 + (cfg.restarts if neo else 0)):
+        seed = request_seed(cfg.seed, arrival.get("seed_course", arrival["course"]), arrival["cp"], kind, attempt,
+                            restart)
+        f, r = search(pool, rules, [arrival], device, cfg, seed, pr, horizon)
+        rounds += r[0]
+        if f[0]:
+            return f[0][0], rounds, restart
+    return None, rounds, restart
 
 
 BRAKE_BACK_TICKS = 6  # brake_plan holds "back" for 0 to this many ticks
@@ -474,9 +518,12 @@ def search(pool: CoursePool, rules: Rules, arrivals: list[dict], device, cfg: As
 
     An arrival may name a ``target`` platform further on than the next one
     (approach plans); the fall rule then uses the lowest top from ``cp`` to
-    the target. Returns (found, rounds): per arrival a list of action
-    sequences (each cut at its landing tick) and the number of search rounds
-    it used.
+    the target. With a ``touch`` platform (``approach_touch``) a sequence
+    lands only on the target after standing on that platform; until it has,
+    its distance to that platform plus 1000 is its score's distance, so the
+    search looks for sequences over it. Returns (found, rounds): per arrival
+    a list of action sequences (each cut at its landing tick) and the number
+    of search rounds it used.
     """
     gen = torch.Generator(device=device).manual_seed(seed)
     A, S, T = len(arrivals), cfg.samples, horizon
@@ -486,6 +533,10 @@ def search(pool: CoursePool, rules: Rules, arrivals: list[dict], device, cfg: As
     target = torch.tensor([a.get("target", a["cp"] + 1) for a in arrivals], device=device)
     tops = torch.stack([pool.top[a["course"], a["cp"]:a.get("target", a["cp"] + 1) + 1].min() for a in arrivals])
     goal = pool.centre[course, target]
+    touch = None  # the platform to stand on first (-1: none), and its centre
+    if any(a.get("touch", -1) >= 0 for a in arrivals):
+        touch = torch.tensor([a.get("touch", -1) for a in arrivals], device=device)
+        via = pool.centre[course, touch.clamp(min=0)]
     p = {"move": torch.tensor([0.05, 0.15, 0.8], device=device).repeat(A, T, 1),
          "strafe": torch.full((A, T, 3), 1 / 3, device=device),
          "jump": torch.tensor([0.7, 0.3], device=device).repeat(A, T, 1),
@@ -517,17 +568,25 @@ def search(pool: CoursePool, rules: Rules, arrivals: list[dict], device, cfg: As
         landed = torch.zeros(n, dtype=torch.bool, device=device)
         land_tick = torch.full((n,), T, dtype=torch.int64, device=device)
         closest = torch.full((n,), 1e9, dtype=torch.float64, device=device)
+        if touch is not None:
+            tch, via_r = rep(touch), rep(via)
+            touched = tch < 0
         for t in range(T):
             y = s.yaw + steps[acts["yaw"][:, t]]
             s.yaw = torch.remainder(y + math.pi, 2 * math.pi) - math.pi
             a_t = torch.stack([acts[k][:, t] for k in HEADS], -1)
             s = physics.simulate(pool.world, cidx, s, action_to_controls(a_t))
             alive &= ~rules.on_obstacle(s, cidx) & (s.pos[:, 1] > top_r - 1.0)
-            now = standing_on(pool, s, cidx).gather(1, tgt[:, None]).squeeze(1) & alive & ~landed
+            on = standing_on(pool, s, cidx)
+            now = on.gather(1, tgt[:, None]).squeeze(1) & alive & ~landed
+            dist = torch.linalg.norm(s.pos - goal_r, dim=-1)
+            if touch is not None:
+                touched |= on.gather(1, tch.clamp(min=0)[:, None]).squeeze(1) & alive
+                now &= touched
+                dist = torch.where(touched, dist, 1000.0 + torch.linalg.norm(s.pos - via_r, dim=-1))
             land_tick = torch.where(now, torch.full_like(land_tick, t + 1), land_tick)
             landed |= now
-            closest = torch.where(alive & ~landed, torch.minimum(closest, torch.linalg.norm(s.pos - goal_r, dim=-1)),
-                                  closest)
+            closest = torch.where(alive & ~landed, torch.minimum(closest, dist), closest)
         L = landed.cpu().numpy()
         if L.any():
             lt = land_tick.cpu().numpy()
@@ -579,6 +638,8 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
     n = pool.size
     if cfg.enabled and cfg.prior > 0:
         assert model.obs_dim != OBS_DIM_EXT, "the search prior uses the 255-number observation"
+    if cfg.enabled and cfg.batch > 1 and any(getattr(cfg, k) for k in NEO_LEVERS):
+        raise ValueError(f"{', '.join(NEO_LEVERS)} act per request (plan_once): they need batch 1")
     env = ParkourEnv(pool, EnvConfig(num_envs=n, stall_ticks=stall_ticks, max_ticks=max_ticks, fall_rule=fall_rule,
                                      extended_obs=model.obs_dim == OBS_DIM_EXT), sampler=None)
     obs = env.reset_all(torch.arange(n, device=device))
@@ -679,13 +740,14 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
                     k = arr["cp"] + 1 if kind == "approach" else arr["cp"]
                     arr["target"] = plan_target(pool.courses[i], k)
                     horizon.append(plan_horizon(pool.courses[i], k, kind, cfg))
-                found, rounds = [], []
+                found, rounds, restarts = [], [], []
                 if cfg.batch <= 1:
                     for i, arr, h in zip(want, arrivals, horizon):
                         attempt = 0 if kind == "approach" else int(tries[i, int(cp[i])])
-                        seq, r = plan_once(model, pool, rules, arr, kind, attempt, cfg, h, device)
+                        seq, r, rs = plan_once(model, pool, rules, arr, kind, attempt, cfg, h, device)
                         found.append([] if seq is None else [seq])
                         rounds.append(r)
+                        restarts.append(rs)
                 else:  # searches batched per tick (faster on a GPU); the bots cannot reproduce these seeds
                     found, rounds = [None] * len(arrivals), [None] * len(arrivals)
                     for h in sorted(set(horizon)):
@@ -707,6 +769,8 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
                                    "tick": t + 1,
                                    "after_plan": bool(ended[i]), "found": bool(found[j]),
                                    "plan_ticks": len(found[j][0]) if found[j] else 0, "rounds": rounds[j], "braked": False})
+                    if cfg.restarts:  # searches again after none landed (all rounds above count)
+                        events[-1]["restarts"] = restarts[j]
                     if kind == "approach":
                         tried_before[i, c] = True
                     else:
@@ -822,10 +886,11 @@ def serve(model, courses: list[C.Course], cfg: AssistConfig, device, inp=None, o
     Request: {"index": course index in ``courses``, "cp", "target", "kind",
     "attempt", "state": {"pos", "vel", "yaw", "onGround", "jumpTicks",
     "collidedH"}, "lastAction"}. Answer: {"plan": [[move, strafe, jump,
-    sprint, yaw], ...] or null, "rounds", "brake": the brake_plan to play
-    before the retry when there is no plan and ``brake`` is set (else null),
-    "seconds"}. The search is the one ``evaluate_assisted`` runs with
-    ``batch`` 1 (same seed for the same request).
+    sprint, yaw], ...] or null, "rounds", "restarts" (only with ``restarts``
+    set), "brake": the brake_plan to play before the retry when there is no
+    plan and ``brake`` is set (else null), "seconds"}. The search is the one
+    ``evaluate_assisted`` runs with ``batch`` 1 (``plan_once``: same seed and
+    neo levers for the same request).
     """
     inp = inp or sys.stdin
     out = out or sys.stdout
@@ -845,12 +910,13 @@ def serve(model, courses: list[C.Course], cfg: AssistConfig, device, inp=None, o
             t0 = time.time()
             k = arr["cp"] + 1 if req["kind"] == "approach" else arr["cp"]
             attempt = int(req.get("attempt", 0))
-            seq, rounds = plan_once(model, pool, rules, arr, req["kind"], attempt, cfg,
-                                    plan_horizon(courses[arr["course"]], k, req["kind"], cfg), device)
+            seq, rounds, restarts = plan_once(model, pool, rules, arr, req["kind"], attempt, cfg,
+                                              plan_horizon(courses[arr["course"]], k, req["kind"], cfg), device)
             brake = None
             if seq is None and cfg.brake and req["kind"] != "approach" and attempt + 1 <= cfg.retries:
                 brake = brake_plan(pool, rules, arr, cfg.brake, device)
             out.write(json.dumps({"plan": None if seq is None else seq.tolist(), "rounds": rounds,
+                                  **({"restarts": restarts} if cfg.restarts else {}),
                                   "brake": None if brake is None else brake.tolist(),
                                   "seconds": round(time.time() - t0, 3)}) + "\n")
             out.flush()
@@ -1000,7 +1066,7 @@ def _evaluate_cli(a, cfg, dev):
     ck_name = ck.relative_to(ROOT).as_posix() if ck.is_relative_to(ROOT) else ck.name
     meta = {"set": a.set, "family": a.family, "split": "test" if test else "validation",
             "checkpoint": ck_name, "checkpoint_sha1": hashlib.sha1(ck.read_bytes()).hexdigest()[:12], "assist": not a.off,
-            "config": asdict(cfg), "tag": a.tag,
+            "config": config_meta(cfg), "tag": a.tag,
             "measured": f"simulator (float64 port of prismarine-physics), {dev.upper() if dev == 'cpu' else 'CUDA'}"}
     if a.courses:
         meta["first_courses_only"] = a.courses
