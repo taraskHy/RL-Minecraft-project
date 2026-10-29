@@ -95,8 +95,9 @@ files `results/games/v2-tuned-planner-live/courses.json` and
 
 In each of these runs the outcome matched the simulator on every course,
 and the real-Minecraft runs had 0 server corrections (each run's
-`summary.json` and `summary.md` in `results/games/NAME/`). Hold your router
-to the same standard.
+`summary.json` in `results/games/NAME/`: `outcome_agreement` is 1.0, and
+`server_corrections` is 0 in every entry of `episodes`). Hold your router to
+the same standard.
 
 ### 2.4 The learned no-route model, in brief
 
@@ -136,12 +137,16 @@ real-Minecraft obstacle failures end standing on top of one, 6 on beams and
   it and stops at the goal platform.
 - **When:** the first plan comes from `GreedyPlanner.start`;
   `GreedyPlanner.update` re-plans after every landing on a new perceived
-  platform (landing on a cell that is not a perceived platform, such as an
-  obstacle top, keeps the old plan). Landing beyond the planned next
-  platform marks the skipped ones as passed (`mark_passed`).
+  platform (landing on a cell that is not a perceived platform, such as a
+  decoy pillar's top, keeps the old plan; a beam's top is a perceived
+  platform, but standing on any obstacle ends the episode as a fall before a
+  re-plan, in `ParkourEnv.step` (`on_obstacle`) and in the bots
+  (`onObstacle`)). Landing beyond the planned next platform marks the
+  skipped ones as passed (`mark_passed`).
 - **Slots** (`GreedyPlanner.slots`): the platform stood on plus up to three
   planned ones fill the policy's 4 platform slots; `progress` (the last
-  observation number) becomes `1 - distance to goal / distance at start`.
+  observation number) becomes `1 - distance to goal / distance at start`,
+  measured at each re-plan (section 4, *The jumper's progress input*).
 
 **The route loses most courses.** With the course list, the same jumper
 completes 1,181 of the 1,200 standard and 1,143 of the 1,200 obstacle test
@@ -184,9 +189,12 @@ stall or the time limit). On validation, wrong-platform failures are 112 of
 - **Stalls.** The stall counter (200 ticks) resets only when the player
   reaches a new course platform index, so landing back on an earlier
   platform does not reset it; refusing a planned jump ends in a truncation.
-- **Hard jumps** (`motor`): 12 standard and 30 obstacle test courses. The
-  losses concentrate at level 5: 82.5% with the planner against 93.5% with
-  the course list (standard test).
+- **Hard jumps** (`motor`): 12 standard and 30 obstacle test courses. Jump
+  failures concentrate at level 5: with the course list, 13 of the jumper's
+  19 standard and 38 of its 57 obstacle test failures are there
+  (`given_route.per_level` in `results/planner/sim_test_*_tuned.json`). The
+  planner's own level-5 gap (82.5% against 93.5% with the course list,
+  standard) is mostly route failures.
 - **Obstacles.** The head-hitter rule keeps beams from being targets, but it
   also drops a real course platform that sits 4 blocks above a beam it
   touches: 2 family-5 validation courses (level 4, seeds 65 and 291) and 1
@@ -212,10 +220,15 @@ every tick, as now.
 masked where fewer exist. Fill the jumper's slots consistently: slot 0 is the
 platform stood on, slot 1 the chosen target; fill slots 2 and 3 either by
 asking the route policy again from the chosen platform (autoregressive) or,
-to start, with the greedy rule from it. If no candidate passes the filters (8
-of the 1,800 obstacle validation courses had none for the planner), skip the
-decision and keep the previous slots, as the planner does with an empty
-plan; never take a softmax over an all-masked set.
+to start, with the greedy rule from it. If no candidate passes the filters,
+take no action and fill the slots as the planner does with an empty plan:
+slot 0 the platform stood on, slots 1 to 3 empty (`valid` False), the event
+recorded with an empty chain; never take a softmax over an all-masked set.
+This is not rare and not only on obstacle courses: 8 obstacle validation
+courses failed with an empty plan as their first deviation (*nothing in
+view*, 2 of them at the start), and with the earlier setting 11 standard and
+14 obstacle test runs reached an empty plan at some re-plan, 21 of them
+after leaving the course (labelled *wrong platform*); every one failed.
 
 **Candidates.** Use the planner's final candidate list, so that training sees
 what the bot sees: `perceive`, then the head-hitter rule, then `options`'
@@ -236,8 +249,12 @@ scoring) suits a variable set.
 
 **The jumper's progress input.** In training, the jumper's last input was
 the fraction of course platforms reached, which a router cannot know. Use
-the planner's estimate, `1 - distance to goal / distance at start`
-(`GreedyPlanner.progress`), which the bot already computes the same way.
+the planner's estimate, `GreedyPlanner.progress`, which the bot already
+computes the same way: at each re-plan, 1 minus the 3D distance from the top
+centre of the platform stood on to the goal's top centre, divided by that
+distance from the start platform, clamped to 0..1 and held until the next
+re-plan. Like the training input, it changes only at landings; do not
+recompute it from the player's position every tick.
 
 **Reward.** Per decision: course progress (decrease of the remaining path
 length to the goal; in training you may use the true course for this, as
@@ -457,7 +474,12 @@ nodejs.org, github.com (whose release files redirect to
 **Where:** a **short path outside OneDrive**, for example
 `C:/dev/RL-Minecraft-project`. OneDrive locks files during writes, and
 without Windows long-path support the Node archive's deepest file needs the
-repository path under about 90 characters.
+repository path under about 90 characters. You are probably reading this in
+a clone already: then skip `git clone` and `cd` below, and check that
+`git rev-parse --show-toplevel` prints such a path and `git status` shows
+`main` with nothing changed. If the clone is in OneDrive or on a long path,
+ask the owner to clone into `C:/dev/RL-Minecraft-project` and to start your
+session in that folder.
 
 **Shells:** the commands below use forward slashes and `./run.cmd`, which
 work in PowerShell and in Git Bash (Claude Code's Bash tool on Windows); in
@@ -465,9 +487,22 @@ cmd.exe use backslashes and drop the `./`. `run.cmd` passes arguments
 through cmd.exe, which splits values at commas, semicolons and `=`, and
 quotes typed in PowerShell or Git Bash do not survive that: for any value
 with one of those characters, or JSON, call the module directly
-(`.venv/Scripts/python.exe -m parkour.<module> ...`). In Windows PowerShell
+(`.venv/Scripts/python.exe -m parkour.<module> ...`): `./run.cmd offline ARGS`
+runs `.venv/Scripts/python.exe -m parkour.live --offline ARGS` (without
+`--offline` it plays in real Minecraft), `./run.cmd live ARGS` the same
+without `--offline`, and `./run.cmd test` runs
+`.venv/Scripts/python.exe -m pytest tests -q`. In Windows PowerShell
 5.1 also escape JSON's inner quotes (`--planner-config '{\"align\": 3.0}'`),
 or make a JSON-valued flag of your own take a file path.
+
+**Long commands:** Claude Code's Bash and PowerShell tools stop a
+foreground command after 2 minutes unless you give a longer timeout (10
+minutes at most). These take longer: `./setup.cmd` (about 3 GB of
+downloads), `./run.cmd test`, each planner baseline (four evaluations; one
+planned evaluation of 1,800 courses took about 85 s on the CPU) and each bot
+run (the planner's live runs played for 459 s and 524 s, plus the server
+start and the simulator comparison). Run them as background tasks and read
+their output when they finish.
 
 ```text
 git clone https://github.com/taraskHy/RL-Minecraft-project.git C:/dev/RL-Minecraft-project
@@ -480,9 +515,17 @@ git checkout -b routing/hrl
 `setup.cmd` creates the Python 3.12 venv with torch 2.11.0 for CUDA 12.8,
 then installs portable Node 24, Java 21, pnpm, the bot's packages and the
 official Minecraft 1.21.4 server jar, all checksum-verified, into `.venv`,
-`.local` and `bridge/node_modules`. `run.cmd test` runs every check (122 on
-29 Oct); without `setup.cmd`'s portable Node about 20 of them are skipped
-(physics and JavaScript parity), so read the summary line. If a test fails
+`.local` and `bridge/node_modules`. `run.cmd test` runs every check (123 on
+29 Oct, about 7 minutes); without `setup.cmd`'s portable Node about 20 of them are skipped
+(physics and JavaScript parity), so read the summary line. Then check that
+torch sees the GPU; this must print `True`:
+
+```text
+.venv/Scripts/python.exe -c "import torch; print(torch.cuda.is_available())"
+```
+
+If it prints `False`, the planner and the bot runs quietly use the CPU while
+the tests still pass, so ask the owner about the driver. If a test fails
 on the untouched clone, rerun it alone once
 (`.venv/Scripts/python.exe -m pytest tests/<file>::<test> -q`); if it still
 fails, do not change `main`'s code to fix it: record the output in
@@ -508,8 +551,16 @@ in `scripts/gpu_watchdog.py`) and already covers any module named
 modules that way** (for example `parkour.route_train`); any other name must
 be added to `GPU_JOBS` with a test in `tests/test_gpu_watchdog.py`, and the
 watchdog restarted. After starting it, check that `runs/gpu_watchdog.log`
-shows `sample: NN C ...` lines about every 10 s: `monitor error` lines mean
-nvidia-smi failed and nothing is protected. Keep-awake holds Windows awake
+shows `sample: NN C ...` lines about every 10 s. `monitor error (work held
+after stale telemetry)` lines mean a sample failed (nvidia-smi or the
+PowerShell process list): after 5 s without a good sample the watchdog keeps
+the jobs it already knew about suspended until sampling works again (a
+training seems to hang), and jobs started since run unprotected; if it never
+logged a `sample` line, nothing is protected. Fix the cause and restart it.
+Ctrl+C stops it and resumes the jobs it paused; if it is killed (a stopped
+background task, a closed window, a restart) while it holds jobs, they stay
+suspended: run `.venv/Scripts/python.exe scripts/gpu_watchdog.py --resume-all`
+(once more if a job still hangs: suspensions add up). Keep-awake holds Windows awake
 (no power setting changes) while a Python process whose command line
 contains one of its patterns runs, and exits when none does, so start it
 again after each job starts.
@@ -518,11 +569,16 @@ again after each job starts.
 rows were measured on the CPU; the physics is float64 and deterministic, but
 the networks run in float32, so on CUDA a few courses may come out
 differently. Your own planner run, on the same machine and device as your
-router's evaluation, is the baseline you compare against:
+router's evaluation, is the baseline you compare against. `parkour.planner`
+and `parkour.live` have no device flag and use CUDA whenever it is
+available; to run one on the CPU (for example while two trainings hold the
+GPU), hide the GPU from that process with `CUDA_VISIBLE_DEVICES=-1`
+(PowerShell: `$env:CUDA_VISIBLE_DEVICES='-1'` in that window first; Git
+Bash: as a prefix of the command; an empty value does not hide it):
 
 ```text
-.venv/Scripts/python.exe -m parkour.planner --family 2 --per-level 300 --out results/routing/planner_validation_standard.json
-.venv/Scripts/python.exe -m parkour.planner --family 2 --obstacles --per-level 300 --out results/routing/planner_validation_obstacles.json
+.venv/Scripts/python.exe -m parkour.planner --family 2 --per-level 300 --record --out results/routing/planner_validation_standard.json
+.venv/Scripts/python.exe -m parkour.planner --family 2 --obstacles --per-level 300 --record --out results/routing/planner_validation_obstacles.json
 ```
 
 `--family 2 --obstacles` plays family 5. Careful: `--family 4 --obstacles`
@@ -530,7 +586,13 @@ also plays family 5, and only `--family 1 --obstacles` plays the obstacle
 test family 4. The output holds `local` and `remaining` blocks (the two fall
 rules), each with `given_route` (the course list) and `planner_route`; the
 baseline is `local.planner_route.success`, the upper bound
-`local.given_route.success`.
+`local.given_route.success`. `--record` adds, in each block, `per_course`
+(the planner's outcome on every course: `success`, `fell`, `ticks`,
+`progress`, `end_pos`, in `held_out_courses` order) and `plans` (its
+re-plan events), about 9 MB per file. Section 9's paired comparison needs
+these per-course outcomes, so keep `--record` for the planner's test runs
+too (`--family 1 --per-level 200`, with and without `--obstacles`) and
+write your router's per-course outcomes in the same order.
 
 **Your router's code:** new modules (for example `parkour/route_policy.py`,
 `parkour/route_train.py`, `parkour/route_eval.py`) with argparse CLIs like
@@ -547,7 +609,8 @@ settle 0 on the held-out sets (10 only when comparing with the bots); both
 fall rules, `local` as the headline. Write the planner CLI's JSON layout with
 a `router_route` entry next to `given_route` and `planner_route`, including
 `failure_modes` computed by `planner.failure_modes` from your router's
-`[tick, here, chain]` events.
+`[tick, here, chain]` events, and its `per_course` outcomes in the order
+`--record` writes the planner's.
 
 **Offline bot and real Minecraft** (after you add your flag to
 `parkour.live`; section 9 says when to run them):
@@ -570,9 +633,12 @@ test courses (the first `--per-level` of each level of family 1, or 4 with
 `--obstacles`), so for bot checks during development write a validation
 course file from `train.held_out_courses(..., family=2)` (or
 `obstacle_prob=0.5, family=5`) as `{"courses": [c.to_json() for c in courses]}`.
-Each run writes `summary.json` and `summary.md` with the bot's result, the
-simulator's result on the same courses, the outcome agreement, the replay
-error and the server corrections.
+Each run writes `summary.json` and `summary.md`. `summary.json` holds the
+bot's `success`, `sim_success_same_courses`, `outcome_agreement` and
+`replay_max_pos_err`, and for each course in `episodes` its `result`,
+`sim_success` and `server_corrections` (null offline); nothing totals the
+server corrections, so add them up. `summary.md` shows the same results
+without the server corrections.
 
 ## 9. Done criteria
 
@@ -580,13 +646,16 @@ error and the server corrections.
    more of the family-2 standard courses and more of the family-5 obstacle
    courses (300 per level, 1,800 each, fall rule `local`) than the greedy
    planner measured by you on the same machine and device. Report the paired
-   difference on the same courses with a 95% interval (a bootstrap over
+   difference on the same courses (the planner's per-course outcomes come
+   from `--record`, section 8) with a 95% interval (a bootstrap over
    courses, or McNemar's test on the courses where exactly one of the two
    succeeds). Call it a win only if both sets improve and the interval of
    the combined difference excludes 0; otherwise write "no clear
    difference", which is still a valid result to report. (One standard error
-   is about 0.6 points on 1,800 standard courses and 0.7 on obstacles;
-   planner variants differed from each other by 0.5 to 1.6 points.)
+   is about 0.6 points on 1,800 standard courses and 0.7 on obstacles; on the
+   same 1,800-course sets the planner variants in
+   `results/planner/validation_tuning.jsonl` came 0.2 to 3.6 points from the
+   current default, the earlier default 1.5 and 1.6 points below it.)
 2. **Test, once:** freeze the validation-chosen router, then play it and the
    greedy planner once each on families 1 and 4 (1,200 each, 200 per level),
    on the same device; report both, the paired interval, and the reference
@@ -617,22 +686,36 @@ error and the server corrections.
   repository-local identity (`git config user.name "Claude (routing agent)"`
   and the owner's GitHub noreply address, or ask him for it).
 - Push with `git push -u origin routing/<name>` after every result. Open a
-  draft pull request early: `gh pr create --draft --base main --head
-  routing/<name>` if the GitHub CLI is installed and logged in; otherwise
+  draft pull request early, after your first commit, if the GitHub CLI is
+  installed and logged in (gh cannot prompt in Claude Code's tools, so give
+  it `--title` and `--body`):
+
+  ```text
+  gh pr create --draft --base main --head routing/<name> --title "RL routing (draft)" --body "Work in progress; results in results/routing/README.md"
+  ```
+
+  Later, `gh pr edit routing/<name> --body-file <file>` updates the
+  description and `gh pr ready routing/<name>` marks it ready. Otherwise
   give the owner
   `https://github.com/taraskHy/RL-Minecraft-project/compare/main...routing/<name>?expand=1`.
   If you cannot push to the repository, push to a fork and open the pull
   request from there.
 - To pick up `main`, `git fetch origin` then `git merge origin/main` (never
-  rebase), then run the tests. The pull request's description holds the
+  rebase), then run the tests. While two GPU jobs run, run the tests on the
+  CPU so that they do not become a third GPU process:
+  `CUDA_VISIBLE_DEVICES=-1 ./run.cmd test` in Git Bash, or
+  `$env:CUDA_VISIBLE_DEVICES='-1'; ./run.cmd test` in PowerShell (the CUDA
+  physics test is then skipped). The pull request's description holds the
   results table (validation, test, offline, live, each with its file), how
   to reproduce, and what is still open; mark it ready when section 9 is
   met, or when you stop.
 
 **What you may change.**
 
-- Add, opt-in and additive only: new `parkour/rout*` modules and tests; a
-  `router` option in `bridge/policy.js`'s `Episode` next to `planner`;
+- Add, opt-in and additive only: new `parkour/rout*` modules and tests; new
+  `bridge/rout*.js` files (the JavaScript router, or the spawner of a router
+  service, like `bridge/assist.js`); a `router` option in `bridge/policy.js`'s
+  `Episode` next to `planner`;
   pass-through flags in `bridge/offline_bot.js`, `bridge/parkour_bot.js` and
   `parkour/live.py` (with the simulator branch of section 4); new helpers in
   `parkour/planner.py` and `bridge/planner.js` that leave `perceive`,
@@ -640,6 +723,9 @@ error and the server corrections.
   behaviour must be identical and every existing test must pass (among them
   `tests/test_bridge_parity.py`, `test_planner.py`, `test_extended_obs.py`,
   `test_physics_parity.py` and `test_heldout_fingerprints.py`).
+- Add no Python or npm packages: `requirements.txt` and
+  `bridge/package.json` are pinned and shared with the training PC; numpy is
+  enough for a bootstrap or McNemar's test.
 - Never change: `parkour/physics.py`, `bridge/physics_patch.js`, the
   environment's reward and termination code (`RewardConfig` and the reward
   code in `parkour/env.py`), the 255-number observation, the
@@ -682,7 +768,10 @@ real Minecraft) and comes from a file you commit under `results/routing/`.
 
 **Training-PC steps that are not yours.** Do not run `python -m
 parkour.report` (`run.cmd report`) or `python -m parkour.handoff` on your
-PC; the read-only `python -m parkour.handoff --check` is fine. The report
+PC; the read-only `python -m parkour.handoff --check` is fine: it exits 1
+and asks for `HANDOFF.md`'s hand-written parts to be updated whenever there
+are commits after HANDOFF.md last changed, your own included, which is
+expected; leave `HANDOFF.md` alone. The report
 rebuilds `results/README.md` from the training PC's `runs/`; if you run it
 by mistake it stops and suggests `parkour.handoff` or `--force`: do neither.
 AGENTS.md's "after each result: report" step and its "Keep the handoff
@@ -695,9 +784,18 @@ request. Leave `HANDOFF.md` and `TEAM_STATUS.md` to it; your status lives in
 trainings, or one training and one evaluation), and fewer if they do not
 fit: the training PC's 16 GB card fits two, and a third spills into system
 RAM and makes everything 5 to 10 times slower. Windows spills instead of
-failing, so check `nvidia-smi --query-gpu=memory.used,memory.total
---format=csv` and Task Manager's shared GPU memory, and size `--num-envs` to
-the card. Unless the owner says otherwise, full GPU use within the
+failing, so when a job starts check both the card's memory and the shared
+GPU memory (the figure Task Manager shows). The second command prints bytes
+per adapter from either shell; the NVIDIA card is the one with a large
+`dedicated usage`, and a rise of gigabytes in its `shared usage` means the
+job spilled:
+
+```text
+nvidia-smi --query-gpu=memory.used,memory.total --format=csv
+powershell -NoProfile -Command "(Get-Counter '\GPU Adapter Memory(*)\Dedicated Usage','\GPU Adapter Memory(*)\Shared Usage').CounterSamples | Select-Object Path,CookedValue"
+```
+
+Size `--num-envs` to the card. Unless the owner says otherwise, full GPU use within the
 temperature rule is fine; if he plays games on the PC, start the watchdog
 with `--pause-while <game.exe>` as well.
 
