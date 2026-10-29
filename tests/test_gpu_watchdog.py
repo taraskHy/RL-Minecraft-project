@@ -32,6 +32,8 @@ def test_offline_work_is_paused_but_live_services_and_helpers_are_not():
         'python -m parkour.live --offline --assist {}',
         'python -m parkour.neo_assist --serve',
         'python -m parkour.skills matrix --candidate a=b.pt',
+        'python -m parkour.gate train --run gate-r1',
+        'python -m parkour.gate eval --checkpoint runs/gate-r1/checkpoints/best.pt --split validation',
         'python -m parkour.route_train --run r',
         'python -m parkour.routing.train --run r',
     ):
