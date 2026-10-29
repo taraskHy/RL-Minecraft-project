@@ -14,6 +14,81 @@ Read next: [TEAM_STATUS.md](TEAM_STATUS.md) (the team's page),
 [docs/design.md](docs/design.md) (method), [results/README.md](results/README.md)
 (every number, generated) and [results/DATA.md](results/DATA.md) (where the data is).
 
+## Team split / what we want next (29 Oct 2026)
+
+**What Ethan and Claude think and want.** The core works: the final policy
+completes 98.4% of unseen courses in the simulator and 59 of 60 in real
+Minecraft, with the same outcome as the simulator on every course
+(`results/README.md`, final policy section). Two things are still weak, and
+they are what people notice first on a new map. The bot needs to be told
+where to jump: without the course list, the hand-written greedy planner
+completes 92.3% of the same courses instead of 98.4%. And neo jumps are
+hard: the neo policy completes 29% of the held-out neo courses (both numbers
+from the simulator test sets, `results/README.md`). We want the remaining
+time spent on routing by RL, on neos and on one network that does
+everything, and then a clear conclusion and presentation. Two PCs work in
+parallel, each on its own part, so nothing waits and nobody overwrites
+anyone.
+
+**Who does what.**
+
+- **Ethan's PC** (the training PC, the main session): neos; one network for
+  every skill (`combined-distill` and the control `combined-union`,
+  [docs/combine_policies.md](docs/combine_policies.md)); the final policy
+  (which files are final, and when that changes); the conclusion and the
+  presentation material (`results/README.md`, the results page, videos,
+  `docs/report_draft.md`).
+- **The friend's PC** (a teammate's Windows PC with an NVIDIA GPU; an
+  autonomous Claude agent working from a fresh clone): RL routing, a learned
+  policy that picks the next platform without the course list and beats the
+  greedy planner. Everything it needs is in
+  [docs/MISSION_ROUTING.md](docs/MISSION_ROUTING.md).
+
+**How we coordinate.**
+
+- Only the main session on Ethan's PC edits `main`. The friend's agent works
+  on its own branch `routing/<name>`, pushes only that branch, and opens a
+  pull request into `main`; the main session reviews and merges it. Nobody
+  force-pushes or rewrites history.
+- Routing results go to `results/routing/` (JSON and a short README). The
+  routing branch leaves the physics, the environment reward, the final
+  policy files and everything in section 5 unchanged.
+- Each PC follows the GPU rules on its own: at most two training processes,
+  and the watchdog pauses GPU work above 65 C.
+- Questions go to Ethan only when they are about direction.
+
+## Claude on the training PC (29 Oct 2026, from 13:15)
+
+The main session is now Claude Code on the training PC. Codex is stopped
+(heartbeat paused; its last commit `2547470`, 12:49).
+
+- **Ice seeds:** 18 and 19 finished; all 20 ice-seed runs are audited
+  (`results/operations/g995-ice-s*-comparison.json`; simulator, levels 0-5,
+  validation-selected checkpoint, each test run once): validation 96.4-97.8%,
+  test 96.4-98.5% standard and 92.9-95.4% obstacles. None replaces the final
+  policy (validation 97.6%). The completions of seeds 10-19 were reported
+  once, in Claude's summary of 29 Oct.
+- **Queue:** restarted at 13:41 with a per-job starting checkpoint (`init` in
+  `configs/training_queue.json`) and `"auto_seeds": false` in
+  `runs/training_control.json`, so no further ice seeds start by themselves.
+  The watchdog was restarted with the same arguments (`--hot 65 --cool 58
+  --every 1`) and now also pauses `parkour.skills`; keep-awake is unchanged.
+  One process of each.
+- **One network for every skill** ([docs/combine_policies.md](docs/combine_policies.md)):
+  implemented as opt-in flags (`--skills`, `--teachers`, `--distill-coef`,
+  `--distill-decay`), the ice sets (validation family 17, test family 16) and
+  `python -m parkour.skills matrix`. With default flags, training is bit for
+  bit unchanged (`results/skills/defaults_check.json`). The validation matrix
+  of 24 candidates (`results/skills/validation_matrix.json`, simulator) chose
+  by the design's fixed rules: basic teacher `g995-ice` (mean of basic and
+  ice validation 97.6%, tied with ice seed 11; ties go to the earlier
+  candidate), advanced teacher the neo policy (66.5%; `g995-adv` 53.0%),
+  extra teacher `g995-extra` (86.1%); the student starts from `g995-extra`
+  (mean over the four groups 74.2%). `combined-distill` and the control
+  `combined-union` started at 13:58 (1,000 iterations each, tested once at
+  the end).
+- The cloud new-abilities evaluations stay ON HOLD.
+
 ## Codex stopped; handoff to Claude (29 Oct 2026, 12:49, Israel time)
 
 The user requested that Codex stop all work and commit so Claude can continue.
@@ -641,18 +716,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `ce5edb9` (2026-10-29 08:47, branch `main`): Archive ice seed 10 completion and continue seeds 11 and 12
+Generated on top of commit `52be9e3` (2026-10-29 13:12, branch `main`): Merge remote-tracking branch 'origin/claude/pensive-knuth-biwj11'
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 188 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 191 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 146 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 163 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 146 |
-| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 73 |
-| `results/DATA.md` | `a4d31ba` 2026-10-29 03:17 | 65 |
+| `README.md` | updated together with this snapshot | 0 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 166 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 149 |
+| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 76 |
+| `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -689,8 +764,8 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `g995-ice-s15` | 999 | 0.52 | 199 | 97.4 | 98.2 | - | - |
 | `g995-ice-s16` | 999 | 0.52 | 149 | 96.9 | 97.2 | - | - |
 | `g995-ice-s17` | 999 | 0.52 | 549 | 96.8 | 97.8 | - | - |
-| `g995-ice-s18` | 349 | 0.18 | 49 | 97.2 | - | - | - |
-| `g995-ice-s19` | 249 | 0.13 | 149 | 96.5 | - | - | - |
+| `g995-ice-s18` | 999 | 0.52 | 49 | 97.2 | 96.4 | - | - |
+| `g995-ice-s19` | 999 | 0.52 | 349 | 96.8 | 97.2 | - | - |
 | `g995-ice-s2` | 999 | 0.52 | 749 | 96.9 | 97.4 | - | - |
 | `g995-ice-s3` | 999 | 0.52 | 249 | 96.8 | 97.4 | - | - |
 | `g995-ice-s4` | 999 | 0.52 | 449 | 97.0 | 97.2 | - | - |
@@ -814,7 +889,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 
 ### In `results/` but not yet in `results/DATA.md`
 
-`operations/` (17 files), `report_draft.pdf`, `videos/ghost_race_02_level_1_course_0.mp4`, `videos/ghost_race_03_level_2_course_0.mp4`, `videos/ghost_race_04_level_3_course_0.mp4`, `videos/ghost_race_05_level_4_course_0.mp4`, `videos/replay_137_neo_policy_level_7_course_5.mp4`
+Nothing: the data index names everything.
 
 <!-- END AUTO-SNAPSHOT -->
 
@@ -831,6 +906,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **29 Oct 2026, 14:20, Claude (Claude Code, training PC):** took over from Codex at 13:15 (heartbeat paused; one queue, watchdog and keep-awake running; seeds 18/19 finishing). Merged the cloud design `docs/combine_policies.md` (`52be9e3`, 110 tests passed). Implemented the opt-in skills mode (`--skills`, `--teachers`, `--distill-coef`, `--distill-decay`, ice sets 16/17, `parkour/skills.py`, `tests/test_skills.py`); default training bit for bit unchanged (`results/skills/defaults_check.json`). Audited ice seeds 11-19 (`results/operations/`). Validation matrix of 24 candidates (`results/skills/validation_matrix.json`); queue gained per-job `init` and `auto_seeds: false`; watchdog restarted, now also pausing `parkour.skills`; `combined-distill` and `combined-union` started 13:58. Wrote `docs/MISSION_ROUTING.md` for the teammate's PC and the team split at the top of this file; shipped `results/noroute_policy.pt`. 121 tests passed. Next: test and export the combined runs (about 16:00), the results page, neo work.
 
 - **29 Oct 2026, 12:49, Codex on training PC, handoff to Claude:** User requested stop all Codex work and commit. Paused the five-minute Codex heartbeat; all subagents are finished. Preserved the existing queue, two logical trainers (ice seeds 18/19), thermal-only watchdog and keep-awake for takeover. Seeds 11-17 completed automatically since the previous archive; `run.cmd report` copied their existing logs/summaries and active 18/19 snapshots into `results/runs/`. No evaluation or experiment was started. Seed 11-17 comparisons and final completion notifications are left for Claude; use the archived logs, never rerun test sets. Corrected seed 10 notification metadata: its 08:47 final message was not delivered, although commentary mentioned completion. The earlier push of `ce5edb9` was not executed because automatic approval review hit a usage limit. Current runtime/control evidence is in `results/operations/claude-handoff-20261029.json`. Cloud work remains on hold; final policy unchanged. Report and handoff refreshed; only data/docs changed. Next owner: Claude; inspect Git and current processes first, then handle pending archives/notifications as requested by the user.
 

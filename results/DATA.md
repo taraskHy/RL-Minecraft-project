@@ -148,12 +148,13 @@ on every course, and the real-Minecraft runs had 0 server corrections.
 
 | Video | Shows |
 | --- | --- |
-| `ghost_race_00_tour.mp4`, `ghost_race_01_level_0_course_0.mp4` to `ghost_race_06_level_5_course_0.mp4` | ten stages of the `progress-demo` training run (untrained to 400 updates; not a final policy) on the same unseen course at once, seen from above; recorded games of the offline bot |
+| `ghost_race_00_tour.mp4`, `ghost_race_01_level_0_course_0.mp4`, `ghost_race_02_level_1_course_0.mp4`, `ghost_race_03_level_2_course_0.mp4`, `ghost_race_04_level_3_course_0.mp4`, `ghost_race_05_level_4_course_0.mp4`, `ghost_race_06_level_5_course_0.mp4` | ten stages of the `progress-demo` training run (untrained to 400 updates; not a final policy) on the same unseen course at once, seen from above; recorded games of the offline bot |
 | `real_minecraft_tour.mp4`, `real_minecraft_stairs.mp4`, `real_minecraft_sprint.mp4`, `real_minecraft_showcase.mp4` | the bot's first-person view in real Minecraft 1.21.4 on three hand-designed courses (the showcase joins them), first final policy, course list given |
 | `real_minecraft_*_no_course_list.mp4` | the same four videos with the route planner instead of the course list, first final policy |
 | `replay_233_no_course_list_level_4_course_9_obstacles.mp4`, `replay_240_no_course_list_level_5_course_6_obstacles.mp4` | 3D replays of two real-Minecraft planner games on obstacle courses, the plan drawn as numbered cyan platforms, first final policy |
 | `replay_295_learned_no_course_list_level_5_course_1.mp4` | 3D replay of the learned no-route model in real Minecraft on a level-5 course the planner failed with the first final policy |
 | `real_minecraft_neo_level7.mp4` | first person, real Minecraft: the neo policy completes a held-out level-7 course with one neo (164 ticks, 0 server corrections) |
+| `replay_137_neo_policy_level_7_course_5.mp4` | 3D replay (theatre replay 137, `scripts/render_videos.py --replays 137`) of a recorded game of the neo policy on a level-7 neo course (course 5) |
 
 ## Evaluations (`results/`)
 
@@ -161,6 +162,7 @@ on every course, and the real-Minecraft runs had 0 server corrections.
 | --- | --- |
 | `final_policy.pt` / `.json` | the final policy (`runs/obstacles-g995`, discount 0.995) |
 | `final_policy_v1.pt` / `final_policy_v1.json` | the first final policy (`runs/obstacles-ft`, discount 0.99) |
+| `noroute_policy.pt`, `noroute_policy_provenance.json` | the learned no-route model `noroute-v2` at its validation-selected iteration 2849 (weights, config and evaluation, no optimizer state; the source checkpoint and both hashes in the provenance file), shipped on 29 Oct for the routing work (`docs/MISSION_ROUTING.md`); `parkour.live` exports the JSON the bot loads |
 | `jump_eval.json`, `jump_eval_v1.json`, `jump_eval_main.json` | every jump type from a standing start at 16 angles: final, first final and main-run policy |
 | `stress.json`, `stress_v1.json`, `stress_main.json` | course styles outside training, 100 courses per level and condition, same three policies |
 | `offline_summary.md`, `live_summary.md` (and `offline_summary_v1.md`, `live_summary_v1.md`) | the bot's per-level tables offline and in real Minecraft, final and first final policy |
@@ -178,6 +180,9 @@ on every course, and the real-Minecraft runs had 0 server corrections.
 | `jump_failures.json` | which jump each failed test course failed on, with the final policy: failure rate per jump type, by level and jump index, with and without a beam (`scripts/jump_failures.py`) |
 | `results/planner/` | route planner on the 1,200 + 1,200 test courses: `sim_test_*.json` (`_v1`: with the first final policy; `_tuned`: the retuned setting `cost=distance, align=2.0`); `validation_tuning.jsonl`: every planner variant tried on the validation courses (one JSON line each) |
 | `results/neo/` | the neo numbers (written by `scripts/neo_evidence.py` and the evaluations), below |
+| `results/skills/` | one network for every skill (`docs/combine_policies.md`): `validation_matrix.json` every candidate policy on the validation sets of each skill group (basic, ice, advanced, extra; simulator, `python -m parkour.skills matrix`) and the teachers and starting checkpoint chosen from it, with the two halves it was computed in (`validation_matrix.part1.json`, `validation_matrix.part2.json`); `defaults_check.json` the check that training with default flags is bit for bit unchanged by the skills mode |
+| `results/operations/` | the training queue's records: `g995-*-comparison.json` each specialist and ice seed against the final policy (simulator, validation-selected checkpoint, test run once), the handoff and GPU-mode evidence (`claude-handoff-20261029.json`, `full-gpu-transition-20261029.json`, `gpu-limit-*`), `extra-feasibility-reconciliation.json` |
+| `report_draft.pdf` | an export of `docs/report_draft.md` in the submission format (`scripts/report_docx.py --pdf`); older than the current source |
 
 `results/neo/`:
 

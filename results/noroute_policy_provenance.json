@@ -1,0 +1,11 @@
+{
+  "source": "runs/noroute-v2/checkpoints/best.pt",
+  "run": "noroute-v2",
+  "iteration": 2849,
+  "selection": "validation families 2/5 (simulator), best.pt",
+  "validation_success": 0.8316666666666667,
+  "contents": "weights, config and evaluation only (no optimizer state)",
+  "source_sha256": "ec3eed417c3bb0a2608f96ef081254ff0e8a8599b9874251676d410d4745de9a",
+  "export_sha256": "bdece745425836975a03e19d5017208181af8321381e4d9643bb88fd299ebc3b",
+  "final_policy_preserved": true
+}

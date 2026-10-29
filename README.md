@@ -14,6 +14,7 @@ real Minecraft server, on new courses.
 **Status:** see [TEAM_STATUS.md](TEAM_STATUS.md) (updated by hand, so it can lag behind [results/README.md](results/README.md), which is generated from the run files).
 **Design and method:** [docs/design.md](docs/design.md).
 **For AI agents and new contributors:** [AGENTS.md](AGENTS.md) (rules) and [HANDOFF.md](HANDOFF.md) (current state, what is left, what not to touch, open problems; kept up to date every session).
+**Routing by RL (the teammate's PC):** [docs/MISSION_ROUTING.md](docs/MISSION_ROUTING.md), a self-contained brief: beat the greedy route planner with a learned router.
 
 ## Results so far
 

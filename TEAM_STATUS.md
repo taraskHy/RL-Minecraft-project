@@ -10,7 +10,38 @@ the data: training runs, policies, the route planner and neo files, the game
 folders (including the v2, planner, noroute, neo and film games) and the
 videos.
 
-**Last updated:** 29 Oct 2026, 12:49, training PC: Codex stopped; handoff committed for Claude; heartbeat paused.
+**Last updated:** 29 Oct 2026, 14:20, training PC (Claude): team split and the routing brief for the teammate's PC; one network for every skill training.
+
+## Team split / what we want next (29 Oct 2026)
+
+**What Ethan and Claude think and want.** The core works: the final policy
+completes 98.4% of unseen courses in the simulator and 59 of 60 in real
+Minecraft, with the same outcome as the simulator on every course. Two
+things are still weak, and they are what people notice first on a new map.
+The bot needs to be told where to jump: without the course list, the
+hand-written greedy planner completes 92.3% of the same courses instead of
+98.4%. And neo jumps are hard: the neo policy completes 29% of the held-out
+neo courses (simulator test sets; all numbers from `results/README.md`). We
+want the remaining time spent on routing by RL, on neos and on one network
+that does everything, and then a clear conclusion and presentation.
+
+**Who does what.**
+
+- **Ethan's PC** (the training PC, the main session): neos; one network for
+  every skill (`combined-distill` and the control `combined-union`,
+  `docs/combine_policies.md`); the final policy; the conclusion and the
+  presentation material (`results/README.md`, the results page, videos, the
+  report).
+- **The friend's PC** (his own Windows PC with an NVIDIA GPU, where an
+  autonomous Claude agent works from a fresh clone): RL routing, a learned
+  policy that picks the next platform without the course list and beats the
+  greedy planner. The brief is [docs/MISSION_ROUTING.md](docs/MISSION_ROUTING.md).
+
+**How we coordinate.** Only the main session on Ethan's PC edits `main`. The
+friend's agent pushes only its own branch `routing/<name>` and opens a pull
+request into `main`, which the main session reviews and merges; nobody
+force-pushes. Routing results go to `results/routing/`. Each PC keeps the GPU
+rules on its own (at most two training processes; pause above 65 C).
 
 ## The project
 
@@ -261,6 +292,17 @@ numbered cyan platforms). Report section 7.11.
 The retuned planner is confirmed in real Minecraft: 51/60 standard and 56/60 obstacles, all outcomes identical to the simulator, zero server corrections. It is now the default in Python and JavaScript (`cost=distance`, `align=2.0`). Evidence: `results/games/v2-tuned-planner-live*`.
 
 ## Last known state
+
+**29 Oct 2026, from 13:15: Claude runs the training PC.** All 20 ice-seed
+runs are finished and audited (simulator, levels 0-5: validation 96.4-97.8%,
+test 96.4-98.5% standard and 92.9-95.4% obstacles; none replaces the final
+policy, `results/operations/`). The queue starts no more seeds by itself.
+One network for every skill is implemented and training: the validation
+matrix of 24 policies (`results/skills/validation_matrix.json`) picked the
+teachers `g995-ice` (basic and ice), the neo policy (advanced) and
+`g995-extra` (extra), and the student starts from `g995-extra`. The runs
+`combined-distill` (PPO plus the teachers) and `combined-union` (PPO alone,
+the control) started at 13:58.
 
 ## Codex stopped; handoff to Claude (29 Oct 2026, 12:49, Israel time)
 
