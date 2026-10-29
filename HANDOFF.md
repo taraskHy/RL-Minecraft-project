@@ -19,7 +19,7 @@ Read next: [TEAM_STATUS.md](TEAM_STATUS.md) (the team's page),
 The user paused this task (cloud session, branch `claude/pensive-knuth-biwj11`,
 last commit before this note `d2b81dd`) to build a replay artifact. Nothing
 here touches the training PC; its jobs keep running. The replay page is done
-(29 Oct, session log); this task is next when the user resumes it.
+(29 Oct, session log); this task stays on hold until the user resumes it.
 
 **Done** (all pushed; simulator unless said; plan and status in
 `docs/abilities_plan.md`):
@@ -197,6 +197,14 @@ More facts that hold now:
   last commits record finished results only. Check the processes there.
 
 ## 3. What is left to do
+
+**Next, by the user's choice (29 Oct): one network for every skill.** Distil
+the specialists (final policy, `g995-adv`, `g995-ice`, `g995-extra`, the
+neo policy) into one student next to PPO, on courses that mix every skill;
+the design, its evidence and the steps are in
+[docs/combine_policies.md](docs/combine_policies.md). The user's local
+session on the PC implements it and starts the training; the cloud session
+starts none.
 
 Concrete work, most important first. Nothing here needs new research.
 
@@ -572,18 +580,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `2abdc47` (2026-10-29 00:36, branch `claude/pensive-knuth-biwj11`): Handoff: the paused task's container jobs are frozen (SIGSTOP), how to continue them
+Generated on top of commit `8c8bdfa` (2026-10-29 00:58, branch `claude/pensive-knuth-biwj11`): Showcase replay page: the 45 recorded offline episodes of the advanced and ice policies in 3D
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 69 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 70 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 85 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 44 |
-| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 70 |
-| `results/README.md` | `cd81960` 2026-10-29 00:33 | 3 |
-| `results/DATA.md` | updated together with this snapshot | 0 |
+| `TEAM_STATUS.md` | `8c8bdfa` 2026-10-29 00:58 | 0 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 86 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 45 |
+| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 71 |
+| `results/README.md` | `cd81960` 2026-10-29 00:33 | 4 |
+| `results/DATA.md` | `8c8bdfa` 2026-10-29 00:58 | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -741,6 +749,19 @@ At the end of a session, or after each result:
 
 Newest first. One entry per session; earlier history is in the
 [TEAM_STATUS update log](TEAM_STATUS.md#update-log) and `git log`.
+
+- **29 Oct 2026, night, later, Claude Code (the same cloud session, branch
+  `claude/pensive-knuth-biwj11`):** the user asked how to combine the
+  specialist policies and chose one network: distil the specialists into
+  one student with a KL term next to PPO, with plain training on every
+  skill as the control run. `docs/combine_policies.md` holds the design,
+  the facts it rests on (one network and one 255-number observation for
+  all; the observation has no block types; validation and test never had
+  ice; `courses.generate` mixes in all easier levels; seed families 16/17
+  free) and the steps. The user stopped the research early and will have
+  their local session on the PC implement and train it; nothing was
+  implemented or run here. The paused assist test runs stay on hold.
+  Next (local session): the steps in that file.
 
 - **29 Oct 2026, night, Claude Code (the same cloud session, branch
   `claude/pensive-knuth-biwj11`, CPU only):** the user put the new-abilities
