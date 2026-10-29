@@ -127,6 +127,7 @@ JavaScript on Mineflayer's physics engine without a server. Every folder's
 | `results/theatre.html` | Minecraft-style 3D replays and the ghost races |
 | `results/showcase.html` | the results page for the presentation ("Learning Minecraft Parkour") |
 | `results/overnight_plan.html` | the overnight decision tree of 28 October (`docs/overnight_plan.md`) |
+| `results/showcase_replays.html` | 3D replays of the 45 showcase recordings of 29 October: the validation-selected advanced (g995-adv, checkpoint 99) and ice (g995-ice, checkpoint 449) policies after training, offline prismarine-physics, failures included; not training rollouts or benchmark results (`scripts/make_showcase_replays.py`, data on branch `codex/advanced-ice-replay-export-20261029`) |
 
 Open them in a browser; they need no server.
 

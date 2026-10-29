@@ -18,7 +18,8 @@ Read next: [TEAM_STATUS.md](TEAM_STATUS.md) (the team's page),
 
 The user paused this task (cloud session, branch `claude/pensive-knuth-biwj11`,
 last commit before this note `d2b81dd`) to build a replay artifact. Nothing
-here touches the training PC; its jobs keep running.
+here touches the training PC; its jobs keep running. The replay page is done
+(29 Oct, session log); this task is next when the user resumes it.
 
 **Done** (all pushed; simulator unless said; plan and status in
 `docs/abilities_plan.md`):
@@ -560,7 +561,8 @@ needs the PC's GPU.
   runs).
 - Pages: `results/theatre.html`, `results/replay_viewer.html`,
   `results/progress.html`, `results/neo_preview.html`,
-  `results/showcase.html`, `results/overnight_plan.html`. Videos:
+  `results/showcase.html`, `results/overnight_plan.html`,
+  `results/showcase_replays.html` (`scripts/make_showcase_replays.py`). Videos:
   `results/videos/` (`scripts/render_videos.py`, `scripts/film_pov.py`).
 
 ## 9. Snapshot (generated)
@@ -570,18 +572,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `c87068d` (2026-10-29 00:27, branch `claude/pensive-knuth-biwj11`): Handoff and team status: 135 of 200 random neo courses with the approach plans
+Generated on top of commit `2abdc47` (2026-10-29 00:36, branch `claude/pensive-knuth-biwj11`): Handoff: the paused task's container jobs are frozen (SIGSTOP), how to continue them
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 65 |
-| `HANDOFF.md` | `c87068d` 2026-10-29 00:27 | 0 |
-| `TEAM_STATUS.md` | `c87068d` 2026-10-29 00:27 | 0 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 81 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 40 |
-| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 66 |
-| `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | `4c6761d` 2026-10-28 22:13 | 10 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 69 |
+| `HANDOFF.md` | updated together with this snapshot | 0 |
+| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 85 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 44 |
+| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 70 |
+| `results/README.md` | `cd81960` 2026-10-29 00:33 | 3 |
+| `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -739,6 +741,28 @@ At the end of a session, or after each result:
 
 Newest first. One entry per session; earlier history is in the
 [TEAM_STATUS update log](TEAM_STATUS.md#update-log) and `git log`.
+
+- **29 Oct 2026, night, Claude Code (the same cloud session, branch
+  `claude/pensive-knuth-biwj11`, CPU only):** the user put the new-abilities
+  test runs ON HOLD (section above; container jobs frozen, nothing on the PC
+  touched) and asked for a 3D page of the 45 showcase recordings exported
+  on branch `codex/advanced-ice-replay-export-20261029`
+  (`exports/advanced-ice-replays/`, data commit `6994797`): offline
+  prismarine-physics episodes of the validation-selected g995-adv
+  (checkpoint 99) and g995-ice (checkpoint 449) policies, recorded after
+  training, not training rollouts or benchmark results. Done:
+  `results/showcase_replays.html`, built by `scripts/make_showcase_replays.py`
+  (reads the branch with git, checks the files against the export's
+  manifest, embeds the data in `scripts/showcase_replays_template.html`) and
+  published as a private claude.ai artifact
+  (https://claude.ai/artifact/RcaELhrJsAs28YaBGZQ81N; to update it, publish
+  the rebuilt page to that URL). It animates the recorded frames at 20 ticks
+  per second (policy, level and course selectors, timeline, speeds, follow,
+  orbit and whole-course cameras, trail, the action of each tick, the jump
+  list, failures with where they happened), labelled "Recorded offline
+  simulation — showcase courses"; its counts (advanced 20 of 27 made it, 2
+  fell, 5 stalled; ice 17 of 18, 1 fell) are over these recordings only.
+  Next: resume the ON HOLD task.
 
 - **28 Oct 2026, late evening, Claude Code (the same cloud session after a
   context reset, branch `claude/pensive-knuth-biwj11`, CPU only):** the

@@ -281,6 +281,11 @@ The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
 
 ## Update log
 
+- **29 Oct 2026, night (cloud session):** a 3D replay page of the 45
+  showcase recordings made after training (the advanced and ice policies,
+  offline physics, failures included): `results/showcase_replays.html`.
+  The new-abilities test runs are on hold until the user resumes them.
+
 - **28 Oct 2026, evening (cloud session):** new abilities: planning the
   hardest jumps with the exact physics (neo assist; simulator and both
   bots), head-hitter and ice run-up jump kinds, block shapes, slime and
