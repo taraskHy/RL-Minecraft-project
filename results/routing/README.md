@@ -55,6 +55,40 @@ points below it on the standard set.
 Other `route-fill-b` checkpoints on the full sets (router only, local): it 89 97.39% / 95.67%,
 it 119 97.50% / 95.61%, it 149 97.17% / 95.56%.
 
+## The frozen router
+
+Every checkpoint evaluated on the full validation sets (local rule, simulator, router only unless
+noted; mean of the two sets):
+
+| Checkpoint | Standard | Obstacles | Mean |
+| --- | --- | --- | --- |
+| **`route-full-f` it 29** | **97.89%** | **95.56%** | **96.73%** |
+| `route-fill-b` it 134 | 97.56% | 95.56% | 96.56% |
+| `route-fill-b` it 119 | 97.50% | 95.61% | 96.56% |
+| `route-full-f` it 104 | 97.28% | 95.78% | 96.53% |
+| `route-fill-b` it 89 | 97.39% | 95.67% | 96.53% |
+| `route-imit-d` it 104 | 97.28% | 95.50% | 96.39% |
+| `route-imit-d` it 149 | 97.39% | 95.33% | 96.36% |
+| `route-full-f` it 119 | 97.17% | 95.56% | 96.36% |
+| `route-imit-d` it 89 / 119 | 97.28% | 95.44% | 96.36% |
+| `route-fill-b` it 149 | 97.17% | 95.56% | 96.36% |
+| `route-full-f` it 89 | 97.11% | 95.50% | 96.31% |
+| `route-bc-a` it 99 | 97.33% | 94.50% | 95.92% |
+| `route-ppo-e` it 39 | 96.61% | 93.39% | 95.00% |
+
+The freeze rule takes **`route-full-f` iteration 29** (no other checkpoint within 0.1 points). It is
+shipped as `router_policy.pt` (weights, network sizes, training config), `router_policy.json` (the
+bot's copy) and `router_policy_provenance.json` (source and hashes). Its slots 2 and 3 are filled by
+the router itself (`fill: policy`). Being the maximum of 13 checkpoints, its validation score is
+slightly optimistic; the test below is the unbiased number.
+
+Its paired validation against the greedy planner (`router_validation_route-full-f_it29_*.json`,
+local rule): standard +5.1 points [+3.9, +6.3] (107 courses only the router completes, 15 only
+the planner, McNemar p = 3e-18); obstacles +6.6 [+5.2, +7.9] (143 against 25, p = 3e-21); both sets
++5.8 [+4.9, +6.8] (p = 3e-38). Fall rule `remaining`: +2.9 [+1.9, +3.9], +4.7 [+3.4, +5.9], +3.8
+[+3.0, +4.7]. Failures (local): wrong platform 13 and 15 (planner 112 and 145), nothing in view 0 and 7,
+jump 25 and 58.
+
 ## Training runs
 
 | Run | Start | Recipe | Logs |
@@ -64,7 +98,7 @@ it 119 97.50% / 95.61%, it 149 97.17% / 95.56%.
 | `route-ppo-c` | `route-fill-b` it 134 | as B with slot-1 imitation 0 (slot 1 by PPO only): does RL alone hold or improve the router? Stopped at 60 | `runs/route-ppo-c/` |
 | `route-imit-d` | `route-bc-a` it 99 | as B (same seed) with the PPO policy loss off (`--pg-coef 0`, imitation only): what PPO adds | `runs/route-imit-d/` |
 | `route-ppo-e` | scratch | pure PPO: no imitation at all, greedy fill, entropy 0.003, lr 3e-4; stopped at 120 of 300 (validation peaked at 39 and declined) | `runs/route-ppo-e/` |
-| `route-full-f` | scratch | the whole recipe in one run, new seed: fill by the policy (imitation 1.0), slot-1 imitation 1.0 falling to 0.3 by 100, entropy 0.001, lr 3e-4, 250 iterations | running |
+| `route-full-f` | scratch | the whole recipe in one run, new seed: fill by the policy (imitation 1.0), slot-1 imitation 1.0 falling to 0.3 by 100, entropy 0.001, lr 3e-4; stopped at 120 of 250 (flat at 97.6-97.8% on the screen since iteration 14) | `runs/route-full-f/` |
 
 **Run E, result: RL alone beats the greedy planner.** Pure PPO from a random router, without any
 imitation, reached 96.61% / 93.39% on the full validation sets at its best checkpoint (it 39),

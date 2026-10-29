@@ -134,6 +134,15 @@ class RouteBotParity(unittest.TestCase):
     def test_random_router_policy_fill(self):
         bot_parity(self, fill="policy", seed=8)
 
+    def test_shipped_router(self):
+        from pathlib import Path
+        ck = Path(__file__).resolve().parents[1] / "results" / "routing" / "router_policy.pt"
+        if not ck.exists():
+            self.skipTest("no shipped router")
+        py = bot_parity(self, router_ckpt=ck, fill=torch.load(ck, map_location="cpu", weights_only=False)["config"]["fill"],
+                        seed=9)
+        self.assertGreater(sum(py["per_course"]["success"]), 18)
+
 
 if __name__ == "__main__":
     unittest.main()

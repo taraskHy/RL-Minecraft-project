@@ -1,0 +1,17 @@
+{
+ "source": "runs/route-full-f/checkpoints/it0029.pt",
+ "run": "route-full-f",
+ "iteration": 29,
+ "selection": "freeze rule in results/routing/README.md: highest mean of the full validation sets (families 2 and 5, 1,800 courses each, fall rule local, simulator) among the evaluated checkpoints of runs route-bc-a, route-fill-b, route-imit-d, route-ppo-e and route-full-f",
+ "validation_success": {
+  "standard": 0.9789,
+  "obstacles": 0.9556
+ },
+ "fill": "policy",
+ "jumper": "results/final_policy.pt (unchanged)",
+ "contents": "weights, network sizes, training config and screening evaluation (no optimizer state)",
+ "source_sha256": "d035e75902b0965c2b36b1ae0d5d4f83fdef93284d424aba9390d7bdfc4a5e46",
+ "export_sha256": "a7183bda4e7f9a2773ade0357021ff80fcfca968435087b61eaa9370c890c785",
+ "json_sha256": "bd253344eed4b8b8b962eedad18c601e63458ba7b93e52030f697b4382d67b01",
+ "final_policy_preserved": true
+}
