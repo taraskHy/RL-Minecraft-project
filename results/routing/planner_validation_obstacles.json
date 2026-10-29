@@ -1,0 +1,217 @@
+{
+ "checkpoint": "results/final_policy.pt",
+ "planner": {
+  "radius": 12,
+  "below": 10,
+  "above": 4,
+  "max_gap": 5.5,
+  "dy_min": -3,
+  "dy_max": 1,
+  "align": 2.0,
+  "slab_only": true,
+  "limits": "table",
+  "slack": 0.5,
+  "cost": "distance",
+  "mark_passed": true,
+  "clear_path": true,
+  "head_hitters": true,
+  "value_pick": 0,
+  "drop": 0.0,
+  "lookahead": false
+ },
+ "obstacles": true,
+ "family": 2,
+ "courses": 1800,
+ "local": {
+  "given_route": {
+   "success": 0.9555555555555556,
+   "per_level": {
+    "0": {
+     "success": 0.9866666666666667,
+     "fell": 0.013333333333333334,
+     "progress": 0.990111111111111,
+     "ticks_success": 118.1891891891892,
+     "n": 300
+    },
+    "1": {
+     "success": 0.9833333333333333,
+     "fell": 0.016666666666666666,
+     "progress": 0.9896666666666666,
+     "ticks_success": 123.35593220338983,
+     "n": 300
+    },
+    "2": {
+     "success": 0.99,
+     "fell": 0.01,
+     "progress": 0.9926666666666665,
+     "ticks_success": 134.21548821548822,
+     "n": 300
+    },
+    "3": {
+     "success": 0.9633333333333334,
+     "fell": 0.03666666666666667,
+     "progress": 0.9760000000000001,
+     "ticks_success": 147.84429065743944,
+     "n": 300
+    },
+    "4": {
+     "success": 0.9666666666666667,
+     "fell": 0.03333333333333333,
+     "progress": 0.9776666666666665,
+     "ticks_success": 159.8310344827586,
+     "n": 300
+    },
+    "5": {
+     "success": 0.8433333333333334,
+     "fell": 0.14,
+     "progress": 0.9106666666666666,
+     "ticks_success": 184.12252964426878,
+     "n": 300
+    }
+   }
+  },
+  "planner_route": {
+   "success": 0.89,
+   "per_level": {
+    "0": {
+     "success": 0.97,
+     "fell": 0.03,
+     "progress": 0.9781111111111109,
+     "n": 300
+    },
+    "1": {
+     "success": 0.93,
+     "fell": 0.07,
+     "progress": 0.9553333333333334,
+     "n": 300
+    },
+    "2": {
+     "success": 0.9466666666666667,
+     "fell": 0.05,
+     "progress": 0.9626666666666666,
+     "n": 300
+    },
+    "3": {
+     "success": 0.88,
+     "fell": 0.11333333333333333,
+     "progress": 0.927952380952381,
+     "n": 300
+    },
+    "4": {
+     "success": 0.85,
+     "fell": 0.12666666666666668,
+     "progress": 0.9088214285714284,
+     "n": 300
+    },
+    "5": {
+     "success": 0.7633333333333333,
+     "fell": 0.22,
+     "progress": 0.8503333333333333,
+     "n": 300
+    }
+   },
+   "failure_modes": {
+    "success": 1602,
+    "wrong_platform": 145,
+    "nothing_in_view": 8,
+    "motor": 45
+   }
+  }
+ },
+ "remaining": {
+  "given_route": {
+   "success": 0.9555555555555556,
+   "per_level": {
+    "0": {
+     "success": 0.9866666666666667,
+     "fell": 0.013333333333333334,
+     "progress": 0.990111111111111,
+     "ticks_success": 118.1891891891892,
+     "n": 300
+    },
+    "1": {
+     "success": 0.9833333333333333,
+     "fell": 0.016666666666666666,
+     "progress": 0.9896666666666666,
+     "ticks_success": 123.35593220338983,
+     "n": 300
+    },
+    "2": {
+     "success": 0.99,
+     "fell": 0.01,
+     "progress": 0.9926666666666665,
+     "ticks_success": 134.21548821548822,
+     "n": 300
+    },
+    "3": {
+     "success": 0.9633333333333334,
+     "fell": 0.03666666666666667,
+     "progress": 0.9760000000000001,
+     "ticks_success": 147.84429065743944,
+     "n": 300
+    },
+    "4": {
+     "success": 0.9666666666666667,
+     "fell": 0.03333333333333333,
+     "progress": 0.9776666666666665,
+     "ticks_success": 159.8310344827586,
+     "n": 300
+    },
+    "5": {
+     "success": 0.8433333333333334,
+     "fell": 0.14,
+     "progress": 0.9106666666666666,
+     "ticks_success": 184.12252964426878,
+     "n": 300
+    }
+   }
+  },
+  "planner_route": {
+   "success": 0.9088888888888889,
+   "per_level": {
+    "0": {
+     "success": 0.97,
+     "fell": 0.03,
+     "progress": 0.9781111111111109,
+     "n": 300
+    },
+    "1": {
+     "success": 0.96,
+     "fell": 0.04,
+     "progress": 0.9756666666666667,
+     "n": 300
+    },
+    "2": {
+     "success": 0.9566666666666667,
+     "fell": 0.04,
+     "progress": 0.9709999999999999,
+     "n": 300
+    },
+    "3": {
+     "success": 0.9066666666666666,
+     "fell": 0.08666666666666667,
+     "progress": 0.948,
+     "n": 300
+    },
+    "4": {
+     "success": 0.8666666666666667,
+     "fell": 0.11,
+     "progress": 0.9198214285714286,
+     "n": 300
+    },
+    "5": {
+     "success": 0.7933333333333333,
+     "fell": 0.19,
+     "progress": 0.8756666666666666,
+     "n": 300
+    }
+   },
+   "failure_modes": {
+    "success": 1636,
+    "wrong_platform": 111,
+    "nothing_in_view": 8,
+    "motor": 45
+   }
+  }
+ }
+}
