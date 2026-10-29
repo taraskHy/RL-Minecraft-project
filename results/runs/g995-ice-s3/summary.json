@@ -1,0 +1,100 @@
+{
+ "best": {
+  "iteration": 99,
+  "validation_success": 0.9591666666666666,
+  "test_success": null,
+  "validation_per_level": {
+   "0": {
+    "success": 0.985,
+    "fell": 0.015,
+    "progress": 0.989361111111111,
+    "ticks_success": 118.44162436548223,
+    "n": 200
+   },
+   "1": {
+    "success": 0.98,
+    "fell": 0.02,
+    "progress": 0.986,
+    "ticks_success": 120.39795918367346,
+    "n": 200
+   },
+   "2": {
+    "success": 0.99,
+    "fell": 0.01,
+    "progress": 0.9954999999999999,
+    "ticks_success": 133.8838383838384,
+    "n": 200
+   },
+   "3": {
+    "success": 0.985,
+    "fell": 0.015,
+    "progress": 0.9894285714285713,
+    "ticks_success": 147.87817258883248,
+    "n": 200
+   },
+   "4": {
+    "success": 0.985,
+    "fell": 0.015,
+    "progress": 0.9930000000000001,
+    "ticks_success": 158.90862944162436,
+    "n": 200
+   },
+   "5": {
+    "success": 0.83,
+    "fell": 0.16,
+    "progress": 0.8966666666666667,
+    "ticks_success": 183.69277108433735,
+    "n": 200
+   }
+  }
+ },
+ "last_eval": {
+  "validation_success": 0.9591666666666666,
+  "validation_per_level": {
+   "0": {
+    "success": 0.985,
+    "fell": 0.015,
+    "progress": 0.989361111111111,
+    "ticks_success": 118.44162436548223,
+    "n": 200
+   },
+   "1": {
+    "success": 0.98,
+    "fell": 0.02,
+    "progress": 0.986,
+    "ticks_success": 120.39795918367346,
+    "n": 200
+   },
+   "2": {
+    "success": 0.99,
+    "fell": 0.01,
+    "progress": 0.9954999999999999,
+    "ticks_success": 133.8838383838384,
+    "n": 200
+   },
+   "3": {
+    "success": 0.985,
+    "fell": 0.015,
+    "progress": 0.9894285714285713,
+    "ticks_success": 147.87817258883248,
+    "n": 200
+   },
+   "4": {
+    "success": 0.985,
+    "fell": 0.015,
+    "progress": 0.9930000000000001,
+    "ticks_success": 158.90862944162436,
+    "n": 200
+   },
+   "5": {
+    "success": 0.83,
+    "fell": 0.16,
+    "progress": 0.8966666666666667,
+    "ticks_success": 183.69277108433735,
+    "n": 200
+   }
+  }
+ },
+ "iteration": 99,
+ "env_steps": 52428800
+}
