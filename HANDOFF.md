@@ -38,8 +38,11 @@ here touches the training PC; its jobs keep running.
 - Test rows so far, policy alone: official 1 0/210, random 12 33/200, mixed
   14 35/200 (`results/neo/assist_test.jsonl`).
 
-**Running in the cloud container when paused** (restart-safe; finished
-parts are kept, so after a restart rerun the same command):
+**Paused in the cloud container** (frozen with SIGSTOP at 00:55 UTC, so no
+progress is lost while the container lives: `kill -CONT $(pgrep -f
+"[p]arkour.neo_assist|[e]xtra_preview.py|[l]aunch_test.sh|[l]aunch_preview.sh")`
+resumes them; after a container restart they are gone, but they are
+restart-safe: finished parts are kept, so rerun the same commands):
 
 ```text
 python -m parkour.neo_assist --set official --family 1 --threads 1 --jumps all --retries 1 --brake 14 --retry-horizon 48 --approach 48 --parts 4 --jobs 2 --tag "all_brake_approach; code cd81960" --name official1_all_brake_approach
