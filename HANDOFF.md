@@ -515,18 +515,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `5f22b61` (2026-10-28 22:56, branch `claude/pensive-knuth-biwj11`): Handoff session log: the restarts, restart-safe runs and what is running
+Generated on top of commit `c87068d` (2026-10-29 00:27, branch `claude/pensive-knuth-biwj11`): Handoff and team status: 135 of 200 random neo courses with the approach plans
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 63 |
-| `HANDOFF.md` | `5f22b61` 2026-10-28 22:56 | 0 |
-| `TEAM_STATUS.md` | `4c6761d` 2026-10-28 22:13 | 8 |
-| `README.md` | `5b0af09` 2026-10-28 13:05 | 79 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 38 |
-| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 64 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 65 |
+| `HANDOFF.md` | `c87068d` 2026-10-29 00:27 | 0 |
+| `TEAM_STATUS.md` | `c87068d` 2026-10-29 00:27 | 0 |
+| `README.md` | `5b0af09` 2026-10-28 13:05 | 81 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 40 |
+| `docs/report_draft.md` | `12c736a` 2026-10-28 14:26 | 66 |
 | `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | `4c6761d` 2026-10-28 22:13 | 8 |
+| `results/DATA.md` | `4c6761d` 2026-10-28 22:13 | 10 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
