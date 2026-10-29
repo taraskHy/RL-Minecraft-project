@@ -249,6 +249,9 @@ class TrainConfig:
     teachers: str = ""
     distill_coef: float = 0.0
     distill_decay: bool = False
+    # Comma-separated sampling weight per training level (fixed, replaces --curriculum), e.g. to train the weakest
+    # levels more while the others stay in the mix; off by default.
+    level_weights: str = ""
 
 
 def course_hash(c: C.Course) -> str:
@@ -445,6 +448,12 @@ def train(cfg: TrainConfig) -> Path:
     teacher_paths = parse_teachers(cfg.teachers, skills) if cfg.teachers else {}
     if (cfg.teachers or cfg.distill_coef) and not (teacher_paths and cfg.distill_coef > 0):
         raise ValueError("distillation needs --skills, --teachers and --distill-coef > 0")
+    level_weights = [float(w) for w in cfg.level_weights.split(",") if w.strip()]
+    if level_weights:
+        n_train = (max(gid for gid, _, _ in skill_plan(skills)) + 1 if skills
+                   else len(C.load_levels(advanced=cfg.advanced, extra=cfg.extra)))
+        if len(level_weights) != n_train or min(level_weights) < 0 or sum(level_weights) <= 0:
+            raise ValueError(f"--level-weights needs {n_train} weights, none negative and not all 0")
     resuming = bool(cfg.init_from) and Path(cfg.init_from).resolve().parent.parent == out.resolve()
     if (out / "train_log.csv").exists() and not resuming:
         raise ValueError(f"Existing run {cfg.run}: resume its own latest.pt or choose a new run name")
@@ -497,7 +506,9 @@ def train(cfg: TrainConfig) -> Path:
     val_pool = None if cfg.eval_batch_size else CoursePool(vals, dev, C.GRID, compact_ice=cfg.compact_ice)
     best_info = old_summary.get("best", {})
 
-    if cfg.curriculum == "adaptive":
+    if level_weights:
+        sampler = LevelSampler(n_levels, fixed=level_weights)
+    elif cfg.curriculum == "adaptive":
         sampler = LevelSampler(n_levels)
     elif cfg.curriculum == "uniform":
         sampler = LevelSampler(n_levels, fixed=[1.0] * n_levels)

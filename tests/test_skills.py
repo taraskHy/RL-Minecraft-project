@@ -172,6 +172,23 @@ def tiny(monkeypatch, tmp_path, **flags):
                          skills=",".join(GROUPS), **flags)
 
 
+def test_level_weights_fix_the_curriculum(monkeypatch, tmp_path):
+    seen = []
+
+    class Spy(T.LevelSampler):
+        def __init__(self, n, **kw):
+            seen.append((n, kw.get("fixed")))
+            super().__init__(n, **kw)
+
+    monkeypatch.setattr(T, "LevelSampler", Spy)
+    cfg = dataclasses.replace(tiny(monkeypatch, tmp_path, level_weights=",".join(["1"] * 13 + ["4", "1"])), iterations=1)
+    T.train(cfg)
+    assert seen == [(15, [1.0] * 13 + [4.0, 1.0])]  # slime bounce (global id 13) four times as often
+    with pytest.raises(ValueError, match="needs 6 weights"):
+        T.train(dataclasses.replace(cfg, run="bad", skills="", level_weights="1,2"))
+    assert not (tmp_path / "bad").exists()
+
+
 def test_flag_combinations_are_checked(monkeypatch, tmp_path):
     cfg = tiny(monkeypatch, tmp_path)
     with pytest.raises(ValueError, match="test-once"):

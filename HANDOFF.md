@@ -299,6 +299,38 @@ More facts that hold now:
 
 ## 3. What is left to do
 
+**Queued after the combined runs (requested 29 Oct via the side chat): a
+head-hitter and slime fine-tune.** Rules fixed before any combined result:
+the targets come from validation (`g995-extra` validation, simulator:
+slime bounce 65.5%, hard head hitter 87.0%, head hitter 87.5%; the other
+extra levels 87.0-97.5%). Start from the candidate with the highest
+validation mean over the four skill groups among `g995-extra`,
+`combined-distill` and `combined-union`. Train in skills mode with PPO only
+(no teachers: `g995-extra` itself is weak on slime) and `--level-weights`
+1 for levels 0-8, 3 for head hitter (global id 9) and hard head hitter (10),
+1 for ice run-up (11) and shaped blocks (12), 4 for slime bounce (13), 1 for
+ladders (14); 500 iterations; `best.pt` by the same validation mean; tested
+once. Then the offline bot and real Minecraft on the first 10 test courses
+of the extra levels head hitter, hard head hitter and slime bounce, then
+replays, a video and the results page.
+
+**Next to it, neos in the one network (the user's "continue with the neo
+work", 29 Oct): one DAgger round on the combined student.** Rules fixed
+before any combined result: start from whichever of `combined-distill` and
+`combined-union` has the higher validation mean over the four groups (its
+`best.pt`). Collect one round of demonstrations from the states it really
+reaches on neo takeoffs of training courses, with the settings of
+`scripts/neo_pipeline.py` (`python -m parkour.neo_dagger --checkpoint <its
+best.pt> --out runs/neo_dagger_c1.pt --prior 0.5 --expert assist --seed 1`).
+Then train it in skills mode with that script's neo recipe (`--reward-stall
+5 --bc-coef 0.3 --bc-pairs runs/neo_dagger_c1.pt --wide-neo --lr 3e-4
+--lr-max 3e-4`, and the standing-start demonstrations on 128 of the 1,024
+pool courses, the script's one in eight), 500 iterations, `best.pt` by the
+validation mean over the four groups, tested once. It is judged against its
+start on validation only: the four-group mean, the advanced group and the
+218 validation neo courses (`python -m parkour.neo_assist --off --set
+official --family 2`). The queue keeps two trainers at most.
+
 **Next, by the user's choice (29 Oct): one network for every skill.** Distil
 the specialists (final policy, `g995-adv`, `g995-ice`, `g995-extra`, the
 neo policy) into one student next to PPO, on courses that mix every skill;
@@ -742,18 +774,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `52be9e3` (2026-10-29 13:12, branch `main`): Merge remote-tracking branch 'origin/claude/pensive-knuth-biwj11'
+Generated on top of commit `b7d26f5` (2026-10-29 14:50, branch `main`): Opt-in --level-weights: fixed sampling weight per training level
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 191 |
+| `AGENTS.md` | `948a365` 2026-10-29 14:44 | 1 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | updated together with this snapshot | 0 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 166 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 149 |
-| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 76 |
-| `results/DATA.md` | updated together with this snapshot | 0 |
+| `TEAM_STATUS.md` | `7c0d97c` 2026-10-29 14:24 | 2 |
+| `README.md` | `1a16df0` 2026-10-29 14:14 | 4 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 172 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 155 |
+| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 82 |
+| `results/DATA.md` | `948a365` 2026-10-29 14:44 | 1 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -932,6 +964,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **29 Oct 2026, 15:30, Claude (Claude Code, training PC):** a second independent review of `docs/MISSION_ROUTING.md` (claims against the code, commands in both shells; 22 findings) applied: an empty candidate set fills the slots as the planner's empty plan does; `--record` on the planner baselines for the paired comparison; CPU runs with `CUDA_VISIBLE_DEVICES=-1`; the watchdog's stale-telemetry hold and `--resume-all`; `gh pr create` with `--title`/`--body`; long-command timeouts; the `summary.json` fields; no new packages. Opt-in `--level-weights` (fixed sampling weight per level; defaults bit for bit unchanged) and the head-hitter and slime fine-tune plan, its rules fixed in section 3 before any combined result. `combined-distill` and `combined-union` at iteration 650 of 1,000. Next: test and export the combined runs, then the fine-tune and the results page.
 
 - **29 Oct 2026, 14:20, Claude (Claude Code, training PC):** took over from Codex at 13:15 (heartbeat paused; one queue, watchdog and keep-awake running; seeds 18/19 finishing). Merged the cloud design `docs/combine_policies.md` (`52be9e3`, 110 tests passed). Implemented the opt-in skills mode (`--skills`, `--teachers`, `--distill-coef`, `--distill-decay`, ice sets 16/17, `parkour/skills.py`, `tests/test_skills.py`); default training bit for bit unchanged (`results/skills/defaults_check.json`). Audited ice seeds 11-19 (`results/operations/`). Validation matrix of 24 candidates (`results/skills/validation_matrix.json`); queue gained per-job `init` and `auto_seeds: false`; watchdog restarted, now also pausing `parkour.skills`; `combined-distill` and `combined-union` started 13:58. Wrote `docs/MISSION_ROUTING.md` for the teammate's PC and the team split at the top of this file; shipped `results/noroute_policy.pt`. 121 tests passed. Next: test and export the combined runs (about 16:00), the results page, neo work.
 

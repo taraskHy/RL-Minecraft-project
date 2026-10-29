@@ -43,6 +43,11 @@ courses; the same network then drives a Mineflayer bot on a real Minecraft
 
 ## Keep the handoff current
 
+For the main session on the training PC. On another PC, keep your log in
+your own results folder and pull request instead (for the routing work,
+[docs/MISSION_ROUTING.md](docs/MISSION_ROUTING.md) section 10); the main
+session updates `HANDOFF.md` when it merges.
+
 Before you end a session, or after each result:
 
 1. Edit the hand-written sections of `HANDOFF.md` that are no longer true.
