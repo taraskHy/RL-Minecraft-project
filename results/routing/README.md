@@ -2,6 +2,61 @@
 
 Mission: [docs/MISSION_ROUTING.md](../../docs/MISSION_ROUTING.md). Branch `routing/hrl`.
 
+## Headline
+
+The frozen router (`router_policy.pt`, run `route-full-f` iteration 29, chosen on validation by the
+rule below) with the unchanged final policy as the jumper, against the greedy planner on the same
+courses. Paired difference with a 95% bootstrap interval over courses and McNemar's exact test.
+
+| Where | Courses | Router | Greedy planner | Course list given | Router minus planner | File |
+| --- | --- | --- | --- | --- | --- | --- |
+| Validation, simulator | family 2, 1,800 | **97.89%** | 92.78% | 97.89% | **+5.1 [+3.9, +6.3]**, p = 3e-18 | `router_validation_route-full-f_it29_*.json` |
+| Validation, simulator | family 5 (obstacles), 1,800 | **95.56%** | 89.00% | 95.56% | **+6.6 [+5.2, +7.9]**, p = 3e-21 | same |
+| **Test (once), simulator** | family 1, 1,200 | **97.83%** | 92.33% | 98.42% | **+5.5 [+4.0, +7.0]**, p = 1e-12 | `router_test_*.json` |
+| **Test (once), simulator** | family 4 (obstacles), 1,200 | **95.00%** | 90.50% | 95.25% | **+4.5 [+2.9, +6.1]**, p = 4e-8 | same |
+| Test, both sets | 2,400 | 96.42% | 91.42% | 96.83% | **+5.0 [+3.9, +6.1]**, p = 3e-19 | `router_test_paired.json` |
+| Offline bot (prismarine-physics) | 60 standard test courses | **57/60** | 51/60 | 59/60 | outcome = simulator on 60/60 | `route_offline_summary.json` |
+| Offline bot | 60 obstacle test courses | **56/60** | 56/60 | 57/60 | outcome = simulator on 60/60 | `route_offline_obstacles_summary.json` |
+| **Real Minecraft 1.21.4** | 60 standard test courses | **57/60** | 51/60 | 59/60 | outcome = simulator on 60/60, 0 server corrections | `route_live_summary.json` |
+| **Real Minecraft 1.21.4** | 60 obstacle test courses | **56/60** | 56/60 | 57/60 | outcome = simulator on 60/60, 0 server corrections | `route_live_obstacles_summary.json` |
+
+Fall rule `local` (the bots' rule); the `remaining` rule is in the same files (test: router 98.00% /
+95.17%, planner 94.67% / 92.42%). The planner's test numbers on this PC equal the reference
+(`planner_test_*.json`, recorded). Sixty bot courses are too few to call a winner (one standard
+deviation is about 2 courses); the claim rests on the 1,800- and 1,200-course sets.
+
+What it shows: the router closes about 90% of the gap between the greedy planner and the course
+list on test (5.0 of 5.4 points), so on these courses the bot needs only the goal's position.
+Reinforcement learning alone (pure PPO from a random router, run E) already beats the planner by
++3.8 / +4.4 points on validation; adding imitation of the course's next platform inside the RL loop
+(a training signal only, never an input) brings it to the course list's level.
+
+## Reproduce
+
+```text
+# the frozen router's recipe (run route-full-f; about 20 s per iteration on an RTX 4060 Ti, 16,384 games)
+.venv/Scripts/python.exe -m parkour.route_train --run route-full-f --iterations 250 --num-envs 16384 --rollout-ticks 64 --pool-size 4096 --minibatches 8 --bc-coef 1.0 --bc-decay --bc-until 100 --bc-floor 0.3 --fill policy --fill-bc 1.0 --ent-coef 0.001 --lr 0.0003 --eval-every 15 --val-per-level 100 --duty 0.75 --seed 4
+# evaluation against the planner (writes <out>_standard.json, <out>_obstacles.json, <out>_paired.json)
+.venv/Scripts/python.exe -m parkour.route_eval --router results/routing/router_policy.pt --set validation --out results/routing/router_validation_X
+# the bots (offline; drop --offline for real Minecraft)
+.venv/Scripts/python.exe -m parkour.live --offline --checkpoint results/final_policy.pt --router results/routing/router_policy.pt --courses-file results/games/v2-tuned-planner-live/courses.json --out runs/route-offline
+```
+
+Each run's configuration is in `runs/<run>/config.json`. Tests: `tests/test_route.py` (the GPU
+perception against `planner.perceive`/`options` on validation courses; the offline bot against the
+Python evaluation, same plans, outcomes and ticks, for a random router with both fill modes and for
+the shipped router).
+
+## Open points
+
+- The remaining failures are mostly the jumper's own (level 5, and obstacle courses): on test the
+  router is 0.6 points below the course list on standard courses and 0.25 on obstacle courses.
+- 7 validation and 5 test obstacle courses fail with an empty plan: the head-hitter rule drops a
+  real course platform 4 blocks above a beam it touches (section 3 of the brief); the router uses the
+  planner's perception unchanged, so it inherits this.
+- PPO's own contribution after the imitation warm start is not measurable (run D); pure PPO from
+  scratch (run E) beats the planner but is less stable and 1-2 points below.
+
 ## Session log
 
 - **29 Oct 2026, Claude (Opus 5.5) on the teammate's PC (RTX 4060 Ti 16 GB, i9-10900K):** fresh
@@ -20,6 +75,15 @@ Mission: [docs/MISSION_ROUTING.md](../../docs/MISSION_ROUTING.md). Branch `routi
   owner; the offline bot was run once with an early router (run A) before the brief restricted bot
   runs to the frozen, tested router: it is reported below as an early deployment check and was not
   used for any choice.
+
+- **30 Oct 2026, night (same session):** controls C (PPO without imitation), D (imitation without
+  PPO), E (pure PPO from scratch) and F (the whole recipe in one run, new seed). Applied the freeze
+  rule (`route-full-f` it 29), shipped `router_policy.*`, then played the test sets once (router and
+  planner, same device), the offline bot once per course file and real Minecraft once per course
+  file. Next for the main session: review and merge the pull request.
+
+Early deployment check (not part of the protocol, run A it 99, before the brief's update): offline
+bot 57/60 and 55/60, outcome = simulator on all 120 (`route_a_offline_*_summary.json`).
 
 ## Freeze rule (written before the candidates' full validation results were compared)
 
