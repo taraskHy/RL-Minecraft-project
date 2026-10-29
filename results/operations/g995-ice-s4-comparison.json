@@ -1,6 +1,6 @@
 {
   "updated_at": "2026-10-29T05:10:46",
-  "measured": "Simulator, common levels 0-5, 200 courses per level, fixed validation family 2 and final test families 1/4. Training seed does not change these held-out course sets.",
+  "measured": "Simulator, common levels 0-5. Validation families 2/5: 100 courses per level from each. Final test families 1/4: 200 courses per level per set. Training seed does not change these held-out course sets.",
   "selection": "Checkpoint selected only from validation; archived data read without rerunning any evaluation.",
   "baseline": {
     "run": "obstacles-g995",
