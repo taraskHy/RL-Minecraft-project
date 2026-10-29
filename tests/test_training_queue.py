@@ -40,3 +40,15 @@ def test_persistent_lock_preserves_state_and_next_save_can_recover(monkeypatch, 
     monkeypatch.setattr(Q.os, 'replace', replace)
     assert Q.save(path, {'jobs': {'existing': 'completed'}})
     assert json.loads(path.read_text())['jobs']['existing'] == 'completed'
+
+
+def test_jobs_start_from_their_own_checkpoint_and_seeds_keep_it(monkeypatch, tmp_path):
+    assert Q.init_checkpoint({}, 'x/latest.pt') == 'results/final_policy.pt'
+    assert Q.init_checkpoint({'init': 'runs/a/best.pt'}, 'x/latest.pt') == 'runs/a/best.pt'
+    assert Q.init_checkpoint({'init': 'runs/a/best.pt', 'resume': True}, 'x/latest.pt') == 'x/latest.pt'
+    monkeypatch.setattr(Q, 'RUNS', tmp_path)
+    (tmp_path/'job').mkdir()
+    (tmp_path/'job'/'summary.json').write_text(json.dumps(
+        {'completed': True, 'best': {'validation_per_level': {str(i): {'success': 0.9} for i in range(6)}}}))
+    spec = Q.next_seed({'jobs': {}}, {'jobs': [{'name': 'job', 'flags': ['--x'], 'init': 'runs/a/best.pt'}]})
+    assert spec['name'] == 'job-s1' and spec['init'] == 'runs/a/best.pt' and spec['flags'] == ['--x', '--seed', '1']

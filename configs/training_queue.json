@@ -24,6 +24,39 @@
         "--pool-size",
         "1024"
       ]
+    },
+    {
+      "name": "combined-distill",
+      "init": "runs/g995-extra/checkpoints/best.pt",
+      "flags": [
+        "--skills",
+        "basic,advanced,extra",
+        "--ice-prob",
+        "0.3",
+        "--curriculum",
+        "uniform",
+        "--pool-size",
+        "1024",
+        "--teachers",
+        "basic=runs/g995-ice/checkpoints/best.pt,advanced=results/neo_policy.pt,extra=runs/g995-extra/checkpoints/best.pt",
+        "--distill-coef",
+        "1.0",
+        "--distill-decay"
+      ]
+    },
+    {
+      "name": "combined-union",
+      "init": "runs/g995-extra/checkpoints/best.pt",
+      "flags": [
+        "--skills",
+        "basic,advanced,extra",
+        "--ice-prob",
+        "0.3",
+        "--curriculum",
+        "uniform",
+        "--pool-size",
+        "1024"
+      ]
     }
   ]
 }

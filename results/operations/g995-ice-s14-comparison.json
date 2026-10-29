@@ -1,0 +1,38 @@
+{
+  "updated_at": "2026-10-29T13:43:09",
+  "measured": "Simulator, common levels 0-5. Validation families 2/5: 100 courses per level from each. Final test families 1/4: 200 courses per level per set. Training seed does not change these held-out course sets.",
+  "selection": "Checkpoint selected only from validation; archived data read without rerunning any evaluation.",
+  "baseline": {
+    "run": "obstacles-g995",
+    "checkpoint": "results/final_policy.pt",
+    "selected_iteration": 699,
+    "validation_success": 0.9758333333333333,
+    "standard_success": 0.9841666666666667,
+    "obstacle_success": 0.9525,
+    "sources": [
+      "results\\runs\\obstacles-g995\\summary.json",
+      "results\\runs\\obstacles-g995\\eval_log.csv",
+      "results\\runs\\obstacles-g995\\eval_obstacles_log.csv"
+    ]
+  },
+  "run": {
+    "run": "g995-ice-s14",
+    "selected_iteration": 149,
+    "validation_success": 0.965,
+    "standard_success": 0.9675,
+    "obstacle_success": 0.9333
+  },
+  "delta_pp": {
+    "validation_success": -1.0833333333333361,
+    "standard_success": -1.6666666666666718,
+    "obstacle_success": -1.9199999999999995
+  },
+  "sources": [
+    "results\\runs\\g995-ice-s14\\summary.json",
+    "results\\runs\\g995-ice-s14\\eval_val_log.csv",
+    "results\\runs\\g995-ice-s14\\eval_log.csv",
+    "results\\runs\\g995-ice-s14\\eval_obstacles_log.csv"
+  ],
+  "audited_by": "Claude (PC session), 29 Oct 2026: the selected iteration is the highest validation score in eval_val_log.csv, and the test rows are the one test of that checkpoint (--test-once).",
+  "notification_context": "Completion reported once in the Claude PC session's summary of 29 Oct 2026 (seeds 10-19 together); do not repeat."
+}

@@ -1,8 +1,11 @@
 """Two-slot Windows training queue. Control: runs/training_control.json.
 
-Only launches training; the main Codex chat publishes results. Existing logical
+Only launches training; the main session publishes results. Existing logical
 training process trees count towards the global two-job cap. A gaming change
 requests a clean checkpoint pause and resumes the same run with the new limits.
+A plan job may name its own starting checkpoint (``init``, default
+results/final_policy.pt). With ``"auto_seeds": false`` in the control file the
+queue adds no further seeds of the best recipe when the plan is done.
 """
 import argparse
 import json
@@ -84,7 +87,12 @@ def next_seed(state, plan):
     while f"{base['name']}-s{seed}" in state['jobs'] or (RUNS / f"{base['name']}-s{seed}").exists():
         seed += 1
     return {'name': f"{base['name']}-s{seed}", 'flags': base['flags'] + ['--seed', str(seed)],
+            **({'init': base['init']} if 'init' in base else {}),
             'selection': {'metric': 'common validation levels 0-5', 'score': score, 'base': base['name']}}
+
+
+def init_checkpoint(job, latest):
+    return str(latest) if job.get('resume') else job.get('init', 'results/final_policy.pt')
 
 
 def main():
@@ -121,6 +129,8 @@ def main():
             job = state['jobs'].setdefault(spec['name'], {**spec, 'status': 'pending'})
             if job['status'] == 'pending':
                 job['flags'] = spec['flags']
+                if 'init' in spec:
+                    job['init'] = spec['init']
         for name, job in list(state['jobs'].items()):
             if job['status'] == 'running' and name not in names:
                 if name in handles:
@@ -141,7 +151,8 @@ def main():
             if job['status'] == 'running' and job.get('gaming', False) != control.get('gaming', False):
                 (RUNS/name/'pause_requested').touch()
         if not control.get('hold', False):
-            if not any(j['status'] == 'pending' for j in state['jobs'].values()) and len(active) < 2:
+            if (control.get('auto_seeds', True) and not any(j['status'] == 'pending' for j in state['jobs'].values())
+                    and len(active) < 2):
                 spec = next_seed(state, plan)
                 if spec:
                     state['jobs'][spec['name']] = {**spec, 'status': 'pending'}
@@ -156,7 +167,7 @@ def main():
                     job['status'] = 'blocked_existing'
                     print(f'Existing evidence blocks a duplicate: {name}', flush=True)
                     continue
-                init = str(latest) if job.get('resume') else 'results/final_policy.pt'
+                init = init_checkpoint(job, latest)
                 for marker in ['pause_requested', 'pause_ready.json']:
                     (folder/marker).unlink(missing_ok=True)
                 args = [sys.executable, '-u', '-m', 'parkour.train', '--run', name, '--init-from', init,

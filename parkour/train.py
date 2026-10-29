@@ -26,7 +26,7 @@ import torch
 
 from . import courses as C
 from . import physics
-from .env import OBS_DIM, OBS_DIM_EXT, CoursePool, EnvConfig, LevelSampler, ParkourEnv, RewardConfig
+from .env import ACTION_DIMS, OBS_DIM, OBS_DIM_EXT, CoursePool, EnvConfig, LevelSampler, ParkourEnv, RewardConfig
 from .model import ActorCritic, RunningNorm
 from .paths import RUNS
 
@@ -34,6 +34,146 @@ TEST_SEED_FAMILY = 1  # numpy SeedSequence entropy [2026, family, ...]; training
 OBSTACLE_TEST_FAMILY = 4  # held-out courses with obstacles
 VALIDATION_FAMILY = 2  # model selection (best.pt); the test families are only reported
 OBSTACLE_VALIDATION_FAMILY = 5
+ICE_TEST_FAMILY = 16  # skills mode: basic levels with ice on 30% of platforms (16 and 17 were unused)
+ICE_VALIDATION_FAMILY = 17
+
+# Skills mode (--skills, docs/combine_policies.md): every training course comes from one specialist's own
+# level table, so every jump on it is one its teacher trained on. Global level ids: basic 0-5, advanced
+# 6-8, extra 9-14; the held-out ice group (basic levels with ice) is 15-20.
+SKILL_GROUPS = {  # group -> (level table keywords, first and last local level, first global id)
+    "basic": ({}, 0, 5, 0),
+    "advanced": ({"advanced": True}, 6, 8, 6),
+    "extra": ({"extra": True}, 6, 11, 9),
+}
+ICE_GROUP = (15, 20)
+SKILL_ICE_PROB = 0.3  # the held-out ice sets, as g995-ice's training courses
+GROUP_ORDER = ("basic", "ice", "advanced", "extra")  # best.pt = the highest mean over these groups (validation)
+
+
+def skill_plan(groups) -> list[tuple]:
+    """[(global level id, group, local level)] of the training levels of ``groups``."""
+    out = []
+    for g in groups:
+        _, lo, hi, first = SKILL_GROUPS[g]
+        out += [(first + L - lo, g, L) for L in range(lo, hi + 1)]
+    return out
+
+
+def level_groups() -> dict:
+    """Global level id -> group, the ice group included."""
+    out = {gid: g for g in SKILL_GROUPS for gid, _, _ in skill_plan([g])}
+    out.update({gid: "ice" for gid in range(ICE_GROUP[0], ICE_GROUP[1] + 1)})
+    return out
+
+
+def skill_tables(groups) -> dict:
+    return {g: C.load_levels(**SKILL_GROUPS[g][0]) for g in groups}
+
+
+def skill_sets(split: str, per_level: int, n_jumps: int, groups=("basic", "advanced", "extra"), ice: bool = True) -> dict:
+    """Held-out courses of skills mode: group -> {"standard": [...], "obstacles": [...]}, global level ids.
+
+    ``split`` "validation" uses families 2 and 5 (ice 17), "test" 1 and 4 (ice 16). Each group's courses are the
+    specialist's own held-out courses at its levels (same table, family and per-level seeds), relabelled."""
+    if split == "validation":
+        fam, ofam, ifam = VALIDATION_FAMILY, OBSTACLE_VALIDATION_FAMILY, ICE_VALIDATION_FAMILY
+    elif split == "test":
+        fam, ofam, ifam = TEST_SEED_FAMILY, OBSTACLE_TEST_FAMILY, ICE_TEST_FAMILY
+    else:
+        raise ValueError(split)
+    tables = skill_tables(set(groups) | ({"basic"} if ice else set()))
+    out = {}
+    for g in groups:
+        _, lo, hi, first = SKILL_GROUPS[g]
+        parts = {"standard": held_out_courses(tables[g], per_level, n_jumps, family=fam),
+                 "obstacles": held_out_courses(tables[g], per_level, n_jumps, obstacle_prob=0.5, family=ofam)}
+        for k, cs in parts.items():
+            parts[k] = [c for c in cs if lo <= c.level <= hi]
+            for c in parts[k]:
+                c.level = first + c.level - lo
+        out[g] = parts
+    if ice:
+        cs = held_out_courses(tables["basic"], per_level, n_jumps, family=ifam, ice_prob=SKILL_ICE_PROB)
+        for c in cs:
+            c.level = ICE_GROUP[0] + c.level
+        out["ice"] = {"standard": cs, "obstacles": []}
+    return out
+
+
+def group_scores(*per_level: dict) -> dict:
+    """Success per group from per-level results with global ids (each course weighs the same)."""
+    lg = level_groups()
+    acc = {}
+    for pl in per_level:
+        for L, r in pl.items():
+            g = lg.get(int(L))
+            if g is not None:
+                s, n = acc.get(g, (0.0, 0))
+                acc[g] = (s + r["success"] * r["n"], n + r["n"])
+    return {g: s / n for g, (s, n) in acc.items() if n}
+
+
+def macro_score(groups: dict) -> float:
+    present = [groups[g] for g in GROUP_ORDER if g in groups]
+    return sum(present) / len(present)
+
+
+def level_columns(per_level: dict, key: str, n_levels: int) -> list:
+    """One CSV cell per level; blank for a level without courses (skills mode: the ice ids in obstacle sets)."""
+    return [round(per_level[L][key], 4) if L in per_level else "" for L in range(n_levels)]
+
+
+def load_frozen(path: str, device) -> ActorCritic:
+    """A teacher: the checkpoint's network with its own observation normaliser, frozen."""
+    ck = torch.load(path, map_location=device, weights_only=False)
+    cfg = ck.get("config", {})
+    model = ActorCritic(obs_dim=ck["model"]["norm.mean"].shape[0], hidden=tuple(cfg.get("hidden", (512, 256, 128))),
+                        hidden_parts=tuple(p for p in cfg.get("hide", "").split(",") if p)).to(device)
+    model.load_state_dict(ck["model"])
+    model.eval()
+    for p in model.parameters():
+        p.requires_grad_(False)
+    return model
+
+
+def parse_teachers(spec: str, groups) -> dict:
+    """"basic=CKPT,advanced=CKPT" -> {group: path}."""
+    out = dict(p.split("=", 1) for p in spec.split(",") if p)
+    bad = sorted(set(out) - set(groups))
+    if bad:
+        raise ValueError(f"--teachers names groups that are not in --skills: {bad}")
+    return out
+
+
+def teacher_table(teachers: dict, groups, paths: list) -> torch.Tensor:
+    """Global level id -> index of its group's teacher in ``paths`` (-1: no teacher)."""
+    plan = skill_plan(groups)
+    table = torch.full((max(gid for gid, _, _ in plan) + 1,), -1, dtype=torch.int64)
+    for gid, g, _ in plan:
+        if g in teachers:
+            table[gid] = paths.index(teachers[g])
+    return table
+
+
+def teacher_rows(env: ParkourEnv, table: torch.Tensor) -> torch.Tensor:
+    """Teacher index of every environment, from the level of the course it is on now (read before ``env.step``,
+    which moves finished players to new courses)."""
+    return table[env.pool.level[env.course]]
+
+
+def teacher_logp(teacher: ActorCritic, obs: torch.Tensor) -> torch.Tensor:
+    """The teacher's log-probabilities of every head on raw observations, side by side (sum(ACTION_DIMS) numbers)."""
+    return torch.cat([torch.log_softmax(lg, -1) for lg in teacher.logits(teacher.norm(obs))], -1)
+
+
+def distill_kl(student_logits, teacher_lp: torch.Tensor) -> torch.Tensor:
+    """Per-row KL(teacher || student), summed over the five action heads."""
+    kl, o = 0.0, 0
+    for lg, d in zip(student_logits, ACTION_DIMS):
+        t = teacher_lp[:, o:o + d]
+        kl = kl + (t.exp() * (t - torch.log_softmax(lg, -1))).sum(-1)
+        o += d
+    return kl
 
 
 @dataclass
@@ -99,6 +239,16 @@ class TrainConfig:
     advanced: bool = False  # add levels 6-8: neos, double neos, momentum and wide jumps
     extra: bool = False  # add the head-hitter and ice run-up levels (configs/jump_levels_extra.json) after those
     save_at: str = ""  # comma-separated update counts at which to keep a snapshot (0 = untrained)
+    # One network for every skill (docs/combine_policies.md), all off by default. --skills basic,advanced,extra:
+    # each training course comes from one group's own level table (global level ids, SKILL_GROUPS; ice only on
+    # basic courses, with --ice-prob); validation and test are each group's own held-out sets plus the ice sets
+    # (families 17/16); best.pt = the highest mean over the groups basic, ice, advanced and extra. Needs
+    # --test-once. --teachers basic=CKPT,advanced=CKPT,extra=CKPT with --distill-coef W adds
+    # W * KL(teacher || student) on each course's group next to PPO; --distill-decay lowers W linearly to 0.
+    skills: str = ""
+    teachers: str = ""
+    distill_coef: float = 0.0
+    distill_decay: bool = False
 
 
 def course_hash(c: C.Course) -> str:
@@ -128,6 +278,10 @@ class CourseFactory:
         self.levels = levels
         self.exclude = exclude
         self.batch = 0
+        # Skills mode: the training levels in turn, each (global id, its group's table, local level, ice chance).
+        groups = [g for g in cfg.skills.split(",") if g]
+        tables = skill_tables(groups)
+        self.plan = [(gid, tables[g], L, cfg.ice_prob if g == "basic" else 0.0) for gid, g, L in skill_plan(groups)]
 
     def make(self, k: int) -> list[C.Course]:
         rng = np.random.default_rng([2026, 0, self.cfg.seed, self.batch])
@@ -135,10 +289,15 @@ class CourseFactory:
         out = []
         n_levels = len(self.levels)
         while len(out) < k:
-            L = len(out) % n_levels
-            c = C.generate(rng, self.levels, L, int(rng.integers(self.cfg.jumps_min, self.cfg.jumps_max + 1)),
+            if self.plan:
+                gid, table, L, ice = self.plan[len(out) % len(self.plan)]
+            else:
+                gid, table, L, ice = None, self.levels, len(out) % n_levels, self.cfg.ice_prob
+            c = C.generate(rng, table, L, int(rng.integers(self.cfg.jumps_min, self.cfg.jumps_max + 1)),
                            turn_prob=self.cfg.turn_prob, obstacle_prob=self.cfg.obstacle_prob, wide_neo=self.cfg.wide_neo,
-                           ice_prob=self.cfg.ice_prob)
+                           ice_prob=ice)
+            if gid is not None:
+                c.level = gid
             if c.n >= 3 and course_hash(c) not in self.exclude:
                 out.append(c)
         return out
@@ -277,6 +436,15 @@ def train(cfg: TrainConfig) -> Path:
         torch.cuda.set_per_process_memory_fraction(cfg.gpu_mem_fraction,
                                                    dev.index if dev.index is not None else torch.cuda.current_device())
     out = RUNS / cfg.run
+    skills = [g for g in cfg.skills.split(",") if g]
+    if skills:
+        if set(skills) - set(SKILL_GROUPS) or len(set(skills)) != len(skills):
+            raise ValueError(f"--skills: groups {', '.join(SKILL_GROUPS)}, each once")
+        if not cfg.test_once:
+            raise ValueError("--skills selects on its own validation sets: use --test-once")
+    teacher_paths = parse_teachers(cfg.teachers, skills) if cfg.teachers else {}
+    if (cfg.teachers or cfg.distill_coef) and not (teacher_paths and cfg.distill_coef > 0):
+        raise ValueError("distillation needs --skills, --teachers and --distill-coef > 0")
     resuming = bool(cfg.init_from) and Path(cfg.init_from).resolve().parent.parent == out.resolve()
     if (out / "train_log.csv").exists() and not resuming:
         raise ValueError(f"Existing run {cfg.run}: resume its own latest.pt or choose a new run name")
@@ -291,17 +459,29 @@ def train(cfg: TrainConfig) -> Path:
     cfg_dict = dataclasses.asdict(cfg)
     (out / "config.json").write_text(json.dumps(cfg_dict, indent=1))
 
-    levels = C.load_levels(advanced=cfg.advanced, extra=cfg.extra)
-    n_levels = len(levels)
-    tests = held_out_courses(levels, cfg.eval_per_level, cfg.eval_jumps)
-    test_hashes = {course_hash(c) for c in tests}
-    obstacle_tests = obstacle_courses(levels, cfg.eval_per_level, cfg.eval_jumps) if cfg.obstacle_prob > 0 else []
-    test_hashes |= {course_hash(c) for c in obstacle_tests}
-    vals = held_out_courses(levels, cfg.val_per_level, cfg.eval_jumps, family=VALIDATION_FAMILY)
-    if cfg.obstacle_prob > 0:
-        vals += held_out_courses(levels, cfg.val_per_level, cfg.eval_jumps, obstacle_prob=0.5,
-                                 family=OBSTACLE_VALIDATION_FAMILY)
-    test_hashes |= {course_hash(c) for c in vals}
+    if skills:
+        tables = skill_tables(skills)
+        levels = [lv for g in skills for lv in tables[g]]  # every table a training course may come from
+        n_levels = max(gid for gid, _, _ in skill_plan(skills)) + 1  # training levels (curriculum, train_log)
+        n_eval = ICE_GROUP[1] + 1  # levels of the held-out sets (the ice group's ids follow the others)
+        held = skill_sets("test", cfg.eval_per_level, cfg.eval_jumps, skills)
+        tests = [c for g in held.values() for c in g["standard"]]
+        obstacle_tests = [c for g in held.values() for c in g["obstacles"]]
+        vals = [c for g in skill_sets("validation", cfg.val_per_level, cfg.eval_jumps, skills).values()
+                for c in g["standard"] + g["obstacles"]]
+        test_hashes = {course_hash(c) for c in tests + obstacle_tests + vals}
+    else:
+        levels = C.load_levels(advanced=cfg.advanced, extra=cfg.extra)
+        n_levels = n_eval = len(levels)
+        tests = held_out_courses(levels, cfg.eval_per_level, cfg.eval_jumps)
+        test_hashes = {course_hash(c) for c in tests}
+        obstacle_tests = obstacle_courses(levels, cfg.eval_per_level, cfg.eval_jumps) if cfg.obstacle_prob > 0 else []
+        test_hashes |= {course_hash(c) for c in obstacle_tests}
+        vals = held_out_courses(levels, cfg.val_per_level, cfg.eval_jumps, family=VALIDATION_FAMILY)
+        if cfg.obstacle_prob > 0:
+            vals += held_out_courses(levels, cfg.val_per_level, cfg.eval_jumps, obstacle_prob=0.5,
+                                     family=OBSTACLE_VALIDATION_FAMILY)
+        test_hashes |= {course_hash(c) for c in vals}
     factory = CourseFactory(cfg, levels, test_hashes)
     train_courses = factory.make(cfg.pool_size)
     demos = load_demos(cfg.demos) if cfg.demos else []
@@ -375,6 +555,17 @@ def train(cfg: TrainConfig) -> Path:
     val_buf = torch.zeros(T, N, device=dev)
     rew_buf = torch.zeros(T, N, device=dev)
     done_buf = torch.zeros(T, N, device=dev)
+    teachers = []
+    if teacher_paths:
+        paths = sorted(set(teacher_paths.values()))  # one frozen network per checkpoint
+        teachers = [load_frozen(p, dev) for p in paths]
+        if any(t.obs_dim != model.obs_dim for t in teachers):
+            raise ValueError("every teacher must use the student's observation")
+        t_table = teacher_table(teacher_paths, skills, paths).to(dev)
+        tlogp_buf = torch.zeros(T, N, sum(ACTION_DIMS), device=dev)
+        tmask_buf = torch.zeros(T, N, dtype=torch.bool, device=dev)
+        rows = torch.arange(N, device=dev)
+        print(json.dumps({"teachers": teacher_paths}), flush=True)
 
     log_path = out / "train_log.csv"
     eval_path = out / "eval_log.csv"
@@ -383,8 +574,8 @@ def train(cfg: TrainConfig) -> Path:
     log_w = None
     eval_w = csv.writer(eval_f)
     if eval_path.stat().st_size == 0:
-        eval_w.writerow(["iteration", "env_steps", "success"] + [f"success_L{L}" for L in range(n_levels)]
-                        + [f"progress_L{L}" for L in range(n_levels)] + [f"fell_L{L}" for L in range(n_levels)])
+        eval_w.writerow(["iteration", "env_steps", "success"] + [f"success_L{L}" for L in range(n_eval)]
+                        + [f"progress_L{L}" for L in range(n_eval)] + [f"fell_L{L}" for L in range(n_eval)])
     best = best_info.get("validation_success", -1.0)
     obs = env.observe()
     if dev.type == 'cuda' and cfg.gpu_mem_fraction:
@@ -411,6 +602,11 @@ def train(cfg: TrainConfig) -> Path:
                     logp = logp + dist.log_prob(a)
                 action = torch.stack(acts, -1)
                 value = model.value(obs_n)
+                if teachers:  # every teacher on every row (no host sync), each row keeps its group's
+                    tid = teacher_rows(env, t_table)
+                    tl = torch.stack([teacher_logp(tm, obs) for tm in teachers])
+                    tlogp_buf[t] = tl[tid.clamp(min=0), rows]
+                    tmask_buf[t] = tid >= 0
                 nobs, rew, term, trunc, final_obs, info = env.step(action)
                 boot = model.value(model.norm(final_obs))
                 rew = rew + cfg.gamma * torch.where(trunc, boot, torch.zeros_like(boot))
@@ -450,6 +646,12 @@ def train(cfg: TrainConfig) -> Path:
         mb = T * N // cfg.minibatches
         stats = {"pi_loss": 0.0, "v_loss": 0.0, "entropy": 0.0, "kl": 0.0, "clipfrac": 0.0, "bc_loss": 0.0}
         bc_w = cfg.bc_coef * ((1 - (it - start_it) / max(1, cfg.iterations - start_it)) if cfg.bc_decay else 1.0)
+        if teachers:
+            b_tlogp = tlogp_buf.view(T * N, -1)
+            b_tmask = tmask_buf.view(-1)
+            # The schedule counts from iteration 0, so a resumed run continues it.
+            dist_w = cfg.distill_coef * ((1 - it / cfg.iterations) if cfg.distill_decay else 1.0)
+            stats["distill_kl"] = 0.0
         nupd, stopped = 0, False
         for _ in range(cfg.epochs):
             perm = torch.randperm(T * N, device=dev)
@@ -476,6 +678,11 @@ def train(cfg: TrainConfig) -> Path:
                     bc = -bc_logp.mean()
                     loss = loss + bc_w * bc
                     stats["bc_loss"] += bc.item()
+                if teachers:
+                    m = b_tmask[idx]
+                    dk = (distill_kl(model.logits(b_obs[idx]), b_tlogp[idx]) * m).sum() / m.sum().clamp(min=1)
+                    loss = loss + dist_w * dk
+                    stats["distill_kl"] += dk.item()
                 if not torch.isfinite(loss):
                     stopped = True
                     break
@@ -504,6 +711,8 @@ def train(cfg: TrainConfig) -> Path:
         stats["lr"] = lr
         stats["updates"] = nupd
         stats["stopped"] = int(stopped)
+        if teachers:
+            stats["distill_w"] = dist_w
 
         total_steps += T * N
         if it + 1 in snapshots:
@@ -561,15 +770,21 @@ def train(cfg: TrainConfig) -> Path:
             evv = (evaluate_course_batches(model, vals, dev, cfg.stall_ticks, cfg.eval_batch_size, cfg.compact_ice)
                    if cfg.eval_batch_size else evaluate(model, val_pool, dev, cfg.stall_ticks))
             score = evv["success"]
+            vgroups = {}
+            if skills:  # the selection score: the mean over the groups
+                vgroups = {g: v for g, v in sorted(group_scores(evv["per_level"]).items(), key=lambda x: GROUP_ORDER.index(x[0]))}
+                score = macro_score(vgroups)
             vpath = out / "eval_val_log.csv"
             new_file = not vpath.exists()
             with open(vpath, "a", newline="") as fv:
                 wv = csv.writer(fv)
                 if new_file:
-                    wv.writerow(["iteration", "env_steps", "success"])
-                wv.writerow([it, total_steps, round(score, 4)])
+                    wv.writerow(["iteration", "env_steps", "success"] + [f"success_{g}" for g in vgroups])
+                wv.writerow([it, total_steps, round(score, 4)] + [round(v, 4) for v in vgroups.values()])
             ev["validation_success"] = score
             ev["validation_per_level"] = evv["per_level"]
+            if vgroups:
+                ev["validation_groups"] = vgroups
             print(json.dumps({"validation_iteration": it, "success": score}), flush=True)
             if obstacle_pool is not None and not cfg.test_once:
                 evo = evaluate(model, obstacle_pool, dev, cfg.stall_ticks)
@@ -590,6 +805,8 @@ def train(cfg: TrainConfig) -> Path:
                 best = score
                 best_info = {"iteration": it, "validation_success": score, "test_success": ev.get("success"),
                              "validation_per_level": evv["per_level"]}
+                if vgroups:
+                    best_info["validation_groups"] = vgroups
                 _save(ck, out / "checkpoints" / "best.pt")
                 model.export(out / "policy_best.json", {"run": cfg.run, "iteration": it, "eval": ev})
             (out / "summary.json").write_text(json.dumps({"best": best_info, "last_eval": ev,
@@ -620,9 +837,8 @@ def train(cfg: TrainConfig) -> Path:
         pl = tested["per_level"]
         with open(eval_path, "a", newline="") as f:
             csv.writer(f).writerow([best_it, best_steps, round(tested["success"], 4)]
-                + [round(pl[L]["success"], 4) for L in range(n_levels)]
-                + [round(pl[L]["progress"], 4) for L in range(n_levels)]
-                + [round(pl[L]["fell"], 4) for L in range(n_levels)])
+                + level_columns(pl, "success", n_eval) + level_columns(pl, "progress", n_eval)
+                + level_columns(pl, "fell", n_eval))
         if obstacle_tests:
             tested["obstacles"] = evaluate_course_batches(model, obstacle_tests, dev, cfg.stall_ticks,
                                                           cfg.eval_batch_size or len(obstacle_tests), cfg.compact_ice)
@@ -630,9 +846,15 @@ def train(cfg: TrainConfig) -> Path:
             with open(out / "eval_obstacles_log.csv", "a", newline="") as f:
                 w = csv.writer(f)
                 if f.tell() == 0:
-                    w.writerow(["iteration", "env_steps", "success"] + [f"success_L{L}" for L in range(n_levels)])
+                    w.writerow(["iteration", "env_steps", "success"] + [f"success_L{L}" for L in range(n_eval)])
                 w.writerow([best_it, best_steps, round(tested["obstacles"]["success"], 4)]
-                           + [round(po[L]["success"], 4) for L in range(n_levels)])
+                           + level_columns(po, "success", n_eval))
+        if skills:  # per group: standard courses, obstacle courses, and both (the validation score's mix)
+            both = group_scores(pl, tested["obstacles"]["per_level"])
+            tested["groups"] = {g: {"standard": group_scores(pl).get(g),
+                                    "obstacles": group_scores(tested["obstacles"]["per_level"]).get(g), "all": both[g]}
+                                for g in GROUP_ORDER if g in both}
+            tested["macro"] = macro_score(both)
         summary = json.loads((out / "summary.json").read_text())
         summary["best"]["test_success"] = tested["success"]
         summary["test_eval"] = {"iteration": best_it, **tested}

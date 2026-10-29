@@ -1,0 +1,2 @@
+iteration,env_steps,success,success_L0,success_L1,success_L2,success_L3,success_L4,success_L5,progress_L0,progress_L1,progress_L2,progress_L3,progress_L4,progress_L5,fell_L0,fell_L1,fell_L2,fell_L3,fell_L4,fell_L5
+49,26214400,0.9642,1.0,0.995,0.995,0.99,0.955,0.85,1.0,0.997,0.9975,0.994,0.98,0.9274,0.0,0.005,0.005,0.01,0.045,0.145

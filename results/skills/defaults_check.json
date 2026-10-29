@@ -1,0 +1,24 @@
+{
+ "what": "Default flags train bit for bit as before the skills mode: tiny CPU runs (basic, advanced, extra with ice 0.3; obstacles 0.3, pool refresh every iteration, batched validation, --test-once) with parkour/train.py at commit 52be9e3 and with the skills-mode version; final weights, train_log (without the timing columns minutes and fps), eval_val_log, eval_log and test results compared.",
+ "command": "git archive -o old.tar 52be9e3 parkour configs, extract to OLD; python scripts/defaults_check.py OLD OUT_OLD; python scripts/defaults_check.py . OUT_NEW; compare OUT_OLD/report.json with OUT_NEW/report.json",
+ "identical": true,
+ "date": "2026-10-29",
+ "runs": {
+  "basic": {
+   "weights_sha1": "78c976e1567c51e75108cf5bdee16705809e1056",
+   "train_log_sha1": "66b4c1af83b92476e08526a1251be4f9bf15892c",
+   "test_success": 0.0
+  },
+  "advanced": {
+   "weights_sha1": "85b724c7baa557ce1437c0d4722282e9fd9444ba",
+   "train_log_sha1": "3eef00941bfc565648e369ce5f6bd907a8c965f8",
+   "test_success": 0.0
+  },
+  "extra": {
+   "weights_sha1": "dfb625ca13f302be5e057e3cd4a0da89153db9e7",
+   "train_log_sha1": "66e729c5e6b43b535d42349dcb6639f2344e8241",
+   "test_success": 0.0
+  }
+ },
+ "evidence": "runs/skills-defaults-check-20261029/ (the two full reports and the script)"
+}

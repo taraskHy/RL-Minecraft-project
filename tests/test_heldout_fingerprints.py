@@ -16,8 +16,8 @@ import json
 import unittest
 
 from parkour import courses as C
-from parkour.train import (OBSTACLE_TEST_FAMILY, OBSTACLE_VALIDATION_FAMILY, TEST_SEED_FAMILY, VALIDATION_FAMILY,
-                           held_out_courses)
+from parkour.train import (ICE_TEST_FAMILY, ICE_VALIDATION_FAMILY, OBSTACLE_TEST_FAMILY, OBSTACLE_VALIDATION_FAMILY,
+                           SKILL_ICE_PROB, TEST_SEED_FAMILY, VALIDATION_FAMILY, held_out_courses, skill_sets)
 
 SETS = {  # (advanced levels, seed family, obstacle chance) -> sha1 prefix
     (False, TEST_SEED_FAMILY, 0.0): "4fae789a0e19dc25",
@@ -46,6 +46,21 @@ EXTRA_PREVIEW_SETS = {  # scripts/extra_preview.py: levels 0-5 plus one extra le
     ("shaped blocks", 1): "1e757e579f6a838d", ("shaped blocks", 2): "0f71db0f924a2fe2",
     ("slime bounce", 1): "1e48cedfd73fd1c4", ("slime bounce", 2): "887bd5beee576ccf",
     ("ladder climb", 1): "d277b61e223a9a5c", ("ladder climb", 2): "2ed471dc5890a76d",
+}
+# Skills mode (docs/combine_policies.md; computed on 52be9e3 with the skills mode, 29 Oct 2026). The ice sets:
+# basic levels, ice on 30% of the platforms after the start, 200 courses per level.
+ICE_SETS = {ICE_TEST_FAMILY: "d024be3f3f6a351a", ICE_VALIDATION_FAMILY: "d209160a85274b57"}
+# skill_sets(split): each group's courses with global level ids (test 200 per level, validation 100). Basic is
+# the standard sets above; advanced and extra are the advanced and extra tables' sets at their own levels.
+SKILL_SETS = {
+    ("test", "basic", "standard"): "4fae789a0e19dc25", ("test", "basic", "obstacles"): "d870df6c9b084de7",
+    ("test", "advanced", "standard"): "9f8ca4e046d391d9", ("test", "advanced", "obstacles"): "f46b7c54197b6714",
+    ("test", "extra", "standard"): "598e6886c4e5bb81", ("test", "extra", "obstacles"): "2221abfda38a783b",
+    ("test", "ice", "standard"): "1767df53b4692559",
+    ("validation", "basic", "standard"): "cc637c6f1405babc", ("validation", "basic", "obstacles"): "fa59eab1e05fe468",
+    ("validation", "advanced", "standard"): "250fcc06d77baac6", ("validation", "advanced", "obstacles"): "295b9db69a798ba4",
+    ("validation", "extra", "standard"): "ce4fdcbb41ff1517", ("validation", "extra", "obstacles"): "dcabd242926f1ea9",
+    ("validation", "ice", "standard"): "839d65fa1a56a27b",
 }
 
 
@@ -78,6 +93,18 @@ class HeldOutFingerprints(unittest.TestCase):
             with self.subTest(level=name, family=family):
                 cs = held_out_courses(basic + [levels[name]], 200, 10, family=family)[6 * 200:]
                 self.assertEqual(fingerprint(cs), digest)
+
+    def test_ice_sets_are_unchanged(self):
+        for family, digest in ICE_SETS.items():
+            with self.subTest(family=family):
+                cs = held_out_courses(C.load_levels(), 200, 10, family=family, ice_prob=SKILL_ICE_PROB)
+                self.assertEqual(fingerprint(cs), digest)
+
+    def test_skill_sets_are_unchanged(self):
+        sets = {split: skill_sets(split, per_level, 10) for split, per_level in (("test", 200), ("validation", 100))}
+        for (split, group, part), digest in SKILL_SETS.items():
+            with self.subTest(split=split, group=group, part=part):
+                self.assertEqual(fingerprint(sets[split][group][part]), digest)
 
 
 if __name__ == "__main__":
