@@ -314,6 +314,23 @@ once. Then the offline bot and real Minecraft on the first 10 test courses
 of the extra levels head hitter, hard head hitter and slime bounce, then
 replays, a video and the results page.
 
+**Next to it, neos in the one network (the user's "continue with the neo
+work", 29 Oct): one DAgger round on the combined student.** Rules fixed
+before any combined result: start from whichever of `combined-distill` and
+`combined-union` has the higher validation mean over the four groups (its
+`best.pt`). Collect one round of demonstrations from the states it really
+reaches on neo takeoffs of training courses, with the settings of
+`scripts/neo_pipeline.py` (`python -m parkour.neo_dagger --checkpoint <its
+best.pt> --out runs/neo_dagger_c1.pt --prior 0.5 --expert assist --seed 1`).
+Then train it in skills mode with that script's neo recipe (`--reward-stall
+5 --bc-coef 0.3 --bc-pairs runs/neo_dagger_c1.pt --wide-neo --lr 3e-4
+--lr-max 3e-4`, and the standing-start demonstrations on 128 of the 1,024
+pool courses, the script's one in eight), 500 iterations, `best.pt` by the
+validation mean over the four groups, tested once. It is judged against its
+start on validation only: the four-group mean, the advanced group and the
+218 validation neo courses (`python -m parkour.neo_assist --off --set
+official --family 2`). The queue keeps two trainers at most.
+
 **Next, by the user's choice (29 Oct): one network for every skill.** Distil
 the specialists (final policy, `g995-adv`, `g995-ice`, `g995-extra`, the
 neo policy) into one student next to PPO, on courses that mix every skill;
