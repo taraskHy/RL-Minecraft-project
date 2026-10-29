@@ -609,18 +609,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `cfd266b` (2026-10-29 06:30, branch `main`): Archive validation progress for ice seeds 8 and 9
+Generated on top of commit `afe9c17` (2026-10-29 06:35, branch `main`): Archive improved validation checkpoints for ice seeds 8 and 9
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 161 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 162 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 119 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 136 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 119 |
-| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 46 |
-| `results/DATA.md` | `a4d31ba` 2026-10-29 03:17 | 38 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 120 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 137 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 120 |
+| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 47 |
+| `results/DATA.md` | `a4d31ba` 2026-10-29 03:17 | 39 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -655,8 +655,8 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `g995-ice-s5` | 999 | 0.52 | 99 | 97.0 | 98.5 | - | - |
 | `g995-ice-s6` | 999 | 0.52 | 499 | 97.2 | 97.7 | - | - |
 | `g995-ice-s7` | 999 | 0.52 | 749 | 97.0 | 96.7 | - | - |
-| `g995-ice-s8` | 149 | 0.08 | 149 | 96.2 | - | - | - |
-| `g995-ice-s9` | 99 | 0.05 | 99 | 96.6 | - | - | - |
+| `g995-ice-s8` | 249 | 0.13 | 199 | 96.8 | - | - | - |
+| `g995-ice-s9` | 149 | 0.08 | 149 | 96.8 | - | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
 | `hp-envs4096` | 3999 | 0.52 | 3599 | 93.7 | 94.2 | 92.0 | - |
@@ -789,6 +789,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **29 Oct 2026, 06:40, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-ice-s8: iteration 249, validation 95.92%, selected best 199 (96.83%), 6 levels; g995-ice-s9: iteration 149, validation 96.75%, selected best 149 (96.75%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. No executable changes; prior checks remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 
 - **29 Oct 2026, 06:35, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-ice-s8: iteration 149, validation 96.25%, selected best 149 (96.25%), 6 levels; g995-ice-s9: iteration 99, validation 96.58%, selected best 99 (96.58%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. No executable changes; prior checks remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 
