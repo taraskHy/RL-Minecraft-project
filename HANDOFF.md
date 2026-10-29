@@ -447,7 +447,7 @@ evening; an older watchdog copy skipped every planner service). Log:
 `runs/gpu_watchdog.log`. If the watchdog is ever killed while jobs are
 paused: `python scripts/gpu_watchdog.py --resume-all`.
 
-**Current PC instruction (29 Oct, 00:51):** the user now permits 100% GPU use, superseding the 70% compute/aggregate-memory target. Initial order was `g995-adv` and `g995-ice` together, then `g995-extra`, with at most two trainers. Both initial runs have completed; the queue now runs extra plus ice seed 1. The shared throttle and all trainer memory, duty and thread flags were removed; the initial runs resumed from their own checkpoints 699/799. Keep thermal pause above 65 C/resume below 58 C and keep-awake. Preserve the existing rollout shape and recipe. If the user says gaming has resumed, use another checkpoint-safe transition with their requested gaming flags; do not stop their game.
+**Current PC instruction (29 Oct, 00:51):** the user now permits 100% GPU use, superseding the 70% compute/aggregate-memory target. Initial order was `g995-adv` and `g995-ice` together, then `g995-extra`, with at most two trainers. Both initial runs, extra and ice seed 1 have completed; the queue continues additional validation-selected ice seeds. Read `runs/training_queue_state.json` and the process inventory for current jobs. The shared throttle and all trainer memory, duty and thread flags were removed; the initial runs resumed from their own checkpoints 699/799. Keep thermal pause above 65 C/resume below 58 C and keep-awake. Preserve the existing rollout shape and recipe. If the user says gaming has resumed, use another checkpoint-safe transition with their requested gaming flags; do not stop their game.
 
 **Earlier gaming guidance.** The user plays on the same GPU. On
 28 Oct they first asked for "a safe buffer", then (same evening) "you can
@@ -607,18 +607,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `b731d70` (2026-10-29 02:41, branch `main`): Merge remote-tracking branch 'origin/claude/pensive-knuth-biwj11'
+Generated on top of commit `449867f` (2026-10-29 02:42, branch `main`): Archive ice seed 949 validation and cloud pause note
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 117 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 118 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 75 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 92 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 75 |
-| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 2 |
-| `results/DATA.md` | `9b48bda` 2026-10-29 00:34 | 33 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 76 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 93 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 76 |
+| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 3 |
+| `results/DATA.md` | `9b48bda` 2026-10-29 00:34 | 34 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -644,9 +644,10 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `full-s1` | 999 | 0.52 | - | - | - | 94.2 | - |
 | `full-s2` | 999 | 0.52 | 949 | 93.0 | 93.1 | 91.9 | - |
 | `g995-adv` | 999 | 0.52 | 99 | 81.8 | 82.3 | - | - |
-| `g995-extra` | 899 | 0.47 | 849 | 90.7 | - | - | - |
+| `g995-extra` | 999 | 0.52 | 849 | 90.7 | 91.2 | - | - |
 | `g995-ice` | 999 | 0.52 | 449 | 97.3 | 97.5 | - | - |
-| `g995-ice-s1` | 949 | 0.50 | 949 | 97.7 | - | - | - |
+| `g995-ice-s1` | 999 | 0.52 | 949 | 97.7 | 97.2 | - | - |
+| `g995-ice-s2` | 49 | 0.03 | 49 | 95.2 | - | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
 | `hp-envs4096` | 3999 | 0.52 | 3599 | 93.7 | 94.2 | 92.0 | - |
@@ -762,7 +763,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 
 ### In `results/` but not yet in `results/DATA.md`
 
-`operations/` (5 files), `report_draft.pdf`, `videos/ghost_race_02_level_1_course_0.mp4`, `videos/ghost_race_03_level_2_course_0.mp4`, `videos/ghost_race_04_level_3_course_0.mp4`, `videos/ghost_race_05_level_4_course_0.mp4`, `videos/replay_137_neo_policy_level_7_course_5.mp4`
+`operations/` (7 files), `report_draft.pdf`, `videos/ghost_race_02_level_1_course_0.mp4`, `videos/ghost_race_03_level_2_course_0.mp4`, `videos/ghost_race_04_level_3_course_0.mp4`, `videos/ghost_race_05_level_4_course_0.mp4`, `videos/replay_137_neo_policy_level_7_course_5.mp4`
 
 <!-- END AUTO-SNAPSHOT -->
 
@@ -779,6 +780,10 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **29 Oct 2026, 02:50, Codex heartbeat on training PC:** completed `g995-extra`; simulator validation-selected checkpoint 849, 90.71% across 12 levels. Final tests reported once: 91.21% standard and 89.33% obstacles across all 12; on identical common levels 0-5, 96.75%/93.75%, versus existing final policy 98.42%/95.25% (-1.67/-1.50 percentage points). One test row per set at the selected validation maximum verified. Evidence: `results/operations/g995-extra-comparison.json`. Completion notification delivered together with ice seed 1 in this heartbeat; do not repeat either. Queue automatically started `g995-ice-s3`; ice seeds 2 and 3 now occupy both slots. Ice remains the recipe selected by common validation (initial ice 97.33%, advanced 96.17%, extra 95.33%); tests were not used. Existing final policy retained. Both trainers are unrestricted; thermal-only watchdog and keep-awake verified. No executable changes; recent full CPU/fingerprint checks remain applicable.
+
+- **29 Oct 2026, 02:49, Codex heartbeat on training PC:** completed `g995-ice-s1`; selected checkpoint 949 on simulator validation (families 2/5), 97.67% over six levels. Final tests reported once: 97.25% standard, 95.42% obstacles; archived comparison against `results/final_policy.pt`: -1.17/+0.17 percentage points on the identical held-out level 0-5 courses. CSV maxima, selected iteration and exactly one row per test verified; comparison in `results/operations/g995-ice-s1-comparison.json`. Completion notification delivered in this heartbeat; do not repeat. Extra archived through iteration 999, best 849 at 90.71% over 12 levels; completed=True. Existing queue filled the freed slot automatically; active jobs: g995-ice-s2, g995-ice-s3. No executable changes; full CPU and fingerprint checks remain applicable. Reports, status docs and the monitor prompt updated; cloud hold remains separate from PC training.
 
 - **29 Oct 2026, 02:41, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-extra: iteration 899, validation 89.62%, selected best 849 (90.71%), 12 levels; g995-ice-s1: iteration 949, validation 97.67%, selected best 949 (97.67%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. Merged documentation-only cloud `2abdc47`, which records frozen cloud evaluation jobs and leaves PC training untouched. No executable changes; the full CPU suite (109 passed) and held-out fingerprint checks (3 passed, 26 subtests) from this session remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 

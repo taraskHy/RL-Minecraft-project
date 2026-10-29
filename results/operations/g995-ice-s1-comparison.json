@@ -1,0 +1,36 @@
+{
+  "updated_at": "2026-10-29T02:48:30",
+  "measured": "Simulator, common levels 0-5, 200 courses per level, fixed validation family 2 and final test families 1/4. Training seed does not change these held-out course sets.",
+  "selection": "Checkpoint selected only from validation; archived data read without rerunning any evaluation.",
+  "baseline": {
+    "run": "obstacles-g995",
+    "checkpoint": "results/final_policy.pt",
+    "selected_iteration": 699,
+    "validation_success": 0.9758333333333333,
+    "standard_success": 0.9841666666666667,
+    "obstacle_success": 0.9525,
+    "sources": [
+      "results\\runs\\obstacles-g995\\summary.json",
+      "results\\runs\\obstacles-g995\\eval_log.csv",
+      "results\\runs\\obstacles-g995\\eval_obstacles_log.csv"
+    ]
+  },
+  "run": {
+    "run": "g995-ice-s1",
+    "selected_iteration": 949,
+    "validation_success": 0.9766666666666667,
+    "standard_success": 0.9725,
+    "obstacle_success": 0.9541666666666667
+  },
+  "delta_pp": {
+    "validation_success": 0.08333333333333526,
+    "standard_success": -1.1666666666666714,
+    "obstacle_success": 0.16666666666667052
+  },
+  "sources": [
+    "results\\runs\\g995-ice-s1\\summary.json",
+    "results\\runs\\g995-ice-s1\\eval_val_log.csv",
+    "results\\runs\\g995-ice-s1\\eval_log.csv",
+    "results\\runs\\g995-ice-s1\\eval_obstacles_log.csv"
+  ]
+}

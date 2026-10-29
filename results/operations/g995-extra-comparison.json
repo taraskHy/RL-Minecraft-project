@@ -1,0 +1,41 @@
+{
+  "updated_at": "2026-10-29T02:50:51",
+  "measured": "Simulator, validation-selected checkpoint; all 12 levels reported separately from common levels 0-5. Fixed test families 1/4, 200 courses per level.",
+  "selection": "No evaluations rerun. Recipe and checkpoint selection use validation only.",
+  "run": "g995-extra",
+  "selected_iteration": 849,
+  "all_12_levels": {
+    "validation_success": 0.9070833333333334,
+    "standard_success": 0.9120833333333334,
+    "obstacle_success": 0.8933333333333333
+  },
+  "common_0_5": {
+    "validation_success": 0.9533333333333333,
+    "standard_success": 0.9674999999999999,
+    "obstacle_success": 0.9375
+  },
+  "baseline": {
+    "run": "obstacles-g995",
+    "checkpoint": "results/final_policy.pt",
+    "selected_iteration": 699,
+    "validation_success": 0.9758333333333333,
+    "standard_success": 0.9841666666666667,
+    "obstacle_success": 0.9525,
+    "sources": [
+      "results\\runs\\obstacles-g995\\summary.json",
+      "results\\runs\\obstacles-g995\\eval_log.csv",
+      "results\\runs\\obstacles-g995\\eval_obstacles_log.csv"
+    ]
+  },
+  "common_delta_pp": {
+    "validation_success": -2.2500000000000075,
+    "standard_success": -1.666666666666683,
+    "obstacle_success": -1.5000000000000013
+  },
+  "sources": [
+    "results\\runs\\g995-extra\\summary.json",
+    "results\\runs\\g995-extra\\eval_val_log.csv",
+    "results\\runs\\g995-extra\\eval_log.csv",
+    "results\\runs\\g995-extra\\eval_obstacles_log.csv"
+  ]
+}
