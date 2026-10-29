@@ -73,6 +73,41 @@
         "--iterations",
         "500"
       ]
+    },
+    {
+      "name": "neo-combined-r1",
+      "init": "runs/combined-distill/checkpoints/best.pt",
+      "flags": [
+        "--skills",
+        "basic,advanced,extra",
+        "--ice-prob",
+        "0.3",
+        "--curriculum",
+        "uniform",
+        "--pool-size",
+        "1024",
+        "--reward-stall",
+        "5",
+        "--bc-coef",
+        "0.3",
+        "--bc-pairs",
+        "runs/neo_dagger_c1.pt",
+        "--wide-neo",
+        "--lr",
+        "3e-4",
+        "--lr-max",
+        "3e-4",
+        "--demos",
+        "runs/neo_demos_train.json",
+        "--demo-courses",
+        "128",
+        "--demo-level",
+        "6",
+        "--iterations",
+        "500",
+        "--save-at",
+        "50,100,150,200,250,300,350,400,450,500"
+      ]
     }
   ]
 }

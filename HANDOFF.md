@@ -326,12 +326,47 @@ Minecraft; reported with and without the neo planner (`parkour.neo_assist`),
 saying which mode reaches 85%. Double and triple neos are dropped.
 Reference: the neo policy alone completes 56 of the 129 single-neo courses
 among the 210 neo test courses (43%, simulator,
-`results/neo/by_neo_count.json`). Steps: define the sets; baselines and a
-failure analysis on validation (before the neo, at the takeoff, in the
-jump, after it); then the levers (single-neo fine-tunes, DAgger rounds on
-takeoff and approach, search demonstrations for the failures, planner
-changes), each with its rules fixed before its results; chosen on
-validation, tested once.
+`results/neo/by_neo_count.json`). On the existing official validation
+single-neo courses (130, family 2, which also chose the planner setting)
+the planner already completes 112 (86.2%), but 21 of those jumped past the
+neo's takeoff; counting only courses where the bot did the neo, the best
+setting is 106 (81.5%, no approach planning); the neo policy alone 58,
+`combined-distill` alone 46 (mapping of 29 Oct, from
+`results/neo/assist_details/official2_*.json` and CPU replays).
+
+Rules fixed at 17:45, before any single-neo result:
+- **Sets:** `neo_assist --set single`, families 40 (validation) and 41
+  (test), 320 courses each: 10 jumps, nine from levels 0-5 and exactly one
+  neo of the 32 single-neo types (course i: type i mod 32 at position
+  (i mod 32 + i div 32) mod 10, so every type and position is equally
+  often), the neo detector and the specs agree, no wall inside another
+  jump's corridor; excluded from every training stream.
+- **Metric:** a course counts only if it is completed **and** the bot stood
+  on the neo's takeoff and then landed on its target (no jumping past it);
+  the plain completion rate is reported next to it. Simulator first, then
+  the offline bot and real Minecraft; each number with its mode (policy
+  alone, or planner). One standard error at 85% on 320 courses is 2.0
+  points.
+- **Planner track (CPU, `--parts 8 --jobs 8`), validation family 40 only,
+  in order:** V0 policy alone (neo policy, `combined-distill`, final
+  policy); V1 final policy + planner `{"jumps": "all", "retries": 1,
+  "brake": 14, "retry_horizon": 48}`; V2 the same on the neo policy; V3 the
+  better of V1/V2 + `restarts` 1 (then 3); V4 + a bigger neo search
+  (`neo_samples` 4096, `neo_iterations` 40); V5 + approach 48 with
+  `approach_touch` 1. A lever is kept only if it adds at least 4 courses;
+  stop adding levers at 89% (85% plus two standard errors) or after V5.
+  Then family 41 once per mode with the chosen setting. The goal is met if
+  the planner's test score is at least 85%; no tuning after the test. Then
+  the offline bot and, only if it matches the simulator on every course,
+  real Minecraft on the first 64 test courses (each type twice), both modes.
+- **Policy track (GPU, two trainers at most), does not gate the 85%:**
+  `neo-combined-r1` as planned below but with a snapshot every 50 updates,
+  and a DAgger round on the neo policy (`neo-dagger4`, neo-dagger3's
+  settings, a snapshot every 50 updates). Each picks the snapshot with the
+  most single-neo successes on family 40 (policy alone); `neo-combined-r1`
+  only among snapshots whose four-group validation mean is at least
+  `combined-distill`'s; a round is kept only if it beats its start on
+  family 40.
 
 **Queued after the combined runs (requested 29 Oct via the side chat): a
 head-hitter and slime fine-tune.** Rules fixed before any combined result:
