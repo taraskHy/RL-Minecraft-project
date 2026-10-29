@@ -10,7 +10,7 @@ the data: training runs, policies, the route planner and neo files, the game
 folders (including the v2, planner, noroute, neo and film games) and the
 videos.
 
-**Last updated:** 29 Oct 2026, 07:30, training PC: active-run validation refreshed; initial advanced/ice comparison already delivered.
+**Last updated:** 29 Oct 2026, 07:35, training PC: ice seed 8 completed and reported; seeds 9/10 continue.
 
 ## The project
 
@@ -321,6 +321,8 @@ The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
 5. The report discussion and conclusion are drafted. The cloud DOCX/PDF exports predate this merged source; rebuild and check pagination before submission.
 
 ## Update log
+
+- **29 Oct 2026, 07:35, Codex heartbeat on training PC:** g995-ice-s8 completed all 1,000 iterations. Its checkpoint 199 was selected only by simulator validation families 2/5 (96.8333%, first maximum); final standard test 97.3333% and obstacle test 95.25%, versus the existing final policy 97.5833% validation, 98.4167% standard and 95.25% obstacles (differences -0.75, -1.0833 and 0.00 percentage points). Comparisons use common levels 0-5 and identical held-out course sets; validation has 100 courses per level from each family 2/5, and each test has 200 per level. Exactly one standard and one obstacle test row at the selected checkpoint; no evaluation rerun. Archived `results/operations/g995-ice-s8-comparison.json`; completion comparison delivered with this heartbeat, do not repeat. The queue automatically started seed 10 after seed 8 exited; seeds 9/10 occupy the two training slots. Seed 9 archived iteration 949 validation 96.0833%, selected best 149 (96.7500%), still untested. Full GPU settings, unchanged rollout shape, thermal 65/58 C safeguards and keep-awake remain active; final policy files retained. Cloud evaluation remains on hold; no new cloud commits. Report/handoff refreshed; CSV/summary checks passed, no executable changes and prior test suite remains applicable.
 
 - **29 Oct 2026, 07:30, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-ice-s8: iteration 949, validation 95.58%, selected best 199 (96.83%), 6 levels; g995-ice-s9: iteration 849, validation 95.25%, selected best 149 (96.75%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. No executable changes; prior checks remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 
