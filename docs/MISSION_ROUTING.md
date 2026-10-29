@@ -3,8 +3,9 @@
 A self-contained brief for an autonomous agent working on a teammate's
 Windows PC with an NVIDIA GPU, from a fresh clone of
 <https://github.com/taraskHy/RL-Minecraft-project>. Written on 29 Oct 2026 by
-the main session on the training PC. Read this file to the end before you
-start; it is meant to answer every question you would otherwise ask.
+the main session on the training PC and checked against the repository by
+independent reviewers. Read this file to the end before you start; it is
+meant to answer every question you would otherwise ask.
 
 ## 0. In one paragraph
 
@@ -32,27 +33,35 @@ bot and in real Minecraft.
 
 ## 2. Baselines: the numbers to beat
 
-All held-out courses have 10 jumps; levels 0-5 (`configs/jump_levels.json`).
-"Standard" courses have no obstacles; "obstacle" courses have a head-hitter
-beam or a decoy pillar on 50% of the jumps. Fall rule `local` (the default:
-an episode fails when the feet drop 1 block below every nearby platform top)
-unless stated. The jumper is always the final policy, unchanged.
+Levels 0-5 (`configs/jump_levels.json`). Held-out courses are generated with
+10 jumps, but generation stops when the next jump does not fit, so a few are
+shorter: all 10 jumps in 1,748 of the 1,800 family-2 courses, 1,665 of 1,800
+family-5, 1,151 of 1,200 family-1 and 1,129 of 1,200 family-4 (computed by
+regenerating the sets with `train.held_out_courses`). Use `pool.n` and never
+assume 11 platforms. "Standard" courses have no obstacles; "obstacle" courses
+have a head-hitter beam or a decoy pillar on 50% of the jumps. Fall rule
+`local` (the default: an episode fails when the feet drop 1 block below every
+nearby platform top) unless stated. The jumper is always the final policy,
+unchanged.
 
 ### 2.1 Validation (tune on these; seed family 2 standard, family 5 obstacles)
 
 300 courses per level (1,800 per set), simulator, from
-`results/planner/validation_tuning.jsonl` (rows written on 28 Oct by a tuning
-script in a cloud session, on the CPU, with the same evaluation as
-`parkour.planner`'s `evaluate_planned`; fall rule `local`):
+`results/planner/validation_tuning.jsonl`. The rows were written on 28 Oct
+by a tuning script of a cloud session, on the CPU; the script is not in the
+repository and the rows record no fall rule, settle or tick limit
+(`evaluate_planned`'s defaults are fall rule `local`, settle 0, 4,000
+ticks).
 
 | Router | Standard (family 2) | Obstacles (family 5) | Failures: wrong platform / nothing in view / jump |
 | --- | --- | --- | --- |
 | **greedy planner, current default** (`cost=distance`, `align=2.0`) | **92.78%** (L0-L5: 97.7, 95.3, 94.3, 94.0, 90.3, 85.0) | **89.00%** (97.0, 93.0, 94.7, 88.0, 85.0, 76.3) | standard 112 / 0 / 18; obstacles 145 / 8 / 45 |
 | greedy planner, earlier setting (`cost=difficulty`, `align=3.0`) | 91.28% | 87.39% | standard 139 / 0 / 18; obstacles 178 / 8 / 41 |
 
-**Done means beating the greedy planner on these two sets** (section 9):
-these 92.78% and 89.00%, or the planner's numbers re-measured on your
-machine, which is the fair comparison (section 8).
+**Done means beating the greedy planner on these two sets, measured by you
+on your machine** (sections 8 and 9); 92.78% and 89.00% are the reference.
+Your baseline run also gives the course list's success on the same courses
+(`given_route`), the upper bound.
 
 ### 2.2 Test (report once, at the end; seed family 1 standard, family 4 obstacles)
 
@@ -84,9 +93,10 @@ files `results/games/v2-tuned-planner-live/courses.json` and
 | **greedy planner, current default** | **51/60, 56/60** | **51/60, 56/60** | `results/games/v2-tuned-planner-*` |
 | learned no-route model `noroute-v2` | 55/60, 37/60 | 55/60, 37/60 | `results/games/noroute-*` |
 
-In every one of these runs the outcome matched the simulator on every course,
-and the real-Minecraft runs had 0 server corrections (`results/DATA.md`).
-Hold your router to the same standard.
+In each of these runs the outcome matched the simulator on every course,
+and the real-Minecraft runs had 0 server corrections (each run's
+`summary.json` and `summary.md` in `results/games/NAME/`). Hold your router
+to the same standard.
 
 ### 2.4 The learned no-route model, in brief
 
@@ -95,10 +105,15 @@ Hold your router to the same standard.
 slots and the progress input hidden (`--hide platforms,progress`), and the
 extended observation (`--extended-obs`: a wide coarse block scan and its last
 three landing spots). The route-based progress reward is used in training
-only. Validation-selected iteration 2849 (validation 83.2%). Its weights are
-in Git as `results/noroute_policy.pt` (provenance in
-`results/noroute_policy_provenance.json`). It is weaker than the planner,
-and decoy pillars fool it.
+only. Its checkpoint, iteration 2849, was chosen by `train.py`'s selection
+score, 83.2% (families 2 and 5 together, 100 courses per level each; not
+comparable with section 2.1's per-family numbers). Its weights are in Git as
+`results/noroute_policy.pt` (provenance in
+`results/noroute_policy_provenance.json`). It is weaker than the planner on
+the 1,200-course test sets, although it made 55/60 against the planner's
+51/60 on the 60 standard bot courses, and obstacles fool it: 10 of its 23
+real-Minecraft obstacle failures end standing on top of one, 6 on beams and
+4 on decoy pillars (computed from `results/games/noroute-live-obstacles`).
 
 ## 3. How the greedy planner works and fails
 
@@ -109,8 +124,9 @@ and decoy pillars fool it.
   solid block with two air blocks above it and (`slab_only`) air below it, so
   wall and pillar tops are not platforms. Standable cells at one height that
   touch side by side form a platform, used as its bounding rectangle
-  `(x0, x1, z0, z1, y)`. Slabs 4 blocks above a platform they touch are head
-  hitters, not targets.
+  `(x0, x1, z0, z1, y)`. Head-hitter beams are one-block slabs with air above
+  and below, so `perceive` finds them too; the head-hitter rule then drops a
+  slab as a target when it sits 4 blocks above a platform it touches.
 - **Choice** (`options`, `choose`): from the platform it stands on, the next
   one is the unvisited platform that minimises `cost - align * cos(angle to
   the goal)`, with `cost` the horizontal air gap (`cost=distance`), among the
@@ -118,21 +134,31 @@ and decoy pillars fool it.
   feasibility study, height change -3 to +1, straight flight path clear of
   blocks). The rule repeats from the chosen platform to fill the slots after
   it and stops at the goal platform.
-- **When** (`GreedyPlanner.update`): at the start and after every landing on
-  a new platform. Landing beyond the planned next platform marks the skipped
-  ones as passed (`mark_passed`).
+- **When:** the first plan comes from `GreedyPlanner.start`;
+  `GreedyPlanner.update` re-plans after every landing on a new perceived
+  platform (landing on a cell that is not a perceived platform, such as an
+  obstacle top, keeps the old plan). Landing beyond the planned next
+  platform marks the skipped ones as passed (`mark_passed`).
 - **Slots** (`GreedyPlanner.slots`): the platform stood on plus up to three
   planned ones fill the policy's 4 platform slots; `progress` (the last
   observation number) becomes `1 - distance to goal / distance at start`.
 
-**Failure modes** (`failure_modes()` in `parkour/planner.py`): *wrong
-platform* means that at some re-plan the planner's next platform was not the
-course's next platform (it marks a deviation, not necessarily the cause);
-*nothing in view* means no candidate was in range; *jump* (`motor`) means
-the plan followed the course and the jump failed. On validation,
-wrong-platform failures are 112 of 130 failed standard courses and 145 of 198
-failed obstacle courses (section 2.1). So the router, not the jumper, loses
-most courses. What goes wrong, from the recorded plans and games:
+**The route loses most courses.** With the course list, the same jumper
+completes 1,181 of the 1,200 standard and 1,143 of the 1,200 obstacle test
+courses; with the planner, 1,108 and 1,086 (`given_route` and
+`planner_route` in `results/planner/sim_test_*_tuned.json`): 73 and 57 more
+courses lost to the route.
+
+**Failure labels** (`failure_modes()` in `parkour/planner.py`, decided at
+the first irregular re-plan): *wrong platform*: the planner's next platform
+was not the course's next one (a deviation, not necessarily the cause; dead
+ends after a skip count here); *nothing in view*: the plan was empty (no
+unvisited platform within the jump limits, with a clear path, that is not a
+head hitter; platforms may still be visible); *jump* (`motor`): the plan
+followed the course at every re-plan and the run still failed (a fall, a
+stall or the time limit). On validation, wrong-platform failures are 112 of
+130 failed standard courses and 145 of 198 failed obstacle courses
+(section 2.1). What goes wrong, from the recorded plans and games:
 
 - **Shortcuts are usually fine.** The planner often skips ahead to a later
   platform that is in reach and closer to the goal. In the current
@@ -144,9 +170,9 @@ most courses. What goes wrong, from the recorded plans and games:
 - **Dead ends.** After a skip, the greedy chain can later come back to a
   skipped platform and then find no unvisited platform in reach: an empty
   plan, and the jumper, with only its current slot filled, falls. Every
-  test run that ever had an empty plan failed (11 of the 109 failed standard
-  runs and 14 of 143 obstacle runs with the earlier setting; computed from
-  the plans in `results/planner/sim_test_*.json`).
+  test run that ever had an empty plan failed (11 standard and 14 obstacle
+  runs with the earlier setting; computed from the plans in
+  `results/planner/sim_test_*.json`).
 - **Long drops count as falls.** The `local` fall rule only looks at the
   course platforms from one before to two after the current one
   (`EnvConfig.fall_rule`, `ParkourEnv.fall_range`), so dropping toward a
@@ -158,13 +184,15 @@ most courses. What goes wrong, from the recorded plans and games:
 - **Stalls.** The stall counter (200 ticks) resets only when the player
   reaches a new course platform index, so landing back on an earlier
   platform does not reset it; refusing a planned jump ends in a truncation.
-- **Hard jumps** (`motor`): 12 standard and 30 obstacle test courses, mostly
-  at levels 4 and 5 (level 5: 82.5% with the planner, 93.5% with the course
-  list).
-- **Obstacles.** Head-hitter beams are filtered out by the head-hitter rule,
-  and decoy pillars, being 4-block columns, never become platforms
-  (`slab_only`); the learned no-route model has neither rule, and 10 of its
-  23 real-Minecraft obstacle failures end standing on an obstacle.
+- **Hard jumps** (`motor`): 12 standard and 30 obstacle test courses. The
+  losses concentrate at level 5: 82.5% with the planner against 93.5% with
+  the course list (standard test).
+- **Obstacles.** The head-hitter rule keeps beams from being targets, but it
+  also drops a real course platform that sits 4 blocks above a beam it
+  touches: 2 family-5 validation courses (level 4, seeds 65 and 291) and 1
+  family-4 test course (level 4, seed 196) start with an empty plan and
+  fail. Decoy pillars, 4-block columns, never become platforms
+  (`slab_only`), but they block `path_clear` and the jumper can land on top.
 - **Clipping.** A platform that crosses the 12-block window is seen only up
   to the window's edge until the bot comes closer (visible in the recorded
   plans; usually in slots 2 and 3).
@@ -175,36 +203,41 @@ A **high-level route policy** chooses the next target platform; the **frozen
 final policy** jumps to it. Train the route policy with PPO in the batched
 simulator.
 
-**Decision points.** At the start of an episode and every time the player
-lands on a new platform (the planner's `update` rule). Between decisions the
-final policy acts every tick, as now.
+**Decision points.** At the start of an episode (`GreedyPlanner.start`'s
+moment) and every time the player lands on a new perceived platform
+(`GreedyPlanner.update`'s rule). Between decisions the final policy acts
+every tick, as now.
 
 **Action.** An index into the top-K candidate platforms (K about 8 to 16),
 masked where fewer exist. Fill the jumper's slots consistently: slot 0 is the
 platform stood on, slot 1 the chosen target; fill slots 2 and 3 either by
 asking the route policy again from the chosen platform (autoregressive) or,
-to start, with the greedy rule from it. The final policy was trained with a
-real chain in its slots, so keep the chain plausible.
+to start, with the greedy rule from it. If no candidate passes the filters (8
+of the 1,800 obstacle validation courses had none for the planner), skip the
+decision and keep the previous slots, as the planner does with an empty
+plan; never take a softmax over an all-masked set.
 
-**Candidates.** Take them from the planner's own perception (`perceive`,
-head-hitter filter, jump limits from `options`), so that training sees the
-same candidates as the bot. Rank them (for example by the greedy cost) and
-keep the top K. Courses are static, so you may precompute every course's
-platforms once when a pool is built and filter by the 12-block window at each
-decision on the GPU; if you do, test that the result equals `perceive` on the
-validation courses.
+**Candidates.** Use the planner's final candidate list, so that training sees
+what the bot sees: `perceive`, then the head-hitter rule, then `options`'
+limits (jump limits, `path_clear`; visited platforms and the current one
+are excluded). Rank them (for example by the greedy cost) and keep the top
+K.
 
 **Observation of the route policy.** Per candidate: its four top-face corners
 and top height in the player's frame (the same encoding as `Observer.slots`
 in `parkour/env.py`), size, air gap and height change from the current
 platform, the greedy cost, the cosine of the angle to the goal, distance from
-the candidate to the goal, a visited flag, an is-goal flag. Global: goal
-direction and distance, the current platform, the block scan around the
-player (the observation's `scan` part), and a memory of the visited platforms
-(for example the last 3 to 5 landing spots, like `EnvConfig.extended_obs`'s
-memory). Sort or permutation-encode the candidates; a small shared MLP per
-candidate with a softmax over candidates (pointer-style scoring) works well
-for a variable set.
+the candidate to the goal, an is-goal flag. Global: goal direction and
+distance, the current platform, the block scan around the player (the
+observation's `scan` part) and a memory of the visited platforms (for example
+the last 3 to 5 landing spots). Sort or permutation-encode the candidates; a
+small shared MLP per candidate with a softmax over candidates (pointer-style
+scoring) suits a variable set.
+
+**The jumper's progress input.** In training, the jumper's last input was
+the fraction of course platforms reached, which a router cannot know. Use
+the planner's estimate, `1 - distance to goal / distance at start`
+(`GreedyPlanner.progress`), which the bot already computes the same way.
 
 **Reward.** Per decision: course progress (decrease of the remaining path
 length to the goal; in training you may use the true course for this, as
@@ -215,10 +248,14 @@ stall limit (`stall_ticks`, 200 ticks) or the time limit, as in `ParkourEnv`.
 
 **Training.** PPO in `ParkourEnv` with many environments; the low-level
 policy is `results/final_policy.pt`, frozen and deterministic (argmax), as on
-the bot. Train on generated courses (seed family 0, `train.CourseFactory`)
-with obstacles on 30% of jumps, like the final policy. Select checkpoints on
-validation (families 2 and 5). Start simple: K small, greedy fill of slots 2
-and 3, then grow.
+the bot. Train on generated courses (seed family 0) with obstacles on 30% of
+jumps, like the final policy. Build the course factory as `train.train`
+does: `CourseFactory(TrainConfig(obstacle_prob=0.3, seed=S), courses.load_levels(),
+{course_hash(c) for c in tests + obstacle_tests + vals})`, with the held-out
+sets from `train.held_out_courses` and `train.obstacle_courses`; an empty
+exclude set silently lets held-out courses into training. Select checkpoints
+on validation (families 2 and 5). Start simple: K small, greedy fill of slots
+2 and 3, then grow.
 
 **Speed.** `evaluate_planned` runs the planner on the CPU, one environment at
 a time in Python. Decisions are rare: about 8 re-plans per course, one every
@@ -234,13 +271,23 @@ fall-rule window and the stall counter described in section 3. Your training
 reward may be your own, computed in your code from the environment's state,
 but do not change the environment's reward or its termination rules.
 
-**Deployment.** The bot plays in real time from JavaScript (`bridge/`). Two
-ways to run the route policy there: port its feature code and network to
-JavaScript (the pattern of `bridge/policy.js`, with a parity test against
-Python like `tests/test_bridge_parity.py`), or serve it from Python, as the
-neo assist does (`parkour.neo_assist --serve`, called by the bot;
-`tests/test_planner_service.py`). Either way, add an opt-in flag to
-`parkour.live` (next to `--planner`) and keep the defaults unchanged.
+**Deployment.** The bot plays in real time from JavaScript (`bridge/`).
+Prefer porting the router's candidate features and network to JavaScript,
+next to `bridge/planner.js`: that is the path already proven in real
+Minecraft (the greedy planner, 0 server corrections), with parity tests like
+`tests/test_planner.py` and `tests/test_bridge_parity.py`. A Python service
+is the other way, but it has only run offline so far: it must take its
+inputs from the bot (its state and the blocks or candidates it sees), never
+from `--courses-file` or a course index (the neo assist service,
+`parkour.neo_assist --serve`, builds its world from the course file and
+plans by course index, so copy its protocol, not its inputs), and live runs
+must start it with both `--serve` and `--realtime`, or the watchdog may
+pause it mid-game. Either way, add an opt-in flag to `parkour.live` (next to
+`--planner`) that passes the router to the bot **and** adds a branch to its
+simulator comparison (the block where `--planner` calls `evaluate_planned`
+with `settle=SETTLE_TICKS`), so that `summary.json`'s simulator numbers and
+`outcome_agreement` refer to your router; without it they compare the bot
+with the course-list simulator.
 
 ### 4.1 Implementation notes from the code
 
@@ -249,39 +296,44 @@ neo assist does (`parkour.neo_assist --serve`, called by the bot;
   `evaluate_planned` does: `obs = env.observe()`, overwrite the slot part
   `obs[:, 11:55]` with `env.obs_fn.slots(env.state, R, V, G)` and the
   progress input `obs[:, 254]` with your progress estimate, then
-  `jumper.act(obs, deterministic=True)` and `env.step`. `R` (rects, N x 4 x
-  5), `V`, `G` (valid and goal flags) and `P` stay on the GPU and change only
-  at decisions. Load the jumper with `parkour.live.load_model`, run it under
-  `torch.no_grad()` and never update its normaliser.
+  `jumper.act(obs[:, :255], deterministic=True)` and `env.step`. `R` (rects,
+  N x 4 x 5), `V`, `G` (valid and goal flags) and `P` stay on the GPU and
+  change only at decisions. Load the jumper with `parkour.live.load_model`,
+  run it under `torch.no_grad()` and never update its normaliser.
+- **Landing memory.** `ParkourEnv` keeps its landing memory (`env.mem`) only
+  with `EnvConfig(extended_obs=True)`, and then `observe()` returns 657
+  numbers: the jumper takes the first 255.
 - **Decision trigger** (`GreedyPlanner.update`): a row that is on the
   ground, with its feet within 1e-6 of a whole block height, standing on a
-  platform other than its current one (landing anywhere new, not only on the
-  target), plus every row that `env.step` just reset (`info["done"]`; the
-  reset happens inside `step`, so copy what you need first), which needs a
-  start decision.
-- **Candidates on the GPU.** For the generator's courses, the platforms in
-  `pool.plat[:pool.n]` should be exactly what `perceive` finds once the
-  head-hitter rule drops the beams, because platforms and obstacles keep
-  clear of each other (`courses._fits`, `_clear_of`); prove it with a test
-  on the validation courses before relying on it. Then filter per decision as `perceive` and `options`
-  do: the 25 x 25 window around the player's block, rows 10 below to 4 above
-  the feet, rects clipped to the window, height change -3 to +1, air gap up
-  to `MAX_GAP[dy] + 0.5`, `path_clear`, the head-hitter rule, a visited mask,
-  the goal flag. Courses swapped in by a pool refresh need their tables
-  rebuilt and their rows' route state reset.
+  perceived platform other than its current one (landing anywhere new, not
+  only on the target), plus every row that `env.step` just reset
+  (`info["done"]`; the reset happens inside `step`, so copy what you need
+  first), which needs a start decision.
+- **Candidates on the GPU.** Courses are static, so you may precompute each
+  course's platforms once when a pool is built (`pool.plat[:pool.n]` holds
+  the course platforms; the beams are cells in `pool.extra`) and filter per
+  decision as `perceive`, the head-hitter rule and `options` do: the 25 x 25
+  window around the player's block, rows 10 below to 4 above the feet,
+  rects clipped to the window, height change -3 to +1, air gap up to
+  `MAX_GAP[dy] + 0.5`, `path_clear`, visited and current excluded, the goal
+  flag. Test the result against the planner's final candidate list (not
+  `perceive`'s raw output, which includes beams) on the standard and the
+  obstacle validation courses, from many positions. Courses swapped in by a
+  pool refresh need their tables rebuilt and their rows' route state reset.
 - **Never feed the course list.** `env.cp`, `pool.rem` and the order of
   `pool.plat` are privileged: sort candidates by a geometric key with fixed
   tie-breaks and never use a course index as a feature. Your training
   reward may use the true course.
-- **Keep the jumper in its training distribution.** It saw a real chain in
-  slots 1 to 3; a target followed by empty slots looks to it like the goal.
-  Fill slots 2 and 3 (`planner.choose(..., first=target)` does it greedily in
-  Python). Its jumps were trained on course jumps only, so long shortcuts are
-  unseen.
+- **Keep the jumper in its training distribution.** In training, empty
+  slots followed slot 1 only when slot 1 was the goal (`is_goal` 1); a target
+  followed by empty slots is a state it never saw. Fill slots 2 and 3
+  (`planner.choose(..., first=target)` does it greedily in Python). Its
+  jumps are the course's own jumps; how it handles longer shortcuts is
+  unmeasured.
 - **Encoding details.** `Observer.slots` encodes exactly 4 slots per call
   (`PLATFORM_SLOTS`); with `extended_obs` the progress input is still index
-  254, not the last one; `evaluate_planned` cannot evaluate
-  extended-observation checkpoints, `train.evaluate` can.
+  254; `evaluate_planned` cannot evaluate extended-observation checkpoints,
+  `train.evaluate` can.
 - **Semi-MDP PPO.** One transition per decision per environment, with the
   environment's own reward summed between decisions (or your own), discount
   `gamma ** ticks` or per decision; success and fall are terminal, stall and
@@ -289,18 +341,17 @@ neo assist does (`parkour.neo_assist --serve`, called by the bot;
   pieces: GAE, the dual clip, the KL stop and KL-adaptive learning rate,
   `RunningNorm` with a shadow copy, `train._save`.
 - **Memory.** A `CoursePool` keeps a 64 x 32 x 64 block grid per course
-  (128 KiB): 1 GiB for 8,192 courses, about 230 MiB for a 1,800-course
-  validation set.
-- **In the bots** (`bridge/policy.js`): `Episode` takes a planner object
-  with `start(pos)`, `update(pos, onGround, tick)`, `slots()`, `progress`
-  and `events`; a JavaScript router implementing that interface plugs in
-  next to `GreedyPlanner`, behind an opt-in option, with flags in
+  (128 KiB): 1 GiB for 8,192 courses, 225 MiB for a 1,800-course validation
+  set.
+- **In the bots** (`bridge/policy.js`): `Episode` takes the planner's JSON
+  config (its `planner` option) and builds `new GreedyPlanner(inGrid, goal,
+  cfg)` itself, with `isSolid` limited to the 64 x 32 x 64 grid; it then
+  calls `start(pos)`, `update(pos, onGround, tick)`, `slots()` (a list of
+  `{p: rect, goal}`), `progress` and `events`. Add an opt-in `router` option
+  that builds your router with the same interface, and pass-through flags in
   `offline_bot.js`, `parkour_bot.js` and `parkour.live`. The bots' `Policy`
-  accepts only the jumper's JSON format, so give the router its own export.
-  A Python service is the other way (`bridge/assist.js` spawns
-  `parkour.neo_assist --serve`; the module name is hard-coded there; live
-  services need `--realtime` so the watchdog never pauses them mid-game, and
-  the bot freezes its physics while it waits).
+  accepts only the jumper's JSON format (`parkour-policy-v1`, 255 or 657
+  inputs), so give the router its own export.
 - **Parity tests to copy.** `tests/test_planner.py::PlannerParity` (24
   generated courses, half with obstacles: the Python evaluation with settle
   10 and the offline bot make identical plans, outcomes and tick counts),
@@ -311,7 +362,7 @@ neo assist does (`parkour.neo_assist --serve`, called by the bot;
 ## 5. Alternatives (if hierarchical RL stalls)
 
 - **Extend the end-to-end no-route model.** Fine-tune `results/noroute_policy.pt`
-  (`--init-from` with the same `--extended-obs --hide "platforms,progress"`;
+  (`--init-from` with the same `--extended-obs --hide platforms,progress`;
   the final policy has 255 inputs against 657 and cannot be loaded that way
   without padding its first layer and normaliser), or change its scan,
   memory or critic (a critic that sees the course would be new). It needs no
@@ -320,8 +371,8 @@ neo assist does (`parkour.neo_assist --serve`, called by the bot;
 - **A learned candidate scorer.** Keep the planner's perception and limits,
   and learn the score that ranks candidates: a contextual bandit (or a
   one-step PPO) whose reward is whether the jump policy reaches the course's
-  goal after taking that candidate. It is the smallest change, and it is
-  still RL if trained from episode outcomes.
+  goal after taking that candidate, with the greedy rule as a fallback. It is
+  the smallest change, and it is still RL if trained from episode outcomes.
 
 ## 6. Already tried and ruled out
 
@@ -332,10 +383,10 @@ On the validation courses (`results/planner/validation_tuning.jsonl`, 52 rows):
   per level), against 93.0% and 90.5% for `cost=distance, align=2.0` on the
   same courses.
 - `value_pick` 2 to 6 (take the chain the policy's own critic values most;
-  tried only with the earlier `cost=difficulty, align=3.0`): 84.7-87.7%
-  standard against 92.5% without it, and 87.7-90.3% obstacles against 89.0%
-  (100 courses per level). The critic was trained only on the course's own
-  platforms and is a poor judge of other routes.
+  tried only with the earlier `cost=difficulty, align=3.0`): much worse on
+  standard courses (84.7-87.7% against 92.5%), mixed on obstacles
+  (87.7-90.3% against 89.0%, within the noise of 600 courses). A likely
+  reason: the critic only ever saw the course's own platforms.
 - Hard drop limits (`dy_min` -2 or -1): they break the planner, since
   courses have real 3-block drops (15.3% and 1.8% standard, 600 courses).
 - The head-hitter rule (a slab 4 blocks above a platform it touches is a
@@ -351,20 +402,23 @@ On the validation courses (`results/planner/validation_tuning.jsonl`, 52 rows):
 - `cost=distance, align=2.0` (+1.5 and +1.6 points over the earlier
   default) is the default in Python and JavaScript, confirmed in real
   Minecraft (51/60 and 56/60). The radius, the height window, the gap
-  limits, `slab_only`, `mark_passed` and `clear_path` were never varied.
+  limits, `slab_only`, `mark_passed` and `clear_path` were not varied in the
+  52 tuning rows.
 - Hiding the platform positions in training (the `noroute` arm of the reward
   ablation: the 98-point block scan, the goal and the progress input, no
-  obstacles, 1,000 iterations): 82.4% on test, level 5 43.0%
-  (`results/README.md`). The scan reaches 5.5 blocks ahead and 1.5 to each
-  side, so after a turn the next platform is often out of sight. The
-  extended observation (`noroute-v2`) reached 85.4% / 70.9%.
+  obstacles, 1,000 iterations): 82.4% on test, level 5 43.0% (mean of 3 seeds
+  at their last checkpoint, `results/README.md`). `noroute-v2` (one seed,
+  3,000 iterations, validation-selected, 30% obstacles, progress also hidden,
+  the extended observation) reached 85.4% / 70.9%; the two differ in more
+  than the observation.
 - Nobody has built an RL router, a learned candidate scorer or a no-route
   model with a privileged critic yet (`noroute-v2` hides the inputs from the
   critic too).
 
 ## 7. Files to read first
 
-1. `AGENTS.md` (rules for agents) and `HANDOFF.md`: the team split at the top,
+1. `AGENTS.md` (rules for agents; section 10 below says which of them are
+   for the training PC only) and `HANDOFF.md`: the team split at the top,
    section 5 (do not touch), section 6 (machine and environment).
 2. `parkour/planner.py`: the baseline end to end (`perceive`, `options`,
    `choose`, `GreedyPlanner`, `evaluate_planned`, `failure_modes`, the CLI).
@@ -379,193 +433,292 @@ On the validation courses (`results/planner/validation_tuning.jsonl`, 52 rows):
    export the bot loads.
 6. `bridge/planner.js`, `bridge/policy.js`, `bridge/parkour_bot.js`,
    `bridge/offline_bot.js`: how the bot plans and acts.
-7. `parkour/live.py` (offline and real-Minecraft runs, `--planner`) and
-   `parkour/neo_assist.py` (`--serve`: a Python service the bot calls).
+7. `parkour/live.py` (offline and real-Minecraft runs, `--planner`, the
+   simulator comparison) and `parkour/neo_assist.py` (`--serve`: a Python
+   service the bot calls).
 8. `tests/test_planner.py`, `tests/test_planner_service.py`,
    `tests/test_bridge_parity.py`, `tests/test_heldout_fingerprints.py`.
 9. `results/README.md` (sections "Without the course list" and "Learned
    no-route model") and `docs/design.md`.
 
-## 8. Setup and commands (Windows, from the repository root)
+## 8. Setup and commands
 
 **Prerequisites:** Windows 10 or 11 (x64), Git, Python 3.12 with the `py`
 launcher, an NVIDIA GPU of the Turing generation or newer (RTX 20xx / GTX
 16xx and up: the torch build targets compute capability 7.5+) with a driver
-for CUDA 12.8, internet access (pypi.org, download.pytorch.org, nodejs.org,
-github.com, registry.npmjs.org, piston-data.mojang.com) and about 7 GB of
-disk inside the clone (the torch wheel alone is about 3 GB; pip and pnpm
-also cache in the user profile). Clone into a **short path outside
-OneDrive** (for example `C:\dev\RL-Minecraft-project`): OneDrive locks files
-during writes, and without Windows long-path support the Node archive's
-deepest file needs the repository path under about 90 characters.
+for CUDA 12.8, and about 7 GB of disk inside the clone (the torch wheel
+alone is about 3 GB; pip and pnpm also cache in the user profile). Check with
+`py -3.12 --version` and `nvidia-smi`. If something is missing, ask the PC's
+owner to install it; do not install system software yourself. `setup.cmd`
+downloads from pypi.org and files.pythonhosted.org, download.pytorch.org,
+nodejs.org, github.com (whose release files redirect to
+*.githubusercontent.com), registry.npmjs.org and piston-data.mojang.com.
+
+**Where:** a **short path outside OneDrive**, for example
+`C:/dev/RL-Minecraft-project`. OneDrive locks files during writes, and
+without Windows long-path support the Node archive's deepest file needs the
+repository path under about 90 characters.
+
+**Shells:** the commands below use forward slashes and `./run.cmd`, which
+work in PowerShell and in Git Bash (Claude Code's Bash tool on Windows); in
+cmd.exe use backslashes and drop the `./`. `run.cmd` passes arguments
+through cmd.exe, which splits values at commas, semicolons and `=`, and
+quotes typed in PowerShell or Git Bash do not survive that: for any value
+with one of those characters, or JSON, call the module directly
+(`.venv/Scripts/python.exe -m parkour.<module> ...`). In Windows PowerShell
+5.1 also escape JSON's inner quotes (`--planner-config '{\"align\": 3.0}'`),
+or make a JSON-valued flag of your own take a file path.
 
 ```text
-git clone https://github.com/taraskHy/RL-Minecraft-project.git C:\dev\RL-Minecraft-project
-cd C:\dev\RL-Minecraft-project
-git checkout -b routing/<name>          for example routing/hrl
-setup.cmd                               Python 3.12 venv, torch 2.11.0 + CUDA 12.8, then portable Node 24, Java 21,
-                                        pnpm, the bot's packages and the official Minecraft 1.21.4 server jar, all
-                                        checksum-verified, into .venv, .local and bridge\node_modules
-run.cmd test                            all checks (122 on 29 Oct); must pass before you change anything
+git clone https://github.com/taraskHy/RL-Minecraft-project.git C:/dev/RL-Minecraft-project
+cd C:/dev/RL-Minecraft-project
+git checkout -b routing/hrl
+./setup.cmd
+./run.cmd test
 ```
 
-In PowerShell type `.\setup.cmd` and `.\run.cmd`. Without `setup.cmd`'s
-portable Node, about 20 tests are skipped (physics and JavaScript parity),
-so read the summary line. `run.cmd` passes arguments through cmd.exe, which
-splits unquoted values at commas, semicolons and `=`: quote such values
-(`--hide "platforms,progress"`) or call `.venv\Scripts\python.exe -m
-parkour.<module>` directly. For a check that must stay on the CPU, set
-`CUDA_VISIBLE_DEVICES=-1` (an empty value does not hide the GPU on Windows).
+`setup.cmd` creates the Python 3.12 venv with torch 2.11.0 for CUDA 12.8,
+then installs portable Node 24, Java 21, pnpm, the bot's packages and the
+official Minecraft 1.21.4 server jar, all checksum-verified, into `.venv`,
+`.local` and `bridge/node_modules`. `run.cmd test` runs every check (122 on
+29 Oct); without `setup.cmd`'s portable Node about 20 of them are skipped
+(physics and JavaScript parity), so read the summary line. If a test fails
+on the untouched clone, rerun it alone once
+(`.venv/Scripts/python.exe -m pytest tests/<file>::<test> -q`); if it still
+fails, do not change `main`'s code to fix it: record the output in
+`results/routing/README.md` and the pull request, and carry on unless it
+involves the planner, the bridge or the simulator, in which case ask.
+
 **Never run `scripts/training_queue.py` there**: it is the training PC's
 launcher, reads that PC's plan (`configs/training_queue.json`, with
 checkpoints that exist only there) and adds seeds by itself.
 
-Keep these two running in their own windows whenever GPU work runs:
+**While GPU work runs**, keep these going (each in its own window or as a
+background process):
 
 ```text
-.venv\Scripts\python.exe scripts\gpu_watchdog.py --hot 65 --cool 58 --every 1
-.venv\Scripts\python.exe scripts\keep_awake.py --pattern parkour.train --pattern parkour.live --pattern parkour.route_train
+.venv/Scripts/python.exe scripts/gpu_watchdog.py --hot 65 --cool 58 --every 1
+.venv/Scripts/python.exe scripts/keep_awake.py --pattern parkour.rout --pattern parkour.planner --pattern parkour.train --pattern parkour.live
 ```
 
 The watchdog suspends this project's GPU jobs above 65 C and resumes them
-below 58 C (no state is lost). It recognises jobs by module name
-(`GPU_JOBS` in `scripts/gpu_watchdog.py`), and it already covers any module
-named `parkour.route*`, `parkour.router*` or `parkour.routing*`: **name
-your GPU modules that way** (for example `parkour.route_train`); any other
-name must be added to `GPU_JOBS` with a test in
-`tests/test_gpu_watchdog.py`, and the watchdog restarted. Keep-awake holds
-Windows awake (no power setting changes) while a Python process whose
-command line contains one of its patterns runs, and exits when none does:
-start it after your job starts. The training PC sleeps after 15 idle
-minutes without it; check the teammate's PC the same way.
+below 58 C (no state is lost). It recognises jobs by module name (`GPU_JOBS`
+in `scripts/gpu_watchdog.py`) and already covers any module named
+`parkour.route*`, `parkour.router*` or `parkour.routing*`: **name your GPU
+modules that way** (for example `parkour.route_train`); any other name must
+be added to `GPU_JOBS` with a test in `tests/test_gpu_watchdog.py`, and the
+watchdog restarted. After starting it, check that `runs/gpu_watchdog.log`
+shows `sample: NN C ...` lines about every 10 s: `monitor error` lines mean
+nvidia-smi failed and nothing is protected. Keep-awake holds Windows awake
+(no power setting changes) while a Python process whose command line
+contains one of its patterns runs, and exits when none does, so start it
+again after each job starts.
 
-Baselines on your PC (each takes a few minutes). The section 2.1 rows were
-measured on the CPU; the physics is float64 and deterministic, but the
-network runs in float32, so on CUDA a few courses may come out differently.
-Your own planner run, on the same machine and device as your router's
-evaluation, is the baseline you compare against; report it next to the
-section 2.1 numbers:
-
-```text
-.venv\Scripts\python.exe -m parkour.planner --family 2 --per-level 300 --out results\routing\planner_validation_standard.json
-.venv\Scripts\python.exe -m parkour.planner --family 2 --obstacles --per-level 300 --out results\routing\planner_validation_obstacles.json
-```
-
-(`--family 2 --obstacles` plays family 5; careful: `--family 4
---obstacles` also plays family 5, and only `--family 1 --obstacles` plays
-the obstacle test family 4.) The test sets (`--family 1`, 200 per level) are
-for the end only.
-
-Training and evaluation of your router: write them as new modules (for
-example `parkour/route_policy.py`, `parkour/route_train.py`,
-`parkour/route_eval.py`) with argparse CLIs like `parkour/train.py`, so
-that one command trains (`python -m parkour.route_train --run NAME ...`) and
-one evaluates a checkpoint on a chosen family. Reuse
-`train.held_out_courses` for the held-out sets and `train._save` for
-checkpoints.
-
-Offline bot and real Minecraft (after you add your flag to `parkour.live`):
+**Baselines on your machine** (each takes a few minutes). The section 2.1
+rows were measured on the CPU; the physics is float64 and deterministic, but
+the networks run in float32, so on CUDA a few courses may come out
+differently. Your own planner run, on the same machine and device as your
+router's evaluation, is the baseline you compare against:
 
 ```text
-run.cmd offline --checkpoint results\final_policy.pt <your route flag> --courses-file results\games\v2-tuned-planner-live\courses.json --out runs\route-offline
-run.cmd offline --checkpoint results\final_policy.pt <your route flag> --courses-file results\games\v2-tuned-planner-live-obstacles\courses.json --out runs\route-offline-obstacles
-run.cmd accept-eula --agree             ONLY the PC's owner, once, if he accepts https://aka.ms/MinecraftEULA
-run.cmd live --checkpoint results\final_policy.pt <your route flag> --courses-file results\games\v2-tuned-planner-live\courses.json --out runs\route-live
-run.cmd live ... --courses-file results\games\v2-tuned-planner-live-obstacles\courses.json --out runs\route-live-obstacles
+.venv/Scripts/python.exe -m parkour.planner --family 2 --per-level 300 --out results/routing/planner_validation_standard.json
+.venv/Scripts/python.exe -m parkour.planner --family 2 --obstacles --per-level 300 --out results/routing/planner_validation_obstacles.json
 ```
 
-The planner's own versions of these runs used `--planner` (the current
-defaults; `--planner-config` takes JSON overrides; `--planner` and
-`--assist` cannot be combined). `--viewer NAME` lets a person watch in
-Minecraft Java 1.21.4 at `127.0.0.1:25570`. A `--out` folder must not exist
-yet. Without `--courses-file`, `parkour.live` plays test courses (the first
-`--per-level` of each level of family 1, or 4 with `--obstacles`), so for
-bot checks during development write a validation course file from
-`train.held_out_courses(..., family=2)` (or `obstacle_prob=0.5, family=5`)
-as `{"courses": [c.to_json() for c in courses]}`. Each run writes
-`summary.json` and `summary.md` with the bot's result, the simulator's
-result on the same courses, the outcome agreement, the replay error and the
-server corrections.
+`--family 2 --obstacles` plays family 5. Careful: `--family 4 --obstacles`
+also plays family 5, and only `--family 1 --obstacles` plays the obstacle
+test family 4. The output holds `local` and `remaining` blocks (the two fall
+rules), each with `given_route` (the course list) and `planner_route`; the
+baseline is `local.planner_route.success`, the upper bound
+`local.given_route.success`.
+
+**Your router's code:** new modules (for example `parkour/route_policy.py`,
+`parkour/route_train.py`, `parkour/route_eval.py`) with argparse CLIs like
+`parkour/train.py`, so that one command trains
+(`python -m parkour.route_train --run NAME ...`) and one evaluates a
+checkpoint on a chosen family. Reuse `train.held_out_courses`,
+`train.obstacle_courses` and `train._save`.
+
+**Evaluation protocol** (as `planner.evaluate_planned`, so that your numbers
+compare with the planner's): one episode per course (the first); the jumper
+by argmax; the router by argmax with ties broken by the fixed candidate
+order (sample only in training); `stall_ticks` 200, `max_ticks` 4000;
+settle 0 on the held-out sets (10 only when comparing with the bots); both
+fall rules, `local` as the headline. Write the planner CLI's JSON layout with
+a `router_route` entry next to `given_route` and `planner_route`, including
+`failure_modes` computed by `planner.failure_modes` from your router's
+`[tick, here, chain]` events.
+
+**Offline bot and real Minecraft** (after you add your flag to
+`parkour.live`; section 9 says when to run them):
+
+```text
+./run.cmd offline --checkpoint results/final_policy.pt <your route flag> --courses-file results/games/v2-tuned-planner-live/courses.json --out runs/route-offline
+./run.cmd offline --checkpoint results/final_policy.pt <your route flag> --courses-file results/games/v2-tuned-planner-live-obstacles/courses.json --out runs/route-offline-obstacles
+./run.cmd live --checkpoint results/final_policy.pt <your route flag> --courses-file results/games/v2-tuned-planner-live/courses.json --out runs/route-live
+./run.cmd live --checkpoint results/final_policy.pt <your route flag> --courses-file results/games/v2-tuned-planner-live-obstacles/courses.json --out runs/route-live-obstacles
+```
+
+Real Minecraft needs the owner's acceptance of the Minecraft EULA once,
+which only he may give, after reading <https://aka.ms/MinecraftEULA>:
+`./run.cmd accept-eula --agree`. The planner's own versions of these runs
+used `--planner` (the current defaults; `--planner-config` takes JSON
+overrides; `--planner` and `--assist` cannot be combined). `--viewer NAME`
+lets a person watch in Minecraft Java 1.21.4 at `127.0.0.1:25570`. A `--out`
+folder must not exist yet. Without `--courses-file`, `parkour.live` plays
+test courses (the first `--per-level` of each level of family 1, or 4 with
+`--obstacles`), so for bot checks during development write a validation
+course file from `train.held_out_courses(..., family=2)` (or
+`obstacle_prob=0.5, family=5`) as `{"courses": [c.to_json() for c in courses]}`.
+Each run writes `summary.json` and `summary.md` with the bot's result, the
+simulator's result on the same courses, the outcome agreement, the replay
+error and the server corrections.
 
 ## 9. Done criteria
 
 1. **Validation:** with the final policy as the jumper, your router completes
    more of the family-2 standard courses and more of the family-5 obstacle
    courses (300 per level, 1,800 each, fall rule `local`) than the greedy
-   planner measured by you on the same machine and device (the reference
-   numbers are **92.78%** and **89.00%**).
-2. **Test, once:** the validation-chosen router on families 1 and 4 (1,200
-   each), reported against the planner's 92.33% / 90.50% and the given
-   route's 98.42% / 95.25%. One test run per router version; never choose
-   on test.
-3. **Offline bot:** more than 51/60 and 56/60 on the two course files of
-   section 2.3, with the same outcome as the simulator on every course.
-4. **Real Minecraft:** the same courses, more than 51/60 and 56/60, the same
-   outcome as the simulator, 0 server corrections.
+   planner measured by you on the same machine and device. Report the paired
+   difference on the same courses with a 95% interval (a bootstrap over
+   courses, or McNemar's test on the courses where exactly one of the two
+   succeeds). Call it a win only if both sets improve and the interval of
+   the combined difference excludes 0; otherwise write "no clear
+   difference", which is still a valid result to report. (One standard error
+   is about 0.6 points on 1,800 standard courses and 0.7 on obstacles;
+   planner variants differed from each other by 0.5 to 1.6 points.)
+2. **Test, once:** freeze the validation-chosen router, then play it and the
+   greedy planner once each on families 1 and 4 (1,200 each, 200 per level),
+   on the same device; report both, the paired interval, and the reference
+   numbers (planner 92.33% / 90.50%, course list 98.42% / 95.25%). The first
+   tested version is the headline; a later tested version is reported as
+   additional, never chosen because of its test result.
+3. **Offline bot**, only for the frozen, tested router: each course file of
+   section 2.3 once. It passes if the outcome matches the simulator (settle
+   10) on every course. Report the counts next to the planner's 51/60 and
+   56/60 and the course list's 59/60 and 57/60; sixty courses are too few to
+   decide "better" (one standard deviation is about 2 courses), so that claim
+   rests on criteria 1 and 2. Never tune on these courses; debug on
+   validation course files.
+4. **Real Minecraft**, the same courses, once: the same outcome as the
+   simulator on every course and 0 server corrections; counts reported as in
+   criterion 3.
 5. `run.cmd test` passes, including your new tests (parity between the
    Python and JavaScript sides of your router, or of the service protocol).
-6. `results/routing/README.md` and its JSON files hold every number, each
-   saying where it was measured, and a pull request into `main` is open.
+6. `results/routing/README.md` and its files hold every number, each saying
+   where it was measured, and a pull request into `main` is open.
 
 ## 10. Rules
 
-- Work on your own branch `routing/<name>`; push only that branch; open a
-  pull request into `main` (a draft early is fine) and keep it updated. If
-  you cannot push to the repository, push to a fork and open the pull
-  request from there. Never force-push or rewrite history.
-- Do not modify `parkour/physics.py`, the environment's reward
-  (`RewardConfig` and the reward code in `parkour/env.py`),
-  `results/final_policy.*`, or anything else in HANDOFF.md section 5. Add
-  opt-in flags instead; the defaults must keep every existing test passing,
-  including `tests/test_heldout_fingerprints.py`.
-- Tune and choose only on validation (families 2 and 5). Test families 1 and
-  4 are for the final numbers only. Do not use seed families already taken
-  (0 training, 1 test, 2 validation, 3 stress, 4/5 obstacle test/validation,
-  7 the neo DAgger courses, 11 analysis, 12-17 other sets); new sets get new
-  families, from 18.
-- Every number says where it was measured: simulator, offline bot
-  (prismarine-physics without a server) or real Minecraft. Every number
-  comes from a file under `runs/` or `results/`.
-- Results go to `results/routing/`: one JSON file per evaluation and a short
-  `README.md` (what was tried, what was chosen and why, every number with
-  its file). Name the JSON files `planner_*.json`, `route_*.json` or
-  `router_*.json`: `results/DATA.md` already lists those patterns, so
-  `tests/test_handoff.py` keeps passing; give any other file its own entry
-  there. Avoid `*.log` names (Git ignores them). Bot runs write to `runs/`,
-  which Git ignores: copy their `summary.json`, `summary.md` and
-  `courses.json` into `results/routing/` (for example as
-  `route_live_summary.json`). Ship the chosen router's weights as
-  `results/routing/router_policy.pt` (and its JSON export as
-  `router_policy.json`, if the bot needs one), with a
-  `router_policy_provenance.json` like `results/noroute_policy_provenance.json`
-  (`runs/` never reaches the repository).
-- **Do not run `python -m parkour.report` (`run.cmd report`) or `python -m
-  parkour.handoff` on your PC.** The report rebuilds `results/README.md` from
-  the training PC's `runs/` (it now stops when that folder is missing), and
-  the handoff snapshot is regenerated by the main session after it merges
-  your pull request. `AGENTS.md`'s "after each result: report" step is for
-  the training PC.
-- GPU: at most two training processes at once (a third spills out of GPU
-  memory and slows everything 5 to 10 times); the watchdog runs whenever
-  GPU work runs.
-- Python/JS parity: whatever the bot runs must match the simulator (the
-  physics port matches prismarine-physics to 1.4e-14 blocks; keep that kind
-  of check for your code).
-- Keep your own session log at the top of `results/routing/README.md`
-  (date, who you are, what changed, what is next) instead of in
-  `HANDOFF.md`, whose log and generated block change on `main` all the time;
-  the main session adds your summary there when it merges. Leave
-  `HANDOFF.md` and `TEAM_STATUS.md` to the main session; your status lives in
-  `results/routing/README.md` and the pull request.
+**Git and GitHub.**
 
-## 11. Asking questions
+- Work on your own branch `routing/<name>`; push only that branch; never
+  force-push or rewrite history. If `git config user.email` is empty, set a
+  repository-local identity (`git config user.name "Claude (routing agent)"`
+  and the owner's GitHub noreply address, or ask him for it).
+- Push with `git push -u origin routing/<name>` after every result. Open a
+  draft pull request early: `gh pr create --draft --base main --head
+  routing/<name>` if the GitHub CLI is installed and logged in; otherwise
+  give the owner
+  `https://github.com/taraskHy/RL-Minecraft-project/compare/main...routing/<name>?expand=1`.
+  If you cannot push to the repository, push to a fork and open the pull
+  request from there.
+- To pick up `main`, `git fetch origin` then `git merge origin/main` (never
+  rebase), then run the tests. The pull request's description holds the
+  results table (validation, test, offline, live, each with its file), how
+  to reproduce, and what is still open; mark it ready when section 9 is
+  met, or when you stop.
+
+**What you may change.**
+
+- Add, opt-in and additive only: new `parkour/rout*` modules and tests; a
+  `router` option in `bridge/policy.js`'s `Episode` next to `planner`;
+  pass-through flags in `bridge/offline_bot.js`, `bridge/parkour_bot.js` and
+  `parkour/live.py` (with the simulator branch of section 4); new helpers in
+  `parkour/planner.py` and `bridge/planner.js` that leave `perceive`,
+  `options`, `choose` and `GreedyPlanner` unchanged. With the options off,
+  behaviour must be identical and every existing test must pass (among them
+  `tests/test_bridge_parity.py`, `test_planner.py`, `test_extended_obs.py`,
+  `test_physics_parity.py` and `test_heldout_fingerprints.py`).
+- Never change: `parkour/physics.py`, `bridge/physics_patch.js`, the
+  environment's reward and termination code (`RewardConfig` and the reward
+  code in `parkour/env.py`), the 255-number observation, the
+  `parkour-policy-v1` format, default course generation and the seed
+  families, `results/final_policy.*`, `results/runs/`, `results/games/`,
+  `results/README.md`, or anything else in HANDOFF.md section 5.
+
+**Evaluation discipline.** Tune and choose only on validation (families 2
+and 5). Test families 1 and 4 are for the final numbers only. Do not use
+seed families already taken (0 training, 1 test, 2 validation, 3 stress, 4/5
+obstacle test/validation, 7 the neo DAgger courses, 11 analysis, 12-17 other
+sets); new sets get new families, from 18. Every number says where it was
+measured (simulator, offline bot on prismarine-physics without a server, or
+real Minecraft) and comes from a file you commit under `results/routing/`.
+
+**Results.**
+
+- `results/routing/` holds a short `README.md` (what was tried, what was
+  chosen and why, every number with its file, and your session log at the
+  top: date, who you are, what changed, what is next) and one file per
+  evaluation. Name files `planner_*.json`, `route_*` or `router_*` (any
+  extension): `results/DATA.md` already lists those patterns, so
+  `tests/test_handoff.py` keeps passing. A file named otherwise needs its own
+  entry in the `results/routing/` row of `results/DATA.md`; if
+  `tests/test_handoff.py` fails, that is the reason. Avoid `*.log` names
+  (Git ignores them).
+- Bot runs write to `runs/`, which Git ignores: copy their `summary.json`,
+  `summary.md` and `courses.json` into `results/routing/` as
+  `route_<run>_summary.json`, `route_<run>_summary.md` and
+  `route_<run>_courses.json` (and `episodes.jsonl` gzipped as
+  `route_<run>_episodes.jsonl.gz` for replays).
+- Copy each router training run's small files (config, train log,
+  validation log, summary; never checkpoints) to
+  `results/routing/runs/<run>/`; subfolders of `results/routing/` need no
+  entry. Never write into `results/runs/` or `results/games/`, which feed the
+  handoff snapshot.
+- Ship the chosen router's weights as `results/routing/router_policy.pt`
+  (and its JSON export as `router_policy.json`, if the bot needs one), with a
+  `router_policy_provenance.json` like `results/noroute_policy_provenance.json`.
+
+**Training-PC steps that are not yours.** Do not run `python -m
+parkour.report` (`run.cmd report`) or `python -m parkour.handoff` on your
+PC; the read-only `python -m parkour.handoff --check` is fine. The report
+rebuilds `results/README.md` from the training PC's `runs/`; if you run it
+by mistake it stops and suggests `parkour.handoff` or `--force`: do neither.
+AGENTS.md's "after each result: report" step and its "Keep the handoff
+current" section are for the main session, which refreshes the handoff
+snapshot and adds your summary to `HANDOFF.md` when it merges your pull
+request. Leave `HANDOFF.md` and `TEAM_STATUS.md` to it; your status lives in
+`results/routing/README.md` and the pull request.
+
+**GPU.** At most two GPU processes at once, evaluations included (two
+trainings, or one training and one evaluation), and fewer if they do not
+fit: the training PC's 16 GB card fits two, and a third spills into system
+RAM and makes everything 5 to 10 times slower. Windows spills instead of
+failing, so check `nvidia-smi --query-gpu=memory.used,memory.total
+--format=csv` and Task Manager's shared GPU memory, and size `--num-envs` to
+the card. Unless the owner says otherwise, full GPU use within the
+temperature rule is fine; if he plays games on the PC, start the watchdog
+with `--pause-while <game.exe>` as well.
+
+**Parity.** Whatever the bot runs must match the simulator (the physics port
+matches prismarine-physics to 1.4e-14 blocks; keep that kind of check for
+your code).
+
+## 11. Questions and the time box
 
 Ethan and the teammate want as few questions as possible. Decide technical
 matters yourself and record the reasons in `results/routing/README.md`.
-Ask the PC's owner only for things only he can do: accepting the Minecraft
-EULA (`run.cmd accept-eula --agree`), and GitHub access if pushing fails.
-Ask about direction only if the done criteria above turn out to be wrong
-or unreachable, with the evidence.
+At the start, ask the PC's owner once for the deadline (the presentation
+date) and how long the PC is yours, and plan backwards from it: first day,
+setup, `run.cmd test`, the two planner baselines and a draft pull request;
+then validation results for the hierarchical router; leave time to freeze
+the best router, run its one test, the offline and live runs, and write the
+README. If no router beats the planner on validation in time, still freeze
+the best one, test it once and report honestly. Otherwise ask only for what
+only the owner can do (accepting the Minecraft EULA, GitHub access,
+installing a missing prerequisite) or about direction if the done criteria
+turn out to be wrong or unreachable, with the evidence.
 
 ## 12. What a fresh clone has and lacks
 
@@ -577,13 +730,14 @@ jumper you use), `results/final_policy_v1.pt`, `results/neo_policy.pt`,
 
 Not in Git (they exist only on the training PC, and you do not need them):
 `runs/` (training checkpoints and full logs; every run's small logs are in
-`results/runs/NAME/`) and `.local/` (Node, Java, the server jar, the server
-folder and the EULA consent; `setup.cmd` recreates everything except the
-consent, which only the PC's owner can give). To retrain a run, read its
-settings from `results/runs/NAME/config.json` and pass the values that
-differ from the `TrainConfig` defaults to `python -m parkour.train --run
-NAME`; `HANDOFF.md` section 6 lists the local-only checkpoints, how to
-regenerate each and how long it took. Some configs and scripts point into
-`runs/` and fail on a fresh clone (`configs/training_queue.json`,
+`results/runs/NAME/`) and `.local/` (Node, Java, the server jar, the local
+server folder and the EULA consent). `setup.cmd` recreates the runtimes and
+the server jar; the server folder appears on the first `run.cmd live`; the
+consent only the PC's owner can give. To retrain a run, read its settings
+from `results/runs/NAME/config.json` and pass the values that differ from
+the `TrainConfig` defaults to `python -m parkour.train --run NAME`;
+`HANDOFF.md` section 6 lists the local-only checkpoints, how to regenerate
+each and how long it took. Some configs and scripts point into `runs/` and
+fail on a fresh clone (`configs/training_queue.json`,
 `configs/sweep_extra.json`, `scripts/neo_evidence.py`); routing needs none
 of them.
