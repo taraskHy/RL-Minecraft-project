@@ -10,7 +10,7 @@ the data: training runs, policies, the route planner and neo files, the game
 folders (including the v2, planner, noroute, neo and film games) and the
 videos.
 
-**Last updated:** 29 Oct 2026, 03:13, training PC: cloud replay page integrated and checked; ice seeds 2/3 training, validation archived.
+**Last updated:** 29 Oct 2026, 03:18, training PC: active-run validation refreshed; initial advanced/ice comparison already delivered.
 
 ## The project
 
@@ -321,6 +321,8 @@ The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
 5. The report discussion and conclusion are drafted. The cloud DOCX/PDF exports predate this merged source; rebuild and check pagination before submission.
 
 ## Update log
+
+- **29 Oct 2026, 03:18, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-ice-s2: iteration 449, validation 95.33%, selected best 249 (96.75%), 6 levels; g995-ice-s3: iteration 399, validation 93.75%, selected best 249 (96.75%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. No executable changes; prior checks remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 
 - **29 Oct 2026, 03:13, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-ice-s2: iteration 349, validation 94.67%, selected best 249 (96.75%), 6 levels; g995-ice-s3: iteration 299, validation 93.08%, selected best 249 (96.75%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. Integrated cloud replay page `8c8bdfa` and fixed orbit switching, disposal of replaced graphics, paused/end-of-recording redraws, and a readable fallback when the 3D CDN is unavailable. The builder now checks the verification-file hash as well. Rebuilt from pinned data `6994797`: all 45 offline showcase episodes and 7,023 frames are unchanged. JavaScript syntax, isolated fallback/playback checks, and rejection of a corrupt verification file pass. Browser visual inspection was blocked by the browser tool local-file URL policy; no alternate route was attempted. Full CPU merge suite passes: 109 tests, 1 CUDA skip, 26 subtests (`runs/heartbeat-0302-merge-tests.txt`); training/physics code is unchanged. Replay-page availability is reported in this heartbeat; prior run-completion notifications are not repeated. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 

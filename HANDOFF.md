@@ -609,18 +609,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `dcdcc49` (2026-10-29 02:57, branch `main`): Archive validation progress for ice seeds 2 and 3
+Generated on top of commit `a4d31ba` (2026-10-29 03:17, branch `main`): Merge cloud showcase replays; verify viewer and archive ice-seed validation
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 121 |
+| `AGENTS.md` | `85b8f50` 2026-10-28 14:27 | 123 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `408de3d` 2026-10-28 22:10 | 79 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 96 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 79 |
-| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 6 |
-| `results/DATA.md` | updated together with this snapshot | 0 |
+| `README.md` | `408de3d` 2026-10-28 22:10 | 81 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 98 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 81 |
+| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 8 |
+| `results/DATA.md` | `a4d31ba` 2026-10-29 03:17 | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -649,8 +649,8 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `g995-extra` | 999 | 0.52 | 849 | 90.7 | 91.2 | - | - |
 | `g995-ice` | 999 | 0.52 | 449 | 97.3 | 97.5 | - | - |
 | `g995-ice-s1` | 999 | 0.52 | 949 | 97.7 | 97.2 | - | - |
-| `g995-ice-s2` | 349 | 0.18 | 249 | 96.8 | - | - | - |
-| `g995-ice-s3` | 299 | 0.16 | 249 | 96.8 | - | - | - |
+| `g995-ice-s2` | 449 | 0.24 | 249 | 96.8 | - | - | - |
+| `g995-ice-s3` | 399 | 0.21 | 249 | 96.8 | - | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
 | `hp-envs4096` | 3999 | 0.52 | 3599 | 93.7 | 94.2 | 92.0 | - |
@@ -783,6 +783,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **29 Oct 2026, 03:18, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-ice-s2: iteration 449, validation 95.33%, selected best 249 (96.75%), 6 levels; g995-ice-s3: iteration 399, validation 93.75%, selected best 249 (96.75%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. No executable changes; prior checks remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 
 - **29 Oct 2026, 03:13, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-ice-s2: iteration 349, validation 94.67%, selected best 249 (96.75%), 6 levels; g995-ice-s3: iteration 299, validation 93.08%, selected best 249 (96.75%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. Integrated cloud replay page `8c8bdfa` and fixed orbit switching, disposal of replaced graphics, paused/end-of-recording redraws, and a readable fallback when the 3D CDN is unavailable. The builder now checks the verification-file hash as well. Rebuilt from pinned data `6994797`: all 45 offline showcase episodes and 7,023 frames are unchanged. JavaScript syntax, isolated fallback/playback checks, and rejection of a corrupt verification file pass. Browser visual inspection was blocked by the browser tool local-file URL policy; no alternate route was attempted. Full CPU merge suite passes: 109 tests, 1 CUDA skip, 26 subtests (`runs/heartbeat-0302-merge-tests.txt`); training/physics code is unchanged. Replay-page availability is reported in this heartbeat; prior run-completion notifications are not repeated. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 
