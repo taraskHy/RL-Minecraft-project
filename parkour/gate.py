@@ -5,20 +5,22 @@ HANDOFF.md section 3 ("After those two, if it pays: a skill gate", and the rules
 
     python -m parkour.gate train --run NAME [--experts configs/gate_experts.json] [--iterations 150] [--save-at 50,100]
     python -m parkour.gate train --run NAME-swap1 --init-from runs/NAME/checkpoints/best.pt --experts NEW.json --swap
-    python -m parkour.gate eval --checkpoint runs/NAME/checkpoints/best.pt --split validation [--per-level 100]
-                                [--fixed-slot SLOT] [--experts FILE --swap] [--out FILE]
+    python -m parkour.gate eval --checkpoint runs/NAME/checkpoints/best.pt [--split validation] [--per-level 100]
+                                [--fixed-slot SLOT] [--experts FILE --swap] [--out FILE] [--force]
+    python -m parkour.gate eval --fixed-slot SLOT [--experts FILE]        (one expert alone, no gate)
 
 Experts are slots. ``configs/gate_experts.json`` lists slots {slot, skill, checkpoint[, sha1]}: checkpoint paths
 relative to the repository root, the optional sha1 checked when the file is read, and skill the slot's swap
 criterion of the 20:20 rule (basic, ice and extra: that group's validation; neo: the single-neo set, family 40,
-strict metric, policy alone; all: the mean over the four groups). Every expert is loaded with
+strict metric, policy alone; all: the mean over the four groups). An experts file is read from the path as given
+when it exists, else relative to the repository root, like the checkpoints in it. Every expert is loaded with
 ``parkour.train.load_frozen`` and acts deterministically, the argmax of every head, as in every evaluation (one
 network per distinct checkpoint, each run on every row every tick, so that a gate fixed to one slot plays bit for
 bit like ``parkour.train.evaluate`` on that expert). The gate picks a slot, never a network: a gate checkpoint
-stores its slot list with each checkpoint's sha1, and loading it with another slot list is refused unless
-``--swap`` is given. ``--swap`` may replace the checkpoint of any slot while the slots themselves (names, order,
-skills) stay; each replacement is logged in the run's config.json under "swaps" (slot, old and new checkpoint and
-sha1).
+stores its slot list with each checkpoint's sha1, and loading it with another slot list (a checkpoint overwritten
+in place included) is refused unless ``--swap`` is given. ``--swap`` may replace the checkpoint of any slot while
+the slots themselves (names, order, skills) stay; each replacement is logged in the run's config.json under "swaps"
+(slot, old and new checkpoint and sha1).
 
 Decisions: at every episode start and whenever the progress index cp increases (a landing on a new platform),
 the gate chooses a slot; that expert plays every tick until the next decision or the end of the episode.
@@ -41,6 +43,9 @@ the course data the CoursePool holds (``platform_tags``):
     standing on that platform (``env.SCAN_CEILING_LEVELS`` above the feet cell y + 1). In generated courses only
     head-hitter roofs (``courses._ceiling``) lie there; beams, pillars and neo walls never stand over a platform.
   - The next platform's one-hot and ceiling flag are zero past the goal.
+``GateFeatures`` keeps these per-platform tables on the pool's device and rebuilds the row of every course the pool
+has replaced (``CoursePool.replace`` bumps ``CoursePool.version``) before its next lookup, so the inputs follow the
+training pool's refreshes by themselves.
 The gate has its own observation normaliser (``model.RunningNorm``, updated as parkour.train updates its own: from
 the inputs of every decision during a rollout, used from the next rollout on) and two MLPs (``model.mlp``, ELU,
 ``--hidden`` 256,128): the actor's logits over the slots and the critic's value. Training samples the slot with its
@@ -52,14 +57,20 @@ episode's end); its reward is the sum of the environment's rewards over its tick
 transition: delta = R + gamma^ticks * V(next decision) - V, with gamma 0.995 per tick, and GAE lambda 0.95 over
 the decisions (A = delta + gamma^ticks * lambda * A(next)). An episode's end cuts the chain: 0 after a success, a
 fall or a stall with a stall penalty; after a time limit (the env's truncation) the gate's value of the final
-state, as parkour.train bootstraps truncations. A decision still running when a rollout ends is carried into the
-next rollout and completes there (with its stored log-probability, the behaviour policy's); the update uses the
-transitions completed in its rollout and cuts GAE at the rollout's end with the value of the state there. The gate
-samples its slot in training and takes the argmax in evaluation. PPO settings are parkour.train's (epochs 4,
-minibatches 8, clip 0.2 with the dual clip 3, KL-adaptive learning rate, early stop at KL 0.05, entropy 0.005,
-value weight 1, advantage normalisation) except two choices for a critic that starts from nothing: the value
-loss is the plain squared error (``--value-clip 0``; parkour.train clips each value's change to 0.2 per update,
-made for fine-tuning calibrated critics, which would hold returns of tens of reward units for hundreds of updates;
+state on the episode's own course and cp, as parkour.train bootstraps truncations. A decision still running when a
+rollout ends is carried into the next rollout and completes there. It keeps its slot and its stored
+log-probability (the behaviour policy's, the importance ratio's denominator), but its input is normalised again by
+the current normaliser and valued by the current critic, like every other value of the GAE it enters (a value
+stored by an older critic would shift its advantage by the critic's change, most for long options such as
+stalls). The update uses the transitions completed in its rollout and cuts GAE at the rollout's end with the value
+of the state there. The gate samples its slot in training and takes the argmax in evaluation. PPO settings are
+parkour.train's (epochs 4, minibatches 8, clip 0.2 with the dual clip 3, KL-adaptive learning rate, early stop at
+KL 0.05, entropy 0.005, value weight 1, advantage normalisation). The KL that adapts the learning rate and stops an
+update early is, as in parkour.train, the policy's change since the update began: measured against the policy at
+the update's start, not against the stored log-probabilities (for a carried decision those are an older policy's,
+which would put a floor under the KL). Two choices for a critic that starts from nothing: the value loss is the
+plain squared error (``--value-clip 0``; parkour.train clips each value's change to 0.2 per update, made for
+fine-tuning calibrated critics, which would hold returns of tens of reward units for hundreds of updates;
 ``--value-clip 0.2`` restores it), and the gradient norm is clipped for the actor and the critic separately.
 
 Training courses are skills mode's, built by parkour.train's own code exactly as for runs/combined-distill
@@ -68,25 +79,45 @@ jumps 5-12, turn probability 0.25, seed 0, family 0) and exclude the same held-o
 and validation sets and both single-neo sets (families 40 and 41). The pool is refreshed as parkour.train does
 (12.5% every 20 updates); a decision running on a replaced course ends there like a time limit.
 
-Validation is the measurement's (scripts/gate_headroom.py): ``parkour.train.skill_sets("validation", 100, 10,
-("basic", "advanced", "extra"), ice=True)``, stall 200, compact ice, batches of 600 courses per group and part,
-the first episode on every course; per-group success and the mean over the four groups
-(``parkour.train.group_scores`` / ``macro_score``) and the share of decisions and ticks of every slot per group.
-runs/NAME gets config.json, train_log.csv, eval_val_log.csv, summary.json (best = the highest four-group
-validation mean, ties to the earlier; last_eval; completed) and checkpoints/best.pt, latest.pt and
-updates_XXXXX.pt (``--save-at``). The test sets are played only with ``--test-once`` (off by default), once,
-with best.pt.
+Validation, which chooses best.pt, is the measurement's (scripts/gate_headroom.py) whatever the training flags
+(``--skills``, ``--stall-ticks``): ``parkour.train.skill_sets("validation", 100, 10, ("basic", "advanced",
+"extra"), ice=True)``, stall 200, at most 4000 ticks, compact ice, batches of 600 courses per group and part, the
+first episode on every course; per-group success and the mean over the four groups (``parkour.train.group_scores``
+/ ``macro_score``), the completion counts per group, and the share of decisions and ticks of every slot per group.
+``--val-per-level`` and ``--val-stall-ticks`` exist for smoke runs; summary.json's "validation" records the spec
+and whether it is the measurement's ("as_measurement"). best.pt is the highest four-group validation mean, compared
+exactly from the completion counts (the float means of two equal means can differ in their last bit), so a tie
+keeps the earlier checkpoint. runs/NAME gets config.json, train_log.csv, eval_val_log.csv, summary.json (best;
+last_eval; completed; the validation spec; for a fine-tune from ``--init-from``, "init_validation", the stored
+validation of the gate it started from, and "keep", the 20:20 rule: kept only if its best mean is at least that
+one on the same validation) and checkpoints/best.pt, latest.pt and updates_XXXXX.pt (``--save-at``).
+
+The test sets are played only with ``--test-once`` (off by default), once, after training, with best.pt
+(test_eval.json, summary.json "test_eval" and best.test_success), or with ``eval --split test`` on a run's
+checkpoint, which refuses a run that has been tested (its test_eval.json or summary.json "test_eval") or experts
+swapped into a gate's slots unless ``--force``, and records the test in the run the same way. ``eval`` writes its
+result next to a run's checkpoint (runs/NAME/eval_<split>_it<iteration>[_fixed_<slot>][_swapped].json; the gate's
+test: runs/NAME/test_eval.json) and to ``--out``, and never replaces a file without ``--force``.
+
+On CUDA, ``train`` and ``eval`` keep the user's GPU rule themselves: above ``--thermal-hot`` (65) degrees their
+loops wait until the GPU is below ``--thermal-cool`` (58) (``ThermalGuard``: nvidia-smi read by a thread every 2
+s), whether or not the running scripts/gpu_watchdog.py already lists parkour.gate.
 """
 from __future__ import annotations
 
 import argparse
+import contextlib
 import csv
 import dataclasses
 import hashlib
 import json
 import math
+import shutil
+import subprocess
+import threading
 import time
 from dataclasses import dataclass, field
+from fractions import Fraction
 from pathlib import Path
 
 import numpy as np
@@ -109,8 +140,14 @@ CEILING_ROWS = tuple(1 + c for c in SCAN_CEILING_LEVELS)  # block rows above a p
 FEATURE_NAMES = tuple(f"current_{k}" for k in KINDS) + tuple(f"next_{k}" for k in KINDS) + ("next_ceiling",)
 GATE_OBS_DIM = OBS_DIM + len(FEATURE_NAMES)
 SKILLS = ("basic", "ice", "neo", "extra", "all")
-DEFAULT_EXPERTS = "configs/gate_experts.json"
+DEFAULT_EXPERTS = "configs/gate_experts.json"  # relative to the repository root (``experts_path``)
 PER_LEVEL = {"validation": 100, "test": 200}  # parkour.train's val_per_level and eval_per_level
+VALIDATION_GROUPS = ("basic", "advanced", "extra")  # with the ice group: the measurement's four groups
+EVAL_JUMPS = 10  # jumps per held-out course (parkour.train's eval_jumps)
+MAX_TICKS = 4000  # an evaluation episode's limit (parkour.train.evaluate's)
+MEASUREMENT = {"split": "validation", "per_level": PER_LEVEL["validation"], "jumps": EVAL_JUMPS,
+               "groups": list(VALIDATION_GROUPS), "ice": True, "stall_ticks": 200, "max_ticks": MAX_TICKS,
+               "compact_ice": True, "batch_size": 600}  # scripts/gate_headroom.py's validation
 
 
 # Experts -------------------------------------------------------------------------------------------------------
@@ -125,9 +162,16 @@ def resolve(checkpoint: str) -> Path:
     return p if p.is_absolute() else paths.ROOT / p
 
 
+def experts_path(path) -> Path:
+    """An experts file: the path as given when it exists (absolute, or relative to the current folder), else relative
+    to the repository root, like the checkpoints listed in it."""
+    p = Path(path)
+    return p if p.is_absolute() or p.exists() else paths.ROOT / p
+
+
 def read_slots(path) -> list[dict]:
     """The slot list of an experts file, with every checkpoint's sha1: [{slot, skill, checkpoint, sha1}]."""
-    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    data = json.loads(experts_path(path).read_text(encoding="utf-8"))
     rows = data["slots"] if isinstance(data, dict) else data
     out, seen = [], set()
     for r in rows:
@@ -205,6 +249,94 @@ class Experts:
         return self.actions(obs)[self.index[slot], torch.arange(obs.shape[0], device=obs.device)]
 
 
+# GPU temperature -----------------------------------------------------------------------------------------------
+
+def gpu_temperature() -> float | None:
+    """The hottest GPU's temperature in degrees (nvidia-smi, as scripts/gpu_watchdog.py reads it), or None."""
+    try:
+        out = subprocess.run(["nvidia-smi", "--query-gpu=temperature.gpu", "--format=csv,noheader,nounits"],
+                             capture_output=True, text=True, timeout=20).stdout
+        return max(float(v) for v in out.split())
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+
+
+class ThermalGuard:
+    """The user's GPU rule (AGENTS.md: GPU work pauses above 65 C) inside this module's own loops.
+
+    A thread reads the temperature every ``every`` seconds; above ``hot`` it raises the heat flag, below ``cool``
+    it lowers it (the watchdog's hysteresis). ``wait``, called by the rollout and evaluation loops every tick,
+    returns at once while the flag is down and otherwise waits until it is."""
+
+    def __init__(self, hot: float = 65.0, cool: float = 58.0, every: float = 2.0, read=gpu_temperature):
+        self.hot, self.cool, self.every, self.read = float(hot), float(cool), float(every), read
+        self.heat = threading.Event()
+        self.done = threading.Event()
+        self.temperature = None
+        self.pauses, self.waited = 0, 0.0
+        self.thread = None
+
+    def sample(self) -> None:
+        t = self.read()
+        if t is None:
+            return
+        self.temperature = t
+        if t > self.hot:
+            self.heat.set()
+        elif t < self.cool:
+            self.heat.clear()
+
+    def start(self) -> "ThermalGuard":
+        self.sample()
+        self.thread = threading.Thread(target=self._run, name="gate-thermal-guard", daemon=True)
+        self.thread.start()
+        return self
+
+    def _run(self) -> None:
+        while not self.done.wait(self.every):
+            self.sample()
+
+    def stop(self) -> None:
+        self.done.set()
+
+    def wait(self) -> None:
+        if not self.heat.is_set():
+            return
+        t0 = time.monotonic()
+        self.pauses += 1
+        print(json.dumps({"thermal_pause_c": self.temperature, "above": self.hot, "until_below": self.cool}),
+              flush=True)
+        while self.heat.is_set() and not self.done.is_set():
+            time.sleep(min(self.every, 0.5))
+        dt = time.monotonic() - t0
+        self.waited += dt
+        print(json.dumps({"thermal_resume_c": self.temperature, "waited_s": round(dt, 1)}), flush=True)
+
+
+_GUARD: ThermalGuard | None = None
+
+
+def thermal_wait() -> None:
+    if _GUARD is not None:
+        _GUARD.wait()
+
+
+@contextlib.contextmanager
+def thermal_guard(device, hot: float, cool: float):
+    """Run a GPU job under a ThermalGuard (on CUDA with nvidia-smi and ``hot`` > 0; otherwise nothing changes)."""
+    global _GUARD
+    if _GUARD is not None or torch.device(device).type != "cuda" or hot <= 0 or shutil.which("nvidia-smi") is None:
+        yield _GUARD
+        return
+    guard = ThermalGuard(hot, cool).start()
+    _GUARD = guard
+    try:
+        yield guard
+    finally:
+        guard.stop()
+        _GUARD = None
+
+
 # Features ------------------------------------------------------------------------------------------------------
 
 def platform_tags(course: C.Course) -> list[set]:
@@ -238,26 +370,42 @@ def platform_kinds(course: C.Course) -> tuple[np.ndarray, np.ndarray]:
 
 
 class GateFeatures:
-    """The 11 features for rows (course index, cp) of one CoursePool, from per-platform tables on its device."""
+    """The 11 features for rows (course index, cp) of one CoursePool, from per-platform tables on its device.
+
+    A course the pool replaces (``CoursePool.replace``, which bumps ``pool.version``) has its row rebuilt before
+    the next lookup."""
 
     def __init__(self, pool: CoursePool):
+        self.pool = pool
         self.device = pool.device
         width = MAX_PLATFORMS + 1  # one column past the last platform, so that cp + 1 always has an entry
         self.kind = torch.full((pool.size, width), -1, dtype=torch.int64, device=self.device)
         self.roof = torch.zeros((pool.size, width), dtype=torch.bool, device=self.device)
+        self.courses = [None] * pool.size  # the course object each row was built from
         for i, c in enumerate(pool.courses):
             self.set(i, c)
+        self.version = getattr(pool, "version", 0)
         self.range = torch.arange(len(KINDS), device=self.device)
 
     def set(self, index: int, course: C.Course) -> None:
-        """(Re)build one course's row, e.g. after ``CoursePool.replace``."""
+        """(Re)build one course's row."""
         kind, roof = platform_kinds(course)
         self.kind[index] = -1
         self.kind[index, :len(kind)] = torch.as_tensor(kind, device=self.device)
         self.roof[index] = False
         self.roof[index, :len(roof)] = torch.as_tensor(roof, device=self.device)
+        self.courses[index] = course
+
+    def sync(self) -> None:
+        """Rebuild the rows of the courses the pool has replaced since the tables were built."""
+        for i, c in enumerate(self.pool.courses):
+            if c is not self.courses[i]:
+                self.set(i, c)
+        self.version = getattr(self.pool, "version", 0)
 
     def __call__(self, course: torch.Tensor, cp: torch.Tensor) -> torch.Tensor:
+        if getattr(self.pool, "version", 0) != self.version:
+            self.sync()
         cur = cp.clamp(max=MAX_PLATFORMS)
         nxt = (cp + 1).clamp(max=MAX_PLATFORMS)
         onehot = lambda k: (k[:, None] == self.range[None, :]).to(torch.float32)  # noqa: E731  (-1: all zero)
@@ -332,8 +480,8 @@ def masked_update(norm: RunningNorm, x: torch.Tensor, mask: torch.Tensor) -> Non
 # Evaluation ----------------------------------------------------------------------------------------------------
 
 @torch.no_grad()
-def play(gate: Gate | None, experts: Experts, pool: CoursePool, device, stall_ticks: int = 200, max_ticks: int = 4000,
-         fixed_slot: int | None = None, trace: list | None = None) -> dict:
+def play(gate: Gate | None, experts: Experts, pool: CoursePool, device, stall_ticks: int = 200,
+         max_ticks: int = MAX_TICKS, fixed_slot: int | None = None, trace: list | None = None) -> dict:
     """First episode on every course of ``pool``, as ``parkour.train.evaluate`` plays it, with the gate's argmax
     choosing the slot at the start and at every landing (``fixed_slot``: that slot everywhere, no gate needed).
 
@@ -354,6 +502,7 @@ def play(gate: Gate | None, experts: Experts, pool: CoursePool, device, stall_ti
     decisions = torch.zeros(n, k, dtype=torch.int64, device=device)
     ticks = torch.zeros(n, k, dtype=torch.int64, device=device)
     for t in range(max_ticks):
+        thermal_wait()
         if fixed_slot is None:
             choice = gate.logits(gate.norm(gate_input(obs, features, env.course, env.cp))).argmax(-1)
         else:
@@ -409,13 +558,14 @@ def validate(gate: Gate | None, experts: Experts, sets: dict, device, batch_size
     t0 = time.time()
     names = experts.names
     per_level = {"standard": [], "obstacles": []}
-    per_course, usage = {}, {}
+    per_course, usage, counts = {}, {}, {}
     for g in T.GROUP_ORDER:
         if g not in sets:
             continue
         dec = torch.zeros(len(names), dtype=torch.int64)
         tic = torch.zeros(len(names), dtype=torch.int64)
         per_course[g] = {}
+        counts[g] = {"completed": 0, "courses": 0}
         for part in ("standard", "obstacles"):
             courses = sets[g].get(part) or []
             if not courses:
@@ -434,13 +584,15 @@ def validate(gate: Gate | None, experts: Experts, sets: dict, device, batch_size
                 if torch.device(device).type == "cuda":
                     torch.cuda.empty_cache()
             per_course[g][part] = rows
+            counts[g]["completed"] += int(sum(rows["success"]))
+            counts[g]["courses"] += len(rows["success"])
         usage[g] = {"decisions": {s: float(v) / max(1, int(dec.sum())) for s, v in zip(names, dec.tolist())},
                     "ticks": {s: float(v) / max(1, int(tic.sum())) for s, v in zip(names, tic.tolist())},
                     "n_decisions": int(dec.sum()), "n_ticks": int(tic.sum())}
     levels = {part: merge_levels(rows) for part, rows in per_level.items()}
     groups = T.group_scores(*levels.values())
     groups = {g: groups[g] for g in T.GROUP_ORDER if g in groups}
-    return {"success": T.macro_score(groups), "groups": groups, "usage": usage, "per_level": levels,
+    return {"success": T.macro_score(groups), "groups": groups, "counts": counts, "usage": usage, "per_level": levels,
             "per_course": per_course, "courses": sum(len(p) for s in sets.values() for p in s.values()),
             "seconds": round(time.time() - t0, 1)}
 
@@ -448,6 +600,42 @@ def validate(gate: Gate | None, experts: Experts, sets: dict, device, batch_size
 def compact(ev: dict) -> dict:
     """An evaluation without its per-course lists (for checkpoints and summaries)."""
     return {k: v for k, v in ev.items() if k != "per_course"}
+
+
+def exact_score(counts: dict | None) -> Fraction | None:
+    """The mean over the groups as an exact fraction, from per-group completion counts ({group: {completed,
+    courses}}); None without counts."""
+    groups = [g for g in T.GROUP_ORDER if counts and g in counts and counts[g]["courses"]]
+    if not groups:
+        return None
+    return sum((Fraction(counts[g]["completed"], counts[g]["courses"]) for g in groups), Fraction(0)) / len(groups)
+
+
+def same_validation(a: dict | None, b: dict | None) -> bool:
+    """Two validation specs with the same sets and rules."""
+    return bool(a) and bool(b) and all(a.get(k) == b.get(k) for k in MEASUREMENT)
+
+
+def keep_rule(best: dict, init_validation: dict | None, spec: dict) -> dict | None:
+    """The 20:20 rule for a fine-tune after a swap: kept only if its best validation mean is at least that of the
+    gate it started from, on the same validation (compared exactly from the completion counts; on the means
+    rounded to 9 decimals if either has none). None for a run that does not start from a gate."""
+    if init_validation is None:
+        return None
+    if init_validation.get("success") is None:
+        return {"keep": None, "reason": "the gate it started from has no stored validation"}
+    if not best:
+        return {"keep": None, "reason": "no validation yet"}
+    if not same_validation(init_validation.get("validation"), spec):
+        return {"keep": None, "reason": "the gate it started from was validated on other sets or rules",
+                "validation_success": best["validation_success"], "init_validation_success": init_validation["success"]}
+    a, b = exact_score(best.get("validation_counts")), exact_score(init_validation.get("counts"))
+    if a is not None and b is not None:
+        keep = a >= b
+    else:
+        keep = round(best["validation_success"], 9) >= round(init_validation["success"], 9)
+    return {"keep": bool(keep), "validation_success": best["validation_success"],
+            "init_validation_success": init_validation["success"]}
 
 
 # Training ------------------------------------------------------------------------------------------------------
@@ -493,15 +681,18 @@ class GateConfig:
     curriculum: str = "uniform"
     wide_neo: bool = False
     compact_ice: bool = True
-    stall_ticks: int = 200
+    stall_ticks: int = 200  # the training environments' (a stall without penalty is a bootstrapped time limit)
     reward: RewardConfig = field(default_factory=RewardConfig)
     eval_per_level: int = 200  # the test sets' size (excluded from training; played only with --test-once)
-    val_per_level: int = 100  # the validation sets' size (the measurement's)
-    eval_jumps: int = 10
+    # The selection validation: the measurement's (MEASUREMENT); smaller values only for smoke runs.
+    val_per_level: int = 100
+    val_stall_ticks: int = 200
     eval_every: int = 10
     eval_batch_size: int = 600
     save_at: str = ""  # comma-separated update counts with a snapshot (0 = before the first update)
     test_once: bool = False
+    thermal_hot: float = 65.0  # on CUDA: wait above this GPU temperature (0: off) ...
+    thermal_cool: float = 58.0  # ... until it is below this
 
 
 def course_config(cfg: GateConfig) -> T.TrainConfig:
@@ -512,7 +703,18 @@ def course_config(cfg: GateConfig) -> T.TrainConfig:
                          jumps_min=cfg.jumps_min, jumps_max=cfg.jumps_max, turn_prob=cfg.turn_prob,
                          curriculum=cfg.curriculum, wide_neo=cfg.wide_neo, compact_ice=cfg.compact_ice,
                          stall_ticks=cfg.stall_ticks, reward=cfg.reward, eval_per_level=cfg.eval_per_level,
-                         val_per_level=cfg.val_per_level, eval_jumps=cfg.eval_jumps, test_once=True)
+                         val_per_level=cfg.val_per_level, eval_jumps=EVAL_JUMPS, test_once=True)
+
+
+def validation_spec(cfg: GateConfig, courses: int | None = None) -> dict:
+    """The selection validation's sets and rules, and whether they are the measurement's."""
+    spec = {"split": "validation", "per_level": cfg.val_per_level, "jumps": EVAL_JUMPS,
+            "groups": list(VALIDATION_GROUPS), "ice": True, "stall_ticks": cfg.val_stall_ticks, "max_ticks": MAX_TICKS,
+            "compact_ice": True, "batch_size": cfg.eval_batch_size}
+    spec["as_measurement"] = spec == MEASUREMENT
+    if courses is not None:
+        spec["courses"] = courses
+    return spec
 
 
 def skill_groups(skills: str) -> list[str]:
@@ -558,7 +760,8 @@ class Collector:
     Decision rows: row 0 holds the decision carried from the previous rollout (its option still running), row
     t + 1 the decisions made at tick t. A row's transition, once its option ends, has its summed reward ``E_R``,
     its ticks ``E_tau``, whether the episode ended (``E_done``) and then the value to bootstrap (``E_boot``: 0 or a
-    time limit's value of the final state)."""
+    time limit's value of the final state). A carried decision keeps its slot and behaviour log-probability; its
+    input (``X``, kept raw) is normalised again and valued by the gate as it is when the next rollout starts."""
 
     def __init__(self, env: ParkourEnv, gate: Gate, experts: Experts, features: GateFeatures, rollout: int,
                  generator: torch.Generator, shadow: RunningNorm | None = None):
@@ -577,6 +780,7 @@ class Collector:
         self.E_end = torch.zeros(rows, n, dtype=torch.bool, device=dev)
         self.E_done = torch.zeros(rows, n, dtype=torch.bool, device=dev)
         self.E_boot = torch.zeros(rows, n, device=dev)
+        self.X = torch.zeros(n, GATE_OBS_DIM, device=dev)  # the raw input of each environment's running decision
         self.obs = env.observe()
         self.decide = torch.ones(n, dtype=torch.bool, device=dev)  # every environment starts an episode
         self.slot = torch.zeros(n, dtype=torch.int64, device=dev)
@@ -601,14 +805,17 @@ class Collector:
     def collect(self, trace: list | None = None) -> None:
         env, gate = self.env, self.gate
         keep = ~self.decide  # options still running: their decision becomes row 0
-        for buf in (self.D_obs, self.D_slot, self.D_logp, self.D_val):
+        for buf in (self.D_slot, self.D_logp):  # the behaviour policy's choice and its log-probability
             buf[0] = buf[self.cur, self.rows]
+        self.D_obs[0] = gate.norm(self.X)  # its input and value as the gate sees them now, like every other value
+        self.D_val[0] = gate.value(self.D_obs[0])  # of this rollout's GAE
         self.D_valid.zero_()
         self.D_valid[0] = keep
         self.cur = torch.where(keep, torch.zeros_like(self.cur), self.cur)
         for buf in (self.E_R, self.E_tau, self.E_end, self.E_done, self.E_boot):
             buf.zero_()
         for t in range(self.rollout):
+            thermal_wait()
             x = gate_input(self.obs, self.features, env.course, env.cp)
             xn = gate.norm(x)
             logits = gate.logits(xn)
@@ -622,6 +829,7 @@ class Collector:
             self.D_logp[t + 1] = logp
             self.D_val[t + 1] = gate.value(xn)
             self.D_valid[t + 1] = d
+            self.X = torch.where(d[:, None], x, self.X)
             self.slot = torch.where(d, pick, self.slot)
             self.cur = torch.where(d, torch.full_like(self.cur, t + 1), self.cur)
             self.R = torch.where(d, torch.zeros_like(self.R), self.R)
@@ -640,7 +848,7 @@ class Collector:
             self._close(end, done, torch.where(trunc, vf, torch.zeros_like(vf)))
             if trace is not None:
                 trace.append({"decide": d.clone(), "slot": self.slot.clone(), "cp": cp.clone(), "done": done.clone(),
-                              "reward": rew.clone(), "trunc": trunc.clone(), "boot": vf.clone()})
+                              "reward": rew.clone(), "trunc": trunc.clone(), "boot": vf.clone(), "x": x.clone()})
             self.decide = end
             self.obs = nobs
         self.last_val = self._value(self.obs, env.course, env.cp)
@@ -678,19 +886,28 @@ class Collector:
         return {"obs": self.D_obs[m], "act": self.D_slot[m], "logp": self.D_logp[m], "val": self.D_val[m],
                 "adv": adv_all[m].to(torch.float32), "ret": (adv_all + val)[m].to(torch.float32),
                 "ticks": self.E_tau[m], "done": self.E_done[m], "index": m.nonzero(),
-                "decided": int(self.D_valid[1:].sum()), "running": int((self.D_valid & ~self.E_end).sum())}
+                "decided": int(self.D_valid[1:].sum()), "running": int((self.D_valid & ~self.E_end).sum()),
+                "carried": int(m[0].sum())}
 
 
 def ppo_update(gate: Gate, opt, b: dict, cfg: GateConfig, lr: float) -> tuple[dict, float]:
-    """PPO epochs on the completed transitions (parkour.train's update, on decisions)."""
-    stats = {"pi_loss": 0.0, "v_loss": 0.0, "entropy": 0.0, "kl": 0.0, "clipfrac": 0.0}
+    """PPO epochs on the completed transitions (parkour.train's update, on decisions).
+
+    The surrogate's ratio is against the stored behaviour log-probabilities. The KL that adapts the learning rate
+    and stops the update early is the policy's change since this update began (parkour.train's "policy change so
+    far"), measured against the policy at its start: for a decision carried from an earlier rollout the stored
+    log-probability is an older policy's, which would put a floor under the KL."""
+    stats = {"pi_loss": 0.0, "v_loss": 0.0, "entropy": 0.0, "kl": 0.0, "kl_behaviour": 0.0, "clipfrac": 0.0}
     n = int(b["obs"].shape[0])
     nmb = max(1, min(cfg.minibatches, n))
     mb = n // nmb if n else 0
     adv = b["adv"]
     if n > 1:
         adv = (adv - adv.mean()) / (adv.std() + 1e-8)
-    nupd, stopped = 0, False
+    if n:
+        with torch.no_grad():
+            logp0 = torch.distributions.Categorical(logits=gate.logits(b["obs"])).log_prob(b["act"])
+    nupd, stopped, kl_first = 0, False, None
     for _ in range(cfg.epochs if n else 0):
         perm = torch.randperm(n, device=adv.device)
         for k in range(nmb):
@@ -700,7 +917,10 @@ def ppo_update(gate: Gate, opt, b: dict, cfg: GateConfig, lr: float) -> tuple[di
             logp, ent, v = dist.log_prob(b["act"][idx]), dist.entropy(), gate.value(obs)
             log_ratio = (logp - b["logp"][idx]).clamp(-20.0, 20.0)
             ratio = torch.exp(log_ratio)
-            kl = ((ratio - 1) - log_ratio).mean().item()
+            d0 = (logp - logp0[idx]).clamp(-20.0, 20.0)
+            kl = ((torch.exp(d0) - 1) - d0).mean().item()  # this update's policy change so far, on this minibatch
+            if kl_first is None:
+                kl_first = kl
             if kl > cfg.kl_stop or not math.isfinite(kl):
                 stopped = True
                 break
@@ -731,17 +951,19 @@ def ppo_update(gate: Gate, opt, b: dict, cfg: GateConfig, lr: float) -> tuple[di
                 lr = min(cfg.lr_max, lr * 1.5)
             for g in opt.param_groups:
                 g["lr"] = lr
-            stats["pi_loss"] += pl.item()
-            stats["v_loss"] += vl.item()
-            stats["entropy"] += el.item()
-            stats["kl"] += kl
-            stats["clipfrac"] += ((ratio - 1).abs() > cfg.clip).float().mean().item()
+            with torch.no_grad():
+                stats["pi_loss"] += pl.item()
+                stats["v_loss"] += vl.item()
+                stats["entropy"] += el.item()
+                stats["kl"] += kl
+                stats["kl_behaviour"] += ((ratio - 1) - log_ratio).mean().item()
+                stats["clipfrac"] += ((ratio - 1).abs() > cfg.clip).float().mean().item()
             nupd += 1
         if stopped:
             break
     for key in stats:
         stats[key] /= max(nupd, 1)
-    stats.update(lr=lr, minibatch_updates=nupd, stopped=int(stopped))
+    stats.update(lr=lr, minibatch_updates=nupd, stopped=int(stopped), kl_first=kl_first)
     return stats, lr
 
 
@@ -754,15 +976,22 @@ def _eval_row(it: int, updates: int, ticks: int, ev: dict, names: list) -> list:
     row += [round(ev["groups"].get(g, float("nan")), 4) for g in T.GROUP_ORDER]
     for g in T.GROUP_ORDER:
         row += [round(ev["usage"].get(g, {}).get("decisions", {}).get(s, 0.0), 4) for s in names]
+    row += [ev["counts"].get(g, {}).get("completed", 0) for g in T.GROUP_ORDER]
+    row += [ev["counts"].get(g, {}).get("courses", 0) for g in T.GROUP_ORDER]
     return row
 
 
 def _summary_eval(ev: dict, it: int) -> dict:
     return {"iteration": it, "updates": it + 1, "validation_success": ev["success"], "validation_groups": ev["groups"],
-            "slot_usage": ev["usage"], "seconds": ev["seconds"]}
+            "validation_counts": ev["counts"], "slot_usage": ev["usage"], "seconds": ev["seconds"]}
 
 
 def train(cfg: GateConfig) -> Path:
+    with thermal_guard(cfg.device, cfg.thermal_hot, cfg.thermal_cool):
+        return _train(cfg)
+
+
+def _train(cfg: GateConfig) -> Path:
     torch.manual_seed(cfg.seed)
     np.random.seed(cfg.seed)
     dev = torch.device(cfg.device)
@@ -773,9 +1002,9 @@ def train(cfg: GateConfig) -> Path:
         raise ValueError(f"run {cfg.run} exists: choose a new run name")
     if cfg.iterations < 1:
         raise ValueError("--iterations: at least 1")
-    skills = skill_groups(cfg.skills)
+    skill_groups(cfg.skills)
     slots = read_slots(cfg.experts)
-    init, swaps = None, []
+    init, swaps, init_validation = None, [], None
     if cfg.init_from:
         init = torch.load(cfg.init_from, map_location=dev, weights_only=False)
         if not isinstance(init, dict) or init.get("format") != FORMAT:
@@ -784,16 +1013,22 @@ def train(cfg: GateConfig) -> Path:
             raise ValueError("--init-from: a gate with other inputs")
         swaps = compare_slots(init["slots"], slots, cfg.swap)
         cfg = dataclasses.replace(cfg, hidden=tuple(init["arch"]["hidden"]))
+        e = init.get("eval") or {}
+        init_validation = {"checkpoint": str(cfg.init_from), "iteration": init.get("iteration"),
+                           "success": e.get("success"), "groups": e.get("groups"), "counts": e.get("counts"),
+                           "validation": (init.get("config") or {}).get("validation")}
     elif cfg.swap:
         raise ValueError("--swap replaces experts in the slots of a gate given with --init-from")
     snapshots = {int(v) for v in cfg.save_at.split(",") if v.strip()}
+    val_sets = T.skill_sets("validation", cfg.val_per_level, EVAL_JUMPS, VALIDATION_GROUPS, ice=True)
+    spec = validation_spec(cfg, courses=sum(len(p) for s in val_sets.values() for p in s.values()))
     (out / "checkpoints").mkdir(parents=True, exist_ok=True)
     cfg_dict = dataclasses.asdict(cfg)
     cfg_dict.update({"what": "parkour.gate: a skill gate over frozen experts, PPO on its decisions (semi-MDP)",
-                     "slots": slots, "swaps": swaps, "features": list(FEATURE_NAMES)})
+                     "slots": slots, "swaps": swaps, "features": list(FEATURE_NAMES), "validation": spec})
     if init is not None:
         cfg_dict.update({"init_slots": init["slots"], "init_sha1": file_sha1(cfg.init_from),
-                         "init_iteration": init.get("iteration")})
+                         "init_iteration": init.get("iteration"), "init_validation": init_validation})
     (out / "config.json").write_text(json.dumps(cfg_dict, indent=1))
 
     experts = Experts(slots, dev)
@@ -802,7 +1037,6 @@ def train(cfg: GateConfig) -> Path:
     env = ParkourEnv(pool, EnvConfig(num_envs=cfg.num_envs, stall_ticks=cfg.stall_ticks, reward=cfg.reward),
                      sampler=sampler, seed=cfg.seed)
     features = GateFeatures(pool)
-    val_sets = T.skill_sets("validation", cfg.val_per_level, cfg.eval_jumps, tuple(skills), ice=True)
     gate = Gate(len(slots), cfg.hidden).to(dev)
     if init is not None:
         gate.load_state_dict(init["gate"])
@@ -825,11 +1059,22 @@ def train(cfg: GateConfig) -> Path:
     log_w = None
     with open(val_path, "w", newline="") as f:
         csv.writer(f).writerow(["iteration", "updates", "env_ticks", "success"] + [f"success_{g}" for g in T.GROUP_ORDER]
-                               + [f"usage_{g}_{s}" for g in T.GROUP_ORDER for s in names])
-    best, best_info, last = -1.0, {}, {}
+                               + [f"usage_{g}_{s}" for g in T.GROUP_ORDER for s in names]
+                               + [f"completed_{g}" for g in T.GROUP_ORDER] + [f"courses_{g}" for g in T.GROUP_ORDER])
+    best_key, best_info, last = None, {}, {}
     total = 0
     t_start = time.time()
     n, steps = cfg.num_envs, cfg.rollout
+
+    def summary(it: int, completed: bool) -> dict:
+        s = {"best": best_info, "last_eval": last, "iteration": it, "updates": it + 1, "env_ticks": total,
+             "env_steps": total, "minutes": round((time.time() - t_start) / 60, 2), "completed": completed,
+             "slots": slots, "swaps": swaps, "validation": spec}
+        if init is not None:
+            s["init_validation"] = init_validation
+            s["keep"] = keep_rule(best_info, init_validation, spec)
+        return s
+
     for it in range(cfg.iterations):
         t0 = time.time()
         gate.eval()
@@ -858,12 +1103,14 @@ def train(cfg: GateConfig) -> Path:
         used = torch.bincount(b["act"], minlength=len(names)).tolist()
         row = {"iteration": it, "updates": it + 1, "env_ticks": total, "minutes": round((time.time() - t_start) / 60, 2),
                "ticks_per_s": int(n * steps / dt), "rollout_s": round(t_roll, 2), "update_s": round(dt - t_roll, 2),
-               "transitions": int(b["obs"].shape[0]), "decisions": b["decided"], "running": b["running"],
+               "transitions": int(b["obs"].shape[0]), "carried": b["carried"], "decisions": b["decided"],
+               "running": b["running"],
                "ticks_per_transition": round(float(b["ticks"].double().mean()), 2) if len(b["ticks"]) else None,
                "episodes": int(eps), "success": frac(1), "fell": frac(2), "truncated": frac(3), "ep_len": frac(4),
                "ep_return": frac(5), "progress": frac(6),
                **{k: (round(v, 7) if isinstance(v, float) else v) for k, v in stats.items()},
-               **{f"usage_{s}": round(u / max(1, sum(used)), 4) for s, u in zip(names, used)}}
+               **{f"usage_{s}": round(u / max(1, sum(used)), 4) for s, u in zip(names, used)},
+               "thermal_wait_s": round(_GUARD.waited, 1) if _GUARD is not None else 0.0}
         if log_w is None:
             log_w = csv.DictWriter(log_f, fieldnames=list(row.keys()))
             log_w.writeheader()
@@ -871,16 +1118,15 @@ def train(cfg: GateConfig) -> Path:
         log_f.flush()
         if it % 10 == 0:
             print(json.dumps(row), flush=True)
-        if refresh:
+        if refresh:  # GateFeatures rebuilds the replaced courses' rows itself (pool.version)
             for i, c in zip(idx, factory.make(k)):
                 pool.replace(int(i), c)
-                features.set(int(i), c)
             env.rebuild_level_table()
             env.set_level_probs(sampler.probs())
             env.reset_rows(moved)
             collector.restart(moved)
         if it % cfg.eval_every == cfg.eval_every - 1 or it == cfg.iterations - 1:
-            ev = validate(gate, experts, val_sets, dev, cfg.eval_batch_size, cfg.stall_ticks)
+            ev = validate(gate, experts, val_sets, dev, cfg.eval_batch_size, cfg.val_stall_ticks)
             with open(val_path, "a", newline="") as f:
                 csv.writer(f).writerow(_eval_row(it, it + 1, total, ev, names))
             last = _summary_eval(ev, it)
@@ -888,25 +1134,25 @@ def train(cfg: GateConfig) -> Path:
                               "seconds": ev["seconds"]}), flush=True)
             ck = checkpoint(gate, slots, it, cfg_dict, opt, compact(ev))
             _save(ck, out / "checkpoints" / "latest.pt")
-            if ev["success"] > best:  # ties keep the earlier
-                best, best_info = ev["success"], last
+            key = exact_score(ev["counts"])
+            if best_key is None or key > best_key:  # exact; a tie keeps the earlier
+                best_key, best_info = key, last
                 _save(ck, out / "checkpoints" / "best.pt")
-            (out / "summary.json").write_text(json.dumps(
-                {"best": best_info, "last_eval": last, "iteration": it, "updates": it + 1, "env_ticks": total,
-                 "env_steps": total, "minutes": round((time.time() - t_start) / 60, 2), "completed": False,
-                 "slots": slots, "swaps": swaps}, indent=1))
+            (out / "summary.json").write_text(json.dumps(summary(it, False), indent=1))
     log_f.close()
-    summary = json.loads((out / "summary.json").read_text())
-    summary["completed"] = True
+    final = summary(cfg.iterations - 1, True)
     if cfg.test_once:  # once, with best.pt, after training (the main session decides when)
         tested, ck = load_gate(out / "checkpoints" / "best.pt", dev)
-        ev = validate(tested, experts, T.skill_sets("test", cfg.eval_per_level, cfg.eval_jumps, tuple(skills), ice=True),
-                      dev, cfg.eval_batch_size, cfg.stall_ticks)
+        test_sets = T.skill_sets("test", cfg.eval_per_level, EVAL_JUMPS, VALIDATION_GROUPS, ice=True)
+        ev = validate(tested, experts, test_sets, dev, cfg.eval_batch_size, cfg.val_stall_ticks)
         (out / "test_eval.json").write_text(json.dumps({"iteration": ck["iteration"], **ev}, indent=1))
-        summary["test_eval"] = {"iteration": ck["iteration"], **compact(ev)}
+        final["test_eval"] = {"iteration": ck["iteration"], **compact(ev)}
+        final["best"].update(test_success=ev["success"], test_groups=ev["groups"], test_counts=ev["counts"])
         print(json.dumps({"selected_checkpoint_test": ck["iteration"], "success": ev["success"],
                           "groups": ev["groups"]}), flush=True)
-    (out / "summary.json").write_text(json.dumps(summary, indent=1))
+    if init is not None:
+        print(json.dumps({"keep": final["keep"]}), flush=True)
+    (out / "summary.json").write_text(json.dumps(final, indent=1))
     return out
 
 
@@ -934,6 +1180,21 @@ def parse_train(argv=None) -> GateConfig:
     return GateConfig(**kw)
 
 
+def run_folder(checkpoint_path) -> Path | None:
+    """The run folder of a checkpoint in runs/NAME/checkpoints/ (one with a config.json), else None."""
+    p = Path(checkpoint_path).resolve()
+    run = p.parent.parent
+    return run if p.parent.name == "checkpoints" and (run / "config.json").is_file() else None
+
+
+def tested(run: Path) -> bool:
+    """Has this run's gate played the test sets (test_eval.json, or summary.json "test_eval")?"""
+    if (run / "test_eval.json").exists():
+        return True
+    s = run / "summary.json"
+    return s.exists() and bool(json.loads(s.read_text(encoding="utf-8")).get("test_eval"))
+
+
 def evaluate_cmd(argv=None) -> dict:
     ap = argparse.ArgumentParser(prog="python -m parkour.gate eval",
                                  description="The gated policy on held-out sets (simulator, deterministic).")
@@ -945,11 +1206,17 @@ def evaluate_cmd(argv=None) -> dict:
     ap.add_argument("--experts", default="", help="an experts file instead of the checkpoint's slots (needs --swap "
                                                   "if they differ); without --checkpoint, the slots for --fixed-slot")
     ap.add_argument("--swap", action="store_true")
-    ap.add_argument("--skills", default="", help="groups (default: the gate's training groups)")
+    ap.add_argument("--skills", default="", help="groups (default: the measurement's basic,advanced,extra; the ice "
+                                                 "group comes with them)")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
-    ap.add_argument("--batch-size", type=int, default=600)
-    ap.add_argument("--stall-ticks", type=int, default=200)
-    ap.add_argument("--out", default="", help="write the result (with every course's outcome) to this JSON file")
+    ap.add_argument("--batch-size", type=int, default=MEASUREMENT["batch_size"])
+    ap.add_argument("--stall-ticks", type=int, default=MEASUREMENT["stall_ticks"])
+    ap.add_argument("--out", default="", help="also write the result (with every course's outcome) to this file "
+                                              "(always written next to a run's checkpoint)")
+    ap.add_argument("--force", action="store_true", help="replace an existing result file; play a tested run's test "
+                                                         "sets, or a gate with swapped experts on them")
+    ap.add_argument("--thermal-hot", type=float, default=GateConfig.thermal_hot)
+    ap.add_argument("--thermal-cool", type=float, default=GateConfig.thermal_cool)
     a = ap.parse_args(argv)
     gate, ck, swaps = None, None, []
     if a.checkpoint:
@@ -963,30 +1230,63 @@ def evaluate_cmd(argv=None) -> dict:
         slots = read_slots(a.experts or DEFAULT_EXPERTS)
     else:
         raise SystemExit("give --checkpoint, or --fixed-slot with the experts to play")
-    experts = Experts(slots, a.device)
+    names = [s["slot"] for s in slots]
     fixed = None
     if a.fixed_slot:
-        if a.fixed_slot not in experts.names:
-            raise SystemExit(f"no slot {a.fixed_slot}: {', '.join(experts.names)}")
-        fixed = experts.names.index(a.fixed_slot)
-    skills = skill_groups(a.skills or (ck["config"]["skills"] if ck else GateConfig.skills))
+        if a.fixed_slot not in names:
+            raise SystemExit(f"no slot {a.fixed_slot}: {', '.join(names)}")
+        fixed = names.index(a.fixed_slot)
+    # Where the result goes and the test rule, before anything is played.
+    run = run_folder(a.checkpoint) if a.checkpoint else None
+    gate_test = a.split == "test" and gate is not None and fixed is None  # the gate's own test (an expert alone is not)
+    if gate_test and swaps and not a.force:
+        raise SystemExit("the test sets with experts swapped into the gate's slots: fine-tune the gate with them "
+                         "(train --init-from ... --swap) and test that run; --force to play them anyway")
+    if gate_test and run is not None and tested(run) and not a.force:
+        raise SystemExit(f"run {run.name} has been tested (test_eval.json or summary.json test_eval): the test sets "
+                         "are played once per run; --force to play them again")
+    outs = [Path(a.out)] if a.out else []
+    if run is not None:
+        name = ("test_eval.json" if gate_test else f"eval_{a.split}_it{ck['iteration']}"
+                + (f"_fixed_{a.fixed_slot}" if fixed is not None else "") + ("_swapped" if swaps else "") + ".json")
+        if run / name not in outs:
+            outs.append(run / name)
+    for o in outs:
+        if o.exists() and not a.force:
+            raise SystemExit(f"{o} exists: give another --out, or --force to replace it")
+    experts = Experts(slots, a.device)
+    skills = skill_groups(a.skills or ",".join(VALIDATION_GROUPS))
     per_level = a.per_level or PER_LEVEL[a.split]
-    sets = T.skill_sets(a.split, per_level, 10, tuple(skills), ice=True)
-    ev = validate(gate, experts, sets, a.device, a.batch_size, a.stall_ticks, fixed)
+    sets = T.skill_sets(a.split, per_level, EVAL_JUMPS, tuple(skills), ice=True)
+    with thermal_guard(a.device, a.thermal_hot, a.thermal_cool):
+        ev = validate(gate, experts, sets, a.device, a.batch_size, a.stall_ticks, fixed)
     fam = ({"standard": T.VALIDATION_FAMILY, "obstacles": T.OBSTACLE_VALIDATION_FAMILY, "ice": T.ICE_VALIDATION_FAMILY}
            if a.split == "validation" else
            {"standard": T.TEST_SEED_FAMILY, "obstacles": T.OBSTACLE_TEST_FAMILY, "ice": T.ICE_TEST_FAMILY})
     result = {"what": "parkour.gate eval: the gated policy, simulator, deterministic experts and gate (argmax)",
-              "split": a.split, "families": fam, "per_level_courses": per_level, "checkpoint": a.checkpoint or None,
+              "split": a.split, "families": fam, "per_level_courses": per_level, "skills": skills,
+              "stall_ticks": a.stall_ticks, "batch_size": a.batch_size, "checkpoint": a.checkpoint or None,
               "checkpoint_sha1": file_sha1(a.checkpoint) if a.checkpoint else None,
               "iteration": ck.get("iteration") if ck else None, "fixed_slot": a.fixed_slot or None, "slots": slots,
               "swaps": swaps, **ev}
     print(json.dumps({"split": a.split, "fixed_slot": a.fixed_slot or None, "success": ev["success"],
                       "groups": ev["groups"], "usage": {g: u["decisions"] for g, u in ev["usage"].items()},
                       "courses": ev["courses"], "seconds": ev["seconds"]}), flush=True)
-    if a.out:
-        Path(a.out).parent.mkdir(parents=True, exist_ok=True)
-        Path(a.out).write_text(json.dumps(result, indent=1))
+    for o in outs:
+        o.parent.mkdir(parents=True, exist_ok=True)
+        o.write_text(json.dumps(result, indent=1))
+        print(json.dumps({"written": str(o)}), flush=True)
+    if not outs:
+        print(json.dumps({"written": None, "note": "no run folder: give --out FILE to keep the result"}), flush=True)
+    if gate_test and run is not None and (run / "summary.json").exists():  # recorded as --test-once records it
+        sp = run / "summary.json"
+        summary = json.loads(sp.read_text(encoding="utf-8"))
+        summary["test_eval"] = {"iteration": ck["iteration"], "checkpoint": Path(a.checkpoint).name,
+                                "per_level_courses": per_level, "skills": skills, **compact(ev)}
+        best = summary.get("best") or {}
+        if best.get("iteration") == ck["iteration"]:
+            best.update(test_success=ev["success"], test_groups=ev["groups"], test_counts=ev["counts"])
+        sp.write_text(json.dumps(summary, indent=1))
     return result
 
 
