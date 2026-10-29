@@ -72,6 +72,7 @@ th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--lin
 th { font: 500 12px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 td.num, th.num { text-align: right; }
 td.best { background: var(--tint); font-weight: 700; }
+tr.sep td { border-top: 2px solid var(--muted); }
 .skills td:first-child { font-weight: 600; }
 .skills td .where { display: block; margin-top: 2px; }
 .scroll { overflow-x: auto; }
@@ -85,7 +86,7 @@ a { color: var(--sky); }
   <header>
     <div class="eyebrow">Reinforcement learning course project · October 2026</div>
     <h1>Learning Minecraft Parkour</h1>
-    <p class="lede">A PPO agent trained in a GPU copy of Minecraft's movement physics completes parkour courses it has never seen, and does the same in the real game. It also learned neo jumps from demonstrations, runs on ice, and can find its own route.</p>
+    <p class="lede">A PPO agent trained in a GPU copy of Minecraft's movement physics completes parkour courses it has never seen, and does the same in the real game. It also learned neo jumps from demonstrations, runs on ice, can find its own route, and three specialists are now distilled into one network that plays every skill.</p>
   </header>
 
   <section aria-label="Real Minecraft, first person">
@@ -116,11 +117,11 @@ a { color: var(--sky); }
           <tr><td>Neo jumps with a planning search</td><td>72.0% of 218 neo courses<span class="where">simulator, validation</span>25/31 neo courses<span class="where">offline bot</span></td><td>final policy + search</td></tr>
           <tr><td>Head hitters, ice run-ups, shaped blocks, slime, ladders</td><td>91.2% of 2,400 courses over 12 levels<span class="where">simulator</span></td><td><code>g995-extra</code></td></tr>
           <tr><td>No course list: route planner</td><td>92.3% of 1,200 courses<span class="where">simulator</span>51/60<span class="where">real Minecraft</span></td><td>final policy + planner</td></tr>
-          <tr><td>One network for every skill</td><td><span class="tag run">training now</span> distilled from the specialists above</td><td><code>combined-*</code></td></tr>
+          <tr><td>One network for every skill</td><td>86.4%, the mean of the four groups' test success rates (basic, ice, neo-momentum-wide, new kinds; 7,200 courses), level with the best specialist on the last two<span class="where">simulator</span></td><td>one network, <code>combined-distill</code></td></tr>
         </tbody>
       </table>
     </div>
-    <p class="muted">Test courses are never seen in training; checkpoints are chosen on separate validation courses, and each test set is played once. The row marked validation is a validation result.</p>
+    <p class="muted">Test courses are never seen in training; checkpoints are chosen on separate validation courses, and each test set is played once (one replay, with identical results, is noted in the one-network section). The row marked validation is a validation result.</p>
   </section>
 
   <section>
@@ -237,7 +238,7 @@ a { color: var(--sky); }
 
   <section>
     <div class="eyebrow">One network for every skill</div>
-    <h2>Five specialists, distilled into one student</h2>
+    <h2>Three specialists, distilled into one student</h2>
     <p>Each skill above has its own network. To get one network that does everything, a student trains with PPO on courses that mix every skill, plus a term that pulls its action choices towards the right teacher on each course. A control run trains the same student with PPO alone. We first measured every candidate on the validation courses of each skill group, and picked the teachers and the starting point by rules fixed before the runs.</p>
     <div class="scroll panel">
       <table>
@@ -248,10 +249,29 @@ a { color: var(--sky); }
           <tr><td><code>g995-adv</code></td><td class="num">96.2</td><td class="num">98.0</td><td class="num">53.0</td><td class="num">17.9</td><td class="num">66.3</td></tr>
           <tr><td>neo policy (teacher: neo, momentum, wide)</td><td class="num">95.3</td><td class="num">94.3</td><td class="num best">66.5</td><td class="num">15.0</td><td class="num">67.8</td></tr>
           <tr><td><code>g995-extra</code> (teacher: new kinds; student's start)</td><td class="num">95.3</td><td class="num">96.0</td><td class="num">19.5</td><td class="num best">86.1</td><td class="num best">74.2</td></tr>
+          <tr class="sep"><td>student, PPO + teachers (<code>combined-distill</code>, chosen)</td><td class="num">95.7</td><td class="num">97.3</td><td class="num">67.7</td><td class="num">87.3</td><td class="num best">87.0</td></tr>
+          <tr><td>student, PPO alone (<code>combined-union</code>)</td><td class="num">96.3</td><td class="num">97.3</td><td class="num">58.3</td><td class="num">86.9</td><td class="num">84.7</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="muted">Validation success in %, simulator; 1,200 basic, 600 ice, 600 neo-momentum-wide and 1,200 new-kind courses, half with obstacles except ice. The basic teacher is chosen on the mean of basic and ice, where <code>g995-ice</code> scores highest (97.6, tied with one of its seeds). The 20 ice seeds were candidates too (basic 96.4 to 97.8, ice 96.3 to 97.8). <span class="tag run">training now</span> <code>combined-distill</code> and <code>combined-union</code>, 1,000 updates each since 29 October, 13:58; the checkpoint is chosen on the mean over the four groups, and each is tested once.</p>
+    <p class="muted">Validation success in %, simulator; 1,200 basic, 600 ice, 600 neo-momentum-wide and 1,200 new-kind courses, half with obstacles except ice. Shaded: what the fixed rules chose (each teacher on its group, the student's start and the chosen student, both on the mean). The basic teacher is chosen on the mean of basic and ice, where <code>g995-ice</code> scores highest (97.6, tied with one of its seeds). The 20 ice seeds were candidates too (basic 96.4 to 97.8, ice 96.3 to 97.8). Both students trained 1,000 updates from <code>g995-extra</code>; each keeps the checkpoint with the best mean (updates 900 and 800).</p>
+    <h3>On the test courses, one network matches the specialists on the hard skills</h3>
+    <p>Played once on the test courses, the distilled student completes 66.8% of the neo, momentum and wide courses and 86.4% of the new-kind ones; the best specialist on each makes 63.9% (the neo policy) and 85.3% (<code>g995-extra</code>). Those margins are about 1.5 and 1.1 standard errors of one test, so we read them as a match, not a win. On basic and ice courses it is 1.1 and 1.0 points behind the final policy. Without the teachers, PPO alone does as well on the new kinds but loses 9.6 points on neo, momentum and wide jumps.</p>
+    <div class="scroll panel">
+      <table>
+        <thead><tr><th>Policy</th><th class="num">Basic</th><th class="num">Ice</th><th class="num">Neo, momentum, wide</th><th class="num">New block kinds</th><th class="num">Mean</th></tr></thead>
+        <tbody>
+          <tr><td>final policy</td><td class="num best">96.8</td><td class="num best">97.8</td><td class="num">23.8</td><td class="num">19.7</td><td class="num">59.5</td></tr>
+          <tr><td><code>g995-ice</code></td><td class="num">96.0</td><td class="num">97.6</td><td class="num">19.5</td><td class="num">19.3</td><td class="num">58.1</td></tr>
+          <tr><td><code>g995-adv</code></td><td class="num">96.0</td><td class="num">96.4</td><td class="num">49.6</td><td class="num">15.5</td><td class="num">64.4</td></tr>
+          <tr><td>neo policy</td><td class="num">94.5</td><td class="num">94.5</td><td class="num">63.9</td><td class="num">14.4</td><td class="num">66.8</td></tr>
+          <tr><td><code>g995-extra</code></td><td class="num">95.3</td><td class="num">96.0</td><td class="num">18.7</td><td class="num">85.3</td><td class="num">73.8</td></tr>
+          <tr class="sep"><td>one network, PPO + teachers (<code>combined-distill</code>)</td><td class="num">95.8</td><td class="num">96.8</td><td class="num best">66.8</td><td class="num best">86.4</td><td class="num best">86.4</td></tr>
+          <tr><td>one network, PPO alone (<code>combined-union</code>)</td><td class="num">94.6</td><td class="num">96.7</td><td class="num">57.3</td><td class="num">86.3</td><td class="num">83.7</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted">Test success in %, simulator, each policy at the checkpoint chosen on validation; 2,400 basic, 1,200 ice, 1,200 neo-momentum-wide and 2,400 new-kind courses, half with obstacles except ice. Mean: the mean of the four groups' rates. Shaded: the highest in each column; differences in the text are from the unrounded rates. The specialists keep their earlier test results; the groups a specialist had never been tested on were played once for this table, except 600 of the final policy's new-kind courses (head hitter, hard head hitter and ice run-up, without obstacles), first played on 28 October and replayed here with identical results. These numbers choose nothing. The one network is shipped next to the final policy as <span class="path">results/combined_policy.pt</span>. <span class="tag run">training now</span> from it: a fine-tune that trains head hitters and slime bounces more. <span class="tag run">next</span> neo jumps on courses with exactly one neo, target 85%.</p>
   </section>
 
   <section>
@@ -329,7 +349,7 @@ a { color: var(--sky); }
   </section>
 
   <footer>
-    <span>The numbers here come from files in the project repository: main tables in <span class="path">results/README.md</span>; training logs and jump tests in <span class="path">results/runs/</span>; recorded games in <span class="path">results/games/</span>; the neo search, demonstrations and DAgger logs in <span class="path">results/neo/</span>; ice in <span class="path">results/ice_preview.json</span>; the new block kinds in <span class="path">results/extra/</span> and <span class="path">results/physics_parity_*.json</span>; the specialists and ice seeds in <span class="path">results/operations/</span>; the one-network matrix in <span class="path">results/skills/validation_matrix.json</span>; the planner in <span class="path">results/planner/</span>; videos in <span class="path">results/videos/</span>.</span>
+    <span>The numbers here come from files in the project repository: main tables in <span class="path">results/README.md</span>; training logs and jump tests in <span class="path">results/runs/</span>; recorded games in <span class="path">results/games/</span>; the neo search, demonstrations and DAgger logs in <span class="path">results/neo/</span>; ice in <span class="path">results/ice_preview.json</span>; the new block kinds in <span class="path">results/extra/</span> and <span class="path">results/physics_parity_*.json</span>; the specialists and ice seeds in <span class="path">results/operations/</span>; the one-network matrix in <span class="path">results/skills/validation_matrix.json</span> and its test comparison in <span class="path">results/skills/combined_test_comparison.json</span>; the planner in <span class="path">results/planner/</span>; videos in <span class="path">results/videos/</span>.</span>
   </footer>
 </div>
 

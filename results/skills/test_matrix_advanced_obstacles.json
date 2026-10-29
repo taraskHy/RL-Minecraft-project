@@ -1,0 +1,66 @@
+{
+ "what": "parkour.skills matrix: success per skill group, simulator, deterministic policy",
+ "split": "test",
+ "groups": [
+  "advanced"
+ ],
+ "parts": [
+  "obstacles"
+ ],
+ "per_level_courses": 200,
+ "families": {
+  "standard": 1,
+  "obstacles": 4,
+  "ice": 16
+ },
+ "level_ids": {
+  "advanced": [
+   6,
+   7,
+   8
+  ]
+ },
+ "candidates": {
+  "final": {
+   "checkpoint": "results/final_policy.pt",
+   "sha1": "e4bfb177bc55ecabdf8b9dcaa807394de44db938",
+   "iteration": 699,
+   "run": "obstacles-g995",
+   "source": "runs/obstacles-g995/checkpoints/best.pt (validation-selected; optimizer state removed; discount 0.995: main-g995 3,000 iterations + obstacles-g995 fine-tune)",
+   "groups": {
+    "advanced": {
+     "standard": null,
+     "obstacles": 0.22333333333333333,
+     "all": 0.22333333333333333,
+     "n": 600
+    }
+   },
+   "per_level": {
+    "obstacles": {
+     "6": {
+      "success": 0.6,
+      "fell": 0.25,
+      "progress": 0.771619463869464,
+      "ticks_success": 160.68333333333334,
+      "n": 200
+     },
+     "7": {
+      "success": 0.065,
+      "fell": 0.815,
+      "progress": 0.31774109224109226,
+      "ticks_success": 196.69230769230768,
+      "n": 200
+     },
+     "8": {
+      "success": 0.005,
+      "fell": 0.955,
+      "progress": 0.21622438672438676,
+      "ticks_success": 168.0,
+      "n": 200
+     }
+    }
+   },
+   "seconds": 23.1
+  }
+ }
+}

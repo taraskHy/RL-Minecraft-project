@@ -737,7 +737,8 @@ without the server corrections.
 and 5). Test families 1 and 4 are for the final numbers only. Do not use
 seed families already taken (0 training, 1 test, 2 validation, 3 stress, 4/5
 obstacle test/validation, 7 the neo DAgger courses, 11 analysis, 12-17 other
-sets); new sets get new families, from 18. Every number says where it was
+sets); new sets get new families from 18 to 39 (40 and up are the main
+session's: 40 and 41 hold its single-neo sets). Every number says where it was
 measured (simulator, offline bot on prismarine-physics without a server, or
 real Minecraft) and comes from a file you commit under `results/routing/`.
 

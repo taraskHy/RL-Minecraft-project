@@ -85,8 +85,27 @@ The main session is now Claude Code on the training PC. Codex is stopped
   candidate), advanced teacher the neo policy (66.5%; `g995-adv` 53.0%),
   extra teacher `g995-extra` (86.1%); the student starts from `g995-extra`
   (mean over the four groups 74.2%). `combined-distill` and the control
-  `combined-union` started at 13:58 (1,000 iterations each, tested once at
-  the end).
+  `combined-union` ran from 13:58 to 16:39 (1,000 iterations each, tested
+  once at the end). **`combined-distill` won on validation** (mean 87.0%
+  against 84.7%; iteration 899) and is shipped as
+  `results/combined_policy.pt` / `.json` with its provenance (the final
+  policy files are unchanged). Test, simulator, once: basic 95.8, ice 96.8,
+  advanced 66.8, extra 86.4, mean 86.4%; the best specialist per group
+  scores 96.8 (final policy), 97.8 (final policy), 63.9 (neo policy) and
+  85.3 (`g995-extra`); PPO alone (`combined-union`) 94.6, 96.7, 57.3, 86.3
+  (`results/skills/combined_test_comparison.json`, built by
+  `scripts/combined_compare.py` from the specialists' existing test rows
+  plus `results/skills/test_matrix_*.json` for the pairs never tested; one
+  replay: the final policy's 600 standard courses at extra levels 9-11 were
+  first played on 28 Oct, `results/extra/course_preview_family1.json`, and
+  the matrix replayed them with identical results). The margins over the
+  best specialist (+2.9 and +1.1 points) are about 1.5 and 1.1 standard
+  errors of one test: a match, not a win.
+- **Training now:** `skills-hh-ft` (queue, from `combined-distill`, started
+  16:40). The neo DAgger round `neo-combined-r1` is held: since about 17:00
+  the top priority is single neos (section 3). Its demonstrations are ready:
+  `runs/neo_dagger_c1.pt`, from `combined-distill`'s best.pt, 1,038 of 1,151
+  takeoffs with a landing found, 158,999 pairs.
 - The cloud new-abilities evaluations stay ON HOLD.
 
 ## Codex stopped; handoff to Claude (29 Oct 2026, 12:49, Israel time)
@@ -299,23 +318,45 @@ More facts that hold now:
 
 ## 3. What is left to do
 
+**Top priority since 29 Oct, about 17:00 (Ethan, via the side chat): single
+neos at 85% or more.** Courses with exactly one neo, held-out, with their
+own seeds (validation family 40, test family 41; families 18-39 are the
+routing work's); the simulator first, then the offline bot and real
+Minecraft; reported with and without the neo planner (`parkour.neo_assist`),
+saying which mode reaches 85%. Double and triple neos are dropped.
+Reference: the neo policy alone completes 56 of the 129 single-neo courses
+among the 210 neo test courses (43%, simulator,
+`results/neo/by_neo_count.json`). Steps: define the sets; baselines and a
+failure analysis on validation (before the neo, at the takeoff, in the
+jump, after it); then the levers (single-neo fine-tunes, DAgger rounds on
+takeoff and approach, search demonstrations for the failures, planner
+changes), each with its rules fixed before its results; chosen on
+validation, tested once.
+
 **Queued after the combined runs (requested 29 Oct via the side chat): a
 head-hitter and slime fine-tune.** Rules fixed before any combined result:
-the targets come from validation (`g995-extra` validation, simulator:
-slime bounce 65.5%, hard head hitter 87.0%, head hitter 87.5%; the other
-extra levels 87.0-97.5%). Start from the candidate with the highest
+the targets are the user's request (head hitters and slime); on
+`g995-extra`'s validation (simulator) only slime stands out (65.5%), while
+head hitter 87.5%, hard head hitter 87.0% and ice run-up 87.0% are equal
+within noise (200 courses each) and the other extra levels are higher (up
+to 97.5%). Start from the candidate with the highest
 validation mean over the four skill groups among `g995-extra`,
 `combined-distill` and `combined-union`. Train in skills mode with PPO only
 (no teachers: `g995-extra` itself is weak on slime) and `--level-weights`
 1 for levels 0-8, 3 for head hitter (global id 9) and hard head hitter (10),
 1 for ice run-up (11) and shaped blocks (12), 4 for slime bounce (13), 1 for
 ladders (14); 500 iterations; `best.pt` by the same validation mean; tested
-once. Then the offline bot and real Minecraft on the first 10 test courses
+once. It replaces `combined-distill` as `results/combined_policy.*` only if
+its validation mean over the four groups is higher; otherwise it is
+reported and the shipped one network stays `combined-distill` (rule added
+at 17:30, before the run's result). Then the offline bot and real Minecraft on the first 10 test courses
 of the extra levels head hitter, hard head hitter and slime bounce, then
 replays, a video and the results page.
 
-**Next to it, neos in the one network (the user's "continue with the neo
-work", 29 Oct): one DAgger round on the combined student.** Rules fixed
+**Held since about 17:00 for the single-neo priority above (its rules will
+be fixed again, for single neos, before it runs). The plan as it stood:
+neos in the one network (the user's "continue with the neo work", 29 Oct),
+one DAgger round on the combined student.** Rules fixed
 before any combined result: start from whichever of `combined-distill` and
 `combined-union` has the higher validation mean over the four groups (its
 `best.pt`). Collect one round of demonstrations from the states it really
@@ -330,6 +371,33 @@ validation mean over the four groups, tested once. It is judged against its
 start on validation only: the four-group mean, the advanced group and the
 218 validation neo courses (`python -m parkour.neo_assist --off --set
 official --family 2`). The queue keeps two trainers at most.
+
+**After those two, if it pays: a skill gate (requested 29 Oct via the side
+session).** A learned gate (mixture of experts) picks, at the start and at
+every landing, which frozen expert plays the next jump: `combined-distill`,
+the final policy, the best ice specialist (`g995-ice`, by the matrix's rule),
+the neo policy, `g995-extra`, and the results of `skills-hh-ft` and
+`neo-combined-r1` or the single-neo run that replaces it (addendum of 29
+Oct: every expert current); its inputs add
+what the jump networks cannot see (block types near the current and next
+platform); PPO as a semi-MDP on mixed-skill courses, chosen on validation,
+tested once. It composes with the teammate's router (the router decides
+where, the gate how). **Measured first, validation only, after both
+fine-tunes finish** (`scripts/gate_headroom.py` ->
+`results/skills/gate_headroom.json`): every expert's success on every
+course of the four groups' validation sets, and the ceilings of a perfect
+group-level and a perfect per-course gate. Rule fixed before the
+measurement: build the gate only if the per-course ceiling of the experts
+is at least 2 points above the best single network (the student with the
+highest validation mean among `combined-distill`, `skills-hh-ft` and
+`neo-combined-r1`) on the mean over the four groups; otherwise the
+measurement is the reason one distilled network is the design. Where a gate
+could still win is interference: on basic validation `combined-distill` is
+1.9 points behind the best of the gate's experts (95.7% against 97.6% for
+the final policy; `g995-ice-s11`, 97.8%, is only the sensitivity check).
+Next to the rule, the output reports two reference ceilings: the students
+alone (near-identical networks, so their gain is mostly run-to-run variance)
+and two seeds of one recipe (`g995-ice` and `g995-ice-s11`) on basic.
 
 **Next, by the user's choice (29 Oct): one network for every skill.** Distil
 the specialists (final policy, `g995-adv`, `g995-ice`, `g995-extra`, the
@@ -774,18 +842,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `b7d26f5` (2026-10-29 14:50, branch `main`): Opt-in --level-weights: fixed sampling weight per training level
+Generated on top of commit `bb0b3ac` (2026-10-29 15:37, branch `main`): HANDOFF: neo DAgger round on the combined student, rules fixed first
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `948a365` 2026-10-29 14:44 | 1 |
+| `AGENTS.md` | `948a365` 2026-10-29 14:44 | 3 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `7c0d97c` 2026-10-29 14:24 | 2 |
-| `README.md` | `1a16df0` 2026-10-29 14:14 | 4 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 172 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 155 |
-| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 82 |
-| `results/DATA.md` | `948a365` 2026-10-29 14:44 | 1 |
+| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
+| `README.md` | `1a16df0` 2026-10-29 14:14 | 6 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 174 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 157 |
+| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 84 |
+| `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -807,6 +875,8 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `advanced-ft` | 799 | 0.42 | 699 | 69.2 | 71.2 | 70.9 | 67.6 |
 | `advanced-ft2` | 299 | 0.16 | 249 | 81.6 | 83.0 | 82.8 | 78.6 |
 | `advanced-ft3` | 599 | 0.31 | 499 | 82.7 | 83.6 | 83.5 | 80.6 |
+| `combined-distill` | 999 | 0.52 | 899 | 87.0 | 90.0 | - | - |
+| `combined-union` | 999 | 0.52 | 799 | 84.7 | 88.7 | - | - |
 | `final-v2` | 499 | 0.26 | 499 | 89.6 | 88.5 | 88.5 | 88.1 |
 | `full-s1` | 999 | 0.52 | - | - | - | 94.2 | - |
 | `full-s2` | 999 | 0.52 | 949 | 93.0 | 93.1 | 91.9 | - |
@@ -864,6 +934,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `obstacles-ft` | 999 | 0.52 | 999 | 96.6 | 97.1 | 97.1 | 93.6 |
 | `obstacles-g995` | 999 | 0.52 | 699 | 97.6 | 98.4 | 97.5 | 94.7 |
 | `progress-demo` | 399 | 0.21 | 324 | 89.5 | 89.8 | 91.0 | - |
+| `skills-hh-ft` | 49 | 0.03 | 49 | 85.1 | - | - | - |
 | `sparse-s0` | 999 | 0.52 | - | - | - | 95.1 | - |
 | `sparse-s1` | 999 | 0.52 | 749 | 93.5 | 93.2 | 91.5 | - |
 | `sparse-s2` | 999 | 0.52 | 799 | 94.7 | 94.4 | 94.1 | - |
@@ -964,6 +1035,8 @@ At the end of a session, or after each result:
 4. `python -m parkour.handoff --check` should then report it up to date.
 
 ## Session log
+
+- **29 Oct 2026, 17:00, Claude (Claude Code, training PC):** `combined-distill` and `combined-union` finished and were tested once; `combined-distill` won on validation (87.0% vs 84.7% over the four groups) and is shipped as `results/combined_policy.*` (`scripts/export_combined.py`). Per-group test comparison with every specialist (`results/skills/combined_test_comparison.json`, `scripts/combined_compare.py`): the specialists' existing test rows reused, only the pairs never tested played once (`results/skills/test_matrix_*.json`), except the final policy's 600 standard courses at extra levels 9-11, first played on 28 Oct (`results/extra/course_preview_family1.json`) and replayed with identical results. The margins over the best specialist (+2.9, +1.1) are about 1.5 and 1.1 standard errors of one test: a match, not a win (an independent check corrected the page and these files to say so, and "three specialists", not five). Started `skills-hh-ft` (head hitters and slime, section 3) from it; collected the neo DAgger demonstrations from it (`runs/neo_dagger_c1.pt`); the round itself is held for the new top priority, single neos at 85% (section 3). Skill-gate headroom script ready (`scripts/gate_headroom.py`, run after the fine-tunes). Report run; results page version 9. Next: the single-neo sets, baselines and failure analysis.
 
 - **29 Oct 2026, 15:30, Claude (Claude Code, training PC):** a second independent review of `docs/MISSION_ROUTING.md` (claims against the code, commands in both shells; 22 findings) applied: an empty candidate set fills the slots as the planner's empty plan does; `--record` on the planner baselines for the paired comparison; CPU runs with `CUDA_VISIBLE_DEVICES=-1`; the watchdog's stale-telemetry hold and `--resume-all`; `gh pr create` with `--title`/`--body`; long-command timeouts; the `summary.json` fields; no new packages. Opt-in `--level-weights` (fixed sampling weight per level; defaults bit for bit unchanged) and the head-hitter and slime fine-tune plan, its rules fixed in section 3 before any combined result. `combined-distill` and `combined-union` at iteration 650 of 1,000. Next: test and export the combined runs, then the fine-tune and the results page.
 

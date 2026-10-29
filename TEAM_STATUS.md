@@ -10,7 +10,7 @@ the data: training runs, policies, the route planner and neo files, the game
 folders (including the v2, planner, noroute, neo and film games) and the
 videos.
 
-**Last updated:** 29 Oct 2026, 14:20, training PC (Claude): team split and the routing brief for the teammate's PC; one network for every skill training.
+**Last updated:** 29 Oct 2026, 17:30, training PC (Claude): one network for every skill tested and shipped (`results/combined_policy.*`); routing brief reviewed twice; head-hitter fine-tune training; new top priority: courses with exactly one neo, at least 85%.
 
 ## Team split / what we want next (29 Oct 2026)
 
@@ -240,6 +240,43 @@ its CPU; the training for them is queued for the PC
   wall; both bots build the real blocks and the offline bot plays them
   exactly like the simulator.
 
+## One network for every skill (29 Oct)
+
+Each skill had its own network. `combined-distill` trains one student with
+PPO on courses that mix every skill, plus a term that pulls its action
+choices towards the right teacher on each course (`g995-ice` for basic and
+ice, the neo policy for neo, momentum and wide jumps, `g995-extra` for the
+new block kinds; [docs/combine_policies.md](docs/combine_policies.md));
+`combined-union` is the same run with PPO alone. Both started from
+`g995-extra` for 1,000 updates; the checkpoint is the highest validation
+mean over the four groups, and each was tested once. Simulator, % of
+courses (Mean: the mean of the four groups' rates); test: 2,400 basic, 1,200
+ice, 1,200 advanced and 2,400 new-kind courses, half with obstacles except ice
+(`results/skills/combined_test_comparison.json`):
+
+| Policy | Basic | Ice | Neo, momentum, wide | New block kinds | Mean | Validation mean |
+| --- | --- | --- | --- | --- | --- | --- |
+| **`combined-distill`** (iteration 899) | 95.8 | 96.8 | **66.8** | **86.4** | **86.4** | **87.0** |
+| `combined-union` (PPO alone, 799) | 94.6 | 96.7 | 57.3 | 86.3 | 83.7 | 84.7 |
+| best specialist on that group | 96.8 final policy | 97.8 final policy | 63.9 neo policy | 85.3 `g995-extra` | | |
+| final policy | 96.8 | 97.8 | 23.8 | 19.7 | 59.5 | 59.6 |
+
+The distilled student matches the best specialist on neo, momentum and wide
+jumps (+2.9 points) and on the new block kinds (+1.1): about 1.5 and 1.1
+standard errors of one test, so a match, not a win. It is 1.1 and 1.0 points
+behind the final policy on basic and ice; PPO alone loses 9.6 points on the
+advanced group (differences from the unrounded rates). It is shipped as
+`results/combined_policy.pt` / `.json`; the final policy stays
+`results/final_policy.*`. Specialists' numbers reuse their existing test
+rows; pairs never tested before were played once for this table
+(`results/skills/test_matrix_*.json`), except the final policy's 600
+standard head-hitter, hard-head-hitter and ice run-up courses, first played
+on 28 Oct (`results/extra/course_preview_family1.json`) and replayed with
+identical results. On the PC: the head-hitter and slime fine-tune
+`skills-hh-ft` is training from `combined-distill` (from 16:40); the neo
+DAgger round planned from it is held for the single-neo priority (section
+"Last known state").
+
 ## No course list: the bot finds its own route
 
 Requested from the side chat: run the trained bot on maps where nobody gives
@@ -299,12 +336,27 @@ The retuned planner is confirmed in real Minecraft: 51/60 standard and 56/60 obs
 runs are finished and audited (simulator, levels 0-5: validation 96.4-97.8%,
 test 96.4-98.5% standard and 92.9-95.4% obstacles; none replaces the final
 policy, `results/operations/`). The queue starts no more seeds by itself.
-One network for every skill is implemented and training: the validation
+One network for every skill is implemented, trained and tested: the validation
 matrix of 24 policies (`results/skills/validation_matrix.json`) picked the
 teachers `g995-ice` (basic and ice), the neo policy (advanced) and
 `g995-extra` (extra), and the student starts from `g995-extra`. The runs
 `combined-distill` (PPO plus the teachers) and `combined-union` (PPO alone,
-the control) started at 13:58.
+the control) finished at 16:39: `combined-distill` wins on validation (87.0%
+against 84.7%) and on test scores a mean of 86.4% over the four groups,
+level with the best specialist on two of them (section "One network for
+every skill"). It is shipped as `results/combined_policy.*`. Training now:
+`skills-hh-ft` (head hitters and slime, from 16:40).
+
+**New top priority (Ethan, 29 Oct, about 17:00): single neos.** Courses with
+exactly one neo, at least 85% success, on held-out courses with their own
+seeds (validation family 40, test family 41); simulator first, then the
+offline bot and real Minecraft; reported with and without the neo planner,
+saying which mode reaches 85%. Double and triple neos are dropped. Current
+reference: the neo policy alone completes 56 of the 129 single-neo test
+courses (43%, simulator, `results/neo/by_neo_count.json`). The planned neo DAgger round on `combined-distill`
+is held until the single-neo metric exists; its demonstrations are already
+collected (`runs/neo_dagger_c1.pt`: 1,038 of 1,151 takeoffs with a landing
+found).
 
 ## Codex stopped; handoff to Claude (29 Oct 2026, 12:49, Israel time)
 

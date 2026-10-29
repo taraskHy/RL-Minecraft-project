@@ -1,0 +1,269 @@
+{
+ "what": "test success per skill group, simulator, deterministic policy; families 1 (standard), 4 (obstacles), 16 (ice); 200 courses per level and part",
+ "selection": "every checkpoint was chosen on validation (families 2, 5, 17); these test numbers choose nothing",
+ "levels_0_5_same_courses_in_every_table": true,
+ "candidates": {
+  "combined-distill": {
+   "iteration": 899,
+   "groups": {
+    "basic": {
+     "standard": 0.9666666666666667,
+     "obstacles": 0.9483333333333334,
+     "all": 0.9575
+    },
+    "ice": {
+     "standard": 0.9683333333333334,
+     "obstacles": null,
+     "all": 0.9683333333333334
+    },
+    "advanced": {
+     "standard": 0.7033333333333334,
+     "obstacles": 0.6333333333333333,
+     "all": 0.6683333333333333
+    },
+    "extra": {
+     "standard": 0.865,
+     "obstacles": 0.8625,
+     "all": 0.86375
+    }
+   },
+   "macro": 0.8644791666666667,
+   "validation_macro": 0.8697916666666667,
+   "validation_groups": {
+    "basic": 0.9566666666666667,
+    "ice": 0.9733333333333334,
+    "advanced": 0.6766666666666666,
+    "extra": 0.8725
+   },
+   "minus_best_specialist": {
+    "basic": -0.01083333333333325,
+    "ice": -0.010000000000000009,
+    "advanced": 0.029166666666666674,
+    "extra": 0.010833333333333361
+   }
+  },
+  "combined-union": {
+   "iteration": 799,
+   "groups": {
+    "basic": {
+     "standard": 0.9683333333333334,
+     "obstacles": 0.9233333333333333,
+     "all": 0.9458333333333333
+    },
+    "ice": {
+     "standard": 0.9666666666666667,
+     "obstacles": null,
+     "all": 0.9666666666666667
+    },
+    "advanced": {
+     "standard": 0.6066666666666667,
+     "obstacles": 0.5383333333333333,
+     "all": 0.5725
+    },
+    "extra": {
+     "standard": 0.8675,
+     "obstacles": 0.8583333333333333,
+     "all": 0.8629166666666667
+    }
+   },
+   "macro": 0.8369791666666666,
+   "validation_macro": 0.8470833333333334,
+   "validation_groups": {
+    "basic": 0.9625,
+    "ice": 0.9733333333333334,
+    "advanced": 0.5833333333333334,
+    "extra": 0.8691666666666666
+   },
+   "minus_best_specialist": {
+    "basic": -0.022499999999999964,
+    "ice": -0.011666666666666714,
+    "advanced": -0.06666666666666665,
+    "extra": 0.010000000000000009
+   }
+  },
+  "final": {
+   "iteration": 699,
+   "groups": {
+    "basic": {
+     "standard": 0.9841666666666667,
+     "obstacles": 0.9525,
+     "all": 0.9683333333333333,
+     "n": 2400
+    },
+    "advanced": {
+     "standard": 0.25333333333333335,
+     "obstacles": 0.22333333333333333,
+     "all": 0.23833333333333334,
+     "n": 1200
+    },
+    "extra": {
+     "standard": 0.20416666666666666,
+     "obstacles": 0.18916666666666668,
+     "all": 0.19666666666666666,
+     "n": 2400
+    },
+    "ice": {
+     "standard": 0.9783333333333334,
+     "obstacles": null,
+     "all": 0.9783333333333334,
+     "n": 1200
+    }
+   },
+   "macro": 0.5954166666666667
+  },
+  "g995-ice": {
+   "iteration": 449,
+   "groups": {
+    "basic": {
+     "standard": 0.975,
+     "obstacles": 0.945,
+     "all": 0.96,
+     "n": 2400
+    },
+    "advanced": {
+     "standard": 0.21166666666666667,
+     "obstacles": 0.17833333333333334,
+     "all": 0.195,
+     "n": 1200
+    },
+    "extra": {
+     "standard": 0.195,
+     "obstacles": 0.19166666666666668,
+     "all": 0.19333333333333333,
+     "n": 2400
+    },
+    "ice": {
+     "standard": 0.9758333333333333,
+     "obstacles": null,
+     "all": 0.9758333333333333,
+     "n": 1200
+    }
+   },
+   "macro": 0.5810416666666667
+  },
+  "g995-adv": {
+   "iteration": 99,
+   "groups": {
+    "basic": {
+     "standard": 0.9741666666666666,
+     "obstacles": 0.945,
+     "all": 0.9595833333333333,
+     "n": 2400
+    },
+    "advanced": {
+     "standard": 0.52,
+     "obstacles": 0.4716666666666667,
+     "all": 0.49583333333333335,
+     "n": 1200
+    },
+    "extra": {
+     "standard": 0.15416666666666667,
+     "obstacles": 0.155,
+     "all": 0.15458333333333332,
+     "n": 2400
+    },
+    "ice": {
+     "standard": 0.9641666666666666,
+     "obstacles": null,
+     "all": 0.9641666666666666,
+     "n": 1200
+    }
+   },
+   "macro": 0.6435416666666667
+  },
+  "g995-extra": {
+   "iteration": 849,
+   "groups": {
+    "basic": {
+     "standard": 0.9674999999999999,
+     "obstacles": 0.9375,
+     "all": 0.9525,
+     "n": 2400
+    },
+    "extra": {
+     "standard": 0.8566666666666666,
+     "obstacles": 0.8491666666666666,
+     "all": 0.8529166666666667,
+     "n": 2400
+    },
+    "advanced": {
+     "standard": 0.195,
+     "obstacles": 0.17833333333333334,
+     "all": 0.18666666666666668,
+     "n": 1200
+    },
+    "ice": {
+     "standard": 0.96,
+     "obstacles": null,
+     "all": 0.96,
+     "n": 1200
+    }
+   },
+   "macro": 0.7380208333333333
+  },
+  "neo": {
+   "iteration": 449,
+   "groups": {
+    "basic": {
+     "standard": 0.965,
+     "obstacles": 0.9249999999999999,
+     "all": 0.945,
+     "n": 2400
+    },
+    "advanced": {
+     "standard": 0.6616666666666667,
+     "obstacles": 0.6166666666666667,
+     "all": 0.6391666666666667,
+     "n": 1200
+    },
+    "extra": {
+     "standard": 0.1375,
+     "obstacles": 0.15083333333333335,
+     "all": 0.14416666666666667,
+     "n": 2400
+    },
+    "ice": {
+     "standard": 0.945,
+     "obstacles": null,
+     "all": 0.945,
+     "n": 1200
+    }
+   },
+   "macro": 0.6683333333333333
+  }
+ },
+ "sources": {
+  "combined-distill": "results/runs/combined-distill/summary.json test_eval (test once, at best.pt)",
+  "combined-union": "results/runs/combined-union/summary.json test_eval (test once, at best.pt)",
+  "final": "basic: results/runs/obstacles-g995/eval_log.csv and eval_obstacles_log.csv, iteration 699; advanced standard: results/neo/one_policy_comparison.json; the rest: test matrix (its standard courses at extra levels 9-11 replay results/extra/course_preview_family1.json, 28 Oct, with identical results)",
+  "g995-ice": "basic: results/runs/g995-ice/summary.json test_eval, iteration 449; the rest: test matrix",
+  "g995-adv": "basic, advanced: results/runs/g995-adv/summary.json test_eval, iteration 99; the rest: test matrix",
+  "g995-extra": "basic, extra: results/runs/g995-extra/summary.json test_eval, iteration 849; the rest: test matrix",
+  "neo": "basic, advanced: results/runs/neo-dagger3/eval_log.csv and eval_obstacles_log.csv, iteration 449; the rest: test matrix",
+  "matrix_files": [
+   "results/skills/test_matrix_advanced.json",
+   "results/skills/test_matrix_advanced_obstacles.json",
+   "results/skills/test_matrix_extra.json",
+   "results/skills/test_matrix_ice.json"
+  ]
+ },
+ "replayed": "the final policy's 600 standard courses at extra levels 9-11 (head hitter, hard head hitter, ice run-up), first played on 28 Oct (results/extra/course_preview_family1.json), were played again by test_matrix_extra.json with identical success and fall rates",
+ "best_specialist_per_group": {
+  "basic": {
+   "name": "final",
+   "all": 0.9683333333333333
+  },
+  "ice": {
+   "name": "final",
+   "all": 0.9783333333333334
+  },
+  "advanced": {
+   "name": "neo",
+   "all": 0.6391666666666667
+  },
+  "extra": {
+   "name": "g995-extra",
+   "all": 0.8529166666666667
+  }
+ }
+}

@@ -1,0 +1,154 @@
+{
+ "what": "parkour.skills matrix: success per skill group, simulator, deterministic policy",
+ "split": "test",
+ "groups": [
+  "advanced"
+ ],
+ "parts": [
+  "standard",
+  "obstacles"
+ ],
+ "per_level_courses": 200,
+ "families": {
+  "standard": 1,
+  "obstacles": 4,
+  "ice": 16
+ },
+ "level_ids": {
+  "advanced": [
+   6,
+   7,
+   8
+  ]
+ },
+ "candidates": {
+  "g995-ice": {
+   "checkpoint": "runs/g995-ice/checkpoints/best.pt",
+   "sha1": "fcfb988b078757a1f270789e751e1bdbf2d75b1d",
+   "iteration": 449,
+   "run": "g995-ice",
+   "source": null,
+   "groups": {
+    "advanced": {
+     "standard": 0.21166666666666667,
+     "obstacles": 0.17833333333333334,
+     "all": 0.195,
+     "n": 1200
+    }
+   },
+   "per_level": {
+    "standard": {
+     "6": {
+      "success": 0.61,
+      "fell": 0.24,
+      "progress": 0.773791958041958,
+      "ticks_success": 162.5491803278688,
+      "n": 200
+     },
+     "7": {
+      "success": 0.025,
+      "fell": 0.865,
+      "progress": 0.26728305028305027,
+      "ticks_success": 188.2,
+      "n": 200
+     },
+     "8": {
+      "success": 0.0,
+      "fell": 0.995,
+      "progress": 0.18314560439560437,
+      "ticks_success": null,
+      "n": 200
+     }
+    },
+    "obstacles": {
+     "6": {
+      "success": 0.5,
+      "fell": 0.32,
+      "progress": 0.7162377622377624,
+      "ticks_success": 160.95,
+      "n": 200
+     },
+     "7": {
+      "success": 0.025,
+      "fell": 0.88,
+      "progress": 0.24277614052614055,
+      "ticks_success": 176.2,
+      "n": 200
+     },
+     "8": {
+      "success": 0.01,
+      "fell": 0.96,
+      "progress": 0.17943126318126318,
+      "ticks_success": 189.5,
+      "n": 200
+     }
+    }
+   },
+   "seconds": 44.4
+  },
+  "g995-extra": {
+   "checkpoint": "runs/g995-extra/checkpoints/best.pt",
+   "sha1": "aa58dd6b5ada89dc65a87a4d9bdb749edb221e07",
+   "iteration": 849,
+   "run": "g995-extra",
+   "source": null,
+   "groups": {
+    "advanced": {
+     "standard": 0.195,
+     "obstacles": 0.17833333333333334,
+     "all": 0.18666666666666668,
+     "n": 1200
+    }
+   },
+   "per_level": {
+    "standard": {
+     "6": {
+      "success": 0.575,
+      "fell": 0.32,
+      "progress": 0.7456404428904428,
+      "ticks_success": 164.93043478260873,
+      "n": 200
+     },
+     "7": {
+      "success": 0.01,
+      "fell": 0.9,
+      "progress": 0.21809348984348986,
+      "ticks_success": 180.5,
+      "n": 200
+     },
+     "8": {
+      "success": 0.0,
+      "fell": 0.995,
+      "progress": 0.15839835164835164,
+      "ticks_success": null,
+      "n": 200
+     }
+    },
+    "obstacles": {
+     "6": {
+      "success": 0.505,
+      "fell": 0.365,
+      "progress": 0.7115524475524475,
+      "ticks_success": 159.01980198019803,
+      "n": 200
+     },
+     "7": {
+      "success": 0.025,
+      "fell": 0.87,
+      "progress": 0.2310345487845488,
+      "ticks_success": 158.8,
+      "n": 200
+     },
+     "8": {
+      "success": 0.005,
+      "fell": 0.965,
+      "progress": 0.1638771506271506,
+      "ticks_success": 91.0,
+      "n": 200
+     }
+    }
+   },
+   "seconds": 41.4
+  }
+ }
+}

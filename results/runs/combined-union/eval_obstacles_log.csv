@@ -1,0 +1,2 @@
+iteration,env_steps,success,success_L0,success_L1,success_L2,success_L3,success_L4,success_L5,success_L6,success_L7,success_L8,success_L9,success_L10,success_L11,success_L12,success_L13,success_L14,success_L15,success_L16,success_L17,success_L18,success_L19,success_L20
+799,419430400,0.8203,0.995,0.975,0.985,0.965,0.925,0.695,0.57,0.275,0.77,0.855,0.875,0.865,0.915,0.665,0.975,,,,,,

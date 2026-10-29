@@ -1,0 +1,25 @@
+{
+  "source": "runs/combined-distill/checkpoints/best.pt",
+  "run": "combined-distill",
+  "iteration": 899,
+  "selection": "validation families 2/5 and ice 17 (simulator), best.pt = highest mean over basic, ice, advanced and extra",
+  "validation_macro": 0.8697916666666667,
+  "validation_groups": {
+    "basic": 0.9566666666666667,
+    "ice": 0.9733333333333334,
+    "advanced": 0.6766666666666666,
+    "extra": 0.8725
+  },
+  "test_macro": 0.8644791666666667,
+  "test_groups": {
+    "basic": 0.9575,
+    "ice": 0.9683333333333334,
+    "advanced": 0.6683333333333333,
+    "extra": 0.86375
+  },
+  "contents": "weights, config and evaluation only (no optimizer state); combined_policy.json is the bot export (parkour-policy-v1) written by train.py at the same checkpoint",
+  "source_sha256": "092bd72c71f5f3f1882c2da6a3f22488ab34cc8779def1fe2ea2e2f97067b924",
+  "export_sha256": "3e72ced2a622bbbb8e2dde324e6afa9c1ca2a8f6c188fabe4aba97b410b51820",
+  "json_sha256": "0f310b1934736b7e2d319b16e43b82e5d5f7f35ab7dff60a7270b5eaa6720512",
+  "final_policy_preserved": true
+}

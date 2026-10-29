@@ -1,0 +1,339 @@
+{
+ "what": "parkour.skills matrix: success per skill group, simulator, deterministic policy",
+ "split": "test",
+ "groups": [
+  "ice"
+ ],
+ "parts": [
+  "standard",
+  "obstacles"
+ ],
+ "per_level_courses": 200,
+ "families": {
+  "standard": 1,
+  "obstacles": 4,
+  "ice": 16
+ },
+ "level_ids": {
+  "ice": [
+   15,
+   16,
+   17,
+   18,
+   19,
+   20
+  ]
+ },
+ "candidates": {
+  "final": {
+   "checkpoint": "results/final_policy.pt",
+   "sha1": "e4bfb177bc55ecabdf8b9dcaa807394de44db938",
+   "iteration": 699,
+   "run": "obstacles-g995",
+   "source": "runs/obstacles-g995/checkpoints/best.pt (validation-selected; optimizer state removed; discount 0.995: main-g995 3,000 iterations + obstacles-g995 fine-tune)",
+   "groups": {
+    "ice": {
+     "standard": 0.9783333333333334,
+     "obstacles": null,
+     "all": 0.9783333333333334,
+     "n": 1200
+    }
+   },
+   "per_level": {
+    "standard": {
+     "15": {
+      "success": 0.985,
+      "fell": 0.015,
+      "progress": 0.988,
+      "ticks_success": 119.13705583756345,
+      "n": 200
+     },
+     "16": {
+      "success": 0.985,
+      "fell": 0.015,
+      "progress": 0.9944999999999999,
+      "ticks_success": 122.7258883248731,
+      "n": 200
+     },
+     "17": {
+      "success": 1.0,
+      "fell": 0.0,
+      "progress": 1.0,
+      "ticks_success": 133.655,
+      "n": 200
+     },
+     "18": {
+      "success": 1.0,
+      "fell": 0.0,
+      "progress": 1.0,
+      "ticks_success": 146.895,
+      "n": 200
+     },
+     "19": {
+      "success": 0.99,
+      "fell": 0.01,
+      "progress": 0.9955000000000002,
+      "ticks_success": 162.14646464646464,
+      "n": 200
+     },
+     "20": {
+      "success": 0.91,
+      "fell": 0.09,
+      "progress": 0.9544999999999999,
+      "ticks_success": 188.09890109890114,
+      "n": 200
+     }
+    }
+   },
+   "seconds": 25.9
+  },
+  "g995-ice": {
+   "checkpoint": "runs/g995-ice/checkpoints/best.pt",
+   "sha1": "fcfb988b078757a1f270789e751e1bdbf2d75b1d",
+   "iteration": 449,
+   "run": "g995-ice",
+   "source": null,
+   "groups": {
+    "ice": {
+     "standard": 0.9758333333333333,
+     "obstacles": null,
+     "all": 0.9758333333333333,
+     "n": 1200
+    }
+   },
+   "per_level": {
+    "standard": {
+     "15": {
+      "success": 0.995,
+      "fell": 0.005,
+      "progress": 0.9954999999999999,
+      "ticks_success": 118.51758793969847,
+      "n": 200
+     },
+     "16": {
+      "success": 0.985,
+      "fell": 0.015,
+      "progress": 0.9925,
+      "ticks_success": 122.34010152284266,
+      "n": 200
+     },
+     "17": {
+      "success": 1.0,
+      "fell": 0.0,
+      "progress": 1.0,
+      "ticks_success": 133.155,
+      "n": 200
+     },
+     "18": {
+      "success": 0.995,
+      "fell": 0.005,
+      "progress": 0.9975,
+      "ticks_success": 145.4924623115578,
+      "n": 200
+     },
+     "19": {
+      "success": 0.985,
+      "fell": 0.015,
+      "progress": 0.996,
+      "ticks_success": 159.5228426395939,
+      "n": 200
+     },
+     "20": {
+      "success": 0.895,
+      "fell": 0.095,
+      "progress": 0.946,
+      "ticks_success": 186.50279329608938,
+      "n": 200
+     }
+    }
+   },
+   "seconds": 26.7
+  },
+  "g995-adv": {
+   "checkpoint": "runs/g995-adv/checkpoints/best.pt",
+   "sha1": "27cca3bd0d54829836c943f105332e427dbcd601",
+   "iteration": 99,
+   "run": "g995-adv",
+   "source": null,
+   "groups": {
+    "ice": {
+     "standard": 0.9641666666666666,
+     "obstacles": null,
+     "all": 0.9641666666666666,
+     "n": 1200
+    }
+   },
+   "per_level": {
+    "standard": {
+     "15": {
+      "success": 0.985,
+      "fell": 0.015,
+      "progress": 0.9915,
+      "ticks_success": 119.8984771573604,
+      "n": 200
+     },
+     "16": {
+      "success": 0.995,
+      "fell": 0.005,
+      "progress": 0.9990000000000001,
+      "ticks_success": 123.51256281407035,
+      "n": 200
+     },
+     "17": {
+      "success": 0.985,
+      "fell": 0.015,
+      "progress": 0.9935,
+      "ticks_success": 133.73604060913706,
+      "n": 200
+     },
+     "18": {
+      "success": 0.99,
+      "fell": 0.01,
+      "progress": 0.9975,
+      "ticks_success": 146.67676767676767,
+      "n": 200
+     },
+     "19": {
+      "success": 0.99,
+      "fell": 0.01,
+      "progress": 0.9954999999999999,
+      "ticks_success": 161.66666666666666,
+      "n": 200
+     },
+     "20": {
+      "success": 0.84,
+      "fell": 0.13,
+      "progress": 0.9,
+      "ticks_success": 201.70238095238096,
+      "n": 200
+     }
+    }
+   },
+   "seconds": 24.5
+  },
+  "neo": {
+   "checkpoint": "results/neo_policy.pt",
+   "sha1": "b1806cad6dc68f2bfa4a8e8a6c75a28b4b061a1d",
+   "iteration": 449,
+   "run": "neo-dagger3",
+   "source": null,
+   "groups": {
+    "ice": {
+     "standard": 0.945,
+     "obstacles": null,
+     "all": 0.945,
+     "n": 1200
+    }
+   },
+   "per_level": {
+    "standard": {
+     "15": {
+      "success": 0.98,
+      "fell": 0.02,
+      "progress": 0.9903888888888889,
+      "ticks_success": 118.06632653061224,
+      "n": 200
+     },
+     "16": {
+      "success": 0.975,
+      "fell": 0.025,
+      "progress": 0.9875,
+      "ticks_success": 121.84102564102564,
+      "n": 200
+     },
+     "17": {
+      "success": 0.98,
+      "fell": 0.02,
+      "progress": 0.9869999999999999,
+      "ticks_success": 133.01020408163265,
+      "n": 200
+     },
+     "18": {
+      "success": 0.995,
+      "fell": 0.005,
+      "progress": 0.9975,
+      "ticks_success": 146.04020100502512,
+      "n": 200
+     },
+     "19": {
+      "success": 0.955,
+      "fell": 0.04,
+      "progress": 0.971,
+      "ticks_success": 160.1151832460733,
+      "n": 200
+     },
+     "20": {
+      "success": 0.785,
+      "fell": 0.215,
+      "progress": 0.878,
+      "ticks_success": 178.64331210191082,
+      "n": 200
+     }
+    }
+   },
+   "seconds": 23.5
+  },
+  "g995-extra": {
+   "checkpoint": "runs/g995-extra/checkpoints/best.pt",
+   "sha1": "aa58dd6b5ada89dc65a87a4d9bdb749edb221e07",
+   "iteration": 849,
+   "run": "g995-extra",
+   "source": null,
+   "groups": {
+    "ice": {
+     "standard": 0.96,
+     "obstacles": null,
+     "all": 0.96,
+     "n": 1200
+    }
+   },
+   "per_level": {
+    "standard": {
+     "15": {
+      "success": 0.99,
+      "fell": 0.01,
+      "progress": 0.995,
+      "ticks_success": 120.46464646464646,
+      "n": 200
+     },
+     "16": {
+      "success": 0.985,
+      "fell": 0.015,
+      "progress": 0.991,
+      "ticks_success": 124.24365482233503,
+      "n": 200
+     },
+     "17": {
+      "success": 0.995,
+      "fell": 0.005,
+      "progress": 0.997,
+      "ticks_success": 134.95979899497488,
+      "n": 200
+     },
+     "18": {
+      "success": 0.99,
+      "fell": 0.01,
+      "progress": 0.992,
+      "ticks_success": 149.0909090909091,
+      "n": 200
+     },
+     "19": {
+      "success": 0.96,
+      "fell": 0.04,
+      "progress": 0.98,
+      "ticks_success": 162.31770833333334,
+      "n": 200
+     },
+     "20": {
+      "success": 0.84,
+      "fell": 0.145,
+      "progress": 0.914,
+      "ticks_success": 193.94642857142858,
+      "n": 200
+     }
+    }
+   },
+   "seconds": 29.0
+  }
+ }
+}
