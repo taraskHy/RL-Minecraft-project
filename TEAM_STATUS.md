@@ -10,7 +10,7 @@ the data: training runs, policies, the route planner and neo files, the game
 folders (including the v2, planner, noroute, neo and film games) and the
 videos.
 
-**Last updated:** 29 Oct 2026, 08:40, training PC: active-run validation refreshed; initial advanced/ice comparison already delivered.
+**Last updated:** 29 Oct 2026, 08:47, training PC: ice seed 10 completed and reported; seeds 11/12 continue.
 
 ## The project
 
@@ -321,6 +321,8 @@ The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
 5. The report discussion and conclusion are drafted. The cloud DOCX/PDF exports predate this merged source; rebuild and check pagination before submission.
 
 ## Update log
+
+- **29 Oct 2026, 08:47, Codex heartbeat on training PC:** g995-ice-s10 completed all 1,000 iterations. Its checkpoint 149 was selected only by simulator validation families 2/5 (96.4167%, unique maximum); final standard test 97.2500% and obstacle test 94.0833%, versus the existing final policy 97.5833% validation, 98.4167% standard and 95.2500% obstacles (all three differences -1.1667 percentage points). Comparisons use common levels 0-5 and identical held-out course sets; validation has 100 courses per level from each family 2/5, and each test has 200 per level. Exactly one standard and one obstacle test row at the selected checkpoint; no evaluation rerun. Archived `results/operations/g995-ice-s10-comparison.json`; completion comparison delivered with this heartbeat, do not repeat. The queue automatically started seed 12 after seed 10 exited; seeds 11/12 occupy the two training slots. Seed 11 archived iteration 949 validation 95.2500%, selected best 649 (97.8333%); seed 12 has no archived validation checkpoint yet. Both remain untested. Full GPU settings, unchanged rollout shape, thermal 65/58 C safeguards and keep-awake remain active; final policy files retained. Cloud evaluation remains on hold; no new cloud commits. Report/handoff refreshed; independent CSV/summary checks passed, no executable changes and prior test suite remains applicable.
 
 - **29 Oct 2026, 08:40, Codex heartbeat on training PC:** archived simulator validation (families 2/5): g995-ice-s10: iteration 899, validation 96.25%, selected best 149 (96.42%), 6 levels; g995-ice-s11: iteration 849, validation 96.00%, selected best 649 (97.83%), 6 levels. Scores over different level counts are not directly comparable. Summaries and validation-selected maxima match the CSVs; active test logs remain empty. The existing two-slot queue, unrestricted trainers, thermal protection (65/58 C) and keep-awake are healthy. No executable changes; prior checks remain applicable. Report/handoff refreshed. The initial advanced/ice comparison was already delivered and is not repeated.
 
