@@ -101,12 +101,26 @@ The main session is now Claude Code on the training PC. Codex is stopped
   the matrix replayed them with identical results). The margins over the
   best specialist (+2.9 and +1.1 points) are about 1.5 and 1.1 standard
   errors of one test: a match, not a win.
-- **Training now:** `skills-hh-ft` (queue, from `combined-distill`, started
-  16:40). The neo DAgger round `neo-combined-r1` is held: since about 17:00
-  the top priority is single neos (section 3). Its demonstrations are ready:
-  `runs/neo_dagger_c1.pt`, from `combined-distill`'s best.pt, 1,038 of 1,151
-  takeoffs with a landing found, 158,999 pairs.
+- **Follow-up rounds, none kept** (simulator; each rule fixed before its
+  result, section 3). `skills-hh-ft` (16:40-17:50): validation mean over the
+  four groups 86.4% (iteration 399) against `combined-distill`'s 87.0%, so
+  the shipped network stays `combined-distill`; tested once, mean 85.6%.
+  `neo-combined-r1` (17:50-19:03, demonstrations `runs/neo_dagger_c1.pt`):
+  best 86.7% at iteration 49, 84.0-85.8% at the later snapshots; none
+  reaches 87.0%, so none qualifies for the single-neo pick. `neo-dagger4`
+  (18:11-19:05, `runs/neo_dagger_r4.pt`: 166,389 pairs from 1,106 of 1,195
+  takeoffs): validation 85.2% (levels 0-8, iteration 199) against
+  `neo-dagger3`'s 85.7%; its single-neo pick on family 40 is pending. No
+  trainer has run since 19:05.
 - The cloud new-abilities evaluations stay ON HOLD.
+- **CPU cap (Ethan, 29 Oct about 22:00):** Task Manager at most 85% CPU,
+  and as much work as possible on the GPU (rule in AGENTS.md). The project's
+  processes run on 10 of 24 logical cores (affinity mask 0xC03C0F; 11 cores
+  still read up to 90.5%), set and re-applied every 10 seconds by the side
+  session's
+  `enforce_cpu_cap.ps1` (its scratchpad; `-Restore` undoes it); the
+  Minecraft server and bot are exempt. CPU-bound runs take about 1.7 to 2
+  times longer. Planner runs compared with CPU results stay on the CPU.
 
 ## Codex stopped; handoff to Claude (29 Oct 2026, 12:49, Israel time)
 
@@ -334,7 +348,7 @@ setting is 106 (81.5%, no approach planning); the neo policy alone 58,
 `combined-distill` alone 46 (mapping of 29 Oct, from
 `results/neo/assist_details/official2_*.json` and CPU replays).
 
-Rules fixed at 17:45, before any single-neo result:
+Rules fixed at 17:49 (written 17:49:22, committed 17:51), before any single-neo result:
 - **Sets:** `neo_assist --set single`, families 40 (validation) and 41
   (test), 320 courses each: 10 jumps, nine from levels 0-5 and exactly one
   neo of the 32 single-neo types (course i: type i mod 32 at position
@@ -368,6 +382,89 @@ Rules fixed at 17:45, before any single-neo result:
   `combined-distill`'s; a round is kept only if it beats its start on
   family 40.
 
+Progress (simulator, CPU, family 40, a course counted only with the neo
+done; `results/neo/assist_validation.jsonl`, per course in
+`results/neo/assist_details/single40_*`):
+- Sets merged into main at 20:20 (commit `031d7c3`; 137 tests pass with CUDA
+  hidden, the handoff snapshot test aside until the report runs).
+- **V0, policy alone:** neo policy 133 of 320 (41.6%), `combined-distill`
+  136 (42.5%), final policy 0 (it stops at every neo). The plain completion
+  counts differ by at most 1 from the strict ones.
+- **Policy track:** `neo-combined-r1` has no qualifying snapshot.
+  `neo-dagger4`'s snapshots (updates 50 to 500): 130, 133, 120, 130, **146**,
+  145, 126, 136, 138, 141. The pick, updates 250 (146, 45.6%), beats the neo
+  policy's 133, so by the rule the round is kept. It is the policy-alone
+  candidate for the test on family 41 and qualifies for the gate's neo slot
+  (swap rule below). Caveat: it is the best of ten snapshots on the same 320
+  courses; the ten average 134.5, about the neo policy's 133, so most of the
+  13-course margin may be selection (one standard error of a count near 42%
+  is 8.8 courses).
+- **V1, final policy + planner:** 271 of 320 (84.7%); every completed
+  course did its neo (no bypass). 49 failures: 40 at the neo (26 falls, 14
+  stops), 9 at ordinary jumps; they cluster on a few of the 32 types (type
+  17: 7 of 10, type 24: 6 of 10). Every plan played landed as planned
+  (2,914); the misses are searches that found nothing (97 of 2,987 takeoff
+  searches, 65 of 89 retries).
+- **V2, neo policy + planner:** 267 (83.4%). V1 is better, so V3 builds on
+  the final policy. Per course: both 245, only V1 26, only V2 22.
+- **V3, fixed at 20:39 before its result:** V3a (`restarts` 1) and V3b
+  (`restarts` 3) run side by side on V1's setting. `restarts` is kept at 1
+  if V3a is at least V1 + 4; at 3 if V3b is at least 4 above the better of
+  V1 and a kept V3a. V4 and V5 build on the kept setting.
+- **V3a, V1 + `restarts` 1:** 282 (88.1%), +11 over V1, so `restarts` 1 is
+  kept. Below 89% (285), so the levers continue. Failures: 28 at the neo
+  (from 40), 10 at ordinary jumps.
+- **V3b, V1 + `restarts` 3:** 286 (89.4%), exactly 4 above V3a, so
+  `restarts` 3 is kept. That reaches 89% (285), so by the stop rule no
+  further lever is added: V4 and V5 do not run. **Chosen setting:** the
+  final policy + `{"jumps": "all", "retries": 1, "brake": 14,
+  "retry_horizon": 48, "restarts": 3}`. Failures: 24 at the neo, 10 at
+  ordinary jumps. Next: family 41 once per mode (this setting, and the
+  policy alone with `neo-dagger4` updates 250); then the offline bot and
+  real Minecraft as fixed above. Held until the replays were on the
+  results page (Ethan, "artifact first"), then launched at 21:29.
+- **Test, family 41, played once (simulator, CPU,
+  `results/neo/assist_test.jsonl`):** planner mode **276 of 320 (86.25%):
+  the goal is met under the rule fixed before the runs** (planner test score
+  at least 85%); 277 completed, one of them (course 18) past its neo. The
+  margin is small: 4 courses, 0.65 standard errors; Wilson 95% interval
+  82.0-89.6%; a true rate of exactly 85% gives 276 or more in about 30% of
+  tests. So it meets the pre-registered rule; it does not show the true rate
+  is at least 85%. Planner failures: 28 at the neo (18 falls, 10 stops), 15
+  at ordinary jumps. Both modes lost about 10 courses from validation to
+  test. Policy alone (`neo-dagger4` updates 250): 137 (42.8%); that its
+  validation pick (146) was mostly selection is plausible, not shown (the
+  neo policy was never played on family 41). No tuning after the test.
+- **Metric caveat (independent audit, 29 Oct 22:20):** the rule checks only
+  the neo. 5 of the 276 skip the search at one ordinary platform: a plan
+  overshot onto the next platform (courses 60, 262) or reached the goal
+  early (83, 199, 300). Counting a course only if every platform was a
+  takeoff gives 271 (84.7%). The metric stays as fixed. On validation,
+  course 78 counts in V1, V3a and V3b although the neo's search ran from
+  platform 5, after the bot touched takeoff 6 and dropped back (`neo_done`
+  checks only the order of checkpoints, and no test covers this); without
+  it the counts are 270, 281 and 285, and every decision stands. `neo-dagger4`
+  updates 250 and 300 tie at 146 on plain completion; the strict count
+  (146 against 145) picked 250.
+- **Bots:** the first 64 test courses (`results/games/single41-first64-courses.json`,
+  `scripts/single_neo_bot_courses.py`) in the offline bot, both modes
+  (`results/games/single41-offline-*`). **The gate of 17:49, made precise at
+  22:25 before the planner bot's result:** "matches the simulator" means
+  parity with the simulator played from the same start, `parkour.live`'s own
+  re-run (the check of every earlier bot run). The bots settle 10 ticks on
+  the start block (`SETTLE_TICKS`); the scored test started without
+  settling, which changes outcomes on many courses by chaos alone (policy
+  alone: 26 completed in the bot and its re-run against 27 in the test, 19
+  courses different, the bot equal to its re-run on 64 of 64). Each bot score
+  is reported next to the test run's on the same 64 courses.
+- **Known planner difference in the bots:** the search for a takeoff runs
+  after each tick's step, so a settled bot on a planned start platform plays
+  the policy's first action first; if that is a jump, the first jump is the
+  policy's own (course 10 jumped on its first tick and fell). The scored test
+  (no settling) planned every first jump. 7 of the 64 courses have the neo
+  as their first jump. A fix is a change to the planner (Python and the
+  bots), to be chosen on validation, not tuning on the test.
+
 **Queued after the combined runs (requested 29 Oct via the side chat): a
 head-hitter and slime fine-tune.** Rules fixed before any combined result:
 the targets are the user's request (head hitters and slime); on
@@ -386,10 +483,17 @@ its validation mean over the four groups is higher; otherwise it is
 reported and the shipped one network stays `combined-distill` (rule added
 at 17:30, before the run's result). Then the offline bot and real Minecraft on the first 10 test courses
 of the extra levels head hitter, hard head hitter and slime bounce, then
-replays, a video and the results page.
+replays, a video and the results page. **Result (17:50):** validation mean
+86.4% against 87.0%, so it is reported and not shipped (slime 69.5% against
+63.5%, head hitter 85.5% against 93.0% on validation, 200 courses each).
+The bot runs above were for the shipped fine-tune and are not done; the
+user's replay request of 29 Oct (head hitters, slime, ice and every new kind)
+is answered by `results/skill_replays.html` (the one network on fresh
+showcase courses, seed families 42 and 43).
 
-**Held since about 17:00 for the single-neo priority above (its rules will
-be fixed again, for single neos, before it runs). The plan as it stood:
+**Ran 17:50-19:03 as the policy track's `neo-combined-r1` (rules of 17:49
+above); no snapshot reaches `combined-distill`'s validation mean, so none is
+kept.** Held from about 17:00 until those rules were fixed. The plan as it stood:
 neos in the one network (the user's "continue with the neo work", 29 Oct),
 one DAgger round on the combined student.** Rules fixed
 before any combined result: start from whichever of `combined-distill` and
@@ -433,6 +537,57 @@ the final policy; `g995-ice-s11`, 97.8%, is only the sensitivity check).
 Next to the rule, the output reports two reference ceilings: the students
 alone (near-identical networks, so their gain is mostly run-to-run variance)
 and two seeds of one recipe (`g995-ice` and `g995-ice-s11`) on basic.
+**Measured 29 Oct, 20:03-20:09 (simulator, 3,600 validation courses per
+expert):** best single network `combined-distill`, mean 86.98%; perfect
+group-level gate 87.83% (+0.85); perfect per-course gate 94.06% (+7.08), so
+**by the rule: build the gate**. Reading it: the three students alone reach
+a per-course ceiling of 93.08% (+6.10), so the other experts add 0.98 points
+over that; on basic the seed pair reaches 99.33% against 97.33% and 97.83%
+alone. Most of the per-course headroom is run-to-run variance between
+similar networks, which no gate can predict; the group-level +0.85 is the
+part a per-skill choice takes. Per group (student, best alone, per-course
+ceiling): basic 95.67, 97.58 final policy, 99.83; ice 97.33, 97.83
+`g995-ice`, 100; advanced 67.67, 68.50 `neo-combined-r1`, 80.00; extra
+87.25, 87.42 `skills-hh-ft`, 96.42. Every expert's rates equal the
+validation matrix and the students' own validation exactly. The gate runs
+on the GPU while the single-neo work uses the CPU. **Its rules, fixed at
+20:15 before it is built:**
+- Experts, frozen, at the checkpoints the measurement used: the final
+  policy, `g995-ice`, the neo policy, `g995-extra`, `combined-distill`,
+  `skills-hh-ft`, `neo-combined-r1`.
+- A decision at the start and at every landing on a new platform; the
+  chosen expert plays until the next landing or the end of the episode.
+- Inputs: the experts' observation plus what it lacks, the block kind of the
+  current and the next platform (stone, ice, slime, shaped, ladder) and
+  whether a ceiling covers the next runway.
+- PPO on the decisions as a semi-MDP (a decision's reward is everything
+  collected until the next one), on skills mode's training courses (basic,
+  advanced, extra, ice on 30% of courses; family 0), one trainer.
+- `best.pt` by the validation mean over the four groups (the measurement's
+  sets). It replaces `combined-distill` as the shipped policy only if that
+  mean is higher than 86.98%; then it is tested once. It is reported next to
+  the fixed best-expert-per-group choice (87.83%, which knows each course's
+  group) and the per-course ceiling (94.06%).
+- **Swappable experts** (Ethan, 29 Oct about 20:20, via the side chat:
+  "swap them when he trains them"). The experts are slots in a config file
+  (slot, skill, checkpoint), not part of the gate's weights; the gate picks
+  a slot. A newly trained policy replaces a slot's expert when it beats it
+  on that slot's skill, on validation in the simulator: the final policy's
+  slot on the basic group, `g995-ice`'s on the ice group, the neo policy's
+  on the single-neo set (family 40, strict metric, policy alone),
+  `g995-extra`'s on the extra group, and the three students' on the mean
+  over the four groups. Ties keep the old expert.
+- After a swap the gate is fine-tuned from its `best.pt` with the new expert
+  in the slot (a quarter of its first run's updates, a snapshot every
+  tenth of them), re-chosen on the four-group validation mean, and kept only
+  if that mean is at least the previous gate's. Each kept version is tested
+  once.
+- First swap due (20:25): `neo-dagger4` updates 250 into the neo slot (146
+  against the neo policy's 133 on family 40). The first gate (`gate-r1`)
+  trains with the measurement's checkpoints, as fixed at 20:15; the swap is
+  its first fine-tune.
+- Implementation: `parkour/gate.py` on branch `gate` (worktree
+  `../wt-gate`), reviewed before the training run.
 
 **Next, by the user's choice (29 Oct): one network for every skill.** Distil
 the specialists (final policy, `g995-adv`, `g995-ice`, `g995-extra`, the
@@ -877,17 +1032,17 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `bb0b3ac` (2026-10-29 15:37, branch `main`): HANDOFF: neo DAgger round on the combined student, rules fixed first
+Generated on top of commit `031d7c3` (2026-10-29 20:19, branch `main`): Merge neo-single: single-neo sets (families 40 and 41), strict neo metric, opt-in planner levers
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `948a365` 2026-10-29 14:44 | 3 |
+| `AGENTS.md` | updated together with this snapshot | 0 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `1a16df0` 2026-10-29 14:14 | 6 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 174 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 157 |
-| `results/README.md` | `99f6ff2` 2026-10-29 02:38 | 84 |
+| `README.md` | `1a16df0` 2026-10-29 14:14 | 15 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 183 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 166 |
+| `results/README.md` | updated together with this snapshot | 0 |
 | `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
@@ -937,6 +1092,8 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `g995-ice-s7` | 999 | 0.52 | 749 | 97.0 | 96.7 | - | - |
 | `g995-ice-s8` | 999 | 0.52 | 199 | 96.8 | 97.3 | - | - |
 | `g995-ice-s9` | 999 | 0.52 | 149 | 96.8 | 97.3 | - | - |
+| `gate-smoke-1024` | 5 | 0.00 | 5 | 81.7 | - | - | - |
+| `gate-smoke-8192` | 4 | 0.00 | 4 | 84.4 | - | - | - |
 | `hp-ent0.001` | 999 | 0.52 | 999 | 94.3 | 94.1 | 94.1 | - |
 | `hp-ent0.02` | 999 | 0.52 | 549 | 91.7 | 92.2 | 91.5 | - |
 | `hp-envs4096` | 3999 | 0.52 | 3599 | 93.7 | 94.2 | 92.0 | - |
@@ -951,10 +1108,12 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `main-g995` | 2999 | 1.57 | 2799 | 98.7 | 97.9 | 96.2 | - |
 | `main-s0` | 2999 | 1.57 | - | - | - | 95.5 | - |
 | `neo-bc` | 799 | 0.42 | 699 | 86.1 | 85.7 | 86.5 | 83.1 |
+| `neo-combined-r1` | 499 | 0.26 | 49 | 86.7 | 90.1 | - | - |
 | `neo-dagger` | 499 | 0.26 | 149 | 86.1 | 85.9 | 85.1 | 82.3 |
 | `neo-dagger-collapsed` | 499 | 0.26 | 499 | 57.3 | 58.9 | 58.9 | 56.8 |
 | `neo-dagger2` | 499 | 0.26 | 299 | 86.2 | 86.7 | 87.3 | 83.3 |
 | `neo-dagger3` | 499 | 0.26 | 449 | 85.7 | 86.4 | 87.1 | 84.4 |
+| `neo-dagger4` | 499 | 0.26 | 199 | 85.2 | 86.1 | - | - |
 | `neo-stall` | 999 | 0.52 | 749 | 84.7 | 84.7 | 84.8 | 82.3 |
 | `nofall-s0` | 999 | 0.52 | 949 | 93.7 | 91.8 | 91.2 | - |
 | `nofall-s1` | 999 | 0.52 | 649 | 90.5 | 90.8 | 90.9 | - |
@@ -969,7 +1128,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `obstacles-ft` | 999 | 0.52 | 999 | 96.6 | 97.1 | 97.1 | 93.6 |
 | `obstacles-g995` | 999 | 0.52 | 699 | 97.6 | 98.4 | 97.5 | 94.7 |
 | `progress-demo` | 399 | 0.21 | 324 | 89.5 | 89.8 | 91.0 | - |
-| `skills-hh-ft` | 49 | 0.03 | 49 | 85.1 | - | - | - |
+| `skills-hh-ft` | 499 | 0.26 | 399 | 86.4 | 89.4 | - | - |
 | `sparse-s0` | 999 | 0.52 | - | - | - | 95.1 | - |
 | `sparse-s1` | 999 | 0.52 | 749 | 93.5 | 93.2 | 91.5 | - |
 | `sparse-s2` | 999 | 0.52 | 799 | 94.7 | 94.4 | 94.1 | - |
@@ -1035,6 +1194,16 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `recheck-obs` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 58/60 | 96.7 | 100.0 |
 | `recheck-show` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 3/4 | 75.0 | 100.0 |
 | `recheck-std` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 59/60 | 98.3 | 100.0 |
+| `single41-offline-policy` | offline (prismarine-physics, no server) | `runs/neo-dagger4/checkpoints/updates_00250.pt` | 26/64 | 40.6 | 100.0 |
+| `skill-replays-live-65` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 59/65 | 90.8 | 100.0 |
+| `skill-replays-neo-network-live` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 7/16 | 43.8 | 100.0 |
+| `skill-replays-neo-network-offline` | offline (prismarine-physics, no server) | `results/combined_policy.pt` | 7/16 | 43.8 | 100.0 |
+| `skill-replays-neo-planner-live` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 13/16 | 81.2 | 100.0 |
+| `skill-replays-neo-planner-offline` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 13/16 | 81.2 | 100.0 |
+| `skill-replays-offline` | offline (prismarine-physics, no server) | `results/combined_policy.pt` | 40/45 | 88.9 | 100.0 |
+| `skill-replays-offline-65` | offline (prismarine-physics, no server) | `results/combined_policy.pt` | 59/65 | 90.8 | 100.0 |
+| `skill-replays-untrained-live` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 6/8 | 75.0 | 100.0 |
+| `skill-replays-untrained-offline` | offline (prismarine-physics, no server) | `results/combined_policy.pt` | 6/8 | 75.0 | 100.0 |
 | `v2-live` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 59/60 | 98.3 | 100.0 |
 | `v2-live-obstacles` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 57/60 | 95.0 | 100.0 |
 | `v2-live-showcase` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 3/4 | 75.0 | 100.0 |
@@ -1071,6 +1240,7 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **29 Oct 2026, 22:50, Claude (Claude Code, training PC):** single neos at 85%: the sets (families 40/41), the strict metric and the planner levers merged (`031d7c3`); on validation the final policy with the planner and 3 search restarts reaches 286 of 320 (89.4%, levers stopped by the 89% rule); the test, played once, 276 of 320 (86.25%): the goal is met under the pre-registered rule, narrowly (caveats and an independent audit in section 3). Follow-up rounds (head hitters and slime, neos in the one network, one more neo round) not kept; gate headroom measured (per-course ceiling +7.1, mostly chance; the gate gets built, with swappable experts). Replays of every new skill and block type, offline and in real Minecraft (59/65 as the simulator; carpets needed a structure void in real Minecraft, `bridge/parkour_bot.js`), on the results page (version 15); the CPU cap of 85% (AGENTS.md). Next: the bot check of the single-neo test courses, the gate's training on the GPU, the one-neo and untrained-shape replays on the page.
 - **29 Oct 2026, 17:00, Claude (Claude Code, training PC):** `combined-distill` and `combined-union` finished and were tested once; `combined-distill` won on validation (87.0% vs 84.7% over the four groups) and is shipped as `results/combined_policy.*` (`scripts/export_combined.py`). Per-group test comparison with every specialist (`results/skills/combined_test_comparison.json`, `scripts/combined_compare.py`): the specialists' existing test rows reused, only the pairs never tested played once (`results/skills/test_matrix_*.json`), except the final policy's 600 standard courses at extra levels 9-11, first played on 28 Oct (`results/extra/course_preview_family1.json`) and replayed with identical results. The margins over the best specialist (+2.9, +1.1) are about 1.5 and 1.1 standard errors of one test: a match, not a win (an independent check corrected the page and these files to say so, and "three specialists", not five). Started `skills-hh-ft` (head hitters and slime, section 3) from it; collected the neo DAgger demonstrations from it (`runs/neo_dagger_c1.pt`); the round itself is held for the new top priority, single neos at 85% (section 3). Skill-gate headroom script ready (`scripts/gate_headroom.py`, run after the fine-tunes). Report run; results page version 9. Next: the single-neo sets, baselines and failure analysis.
 
 - **29 Oct 2026, 15:30, Claude (Claude Code, training PC):** a second independent review of `docs/MISSION_ROUTING.md` (claims against the code, commands in both shells; 22 findings) applied: an empty candidate set fills the slots as the planner's empty plan does; `--record` on the planner baselines for the paired comparison; CPU runs with `CUDA_VISIBLE_DEVICES=-1`; the watchdog's stale-telemetry hold and `--resume-all`; `gh pr create` with `--title`/`--body`; long-command timeouts; the `summary.json` fields; no new packages. Opt-in `--level-weights` (fixed sampling weight per level; defaults bit for bit unchanged) and the head-hitter and slime fine-tune plan, its rules fixed in section 3 before any combined result. `combined-distill` and `combined-union` at iteration 650 of 1,000. Next: test and export the combined runs, then the fine-tune and the results page.

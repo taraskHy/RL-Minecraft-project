@@ -239,9 +239,28 @@ are the chosen settings.
 | validation | mixed (family 15) | `final_policy` | policy alone |  | 37/200 (18.5) | 0/19 |  |
 | validation | random (family 13) | `final_policy` | all, brake, approach | all | 135/200 (67.5) | 332/392 | 1448/1448 |
 | validation | official (family 2) | `final_policy` | all, brake, approach | all | 157/218 (72.0) | 228/281 | 2197/2197 |
+| validation | single (family 40) | `neo_policy` | policy alone |  | 134/320 (41.9) | 147/296 |  |
+| validation | single (family 40) | `combined_policy` | policy alone |  | 136/320 (42.5) | 143/301 |  |
+| validation | single (family 40) | `final_policy` | policy alone |  | 0/320 (0.0) | 0/297 |  |
+| validation | single (family 40) | `updates_00050` | policy alone |  | 131/320 (40.9) | 147/295 |  |
+| validation | single (family 40) | `updates_00100` | policy alone |  | 133/320 (41.6) | 147/292 |  |
+| validation | single (family 40) | `updates_00150` | policy alone |  | 121/320 (37.8) | 135/285 |  |
+| validation | single (family 40) | `updates_00200` | policy alone |  | 131/320 (40.9) | 148/295 |  |
+| validation | single (family 40) | `updates_00250` | policy alone |  | 146/320 (45.6) | 160/288 |  |
+| validation | single (family 40) | `updates_00300` | policy alone |  | 146/320 (45.6) | 164/295 |  |
+| validation | single (family 40) | `updates_00350` | policy alone |  | 127/320 (39.7) | 142/297 |  |
+| validation | single (family 40) | `updates_00400` | policy alone |  | 136/320 (42.5) | 150/294 |  |
+| validation | single (family 40) | `updates_00450` | policy alone |  | 140/320 (43.8) | 149/291 |  |
+| validation | single (family 40) | `updates_00500` | policy alone |  | 141/320 (44.1) | 162/294 |  |
+| validation | single (family 40) | `final_policy` | single V1: final policy + planner (all, retries 1, brake 14, retry horizon 48) | all | 271/320 (84.7) | 276/316 | 2914/2914 |
+| validation | single (family 40) | `neo_policy` | single V2: neo policy + planner (all, retries 1, brake 14, retry horizon 48) | all | 267/320 (83.4) | 276/315 | 2878/2878 |
+| validation | single (family 40) | `final_policy` | single V3a: V1 + restarts 1 | all | 282/320 (88.1) | 288/316 | 2967/2967 |
+| validation | single (family 40) | `final_policy` | single V3b: V1 + restarts 3 | all | 286/320 (89.4) | 292/316 | 3004/3004 |
 | test | random (family 12) | `final_policy` | policy alone |  | 33/200 (16.5) | 1/162 |  |
 | test | official (family 1) | `final_policy` | policy alone |  | 0/210 (0.0) | 0/124 |  |
 | test | mixed (family 14) | `final_policy` | policy alone |  | 35/200 (17.5) | 0/16 |  |
+| test | single (family 41) | `updates_00250` | policy alone |  | 138/320 (43.1) | 158/296 |  |
+| test | single (family 41) | `final_policy` | single TEST: final policy + planner (all, retries 1, brake 14, retry horizon 48, restarts 3), chosen on family 40 | all | 277/320 (86.6) | 286/314 | 2917/2917 |
 
 The assist in the bots, on the neo course set of the neo policy's runs (`configs/neo_live_courses.json`:
 the first 10 held-out test courses with a neo of levels 6, 7 and 8, and the showcase neo course; the

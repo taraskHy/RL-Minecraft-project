@@ -26,7 +26,8 @@ body { background: var(--bg); color: var(--fg); font: 400 17px/1.6 var(--body); 
 .wrap { max-width: 1080px; margin: 0 auto; padding-block: 40px 64px;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
   display: grid; gap: 56px; }
-h1, h2, h3 { text-wrap: balance; margin: 0; }
+.wrap > *, section > * { min-width: 0; }
+h1, h2, h3 { text-wrap: balance; margin: 0; overflow-wrap: break-word; }
 h1 { font: 700 clamp(36px, 6vw, 60px)/1.05 var(--display); letter-spacing: 0.01em; }
 h2 { font: 700 26px/1.2 var(--body); }
 h3 { font: 700 19px/1.3 var(--body); }
@@ -34,7 +35,7 @@ p { margin: 0; max-width: 65ch; }
 .eyebrow { font: 500 13px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--grass); }
 .lede { font-size: 20px; color: var(--fg); }
 .muted { color: var(--muted); }
-code, .path { font: 400 14px var(--mono); }
+code, .path { font: 400 14px var(--mono); overflow-wrap: anywhere; }
 header { display: grid; gap: 14px; }
 section { display: grid; gap: 18px; }
 .stack { display: grid; gap: 14px; align-content: start; }
@@ -76,6 +77,13 @@ tr.sep td { border-top: 2px solid var(--muted); }
 .skills td:first-child { font-weight: 600; }
 .skills td .where { display: block; margin-top: 2px; }
 .scroll { overflow-x: auto; }
+.replays-head { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; }
+.button { display: inline-block; background: var(--grass); color: var(--surface); padding: 9px 16px; border-radius: 6px; font-weight: 600; text-decoration: none; }
+.stills { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.stills button { display: grid; gap: 4px; color: var(--fg); font: inherit; font-size: 14px; text-align: left; background: none; border: 0; padding: 0; cursor: pointer; min-width: 0; }
+.stills img { display: block; width: 100%; aspect-ratio: 640 / 411; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); }
+.stills button:hover span, .stills button:focus-visible span { text-decoration: underline; }
+.replay-frame { display: block; width: 100%; height: min(90vh, 980px); border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
 footer { font-size: 15px; color: var(--muted); display: grid; gap: 6px; }
 a { color: var(--sky); }
 :focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
@@ -115,13 +123,14 @@ a { color: var(--sky); }
           <tr><td>Ice</td><td>95.6% of 1,200 courses with every platform made of ice (98.4% on stone), never trained on ice<span class="where">simulator</span></td><td>final policy</td></tr>
           <tr><td>Neo jumps around a wall</td><td>29.0% of 210 courses with a neo, up from 0%<span class="where">simulator</span>11/31 neo courses<span class="where">real Minecraft</span></td><td>neo policy</td></tr>
           <tr><td>Neo jumps with a planning search</td><td>72.0% of 218 neo courses<span class="where">simulator, validation</span>25/31 neo courses<span class="where">offline bot</span></td><td>final policy + search</td></tr>
+          <tr><td>Courses with exactly one neo (target 85%)</td><td>86.25% of 320 test courses with every jump planned, played once: the goal is met under the rule fixed before the runs; 42.8% for the best policy alone<span class="where">simulator, test</span></td><td>final policy + search</td></tr>
           <tr><td>Head hitters, ice run-ups, shaped blocks, slime, ladders</td><td>91.2% of 2,400 courses over 12 levels<span class="where">simulator</span></td><td><code>g995-extra</code></td></tr>
           <tr><td>No course list: route planner</td><td>92.3% of 1,200 courses<span class="where">simulator</span>51/60<span class="where">real Minecraft</span></td><td>final policy + planner</td></tr>
           <tr><td>One network for every skill</td><td>86.4%, the mean of the four groups' test success rates (basic, ice, neo-momentum-wide, new kinds; 7,200 courses), level with the best specialist on the last two<span class="where">simulator</span></td><td>one network, <code>combined-distill</code></td></tr>
         </tbody>
       </table>
     </div>
-    <p class="muted">Test courses are never seen in training; checkpoints are chosen on separate validation courses, and each test set is played once (one replay, with identical results, is noted in the one-network section). The row marked validation is a validation result.</p>
+    <p class="muted">Test courses are never seen in training; checkpoints are chosen on separate validation courses, and each test set is played once (one replay, with identical results, is noted in the one-network section). The rows marked validation are validation results.</p>
   </section>
 
   <section>
@@ -215,6 +224,10 @@ a { color: var(--sky); }
         <p class="muted">Neos passed counts only the neo jumps the agent reached. Round 3 was chosen on the validation neo courses. On 31 neo courses the chosen policy completes 11 in real Minecraft, the same 11 as in the simulator, with 0 server corrections.</p>
         <h3>Planning the hard jumps</h3>
         <p>A second route keeps the final policy and adds a search: when the bot stands on a planned takeoff, a cross-entropy search with the exact physics finds a move sequence from its exact state, and the bot plays it. With every jump planned, braking and an approach phase, it completes 72.0% of 218 validation neo courses in the simulator (the policy alone: 0%). With every jump planned and braking, the offline bot completes 25 of the 31 neo courses, the same courses as the simulator.</p>
+        <h3>Courses with exactly one neo: 86.25% on the test set</h3>
+        <p>A new set of 320 validation courses has nine ordinary jumps and exactly one neo; each of the 32 neo types appears 10 times, at every position along the course. A course counts only if the bot stood on the neo's takeoff and then landed on its target, not if it jumped past. Alone, the neo policy completes 133 (41.6%) and the one network 136.</p>
+        <p>With every jump planned, the final policy completes 271 (84.7%), and the neo policy under the planner 267. 40 of the final policy's 49 misses were at the neo, where the search found no landing; every plan it played landed. So the search now starts again with a new random seed when it finds nothing: once, 282 (88.1%); three times, 286 (89.4%). Each change had to add at least 4 courses, and we stopped at 89%, two standard errors above the target, by rules fixed before these runs.</p>
+        <p>On a separate test set of 320 such courses, played once with that setting, it completes 276 (86.25%); the best policy alone completes 137 (42.8%). The goal of 85% is met under the rule fixed before the runs, but narrowly: the margin is 4 courses, and the 95% interval is 82.0 to 89.6%. Five of the 276 skipped the search at one ordinary platform (a plan landed further on); counting only courses where every platform was a takeoff gives 271 (84.7%).</p>
       </div>
     </div>
   </section>
@@ -230,9 +243,27 @@ a { color: var(--sky); }
       </div>
       <div class="stack">
         <h3>Five new block kinds</h3>
-        <p>We added head hitters, ice run-ups, shaped blocks (slabs, stairs, posts), slime bounces and ladder climbs to the physics; each matches prismarine-physics to 1.4e-14 blocks or better over 60,000 ticks. Alone, the final policy makes 99.1% of the shaped-block jumps, 68.2% of head hitters, 48.9% of ice run-ups, 39.9% of slime bounces and 37.5% of ladder climbs.</p>
+        <p>We added head hitters, ice run-ups, shaped blocks (slabs, posts, carpets and more), slime bounces and ladder climbs to the physics; each matches prismarine-physics to 1.4e-14 blocks or better over 60,000 ticks. Alone, the final policy makes 99.1% of the shaped-block jumps, 68.2% of head hitters, 48.9% of ice run-ups, 39.9% of slime bounces and 37.5% of ladder climbs.</p>
         <p>Trained on them for 1,000 updates, the specialist <code>g995-extra</code> completes 91.2% of 2,400 test courses over all 12 levels and 89.3% with obstacles. On the six new levels' validation courses it makes 86.1%, where the final policy makes 19.8%.</p>
       </div>
+    </div>
+    <div class="panel">
+      <h3>Watch every new skill: 65 replays from real Minecraft</h3>
+      <p>The one network plays 65 fresh courses: four each of head hitters, hard head hitters, ice run-ups, shaped blocks, slime and ladders, nine advanced-level courses (neo, momentum and wide jumps; three of them hold a neo), twelve ice courses, and two for each of the ten block shapes it trained on, fence and wall posts included. Every course was recorded twice, in real Minecraft 1.21.4 and in the bot's offline physics. It completes 59 of 65 in both, the same courses as in the simulator, and the server corrected it 0 times. The six misses are shown too: three at a neo, one at a long jump after a short runway, one slime bounce and one fence post. More neo replays, where the bot does the neo, are being added.</p>
+      <div class="stills">
+        <button type="button" class="still" data-course="head-hitter-0"><img src="replays/head-hitter.jpg" alt="The bot running under a head-hitter roof" loading="lazy"><span>Head hitter</span></button>
+        <button type="button" class="still" data-course="hard-head-hitter-1"><img src="replays/hard-head-hitter.jpg" alt="The bot on a hard head-hitter run-up" loading="lazy"><span>Hard head hitter</span></button>
+        <button type="button" class="still" data-course="ice-run-up-0"><img src="replays/ice-run-up.jpg" alt="The bot jumping from an ice run-up" loading="lazy"><span>Ice run-up</span></button>
+        <button type="button" class="still" data-course="ice-15-0"><img src="replays/ice.jpg" alt="The bot on an ice course" loading="lazy"><span>Ice course</span></button>
+        <button type="button" class="still" data-course="slime-1"><img src="replays/slime.jpg" alt="The bot bouncing off a slime pad" loading="lazy"><span>Slime bounce</span></button>
+        <button type="button" class="still" data-course="ladder-2"><img src="replays/ladder.jpg" alt="The bot climbing a ladder" loading="lazy"><span>Ladder</span></button>
+        <button type="button" class="still" data-course="shaped-1"><img src="replays/shaped.jpg" alt="The bot crossing shaped blocks" loading="lazy"><span>Shaped blocks</span></button>
+        <button type="button" class="still" data-course="shaped-fence_post-0"><img src="replays/fence-post.jpg" alt="The bot landing on a fence post" loading="lazy"><span>Fence post</span></button>
+        <button type="button" class="still" data-course="shaped-carpet-0"><img src="replays/carpet.jpg" alt="The bot landing on carpet" loading="lazy"><span>Carpet</span></button>
+        <button type="button" class="still" data-course="neo-7-0"><img src="replays/neo.jpg" alt="The bot at a neo wall, where it falls" loading="lazy"><span>Neo wall (a miss)</span></button>
+      </div>
+      <p class="muted">Pick a picture to load that course in the viewer below, or choose any course, block type or recording there; play it tick by tick from behind the bot or from above. Recordings made after training, on courses never used to train, choose or test a policy (seed families 42 to 44); not benchmark results. In real Minecraft a carpet needs a block below it, so an invisible structure void, which has no collision, sits under each one.</p>
+      <iframe class="replay-frame" name="replays" src="replays.html" title="3D replays of every new skill" loading="lazy"></iframe>
     </div>
   </section>
 
@@ -271,7 +302,23 @@ a { color: var(--sky); }
         </tbody>
       </table>
     </div>
-    <p class="muted">Test success in %, simulator, each policy at the checkpoint chosen on validation; 2,400 basic, 1,200 ice, 1,200 neo-momentum-wide and 2,400 new-kind courses, half with obstacles except ice. Mean: the mean of the four groups' rates. Shaded: the highest in each column; differences in the text are from the unrounded rates. The specialists keep their earlier test results; the groups a specialist had never been tested on were played once for this table, except 600 of the final policy's new-kind courses (head hitter, hard head hitter and ice run-up, without obstacles), first played on 28 October and replayed here with identical results. These numbers choose nothing. The one network is shipped next to the final policy as <span class="path">results/combined_policy.pt</span>. <span class="tag run">training now</span> from it: a fine-tune that trains head hitters and slime bounces more. <span class="tag run">next</span> neo jumps on courses with exactly one neo, target 85%.</p>
+    <p class="muted">Test success in %, simulator, each policy at the checkpoint chosen on validation; 2,400 basic, 1,200 ice, 1,200 neo-momentum-wide and 2,400 new-kind courses, half with obstacles except ice. Mean: the mean of the four groups' rates. Shaded: the highest in each column; differences in the text are from the unrounded rates. The specialists keep their earlier test results; the groups a specialist had never been tested on were played once for this table, except 600 of the final policy's new-kind courses (head hitter, hard head hitter and ice run-up, without obstacles), first played on 28 October and replayed here with identical results. These numbers choose nothing. The one network is shipped next to the final policy as <span class="path">results/combined_policy.pt</span>.</p>
+    <div class="two">
+      <div class="stack">
+        <h3>Three follow-up rounds, none better on validation</h3>
+        <ul class="facts">
+          <li><b>86.4%</b><span><span class="tag no">not kept</span> A fine-tune that trains head hitters and slime bounces more. Slime rose from 63.5% to 69.5%, head hitters fell from 93.0% to 85.5% (200 validation courses each).</span></li>
+          <li><b>86.7%</b><span><span class="tag no">not kept</span> A DAgger round for neos in the one network: its first checkpoint was its best, every later one 84.0 to 85.8%.</span></li>
+          <li><b>146</b><span><span class="tag ok">kept, by the rule</span> A DAgger round on the neo policy: of the 320 one-neo courses its best of ten checkpoints completes 146, the neo policy 133. The ten average 134.5, so most of that gap is likely the pick.</span></li>
+        </ul>
+        <p class="muted">Validation mean over the four groups unless noted, simulator; the one network's is 87.0%. Each rule was fixed before its run's result.</p>
+      </div>
+      <div class="stack">
+        <h3>A gate that picks an expert per jump: mostly chance</h3>
+        <p>Before building a gate that chooses which network plays each jump, we measured how much it could gain, on the validation courses with seven experts. The one network scores a mean of 87.0%. Picking the best expert for each skill group gives 87.8%; picking the best expert for each course, knowing the outcomes in advance, 94.1%.</p>
+        <p>Three near-identical copies of the one network already reach 93.1% when the best is picked per course, so most of that ceiling is chance. The gate is being built, as the rule fixed before the measurement says (a 2-point bar), with experts that are swapped when a better one is trained; a realistic hope is near the per-group 0.85 points.</p>
+      </div>
+    </div>
   </section>
 
   <section>
@@ -349,11 +396,19 @@ a { color: var(--sky); }
   </section>
 
   <footer>
-    <span>The numbers here come from files in the project repository: main tables in <span class="path">results/README.md</span>; training logs and jump tests in <span class="path">results/runs/</span>; recorded games in <span class="path">results/games/</span>; the neo search, demonstrations and DAgger logs in <span class="path">results/neo/</span>; ice in <span class="path">results/ice_preview.json</span>; the new block kinds in <span class="path">results/extra/</span> and <span class="path">results/physics_parity_*.json</span>; the specialists and ice seeds in <span class="path">results/operations/</span>; the one-network matrix in <span class="path">results/skills/validation_matrix.json</span> and its test comparison in <span class="path">results/skills/combined_test_comparison.json</span>; the planner in <span class="path">results/planner/</span>; videos in <span class="path">results/videos/</span>.</span>
+    <span>The numbers here come from files in the project repository: main tables in <span class="path">results/README.md</span>; training logs and jump tests in <span class="path">results/runs/</span>; recorded games in <span class="path">results/games/</span>; the neo search, demonstrations and DAgger logs in <span class="path">results/neo/</span>; ice in <span class="path">results/ice_preview.json</span>; the new block kinds in <span class="path">results/extra/</span> and <span class="path">results/physics_parity_*.json</span>; the specialists and ice seeds in <span class="path">results/operations/</span>; the one-network matrix in <span class="path">results/skills/validation_matrix.json</span>, its test comparison in <span class="path">results/skills/combined_test_comparison.json</span> and the gate measurement in <span class="path">results/skills/gate_headroom.json</span>; the one-neo courses in <span class="path">results/neo/assist_validation.jsonl</span>; the planner in <span class="path">results/planner/</span>; videos in <span class="path">results/videos/</span>.</span>
   </footer>
 </div>
 
 <script>
+// The pictures load their course into the embedded replay viewer (same origin: its hash opens a course).
+for (const b of document.querySelectorAll('.stills .still')) {
+  b.addEventListener('click', () => {
+    const f = document.querySelector('iframe.replay-frame')
+    try { f.contentWindow.location.hash = b.dataset.course } catch (e) { f.src = 'replays.html#' + b.dataset.course }
+    f.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
+}
 const CURVE = [[0.026,77.8,2.5],[0.052,82.5,18.0],[0.079,87.4,31.5],[0.105,86.3,30.5],[0.131,88.9,40.5],[0.157,89.0,42.0],[0.184,88.8,41.0],[0.21,90.0,49.5],[0.236,90.4,50.0],[0.262,91.5,55.5],[0.288,88.8,45.5],[0.315,89.8,51.0],[0.341,92.3,62.5],[0.367,93.8,69.5],[0.393,92.8,64.0],[0.419,91.7,66.0],[0.446,93.4,67.0],[0.472,92.3,67.0],[0.498,94.7,77.5],[0.524,93.8,70.5],[0.551,94.2,78.0],[0.577,95.1,79.5],[0.603,93.9,80.5],[0.629,94.2,77.0],[0.655,94.2,80.5],[0.682,92.0,64.0],[0.708,92.3,69.0],[0.734,94.1,76.0],[0.76,95.5,82.0],[0.786,94.9,78.0],[0.813,94.4,76.0],[0.839,94.8,80.0],[0.865,94.7,81.0],[0.891,93.6,74.5],[0.918,94.1,75.0],[0.944,94.2,77.5],[0.97,95.2,82.0],[0.996,70.6,9.0],[1.022,94.1,77.5],[1.049,95.2,82.0],[1.075,94.9,81.5],[1.101,95.8,82.0],[1.127,94.7,80.0],[1.153,96.3,82.5],[1.18,95.9,81.0],[1.206,94.9,79.5],[1.232,95.6,81.5],[1.258,96.3,85.5],[1.285,95.7,88.5],[1.311,95.2,80.0],[1.337,96.3,85.0],[1.363,95.1,82.5],[1.389,95.8,84.5],[1.416,96.1,84.5],[1.442,94.4,76.5],[1.468,94.7,78.5],[1.494,95.2,81.5],[1.52,97.7,92.0],[1.547,96.3,86.5],[1.573,95.5,80.0]]
 // Level-5 success per ablation arm: mean, min, max over 3 seeds (results/README.md).
 const ARMS = [

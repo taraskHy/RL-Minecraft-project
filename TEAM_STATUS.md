@@ -10,7 +10,7 @@ the data: training runs, policies, the route planner and neo files, the game
 folders (including the v2, planner, noroute, neo and film games) and the
 videos.
 
-**Last updated:** 29 Oct 2026, 17:30, training PC (Claude): one network for every skill tested and shipped (`results/combined_policy.*`); routing brief reviewed twice; head-hitter fine-tune training; new top priority: courses with exactly one neo, at least 85%.
+**Last updated:** 29 Oct 2026, 22:50, training PC (Claude): single neos meet the 85% goal on the test set (86.25% with the planner, narrowly); follow-up rounds not kept; gate headroom measured and the gate being built; replays of every new skill and block type on the results page; CPU capped at 85%.
 
 ## Team split / what we want next (29 Oct 2026)
 
@@ -272,10 +272,42 @@ rows; pairs never tested before were played once for this table
 (`results/skills/test_matrix_*.json`), except the final policy's 600
 standard head-hitter, hard-head-hitter and ice run-up courses, first played
 on 28 Oct (`results/extra/course_preview_family1.json`) and replayed with
-identical results. On the PC: the head-hitter and slime fine-tune
-`skills-hh-ft` is training from `combined-distill` (from 16:40); the neo
-DAgger round planned from it is held for the single-neo priority (section
-"Last known state").
+identical results.
+
+**Three follow-up rounds, none kept (simulator, rules fixed before each
+result).**
+- **Head hitters and slime** (`skills-hh-ft`, from `combined-distill`, 500
+  updates, 16:40-17:50): validation mean over the four groups 86.4%
+  (iteration 399), below `combined-distill`'s 87.0%, so it does not replace
+  the shipped network. On validation (200 courses per level) it gained on
+  slime (69.5% against 63.5%, about 1.3 standard errors) and hard head
+  hitters (88.0 against 85.5) and lost on head hitters (85.5 against 93.0,
+  about 2.4 standard errors). Tested once: mean 85.6% (basic 94.8, ice 95.7,
+  advanced 65.1, new kinds 86.8).
+- **Neos in the one network** (`neo-combined-r1`, a DAgger round on
+  `combined-distill`, 500 updates with a snapshot every 50, 17:50-19:03):
+  best validation mean 86.7% at its first evaluation (iteration 49), 84.0 to
+  85.8% after that. No snapshot reaches `combined-distill`'s 87.0%, so none
+  is kept. Tested once at iteration 49 (reported only): mean 86.5%.
+- **One more DAgger round on the neo policy** (`neo-dagger4`, 166,389 new
+  pairs from the 1,106 of 1,195 neo takeoffs where the search found a
+  landing, 18:11-19:05): validation 85.2% on levels 0-8 (iterations 199 and
+  249) against `neo-dagger3`'s 85.7%. Its snapshots are judged on the
+  single-neo validation set (family 40, policy alone); it is kept only if it
+  beats the neo policy there.
+
+**Could a gate that picks an expert per jump do better? Measured first**
+(`results/skills/gate_headroom.json`, simulator, validation, 3,600 courses
+per expert; experts: the final policy, `g995-ice`, the neo policy,
+`g995-extra` and the three students above). The one network
+(`combined-distill`) scores a mean of 86.98% over the four groups. A
+perfect choice of the best expert per group would score 87.83%; a perfect
+choice per course 94.06%. That is 7.1 points over the one network, above the
+2-point rule fixed before the measurement, so a learned gate is built next.
+Most of that ceiling is chance, though: three near-identical copies of the
+one network already reach 93.08% when the best of them is picked per
+course, so the distinct experts add about 1 point. Realistic hopes are near
+the per-group +0.85.
 
 ## No course list: the bot finds its own route
 
@@ -344,8 +376,10 @@ teachers `g995-ice` (basic and ice), the neo policy (advanced) and
 the control) finished at 16:39: `combined-distill` wins on validation (87.0%
 against 84.7%) and on test scores a mean of 86.4% over the four groups,
 level with the best specialist on two of them (section "One network for
-every skill"). It is shipped as `results/combined_policy.*`. Training now:
-`skills-hh-ft` (head hitters and slime, from 16:40).
+every skill"). It is shipped as `results/combined_policy.*`. The three
+follow-up rounds (head hitters and slime, neos in the one network, one more
+neo DAgger round) finished by 19:05 and none is kept (same section); the
+GPU has had no trainer since.
 
 **New top priority (Ethan, 29 Oct, about 17:00): single neos.** Courses with
 exactly one neo, at least 85% success, on held-out courses with their own
@@ -353,10 +387,32 @@ seeds (validation family 40, test family 41); simulator first, then the
 offline bot and real Minecraft; reported with and without the neo planner,
 saying which mode reaches 85%. Double and triple neos are dropped. Current
 reference: the neo policy alone completes 56 of the 129 single-neo test
-courses (43%, simulator, `results/neo/by_neo_count.json`). The planned neo DAgger round on `combined-distill`
-is held until the single-neo metric exists; its demonstrations are already
-collected (`runs/neo_dagger_c1.pt`: 1,038 of 1,151 takeoffs with a landing
-found).
+courses (43%, simulator, `results/neo/by_neo_count.json`). The neo DAgger
+round on `combined-distill` ran with the rules of 17:49 (demonstrations
+`runs/neo_dagger_c1.pt`: 1,038 of 1,151 takeoffs with a landing found) and
+is not kept (section "One network for every skill").
+
+**Single neos: the goal is met under the rule fixed before the runs**
+(simulator; a course counts only if the bot stood on the neo's takeoff and
+then landed on its target; `results/neo/assist_*.jsonl`, HANDOFF section 3).
+
+| 320 courses with exactly one neo | Validation (family 40) | Test (family 41, played once) |
+| --- | --- | --- |
+| final policy + planner, 3 search restarts (chosen) | 286 (89.4%) | **276 (86.25%)** |
+| final policy + planner (no restarts) | 271 (84.7%) | |
+| neo policy + planner | 267 (83.4%) | |
+| best policy alone (`neo-dagger4` updates 250) | 146 (45.6%) | 137 (42.8%) |
+| neo policy alone; one network alone | 133; 136 | |
+
+The setting was chosen on validation by fixed rules: each change had to add at
+least 4 courses, and the search stopped at 89%. The test margin is small (4
+courses; 95% interval 82.0-89.6%), and counting a course only if every
+platform was a takeoff gives 271 (84.7%): 5 of the 276 skipped one ordinary
+platform's search. The offline bot is checking the first 64 test courses
+before real Minecraft. The bots settle 10 ticks on the start block, so they
+are compared with the simulator from the same settled start; a settled bot
+can take its first jump without a plan (a known difference, 7 of the 64
+courses start with their neo).
 
 ## Codex stopped; handoff to Claude (29 Oct 2026, 12:49, Israel time)
 

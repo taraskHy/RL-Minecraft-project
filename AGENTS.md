@@ -32,6 +32,13 @@ courses; the same network then drives a Mineflayer bot on a real Minecraft
   add opt-in flags instead and run the listed tests.
 - GPU (training PC): at most two training processes at once; above 65 C the
   GPU work pauses (`scripts/gpu_watchdog.py`, a rule from the user).
+- CPU (training PC, the user's rule of 29 Oct): Task Manager's CPU reading at
+  most 85%, and as much work as possible on the GPU. The project's
+  processes run on 10 of the 24 logical cores (affinity mask 0xC03C0F; new
+  processes inherit it from their parent; 11 cores still read up to 90%). The real-Minecraft server and
+  bot are exempt (steady timing, under one core). Runs whose results are
+  compared with CPU results (the planner checks against the CPU simulator)
+  stay on the CPU.
 - After each result: `python -m parkour.report` (refreshes `results/` and the
   handoff snapshot), update `TEAM_STATUS.md`, commit, push. That is for the
   training PC, which has `runs/`; on any other PC (the routing work,

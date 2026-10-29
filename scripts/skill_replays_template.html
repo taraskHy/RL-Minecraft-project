@@ -1,0 +1,1342 @@
+<title>Parkour Skill Replays</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: the honest source label and the kind / block type / recording / course selectors on top; the 3D stage with
+   its event timeline and controls beside the list of courses; the legend of every block kind drawn; below, the
+   recording's facts and its jumps, then the per-kind, own-jump and per-block-type counts of the embedded recordings.
+   Same visual language as Parkour Showcase Replays (scripts/showcase_replays_template.html).
+   Tokens: page colours (both themes), scene colours (blocks, the bot, trails: the same in both themes; sky, fog, light
+   and the hitbox outline follow the theme), overlay colours on the 3D view (the same in both themes, since they sit on
+   the scene). */
+:root {
+  --bg: #e8edf2; --panel: #f9fbfc; --fg: #172029; --muted: #55616d; --line: #d2d9e0; --chip: #eef2f5;
+  --accent: #3b8c3a; --accent-ink: #ffffff; --good: #22783f; --bad: #b3352f; --warn: #946700; --live: #c4601c; --off: #6a4fc0;
+  --swatch-line: rgba(0, 0, 0, 0.18);
+  --font-display: "Silkscreen", "Courier New", monospace;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", Consolas, monospace;
+  /* scene: blocks (start and goal are stone in the game; their colours are this page's) */
+  --blk-start: #17b44a; --blk-goal: #f5c518; --blk-goal-glow: #5a4300; --blk-stone: #8d9094; --blk-stone2: #a3a6a9;
+  --blk-ice: #a9d6f7; --blk-ice-glow: #0d2a3d; --blk-slime: #78c850; --blk-slime-core: #4f9a32; --blk-ladder: #9c6b3b;
+  --blk-roof: #46505e; --blk-wall: #e3dccf; --blk-beam: #fff3a8;
+  /* scene: the shaped blocks, one colour per trained type (configs/block_shapes.json) */
+  --shape-bottom_slab: #c3c6c8; --shape-soul_sand: #5b4434; --shape-dirt_path: #9a7b45; --shape-enchanting_table: #7a2731;
+  --shape-daylight_detector: #c2a878; --shape-bottom_trapdoor: #b88e52; --shape-carpet: #eef0f0; --shape-fence_post: #7f5c30;
+  --shape-wall_post: #6f6f6f; --shape-end_rod: #f2ede2; --shape-end_rod-glow: #4a4536; --shape-other: #b08d5a;
+  /* scene: the bot, its hitbox outline, its trail and the whole path */
+  --bot-skin: #c99b77; --bot-hair: #3b2716; --bot-pants: #3d4aa6; --bot-shoe: #555555; --bot-eyes: #2a3b8f;
+  --hitbox: #e0157f;
+  --trail-live: #ff8a3d; --trail-off: #b18cff; --ghost: #ffffff;
+  /* scene: sky, fog and light (follow the theme) */
+  --sky-top: #5f97e8; --sky-mid: #9cc4ec; --sky-low: #d9ecfb; --fog: #c9e0f6;
+  --light-sky: #ffffff; --light-ground: #6b7a5a; --light-sun: #fff4dd;
+  /* overlays on the 3D view */
+  --hud-fg: #f4f7fa; --hud-dim: #c9d4de; --hud-bg: rgba(10, 16, 22, 0.34); --hud-shadow: rgba(0, 0, 0, 0.75); --tag-bg: rgba(10, 16, 22, 0.55); --keys-bg: rgba(10, 16, 22, 0.42);
+  --key-fg: #dbe4ec; --key-bg: rgba(255, 255, 255, 0.08); --key-line: rgba(255, 255, 255, 0.28); --key-on-fg: #10210f; --key-on-bg: #8fe08b; --cap-fg: #e7eef4;
+  --banner-fg: #ffffff; --banner-bg: rgba(0, 0, 0, 0.5); --banner-success: rgba(26, 112, 56, 0.85); --banner-fell: rgba(165, 45, 40, 0.88); --banner-truncated: rgba(128, 92, 0, 0.88);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1317; --panel: #151c22; --fg: #e5eaef; --muted: #94a1ad; --line: #263039; --chip: #1b242c;
+    --accent: #6cc46a; --accent-ink: #0c1a0c; --good: #5ac487; --bad: #f07a72; --warn: #e0b04a; --live: #f2995a; --off: #b9a2ff;
+    --swatch-line: rgba(255, 255, 255, 0.22);
+    --blk-roof: #75849a;
+    --hitbox: #ff5aa8;
+    --sky-top: #0b1730; --sky-mid: #1f3b63; --sky-low: #47678f; --fog: #2a4466;
+    --light-sky: #dfe6ff; --light-ground: #3d4636; --light-sun: #e9edff;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1317; --panel: #151c22; --fg: #e5eaef; --muted: #94a1ad; --line: #263039; --chip: #1b242c;
+  --accent: #6cc46a; --accent-ink: #0c1a0c; --good: #5ac487; --bad: #f07a72; --warn: #e0b04a; --live: #f2995a; --off: #b9a2ff;
+  --swatch-line: rgba(255, 255, 255, 0.22);
+  --blk-roof: #75849a;
+  --hitbox: #ff5aa8;
+  --sky-top: #0b1730; --sky-mid: #1f3b63; --sky-low: #47678f; --fog: #2a4466;
+  --light-sky: #dfe6ff; --light-ground: #3d4636; --light-sun: #e9edff;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 14px; line-height: 1.5; }
+.wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 18px 28px; max-width: 1500px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+header { display: grid; gap: 4px; min-width: 0; }
+.badge { justify-self: start; margin: 0; font: 600 12px var(--font-body); letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent-ink); background: var(--accent); border-radius: 4px; padding: 3px 10px; max-width: 100%; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: 24px; margin: 0; letter-spacing: 0.02em; text-wrap: balance; }
+.sub { color: var(--muted); margin: 0; max-width: 92ch; }
+.sub b { color: var(--fg); font-weight: 600; }
+.filters { display: flex; flex-wrap: wrap; align-items: end; gap: 10px 16px; min-width: 0; }
+.filters label { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; font: 600 11px var(--font-body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); min-width: 0; max-width: 100%; }
+.filters select { min-width: 0; max-width: 100%; }
+#course { width: min(400px, 100%); }
+.count { font-family: var(--font-mono); font-size: 12px; color: var(--muted); padding-bottom: 6px; }
+select { font: 14px var(--font-body); text-transform: none; letter-spacing: 0; border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 4px; padding: 5px 8px; }
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px; align-items: start; }
+.stage { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; min-width: 0; }
+.box { position: relative; aspect-ratio: 16 / 9; max-width: 100%; background: var(--sky-mid); }
+.box.err { aspect-ratio: auto; }
+.box > .err { position: absolute; left: 12px; right: 12px; top: 50%; transform: translateY(-50%); margin: 0; }
+canvas#c { display: block; width: 100%; height: 100%; }
+canvas#c.orbiting { touch-action: none; cursor: grab; }
+.hud { position: absolute; left: 12px; top: 12px; font-family: var(--font-mono); font-size: 12px; line-height: 1.45; color: var(--hud-fg); text-shadow: 0 1px 2px var(--hud-shadow); display: grid; gap: 1px; pointer-events: none; font-variant-numeric: tabular-nums; max-width: calc(100% - 24px); background: var(--hud-bg); padding: 6px 9px; border-radius: 6px; }
+.hud b { font-family: var(--font-display); font-weight: 400; font-size: 15px; }
+.hud .dim { color: var(--hud-dim); }
+.banner { position: absolute; right: 12px; top: 12px; font: 600 13px var(--font-body); color: var(--banner-fg); padding: 4px 12px; border-radius: 999px; background: var(--banner-bg); }
+.banner.success { background: var(--banner-success); }
+.banner.fell { background: var(--banner-fell); }
+.banner.truncated { background: var(--banner-truncated); }
+.srcTag { position: absolute; right: 12px; bottom: 10px; font: 600 11px var(--font-body); letter-spacing: 0.03em; color: var(--banner-fg); background: var(--tag-bg); border-radius: 4px; padding: 3px 8px; pointer-events: none; }
+.keys { position: absolute; left: 12px; bottom: 10px; display: grid; grid-template-columns: repeat(3, 26px) 6px 58px 52px 46px; grid-template-rows: auto 26px 26px; gap: 3px; padding: 6px 7px 7px; border-radius: 6px; background: var(--keys-bg); pointer-events: none; transform-origin: left bottom; }
+.key { display: grid; place-items: center; font: 600 11px var(--font-mono); color: var(--key-fg); background: var(--key-bg); border: 1px solid var(--key-line); border-radius: 4px; }
+.key.on { color: var(--key-on-fg); background: var(--key-on-bg); border-color: var(--key-on-bg); }
+.key.w { grid-column: 2; grid-row: 2; } .key.a { grid-column: 1; grid-row: 3; } .key.s { grid-column: 2; grid-row: 3; } .key.d { grid-column: 3; grid-row: 3; }
+.key.jump { grid-column: 5; grid-row: 3; } .key.sprint { grid-column: 6; grid-row: 3; } .key.turn { grid-column: 7; grid-row: 2 / span 2; font-size: 10.5px; text-align: center; line-height: 1.2; }
+.keys .cap { grid-column: 1 / -1; grid-row: 1; font: 600 10px var(--font-body); color: var(--cap-fg); letter-spacing: 0.05em; text-transform: uppercase; }
+.timeline { position: relative; height: 44px; border-top: 1px solid var(--line); background: var(--chip); cursor: pointer; touch-action: none; outline: none; }
+.timeline:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+.timeline canvas { display: block; width: 100%; height: 100%; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 12px; border-top: 1px solid var(--line); }
+.btn { font: 600 13px var(--font-body); border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 4px; padding: 5px 12px; cursor: pointer; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); min-width: 72px; }
+.btn.icon { padding: 5px 9px; font-family: var(--font-mono); }
+.btn:focus-visible, .row:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.clock { font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--fg); min-width: 15ch; }
+.grow { flex: 1 1 0; }
+label.meta, .meta { font-family: var(--font-mono); font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 5px; }
+.side { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; display: grid; grid-template-rows: auto minmax(0, 1fr); max-height: 760px; min-width: 0; }
+.side h2 { font-size: 13px; margin: 0; padding: 10px 12px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 8px; }
+.side h2 span { font: 400 12px var(--font-mono); color: var(--muted); }
+.list { overflow-y: auto; }
+.row { width: 100%; display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; text-align: left; padding: 8px 12px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--fg); font: inherit; cursor: pointer; }
+.row:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.row[aria-current="true"] { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.row .sw { width: 10px; height: 10px; border-radius: 2px; border: 1px solid var(--swatch-line); }
+.row .name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .info { grid-column: 2 / -1; color: var(--muted); font-family: var(--font-mono); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.empty { padding: 12px; color: var(--muted); font-size: 13px; }
+.pill { font: 600 11px var(--font-body); padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.pill.success { color: var(--good); } .pill.fell { color: var(--bad); } .pill.truncated { color: var(--warn); }
+.below, .counts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; min-width: 0; }
+.card h3 { margin: 0 0 8px; font-size: 13px; }
+.card h3.next { margin-top: 16px; }
+.card .cap { color: var(--muted); font-size: 12.5px; margin: 6px 0 0; }
+dl.facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 0; font-size: 13px; }
+dl.facts dt { color: var(--muted); }
+dl.facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+dl.facts dd.good { color: var(--good); } dl.facts dd.bad { color: var(--bad); } dl.facts dd.warn { color: var(--warn); }
+.mono { font-family: var(--font-mono); font-size: 12px; }
+ol.jumps { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 340px; overflow-y: auto; font-size: 12.5px; }
+ol.jumps li { display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 3px 6px; border-radius: 4px; }
+ol.jumps li .k { font-family: var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+ol.jumps li .st { font: 600 11px var(--font-body); }
+ol.jumps li[data-added] .d { color: var(--muted); }
+ol.jumps li.done .st { color: var(--good); }
+ol.jumps li.now { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+ol.jumps li.now .st { color: var(--accent); }
+ol.jumps li.failed { background: color-mix(in srgb, var(--bad) 13%, transparent); }
+ol.jumps li.failed .st { color: var(--bad); }
+table.stats { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+table.stats th, table.stats td { text-align: right; padding: 3px 6px; border-bottom: 1px solid var(--line); }
+table.stats th:first-child, table.stats td:first-child { text-align: left; }
+table.stats thead th { color: var(--muted); font-weight: 600; }
+table.stats tbody th { text-align: left; color: var(--muted); font: 600 11px var(--font-body); letter-spacing: 0.05em; text-transform: uppercase; padding-top: 9px; }
+table.stats tfoot td { font-weight: 600; border-bottom: 0; }
+table.stats td .sw { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; border: 1px solid var(--swatch-line); vertical-align: 0; }
+table.stats td .note { color: var(--muted); white-space: nowrap; }
+table.stats td.bad { color: var(--bad); font-weight: 600; }
+.tablebox { overflow-x: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); min-width: 0; }
+.legend .tlkey { flex-basis: 100%; }
+.legend i { display: inline-block; width: 11px; height: 11px; border-radius: 2px; vertical-align: -1px; margin-right: 5px; border: 1px solid var(--swatch-line); }
+.legend i.translucent { opacity: 0.6; }
+.legend i.thin { width: 4px; border-radius: 1px; }
+.legend i.line { height: 3px; vertical-align: 3px; border: 0; }
+.legend i.outline { width: 8px; height: 14px; vertical-align: -3px; background: transparent; border: 1.5px solid; border-radius: 0; }
+.legend .shapes { display: contents; }
+.notes { color: var(--muted); font-size: 12.5px; max-width: 110ch; margin: 0; }
+.notes code { font-family: var(--font-mono); font-size: 11.5px; overflow-wrap: anywhere; }
+.err { margin: 12px; padding: 10px 12px; border: 1px solid var(--bad); color: var(--bad); border-radius: 6px; background: var(--panel); }
+@media (max-width: 960px) { .main, .below, .counts { grid-template-columns: minmax(0, 1fr); } .side { max-height: 340px; } }
+@media (max-width: 640px) {
+  h1 { font-size: 20px; }
+  .filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 10px; }
+  .filters select, #course { width: 100%; }
+  .filters label[for="run"] { grid-column: 1; grid-row: 2; }
+  .filters .count { grid-column: 2; grid-row: 2; align-self: end; padding-bottom: 2px; }
+  .filters label[for="course"] { grid-column: 1 / -1; grid-row: 3; }
+  .box { aspect-ratio: 4 / 5; }
+  .keys { transform: scale(0.74); left: 8px; bottom: 30px; }
+  .hud { font-size: 10.5px; left: 8px; top: 8px; padding: 5px 7px; } .hud b { font-size: 13px; } .hud .opt { display: none; }
+  .banner { right: 8px; top: auto; bottom: 30px; }
+  .srcTag { left: 0; right: 0; bottom: 0; border-radius: 0; text-align: center; padding: 3px 6px; font-size: 10.5px; }
+  table.stats th, table.stats td { padding: 3px 4px; }
+  table.stats td .note { display: block; }
+}
+@media (max-width: 400px) { table.stats { font-size: 12px; } table.stats th, table.stats td { padding: 3px 2px; } }
+@media (prefers-reduced-motion: reduce) { .row, .btn { transition: none; } }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+
+<div class="wrap">
+  <header>
+    <p class="badge" id="badge">Post-training recordings · fresh showcase courses</p>
+    <h1>Parkour skill replays</h1>
+    <p class="sub" id="sub"></p>
+    <p class="sub" id="honest"></p>
+  </header>
+
+  <div class="filters" role="group" aria-label="Choose a recording">
+    <label for="kind">Kind <select id="kind"></select></label>
+    <label for="btype">Block type <select id="btype"></select></label>
+    <label for="run">Recording <select id="run"></select></label>
+    <label for="course">Course <select id="course"></select></label>
+    <span class="count" id="count"></span>
+  </div>
+
+  <div class="main">
+    <section class="stage" aria-label="3D replay">
+      <div class="box" id="box">
+        <canvas id="c" aria-label="3D view of the course and the bot"></canvas>
+        <div class="hud" id="hud"></div>
+        <div class="banner" id="banner" hidden></div>
+        <div class="keys" id="keys" aria-hidden="true">
+          <span class="key w">W</span><span class="key a">A</span><span class="key s">S</span><span class="key d">D</span>
+          <span class="cap">Action this tick</span>
+          <span class="key jump">Space</span><span class="key sprint">Ctrl</span><span class="key turn" id="turnKey">turn<br>0°</span>
+        </div>
+        <div class="srcTag" id="srcTag"></div>
+      </div>
+      <div class="timeline" id="timeline" role="slider" tabindex="0" aria-label="Timeline: recorded tick" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0">
+        <canvas id="tl" aria-hidden="true"></canvas>
+      </div>
+      <div class="controls">
+        <button class="btn primary" id="play" type="button">Pause</button>
+        <button class="btn" id="restart" type="button">Restart</button>
+        <button class="btn icon" id="back" type="button" aria-label="One tick back" title="One tick back (Left arrow)">&#9664;1</button>
+        <button class="btn icon" id="fwd" type="button" aria-label="One tick forward" title="One tick forward (Right arrow)">1&#9654;</button>
+        <span class="clock" id="clock">tick 0 · 0.00 s</span>
+        <span class="grow"></span>
+        <label class="meta" for="speed">Speed
+          <select id="speed"><option value="0.1">0.1x</option><option value="0.25">0.25x</option><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option><option value="4">4x</option></select>
+        </label>
+        <label class="meta" for="cam">Camera
+          <select id="cam"><option value="follow" selected>Follow</option><option value="orbit">Orbit the bot</option><option value="overview">Whole course</option></select>
+        </label>
+        <label class="meta" for="hitbox"><input type="checkbox" id="hitbox" checked> Hitbox</label>
+        <label class="meta" for="trail"><input type="checkbox" id="trail" checked> Trail</label>
+        <label class="meta" for="ghost"><input type="checkbox" id="ghost"> Whole path</label>
+      </div>
+    </section>
+    <aside class="side" aria-label="Courses">
+      <h2>Courses <span id="listCount"></span></h2>
+      <div class="list" id="list"></div>
+    </aside>
+  </div>
+
+  <div class="legend" id="legend" aria-label="What the 3D view shows">
+    <span><i style="background: var(--blk-start)"></i>start platform</span>
+    <span><i style="background: var(--blk-goal)"></i>goal, under a light beam</span>
+    <span><i style="background: var(--blk-stone)"></i>stone platform</span>
+    <span><i style="background: var(--blk-ice)"></i>ice platform</span>
+    <span><i class="translucent" style="background: var(--blk-slime)"></i>slime block (see-through, as in Minecraft)</span>
+    <span id="legendShapes" class="shapes"></span>
+    <span><i class="thin" style="background: var(--blk-ladder)"></i>ladder</span>
+    <span><i class="translucent" style="background: var(--blk-roof)"></i>head-hitter roof (drawn see-through)</span>
+    <span><i style="background: var(--blk-wall)"></i>wall: neo walls and the wall under each ladder</span>
+    <span><i class="outline" style="border-color: var(--hitbox)"></i>the bot’s 0.6 × 1.8 × 0.6 hitbox</span>
+    <span id="legendLive"><i class="line" style="background: var(--trail-live)"></i>trail, real Minecraft</span>
+    <span id="legendOff"><i class="line" style="background: var(--trail-off)"></i>trail, offline physics</span>
+    <span class="tlkey">Start, goal, roofs and walls are stone in the game; their colours and the beam over the goal are this page’s markers. Each shaped block is drawn box by box from its collision shape: fence and wall posts to their collision height, 1.5, with the top half see-through (in the game a post looks 1 block high), and ladders as their 3/16-block collision box (in the game a flat texture on the wall). Not drawn: the structure void that real Minecraft has under every carpet (a block with no collision box); the simulator and the offline bot have air there.</span>
+    <span class="tlkey">Timeline under the view: the coloured band marks ticks in the air, the steps climb with each new platform reached, the bar after the end shows the outcome (green made it, red fell, amber stalled) and the thin line is the shown tick. Drag it, or focus it and use the arrow keys (Shift for 20 ticks), Home, End and Space.</span>
+  </div>
+
+  <div class="below">
+    <section class="card" aria-labelledby="factsTitle">
+      <h3 id="factsTitle">This recording</h3>
+      <dl class="facts" id="facts"></dl>
+    </section>
+    <section class="card" aria-labelledby="jumpsTitle">
+      <h3 id="jumpsTitle">Jumps on this course</h3>
+      <ol class="jumps" id="jumps"></ol>
+      <p class="cap">Each line is the jump from one platform to the next, as the course generator recorded it; the grey lines are the jumps it adds itself (the step onto a runway, the exit off a shaped block or a slime pad). Heights are between the platforms’ tops, so a jump onto or off a shaped block can rise or drop within one block row. The highlighted line follows the bot.</p>
+    </section>
+  </div>
+
+  <div class="counts">
+    <section class="card" aria-labelledby="statsTitle">
+      <h3 id="statsTitle">Courses made, per kind</h3>
+      <div class="tablebox"><table class="stats" id="stats"></table></div>
+      <p class="cap" id="statsCap"></p>
+      <h3 class="next" id="ownTitle">Each kind’s own jumps</h3>
+      <div class="tablebox"><table class="stats" id="ownStats"></table></div>
+      <p class="cap" id="ownCap"></p>
+    </section>
+    <section class="card" aria-labelledby="typesTitle">
+      <h3 id="typesTitle">Shaped platforms, per block type</h3>
+      <div class="tablebox"><table class="stats" id="typeStats"></table></div>
+      <p class="cap" id="typeCap"></p>
+    </section>
+  </div>
+
+  <p class="notes" id="notes"></p>
+</div>
+
+<script type="application/json" id="replay-data">__REPLAY_DATA__</script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+'use strict'
+;(function () {
+const $ = id => document.getElementById(id)
+const DATA = JSON.parse($('replay-data').textContent)
+const TICK_HZ = DATA.tick_hz // 20 ticks per second: time = frame / 20
+const COL = Object.fromEntries(DATA.frame_columns.map((c, i) => [c, i])) // x y z vx vy vz yaw on_ground jump_ticks platform_reached
+const YAW_STEPS = DATA.yaw_steps_degrees
+const KINDS = Object.fromEntries(DATA.kinds.map(k => [k.token, k]))
+const SKILL_KINDS = DATA.kinds.filter(k => k.set === 'skill')
+const TYPE_KINDS = DATA.kinds.filter(k => k.set === 'type')
+const TYPES = DATA.block_types // the trained block types, in the course set's order
+const TYPE = Object.fromEntries(TYPES.map(t => [t.name, t]))
+const FEAT = DATA.features // feature token -> { one, many, about }
+const COURSES = Object.fromEntries(DATA.courses.map(c => [c.id, c]))
+const RUNS = Object.fromEntries(DATA.runs.map(r => [r.run, r]))
+const RUN_IDS = DATA.runs.map(r => r.run)
+const EPS = DATA.episodes
+const ROOT = document.documentElement
+// Every colour is a CSS token (the page's :root), read when it is used, so the view follows the theme.
+function cssVar (name) { const s = getComputedStyle(ROOT); return s.getPropertyValue(name).trim() || s.getPropertyValue('--fg').trim() }
+const plural = (n, w, ws) => `${n} ${n === 1 ? w : (ws || w + 's')}`
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1)
+const listing = xs => xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1]
+const typeLabel = name => TYPE[name] ? TYPE[name].label : name.replace(/_/g, ' ')
+const num = v => String(Math.round(v * 1e4) / 1e4) // block lengths, at most 4 decimals (shapes are in 1/16 blocks)
+const SUP = { '-': '⁻', 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹' }
+// 2.4e-13 as 2.4×10⁻¹³ (no hyphen, so it does not break across lines)
+const sci = v => { if (v === 0) return '0'; const [m, e] = v.toExponential(1).split('e'); return `${m}×10${String(Number(e)).split('').map(ch => SUP[ch]).join('')}` }
+const RUN_LOOK = {
+  live: { name: 'Real Minecraft', short: 'Real MC', inText: 'in real Minecraft', trail: '--trail-live', token: 'live',
+    long: 'real Minecraft 1.21.4: the Mineflayer bot on a local server, driven by the network one game tick at a time',
+    tag: 'Real Minecraft 1.21.4 · recorded on a local server' },
+  offline: { name: 'Offline physics', short: 'Offline', inText: 'offline', trail: '--trail-off', token: 'off',
+    long: 'the bot’s offline physics: the same JavaScript episode loop on prismarine-physics (Minecraft 1.21.4’s movement engine as Mineflayer runs it), no server',
+    tag: 'Offline physics · prismarine-physics, no server' }
+}
+const runLook = r => RUN_LOOK[r] || { name: r, short: r, inText: r, trail: '--fg', token: 'muted', long: r, tag: r }
+const RESULT = { success: 'Made it', fell: 'Fell', truncated: 'Stalled' }
+// The bots' rules (bridge/policy.js Episode, parkour.live --stall 200): the goal counts as reached by the standing
+// rule; a fall is more than one block below the platforms around the bot (or standing on an extra cell); a stall is
+// 200 ticks without reaching a new platform.
+const RESULT_LONG = {
+  success: 'stood on the goal platform: on the ground at its top height with the 0.6 × 0.6 hitbox overlapping its footprint (the bots’ and the simulator’s rule)',
+  fell: 'dropped more than one block below the nearby platforms, which ends the episode',
+  truncated: '200 ticks (10 s) without reaching a new platform, the stall limit'
+}
+const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+const KIND_SW = { 'head-hitter': '--blk-roof', 'hard-head-hitter': '--blk-roof', 'ice-run-up': '--blk-ice', shaped: '--shape-other', slime: '--blk-slime', ladder: '--blk-ladder', neo: '--blk-wall', ice: '--blk-ice' }
+const LEG_ADDED = { runway: 'step onto a runway', exit: 'exit off a shaped block', bounce_exit: 'exit after a bounce' }
+const LEG_ADDED_MANY = { runway: 'steps onto a runway', exit: 'exits off a shaped block', bounce_exit: 'exits after a bounce' }
+
+// ---------- course geometry from the embedded data alone (no 3D library needed) ----------
+// Platforms are [x_min, x_max, z_min, z_max, block_y] with inclusive cells (a cell is the cube from (x, block_y, z) to
+// (x + 1, block_y + 1, z + 1)); course.shapes maps a platform index to a shape of configs/block_shapes.json (every
+// cell of that platform is that block); course.ladders rows are [x, y, z, facing 0-3 = north, east, south, west];
+// course.extra cells are whole stone blocks in the game, with their role (course.extra_roles) and the jump whose spec
+// placed them (course.extra_jumps).
+const FACING = ['north', 'east', 'south', 'west']
+const CUBE = [[0, 0, 0, 1, 1, 1]]
+const shapeTop = name => Math.max(...DATA.shapes[name].boxes.map(b => b[4]))
+const shapeInset = name => Math.min(...DATA.shapes[name].boxes.map(b => b[0])) // the footprints are squares centred in the cell
+const shapeAt = (c, k) => (c.shapes || {})[String(k)] || ''
+const topOf = (c, k) => c.platforms[k][4] + (shapeAt(c, k) ? shapeTop(shapeAt(c, k)) : 1)
+const insetOf = (c, k) => shapeAt(c, k) ? shapeInset(shapeAt(c, k)) : 0
+// "x,y,z" -> collision boxes [x0, y0, z0, x1, y1, z1] in world blocks, stored under the box's own cell (a post's box
+// reaches half a block into the cell above), and the cells the camera may look through (the see-through roofs).
+function courseCells (c) {
+  const cells = new Map(); const seeThrough = new Set()
+  const put = (x, y, z, list) => cells.set(`${x},${y},${z}`, list.map(([x0, y0, z0, x1, y1, z1]) => [x + x0, y + y0, z + z0, x + x1, y + y1, z + z1]))
+  c.platforms.forEach((p, k) => {
+    const shape = shapeAt(c, k)
+    for (let x = p[0]; x <= p[1]; x++) for (let z = p[2]; z <= p[3]; z++) put(x, p[4], z, shape ? DATA.shapes[shape].boxes : CUBE)
+  })
+  ;(c.extra || []).forEach(([x, y, z], i) => { put(x, y, z, CUBE); if ((c.extra_roles || [])[i] === 'roof') seeThrough.add(`${x},${y},${z}`) })
+  for (const [x, y, z, f] of c.ladders || []) put(x, y, z, DATA.shapes['ladder_' + FACING[f]].boxes)
+  return { cells, seeThrough }
+}
+// True when a box top lies at the feet height y under the 0.6 x 0.6 hitbox around (x, z) (strict overlap, as the
+// standing rule). Box tops reach at most 1.5 above their cell's floor, so the cells of rows floor(y) - 1 and floor(y).
+function overBlock (cells, x, y, z) {
+  for (let bx = Math.floor(x - 0.3); bx <= Math.floor(x + 0.3); bx++) {
+    for (let by = Math.floor(y) - 1; by <= Math.floor(y); by++) {
+      for (let bz = Math.floor(z - 0.3); bz <= Math.floor(z + 0.3); bz++) {
+        const list = cells.get(`${bx},${by},${bz}`)
+        if (list && list.some(b => Math.abs(b[4] - y) < 1e-6 && x + 0.3 > b[0] && x - 0.3 < b[3] && z + 0.3 > b[2] && z - 0.3 < b[5])) return true
+      }
+    }
+  }
+  return false
+}
+
+// ---------- the embedded set: per course, its shaped platforms by type; per course and recording, its episode ----------
+for (const c of DATA.courses) {
+  c.typeCount = {}
+  for (const s of Object.values(c.shapes || {})) c.typeCount[s] = (c.typeCount[s] || 0) + 1
+  c.roles = {}
+  for (const r of c.extra_roles || []) c.roles[r] = (c.roles[r] || 0) + 1
+  c.legs = c.legs || c.specs.map(() => 'drawn')
+  c.own_jumps = c.own_jumps || []
+}
+const BY = {} // course id -> run -> episode
+// Grounded frames whose hitbox is over no block top: the physics moves vertically first (at the previous tick's x
+// and z), then sideways, so a tick can land and end past the edge, still on the ground.
+const EDGE = { grounded: 0, past: 0 }
+{
+  const cellsOf = {}
+  for (const e of EPS) {
+    e.c = COURSES[e.course]; e.k = KINDS[e.c.kind]
+    e.label = e.k.levels.length > 1 ? `${e.k.label} · level ${e.c.level} · seed ${e.c.seed}` : `${e.k.label} · seed ${e.c.seed}`
+    ;(BY[e.course] = BY[e.course] || {})[e.run] = e
+    const cc = cellsOf[e.course] || (cellsOf[e.course] = courseCells(e.c).cells)
+    e.past = new Set()
+    e.frames.forEach((f, i) => {
+      if (!f[COL.on_ground]) return
+      EDGE.grounded++
+      if (!overBlock(cc, f[COL.x], f[COL.y], f[COL.z])) { EDGE.past++; e.past.add(i) }
+    })
+  }
+}
+const kindSwatch = c => KINDS[c.kind].set === 'type' ? `--shape-${KINDS[c.kind].block_type}` : (KIND_SW[c.kind] || '--muted')
+function kindOk (c, kind) { return kind === 'all' || (kind === 'types' ? KINDS[c.kind].set === 'type' : c.kind === kind) }
+function typeOk (c, type) { return type === 'all' || !!c.typeCount[type] }
+const typePlatforms = name => DATA.courses.reduce((s, c) => s + (c.typeCount[name] || 0), 0)
+const typeCourses = name => DATA.courses.filter(c => c.typeCount[name]).length
+const hasLive = !!RUNS.live
+let ep = EPS[0] // the recording shown
+let view = [] // the episodes the filters allow
+let t = 0 // the shown time, in ticks (fractional between frames)
+
+// ---------- own jumps (the builder's own_jumps: [feature, j, through]) ----------
+// Jump j goes from platform j to j + 1; reached when the platform reached is at least j (a runway jump: the runway),
+// passed when it is at least through + 1 (a shaped block or a slime pad: the exit platform after it).
+const ownOf = (c, f) => c.own_jumps.filter(o => o[0] === f)
+const featWord = (f, n) => n === 1 ? FEAT[f].one : FEAT[f].many
+function ownTally (courses, f, run) {
+  const x = { n: 0, reached: 0, passed: 0 }
+  for (const c of courses) for (const o of ownOf(c, f)) { const e = BY[c.id][run]; x.n++; if (e.platform_reached >= o[1]) x.reached++; if (e.platform_reached >= o[2] + 1) x.passed++ }
+  return x
+}
+const madeEverywhere = c => RUN_IDS.every(r => BY[c.id][r].success) && BY[c.id][RUN_IDS[0]].sim_success
+function kindOwnText (k) {
+  const cs = DATA.courses.filter(c => c.kind === k.token)
+  return k.features.map(f => {
+    const withOne = cs.filter(c => ownOf(c, f).length)
+    const n = withOne.reduce((s, c) => s + ownOf(c, f).length, 0)
+    if (!n) return `no ${FEAT[f].many} on its ${plural(cs.length, 'course')}`
+    const per = RUN_IDS.map(r => { const x = ownTally(withOne, f, r); return `${x.passed} of ${x.reached} reached ${runLook(r).inText}` })
+    const made = cs.filter(madeEverywhere)
+    const none = made.length && made.every(c => !ownOf(c, f).length) ? `; the ${plural(made.length, 'course')} made in every recording and in the simulator ${made.length === 1 ? 'has' : 'have'} none` : ''
+    const where = withOne.length <= 4 ? ` (${listing(withOne.map(c => c.id))})` : ''
+    return `${n} ${featWord(f, n)} on ${plural(withOne.length, 'course')} of ${cs.length}${where}: passed ${listing(per)}${none}`
+  }).join('. ')
+}
+function courseOwnText (e) {
+  const parts = e.k.features.map(f => {
+    const os = ownOf(e.c, f)
+    if (!os.length) return ''
+    const items = os.map(o => {
+      const r = e.platform_reached
+      const st = r >= o[2] + 1 ? 'passed' : r < o[1] ? 'not reached' : (e.result === 'fell' ? 'fell here' : 'stalled here') + (o[2] > o[1] && r > o[1] ? ' (on the exit)' : '')
+      return `${o[1]} → ${o[1] + 1} ${st}`
+    })
+    return `${plural(os.length, FEAT[f].one, FEAT[f].many)}: ${listing(items)}`
+  }).filter(Boolean)
+  return parts.length ? parts.join('; ') : `none on this course (${listing(e.k.features.map(f => FEAT[f].many))})`
+}
+
+// ---------- header and honest labels, from the embedded data ----------
+{
+  const nC = DATA.courses.length; const fams = listing(DATA.course_set.families.map(String))
+  const where = hasLive && RUNS.offline ? 'recorded in <b>real Minecraft 1.21.4</b> and in the bot’s <b>offline physics</b>'
+    : hasLive ? 'recorded in <b>real Minecraft 1.21.4</b>' : 'recorded in the bot’s <b>offline physics</b> (no real-Minecraft recording on this page)'
+  $('sub').innerHTML = `One network plays ${nC} fresh courses of the skills added after levels 0-5, each ${where}, animated tick by tick.`
+  $('honest').textContent = `Seed families ${fams}, never used to train, choose or test a policy; not benchmark results. Every course is shown, failures included.`
+  if (!hasLive) $('legendLive').hidden = true
+  if (!RUNS.offline) $('legendOff').hidden = true
+}
+
+// ---------- jump descriptions from the course itself (spec keys: parkour/courses.py JumpSpec.key) ----------
+// g<gap>_dy<target block row minus takeoff block row>_l<sideways>_s<along>x<across>[_neo<n><R|L>[w<cell>]][_run<runway>][_hh<1|2>][_ice1][_b<shape>][_slime<up>][_ladder]
+// Heights come from the platforms' tops (a shaped block's own top), gaps from the cell gap plus the shapes' insets.
+const SPEC = /^g(-?\d+)_dy(-?\d+)_l(-?\d+)_s(\d+)x(\d+)(?:_neo(\d)([RL])(?:w(\d+))?)?(?:_run(\d+))?(?:_hh(\d))?(?:_ice(\d))?(?:_b([a-z_]+?))?(?:_slime(\d+))?(_ladder)?$/
+const NEO = { 1: 'neo', 2: 'double neo', 3: 'triple neo' }
+function cellsOfJump (c, j, role) { return (c.extra || []).filter((e, i) => (c.extra_jumps || [])[i] === j && (c.extra_roles || [])[i] === role) }
+function describeJump (c, j) {
+  const key = c.specs[j]
+  const m = SPEC.exec(key)
+  if (!m) return key
+  const [, g, dy, l, a, b, neo, side, wall, run, hh, ice, block, slime, ladder] = m
+  const leg = c.legs[j]
+  const parts = []
+  if (leg === 'runway') parts.push('step onto the runway of the next jump (added by the generator)')
+  if (leg === 'exit') parts.push(`exit off the ${typeLabel(shapeAt(c, j))} (added by the generator)`)
+  if (leg === 'bounce_exit') parts.push('exit after the bounce (added by the generator)')
+  const gap = Number(g); const inset = insetOf(c, j) + insetOf(c, j + 1)
+  parts.push((gap ? `${gap}-block gap` : 'no gap') + (inset ? ` (${num(gap + inset)} between the blocks’ edges)` : ''))
+  const rows = Number(dy); const rise = topOf(c, j + 1) - topOf(c, j)
+  const riseText = Math.abs(rise) < 1e-9 ? 'level' : `${num(Math.abs(rise))} ${rise > 0 ? 'up' : 'down'}`
+  const shaped = !!(shapeAt(c, j) || shapeAt(c, j + 1))
+  parts.push(shaped ? `${riseText} (${rows === 0 ? 'same block row' : `${plural(Math.abs(rows), 'block row')} ${rows > 0 ? 'up' : 'down'}`})` : riseText)
+  if (Number(l)) parts.push(`${Math.abs(Number(l))} sideways`)
+  parts.push(`${a}×${b} ${leg === 'runway' ? 'runway' : 'target'}`)
+  if (neo) {
+    const ys = cellsOfJump(c, j, 'neo').map(e => e[1])
+    const high = ys.length ? `a ${Math.max(...ys) - c.platforms[j][4]}-high wall` : 'a wall'
+    parts.push(`${NEO[neo] || 'neo ' + neo}: around ${high} on the ${side === 'R' ? 'right' : 'left'}` + (wall ? ` (in gap cell ${wall})` : ''))
+  }
+  if (run) parts.push(`after a ${run}-block runway`)
+  if (hh) {
+    const ys = cellsOfJump(c, j, 'roof').map(e => e[1])
+    const air = ys.length ? ` ${plural(Math.min(...ys) - topOf(c, j), 'block')} above` : ' over'
+    parts.push(`head hitter: a roof${air} the runway` + (Number(hh) >= 2 ? ', continued over the gap' : ''))
+  }
+  if (Number(ice)) parts.push('the runway is ice')
+  if (block) parts.push(`onto a ${typeLabel(block)}`)
+  if (slime) parts.push(`onto a slime pad, bouncing to an exit ${slime} up`)
+  if (ladder) parts.push('up a ladder on the wall')
+  return parts.join(' · ')
+}
+
+// ---------- panels ----------
+function option (sel, value, text) { const o = document.createElement('option'); o.value = value; o.textContent = text; sel.appendChild(o); return o }
+function group (sel, label) { const g = document.createElement('optgroup'); g.label = label; sel.appendChild(g); return g }
+function fact (dl, k, v, cls) { const dt = document.createElement('dt'); dt.textContent = k; const dd = document.createElement('dd'); dd.textContent = v; if (cls) dd.className = cls; dl.append(dt, dd) }
+function replayText (e) {
+  if (e.replay_max_pos_err === null || e.replay_max_pos_err === undefined) return 'not available'
+  if (e.replay_first_divergence === null || e.replay_first_divergence === undefined) {
+    return `the recorded actions, replayed in the Python simulator from the recorded start state, give the same position on all ${e.ticks} ticks (largest difference ${sci(e.replay_max_pos_err)} blocks)`
+  }
+  return `replayed in the Python simulator from the recorded start state, the position first differs by more than 10⁻⁶ blocks at tick ${e.replay_first_divergence + 1}; largest difference ${e.replay_max_pos_err.toPrecision(3)} blocks`
+}
+function blocksText (c) {
+  const parts = [plural(c.platforms.length, 'platform') + ' (the start is platform 0)']
+  const ice = c.ice || []; const slime = c.slime || []
+  const which = ks => `${ks.length === 1 ? 'platform' : 'platforms'} ${ks.join(', ')}`
+  if (ice.length) parts.push(`ice: ${which(ice)}`)
+  else if (c.kind === 'ice') parts.push('no ice on this one (each platform after the start is ice with a 30% chance)')
+  if (slime.length) parts.push(`slime: ${which(slime)}`)
+  const byType = {}
+  for (const [k, s] of Object.entries(c.shapes || {})) (byType[s] = byType[s] || []).push(k)
+  for (const [s, ks] of Object.entries(byType)) parts.push(`${typeLabel(s)}: ${which(ks)}`)
+  if ((c.ladders || []).length) parts.push(plural(c.ladders.length, 'ladder block'))
+  if (c.roles.roof) parts.push(plural(c.roles.roof, 'head-hitter roof block'))
+  if (c.roles.neo) parts.push(plural(c.roles.neo, 'neo wall block'))
+  if (c.roles.ladder) parts.push(plural(c.roles.ladder, 'wall block') + ' under the ladders')
+  if (!(c.extra || []).length) parts.push('no extra blocks')
+  return parts.join('; ')
+}
+// The course's jumps: those drawn from the level tables and those the generator added, and why it stopped early.
+function legsText (c) {
+  const cs = DATA.course_set; const drawn = c.legs.filter(k => k === 'drawn').length
+  const added = Object.keys(LEG_ADDED).map(k => [k, c.legs.filter(x => x === k).length]).filter(([, n]) => n)
+  const nAdded = added.reduce((s, [, n]) => s + n, 0)
+  let s = `${plural(c.legs.length, 'jump')} from platform to platform: ${drawn} drawn from the level tables`
+  if (nAdded) s += `, ${nAdded} added by the generator (${listing(added.map(([k, n]) => n === 1 ? `1 ${LEG_ADDED[k]}` : `${n} ${LEG_ADDED_MANY[k]}`))})`
+  if (drawn < cs.jumps) s += `; the generator asks for ${cs.jumps} and stopped ${c.platforms.length >= cs.max_platforms ? `at its ${cs.max_platforms}-platform limit` : 'when no further jump fitted (30 tries)'}`
+  return s
+}
+function renderFacts () {
+  const dl = $('facts'); dl.innerHTML = ''
+  const c = ep.c; const n = c.platforms.length - 1
+  fact(dl, 'Kind', ep.k.set === 'type' ? `${ep.k.label} (one block type per course): ${ep.k.about}` : `${ep.k.label}: ${ep.k.about}`)
+  fact(dl, 'Course', `${c.id}: level ${c.level}, seed family ${c.family}, seed ${c.seed}; ${legsText(c)}`)
+  fact(dl, 'Recording', runLook(ep.run).long)
+  fact(dl, 'Outcome', `${RESULT[ep.result]}: ${RESULT_LONG[ep.result]}`, ep.result === 'success' ? 'good' : ep.result === 'fell' ? 'bad' : 'warn')
+  fact(dl, 'Reached', `platform ${ep.platform_reached} of ${n}`)
+  fact(dl, 'Length', `${ep.ticks} ticks, ${(ep.ticks / TICK_HZ).toFixed(2)} s`)
+  fact(dl, 'Simulator', ep.sim_success ? `made it on the same course (${ep.sim_ticks} ticks)` : `did not make it on the same course (its episode ended at tick ${ep.sim_ticks})`, ep.sim_success ? 'good' : 'bad')
+  for (const r of DATA.runs) {
+    const o = BY[ep.course][r.run]
+    if (o && o !== ep) fact(dl, runLook(r.run).name, `${RESULT[o.result].toLowerCase()} on the same course, platform ${o.platform_reached} of ${n}, ${o.ticks} ticks`, o.success ? 'good' : o.result === 'fell' ? 'bad' : 'warn')
+  }
+  fact(dl, 'Own jumps here', courseOwnText(ep))
+  fact(dl, 'Own jumps, kind', `${cap(ep.k.label)}: ${kindOwnText(ep.k)}`)
+  fact(dl, 'Replay check', replayText(ep))
+  if (ep.run === 'live') {
+    const k = ep.server_corrections
+    fact(dl, 'Server corrections', k === null || k === undefined ? 'not recorded' : k === 0 ? '0 (the server never moved the bot; it accepted every tick)' : `${k} (times the server moved the bot during the episode)`)
+  }
+  fact(dl, 'Blocks', blocksText(c))
+  fact(dl, 'Link', `add #${c.id} to this page’s address for this course, or #${ep.id} for this recording`)
+}
+function renderJumps () {
+  const ol = $('jumps'); ol.innerHTML = ''
+  ep.c.specs.forEach((key, k) => {
+    const li = document.createElement('li')
+    li.innerHTML = '<span class="k"></span><span class="d"></span><span class="st"></span>'
+    li.querySelector('.k').textContent = `${k} → ${k + 1}`
+    li.querySelector('.d').textContent = describeJump(ep.c, k)
+    if (ep.c.legs[k] !== 'drawn') li.dataset.added = ep.c.legs[k]
+    li.title = key
+    ol.appendChild(li)
+  })
+  markedAt = ''
+  markJumps(0)
+}
+let markedAt = ''
+function markJumps (reached) {
+  const atEnd = Math.floor(t) >= ep.frames.length - 1
+  const key = `${ep.id}:${reached}:${atEnd}`
+  if (key === markedAt) return
+  markedAt = key
+  ;[...$('jumps').children].forEach((li, k) => {
+    li.className = ''
+    const st = li.querySelector('.st'); st.textContent = ''
+    if (k < reached) { li.className = 'done'; st.textContent = 'made' } else if (k === reached && !(atEnd && ep.result === 'success')) {
+      if (atEnd && ep.result !== 'success') { li.className = 'failed'; st.textContent = ep.result === 'fell' ? 'fell here' : 'stalled here' } else { li.className = 'now'; st.textContent = 'next' }
+    }
+  })
+  const now = $('jumps').querySelector('.now, .failed')
+  if (now) keepVisible($('jumps'), now)
+}
+// Scrolls a list box (not the page) so that el is in view.
+function keepVisible (box, el) {
+  const b = box.getBoundingClientRect(); const r = el.getBoundingClientRect()
+  if (r.top < b.top) box.scrollTop -= b.top - r.top
+  else if (r.bottom > b.bottom) box.scrollTop += r.bottom - b.bottom
+}
+// Counts from the embedded recordings only.
+function renderStats () {
+  const runs = RUN_IDS
+  const ids = pred => DATA.courses.filter(pred).map(c => c.id)
+  const made = (list, run) => list.filter(id => BY[id][run].success).length
+  const sim = list => list.filter(id => BY[id][runs[0]].sim_success).length // the simulator plays each course once; every run carries it
+  const agree = list => list.filter(id => new Set(runs.map(r => BY[id][r].success).concat([BY[id][runs[0]].sim_success])).size === 1).length
+  const sw = v => `<span class="sw" style="background: var(${v})"></span>`
+  const cells = list => `<td>${list.length}</td>` + runs.map(r => `<td>${made(list, r)}</td>`).join('') + `<td>${sim(list)}</td><td>${agree(list)}</td>`
+  const runHeads = runs.map(r => `<th>${runLook(r).short}</th>`).join('')
+  const kindRow = k => `<tr><td>${sw(kindSwatch(COURSES[ids(c => c.kind === k.token)[0]]))}${k.label}</td>${cells(ids(c => c.kind === k.token))}</tr>`
+  const span = 4 + runs.length // kind, courses, one column per recording, simulator, agree
+  $('stats').innerHTML = `<thead><tr><th>Kind</th><th>Courses</th>${runHeads}<th>Sim.</th><th>Agree</th></tr></thead><tbody>` +
+    `<tr><th colspan="${span}">Skills added after levels 0-5</th></tr>` + SKILL_KINDS.map(kindRow).join('') +
+    (TYPE_KINDS.length ? `<tr><th colspan="${span}">One block type per course</th></tr>` + TYPE_KINDS.map(kindRow).join('') : '') +
+    `</tbody><tfoot><tr><td>All</td>${cells(ids(() => true))}</tr></tfoot>`
+  const frames = EPS.reduce((s, e) => s + e.frames.length, 0)
+  $('statsCap').textContent = `Courses made, counted from the ${EPS.length} recordings embedded here (${frames.toLocaleString('en')} frames) only: ` +
+    listing(runs.map(r => { const s = runLook(r).name; return s.charAt(0).toLowerCase() + s.slice(1) })) + ', and the training simulator on the same courses (Sim.); Agree counts courses with the same outcome everywhere. ' +
+    'A course mixes the kind’s own jumps with easier ones, so a course made or missed says little about the kind’s own jumps: the next table counts those. Showcase counts on a few fresh courses per kind, not test scores.'
+  // Each kind's own jumps: passed / reached per recording.
+  const ownRow = (k, f, label) => {
+    const cs = DATA.courses.filter(c => c.kind === k.token)
+    const n = cs.reduce((s, c) => s + ownOf(c, f).length, 0)
+    const runCells = runs.map(r => { const x = ownTally(cs, f, r); return `<td class="${x.passed < x.reached ? 'bad' : ''}">${x.passed}/${x.reached}</td>` }).join('')
+    return `<tr><td>${sw(kindSwatch(cs[0]))}${label}</td><td>${n}</td><td>${cs.filter(c => ownOf(c, f).length).length}</td>${runCells}</tr>`
+  }
+  const span2 = 3 + runs.length
+  $('ownStats').innerHTML = `<thead><tr><th>Kind · own jump</th><th>Jumps</th><th>Courses</th>${runHeads}</tr></thead><tbody>` +
+    `<tr><th colspan="${span2}">Skills added after levels 0-5</th></tr>` +
+    SKILL_KINDS.flatMap(k => k.features.map(f => ownRow(k, f, `${k.label} · ${FEAT[f].many}`))).join('') +
+    (TYPE_KINDS.length ? `<tr><th colspan="${span2}">One block type per course</th></tr>` + TYPE_KINDS.flatMap(k => k.features.map(f => ownRow(k, f, `${cap(typeLabel(k.block_type))} landings`))).join('') : '') +
+    '</tbody>'
+  const used = [...new Set(DATA.kinds.flatMap(k => k.features))]
+  $('ownCap').textContent = `Per recording, passed / reached: a jump counts as reached when the bot stood on its takeoff (a runway jump: on the runway), and as passed when it reached the next platform (a shaped block or a slime pad: the exit platform after it), from the recorded platform reached; red where the bot missed one. Jumps: on the kind’s courses; Courses: how many of them have one. ` +
+    used.map(f => `${cap(FEAT[f].many)}: ${FEAT[f].about}`).join('. ') + '. The simulator’s summary records only its outcome and length per course, so it has no column here.'
+  const typeCells = list => `<td>${list.length}</td>` + runs.map(r => `<td>${made(list, r)}</td>`).join('') + `<td>${sim(list)}</td>`
+  const typeRow = x => `<tr><td>${sw('--shape-' + x.name)}${cap(x.label)} <span class="note">· ${x.spec_count} specs</span></td><td>${typePlatforms(x.name)}</td>${typeCells(ids(c => c.typeCount[x.name]))}</tr>`
+  $('typeStats').innerHTML = `<thead><tr><th>Block type</th><th>Platforms</th><th>Courses</th>${runHeads}<th>Sim.</th></tr></thead><tbody>` +
+    TYPES.map(typeRow).join('') +
+    `</tbody><tfoot><tr><td>All types <span class="note">· ${TYPES.reduce((s, x) => s + x.spec_count, 0)} specs</span></td><td>${TYPES.reduce((s, x) => s + typePlatforms(x.name), 0)}</td>${typeCells(ids(c => Object.keys(c.typeCount).length))}</tr></tfoot>`
+  const sl = DATA.shaped_level
+  $('typeCap').textContent = `Specs: the jumps onto that type among the ${sl.specs} of the shaped-blocks level (global level ${sl.global}, level ${sl.local_in_extra_file} of configs/jump_levels_extra.json) the policy trained on. ` +
+    `Platforms: shaped platforms of that type on all ${DATA.courses.length} courses; Courses: the courses with at least one, of every kind (easier levels mix into each course, so slime and ladder courses have some too); a course with two types counts in both rows and once in All types. ` +
+    'Then how many of those courses each recording and the simulator completed. Counted from the embedded data only.'
+}
+function renderNotes () {
+  const p = DATA.policy; const cset = DATA.course_set
+  const runs = DATA.runs.map(r => `${runLook(r.run).name}: <code>${r.dir}</code> (${r.mode}; ${r.courses} courses in ${Math.round(r.wall_seconds)} s; ` +
+    `replay of every episode in the Python simulator: ${r.replay_exact_episodes} of ${r.courses} within 10⁻⁶ blocks on every tick, largest difference ${sci(r.replay_max_pos_err)} blocks)`).join('; ')
+  const famText = `families ${cset.families[0]} (the extra kinds and the advanced levels), ${cset.families[1]} (the ice courses) and ${cset.families[2]} (one block type per course: type k of the shaped-blocks level, k = 0 to ${TYPES.length - 1} in the order ${TYPES.map(x => x.name).join(', ')}, from the stream default_rng([2026, ${cset.families[2]}, k]), on a copy of the level table whose shaped level keeps only that type’s jumps)`
+  const skill = SKILL_KINDS.map(k => `${k.label.toLowerCase()} (${DATA.courses.filter(c => c.kind === k.token).length})`)
+  const nType = DATA.courses.filter(c => KINDS[c.kind].set === 'type').length
+  const drawn = DATA.courses.map(c => c.legs.filter(k => k === 'drawn').length); const legs = DATA.courses.map(c => c.legs.length)
+  $('notes').innerHTML = `Policy: <code>${p.file}</code> (sha256 <code>${p.sha256}</code>), the distilled student <code>${p.run}</code> at iteration ${p.iteration}, chosen by ${p.selection} (<code>${p.provenance}</code>). The skills shown are the ones added after levels 0-5 and obstacles, which the earlier <code>results/final_policy.pt</code> covers. ` +
+    `Courses: <code>${cset.file}</code> (sha256 <code>${cset.sha256}</code>), fixed by <code>${cset.builder}</code>: ${cset.fixed}. ` +
+    `The first ${cset.first_courses} are ${listing(skill)}; the other ${nType} have one trained block type each (${TYPE_KINDS.length ? TYPE_KINDS[0].seeds : 0} per type: ${listing(TYPES.map(x => x.label))}). ` +
+    `They are built as <code>parkour.train.skill_sets</code> builds each group’s held-out courses, no obstacles, from seed ${famText}. ` +
+    `The generator draws up to ${cset.jumps} jumps per course and stops at ${cset.max_platforms} platforms or when no jump fits; it adds a step onto the runway before every runway jump and an exit jump after every shaped block and slime pad, so these courses have ${Math.min(...drawn)} to ${Math.max(...drawn)} drawn jumps and ${Math.min(...legs)} to ${Math.max(...legs)} platform-to-platform jumps. ` +
+    `Recordings made with <code>parkour.live --courses-file</code>: ${runs}. ` +
+    'Every frame is drawn at the recorded feet position, with the recorded velocity and state (Y up, one unit per block, 20 ticks per second, rounded to 6 decimals here): frame 0 is the start state, frame t + 1 the state after the action of tick t. ' +
+    'The facing, a compass bearing (0° north, −Z; 90° east, +X), is reconstructed: the start facing plus each action’s turn (a positive step turns left), wrapped after every turn as the bots do. ' +
+    'The platform reached is reconstructed with the bots’ standing rule: on the ground at a platform’s top height with the 0.6 × 0.6 hitbox overlapping its footprint (a shaped block’s own top and footprint); any overlap counts, so a ladder climb ends as the bot steps from the ladder’s top onto the goal’s edge. ' +
+    'The bot is drawn inside its 0.6 × 1.8 × 0.6 hitbox (the outline), the box the physics collides and stands on; the figure is narrower than that box. The figure’s lowest point is at the recorded feet height on every frame, and its legs swing with the recorded speed only while the replay plays. ' +
+    `The physics moves vertically first, at the previous tick’s x and z, and then sideways, so a tick can land on a block and end past its edge, still on the ground: ${EDGE.past.toLocaleString('en')} of the ${EDGE.grounded.toLocaleString('en')} grounded frames here (the readouts say so on those ticks). ` +
+    'Blocks are drawn where the bots’ physics has them; the roles of the extra blocks (roof, neo wall, wall under a ladder) and the jumps that placed them come from rebuilding them from each course’s own jump specs. Real Minecraft also has a structure void under every carpet platform, which keeps vanilla Minecraft from breaking a carpet with air below it; it has no collision box and is not drawn, and the simulator and the offline bot have air there. ' +
+    'Between ticks the view interpolates the position and turns the shortest way. The readouts show the current tick’s recorded position, velocity and ground state; the facing and the platform are reconstructed as described above. Nothing is simulated in this page, and every outcome is as recorded, failures included.'
+}
+function renderLegendShapes () {
+  const box = $('legendShapes'); box.innerHTML = ''
+  for (const x of TYPES) {
+    const s = document.createElement('span'); const i = document.createElement('i')
+    const shape = DATA.shapes[x.name]
+    const w = Math.max(...shape.boxes.map(b => b[3])) - Math.min(...shape.boxes.map(b => b[0]))
+    const pct = Math.round(100 * Math.min(1, x.top))
+    i.style.background = `linear-gradient(to top, var(--shape-${x.name}) ${pct}%, transparent ${pct}%)`
+    if (w < 1) i.style.width = `${Math.max(3, Math.round(11 * w))}px`
+    s.append(i, `${x.label} (top ${x.top})`)
+    box.appendChild(s)
+  }
+}
+
+// ---------- filters and the list ----------
+function fillFilters () {
+  const ks = $('kind'); ks.innerHTML = ''
+  option(ks, 'all', `All kinds (${plural(DATA.courses.length, 'course')})`)
+  const g1 = group(ks, 'Skills added after levels 0-5')
+  for (const k of SKILL_KINDS) option(g1, k.token, `${k.label} (${DATA.courses.filter(c => c.kind === k.token).length})`)
+  if (TYPE_KINDS.length) {
+    const g2 = group(ks, `One block type per course (seed family ${TYPE_KINDS[0].family})`)
+    option(g2, 'types', `All block-type courses (${DATA.courses.filter(c => kindOk(c, 'types')).length})`)
+    for (const k of TYPE_KINDS) option(g2, k.token, `${k.label} (${DATA.courses.filter(c => c.kind === k.token).length})`)
+  }
+  const ts = $('btype'); ts.innerHTML = ''
+  option(ts, 'all', 'Any block')
+  const g3 = group(ts, 'Courses with a platform of this type')
+  for (const x of TYPES) option(g3, x.name, `${cap(x.label)} · ${plural(typePlatforms(x.name), 'platform')} on ${plural(typeCourses(x.name), 'course')}`)
+  const rs = $('run'); rs.innerHTML = ''
+  for (const r of DATA.runs) option(rs, r.run, runLook(r.run).name)
+}
+// pick(e) opens a recording; withRun names the recording in each row (the list without the 3D view holds both).
+function renderList (type, pick, withRun) {
+  const box = $('list'); box.innerHTML = ''
+  if (!view.length) { box.innerHTML = '<p class="empty">No course matches these filters.</p>'; return }
+  for (const e of view) {
+    const b = document.createElement('button'); b.className = 'row'; b.type = 'button'; b.setAttribute('aria-current', String(e === ep))
+    b.innerHTML = '<span class="sw"></span><span class="name"></span><span class="pill"></span><span class="info"></span>'
+    b.querySelector('.sw').style.background = `var(${kindSwatch(e.c)})`
+    b.querySelector('.name').textContent = (withRun ? runLook(e.run).short + ' · ' : '') + e.label
+    const pill = b.querySelector('.pill'); pill.classList.add(e.result); pill.textContent = RESULT[e.result]
+    const extra = type && type !== 'all' ? ` · ${plural(e.c.typeCount[type], typeLabel(type) + ' platform')}` : ''
+    b.querySelector('.info').textContent = `platform ${e.platform_reached}/${e.c.platforms.length - 1} · ${e.ticks} ticks · ${(e.ticks / TICK_HZ).toFixed(2)} s · simulator ${e.sim_success ? 'made it' : 'did not'}${extra}`
+    b.onclick = () => pick(e)
+    box.appendChild(b)
+  }
+}
+function markRow () {
+  const rows = $('list').querySelectorAll('.row')
+  rows.forEach(row => row.setAttribute('aria-current', 'false'))
+  const idx = view.indexOf(ep)
+  if (idx >= 0 && rows[idx]) { rows[idx].setAttribute('aria-current', 'true'); keepVisible($('list'), rows[idx]) }
+}
+// A bare token in the link: a course id (slime-1, shaped-carpet-0: played in the first recording) or an episode id
+// (slime-1-offline).
+function fromHash () {
+  let tok = ''
+  try { tok = decodeURIComponent((location.hash || '').slice(1)) } catch (err) { return null }
+  if (!tok) return null
+  return EPS.find(e => e.id === tok) || (BY[tok] ? (DATA.runs.map(r => BY[tok][r.run]).find(Boolean) || null) : null)
+}
+
+// ---------- the view without the 3D library: the recording details and the list stay available ----------
+if (typeof THREE === 'undefined') {
+  $('box').textContent = 'The 3D library could not load. Connect to the internet and reload for playback; the recording details remain available below.'
+  $('box').classList.add('err')
+  for (const el of document.querySelectorAll('.controls button, .controls select, .controls input, #kind, #btype, #run')) el.disabled = true
+  $('play').textContent = 'Play'
+  $('timeline').hidden = true
+  view = EPS.slice()
+  const show = e => { ep = e; renderFacts(); renderJumps(); $('course').value = e.id; markRow() }
+  for (const e of EPS) option($('course'), e.id, `${runLook(e.run).name} · ${e.label} · ${RESULT[e.result]}`)
+  $('course').onchange = () => show(EPS.find(e => e.id === $('course').value))
+  $('listCount').textContent = `${EPS.length} recordings`
+  fillFilters(); renderStats(); renderNotes(); renderLegendShapes(); renderList('all', show, true); show(fromHash() || EPS[0])
+  return
+}
+
+// ---------- pixel textures (16x16, nearest filtering), as in Parkour Bot Theatre ----------
+function rng (seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296) }
+function pixelTexture (base, vary, seed, pattern) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 16
+  const g = cv.getContext('2d'); const r = rng(seed); const c = new THREE.Color(base)
+  for (let y = 0; y < 16; y++) {
+    for (let x = 0; x < 16; x++) {
+      let k = 1 + (r() - 0.5) * vary
+      if (pattern === 'ore' && r() < 0.06) k *= 1.35
+      if (pattern === 'stone' && r() < 0.12) k *= 0.84
+      if ((pattern === 'stone' || pattern === 'edge') && (x === 0 || y === 0 || x === 15 || y === 15)) k *= 0.84
+      if (pattern === 'quartz' && (y % 8 === 0)) k *= 0.93
+      if (pattern === 'gold' && (x + y) % 7 === 0) k *= 1.18
+      if (pattern === 'ice' && ((x * 3 + y * 5) % 11 === 0 || (x - y + 16) % 13 === 0)) k *= 1.12
+      if (pattern === 'slime' && (x === 0 || y === 0 || x === 15 || y === 15)) k *= 0.8
+      if (pattern === 'ladder') k *= (x <= 2 || x >= 13) ? 0.78 : (y % 4 === 1 ? 1.12 : 0.5)
+      if (pattern === 'wood' && (y % 4 === 0)) k *= 0.82
+      g.fillStyle = `rgb(${Math.min(255, c.r * 255 * k)},${Math.min(255, c.g * 255 * k)},${Math.min(255, c.b * 255 * k)})`
+      g.fillRect(x, y, 1, 1)
+    }
+  }
+  const t = new THREE.CanvasTexture(cv); t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter
+  return t
+}
+// Shaped blocks: a texture pattern per type (the colour is the type's token); the boxes are their collision shapes.
+const SHAPE_PATTERN = { bottom_slab: 'stone', soul_sand: 'ore', dirt_path: 'edge', enchanting_table: 'edge', daylight_detector: 'wood', bottom_trapdoor: 'wood', carpet: 'edge', fence_post: 'wood', wall_post: 'stone', end_rod: 'edge' }
+const MATS = {}
+function mat (key) {
+  if (MATS[key]) return MATS[key]
+  const tex = (v, vary, seed, pattern) => pixelTexture(cssVar(v), vary, seed, pattern)
+  let m
+  if (key === 'start') m = new THREE.MeshLambertMaterial({ map: tex('--blk-start', 0.25, 7, 'ore') })
+  else if (key === 'goal') m = new THREE.MeshLambertMaterial({ map: tex('--blk-goal', 0.22, 11, 'gold'), emissive: new THREE.Color(cssVar('--blk-goal-glow')) })
+  else if (key === 'wall') m = new THREE.MeshLambertMaterial({ map: tex('--blk-wall', 0.08, 13, 'quartz') })
+  else if (key === 'roof') m = new THREE.MeshLambertMaterial({ map: tex('--blk-roof', 0.1, 17, 'stone'), transparent: true, opacity: 0.5, depthWrite: false })
+  else if (key === 'ice') m = new THREE.MeshLambertMaterial({ map: tex('--blk-ice', 0.1, 19, 'ice'), emissive: new THREE.Color(cssVar('--blk-ice-glow')) })
+  else if (key === 'slime') m = new THREE.MeshLambertMaterial({ map: tex('--blk-slime', 0.12, 29, 'slime'), transparent: true, opacity: 0.58, depthWrite: false })
+  else if (key === 'slimeCore') m = new THREE.MeshLambertMaterial({ map: tex('--blk-slime-core', 0.12, 31, 'edge') })
+  else if (key === 'ladder') m = new THREE.MeshLambertMaterial({ map: tex('--blk-ladder', 0.1, 37, 'ladder') })
+  else if (key === 'stone0') m = new THREE.MeshLambertMaterial({ map: tex('--blk-stone', 0.18, 23, 'stone') })
+  else if (key === 'stone1') m = new THREE.MeshLambertMaterial({ map: tex('--blk-stone2', 0.18, 41, 'stone') })
+  else if (key.startsWith('shape:') || key.startsWith('shapeTop:')) {
+    // shapeTop: the part of a box above its cell (a post's top half block), see-through as in the game's look.
+    const top = key.startsWith('shapeTop:'); const name = key.slice(top ? 9 : 6); const known = name in SHAPE_PATTERN
+    m = new THREE.MeshLambertMaterial({ map: tex(known ? `--shape-${name}` : '--shape-other', 0.12, 43 + name.length, SHAPE_PATTERN[name] || 'edge') })
+    if (name === 'end_rod') m.emissive = new THREE.Color(cssVar('--shape-end_rod-glow'))
+    if (top) { m.transparent = true; m.opacity = 0.35; m.depthWrite = false }
+  }
+  MATS[key] = m
+  return m
+}
+function dropMaterials () { for (const k of Object.keys(MATS)) { if (MATS[k].map) MATS[k].map.dispose(); MATS[k].dispose(); delete MATS[k] } }
+
+// ---------- scene ----------
+const canvas = $('c')
+let renderer
+let renderDirty = true
+function invalidate () { renderDirty = true }
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
+} catch (err) {
+  $('box').insertAdjacentHTML('beforeend', '<p class="err">This browser could not start WebGL, so the 3D view is off. The readouts, the timeline and the recording details below still work.</p>')
+  $('keys').hidden = true; $('srcTag').hidden = true
+}
+const scene = new THREE.Scene()
+const skyCv = document.createElement('canvas'); skyCv.width = 2; skyCv.height = 256
+const skyTex = new THREE.CanvasTexture(skyCv)
+function paintSky () {
+  const sg = skyCv.getContext('2d'); const grad = sg.createLinearGradient(0, 0, 0, 256)
+  grad.addColorStop(0, cssVar('--sky-top')); grad.addColorStop(0.65, cssVar('--sky-mid')); grad.addColorStop(1, cssVar('--sky-low'))
+  sg.fillStyle = grad; sg.fillRect(0, 0, 2, 256)
+  skyTex.needsUpdate = true
+}
+paintSky()
+scene.background = skyTex
+const FOG_NEAR = 45; const FOG_FAR = 150 // the close cameras; the whole-course camera sets its own range
+scene.fog = new THREE.Fog(cssVar('--fog'), FOG_NEAR, FOG_FAR)
+const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.1, 500)
+let controls = null
+if (renderer) {
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+  renderer.shadowMap.enabled = true
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap
+  if (THREE.OrbitControls) {
+    controls = new THREE.OrbitControls(camera, canvas)
+    controls.enableDamping = false
+    controls.enabled = false
+    controls.addEventListener('change', invalidate)
+  } else {
+    $('cam').querySelector('[value="orbit"]').disabled = true
+  }
+}
+const hemi = new THREE.HemisphereLight(cssVar('--light-sky'), cssVar('--light-ground'), 0.75)
+scene.add(hemi)
+const sun = new THREE.DirectionalLight(cssVar('--light-sun'), 0.9)
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048)
+sun.shadow.camera.left = -40; sun.shadow.camera.right = 40; sun.shadow.camera.top = 40; sun.shadow.camera.bottom = -40
+sun.shadow.camera.near = 1; sun.shadow.camera.far = 170
+scene.add(sun); scene.add(sun.target)
+
+// Blocks, where the bots' physics has them (bridge/offline_bot.js makeWorld, bridge/parkour_bot.js), from
+// courseCells' boxes: stone, ice and slime platforms (course.ice and course.slime list platform indices), shaped
+// platforms box by box (the part of a box above its cell see-through), ladders from their ladder_<facing> boxes, and
+// the extra cells by their role (a head-hitter roof, see-through here; a neo wall or the wall under a ladder). The
+// structure void real Minecraft puts under every carpet has no collision box and is not drawn.
+let courseGroup = new THREE.Group(); scene.add(courseGroup)
+let cells = new Map() // "x,y,z" -> collision boxes [x0, y0, z0, x1, y1, z1] in world blocks (courseCells)
+let seeThrough = new Set() // cells the camera may look through (the see-through roofs)
+const BOX = new THREE.BoxGeometry(1, 1, 1)
+function buildCourse (c) {
+  for (const child of courseGroup.children) {
+    // Blocks share BOX and cached materials; shaped boxes own their geometry; the goal beam owns its resources.
+    if (child.geometry !== BOX) { child.geometry.dispose(); if (child.userData.ownMaterial) child.material.dispose() }
+  }
+  scene.remove(courseGroup); courseGroup = new THREE.Group()
+  ;({ cells, seeThrough } = courseCells(c))
+  const ice = new Set(c.ice || []); const slime = new Set(c.slime || [])
+  const cube = (x, y, z, m, shadow = true) => {
+    const b = new THREE.Mesh(BOX, m); b.position.set(x + 0.5, y + 0.5, z + 0.5); b.castShadow = shadow; b.receiveShadow = true; courseGroup.add(b)
+  }
+  const boxes = (x, y, z, list, m, mTop) => {
+    for (const [x0, y0, z0, x1, y1, z1] of list) {
+      const parts = mTop && y1 > 1 && y0 < 1 ? [[y0, 1, m, true], [1, y1, mTop, false]] : [[y0, y1, m, true]]
+      for (const [a, b, mm, shadow] of parts) {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, b - a, z1 - z0), mm)
+        mesh.position.set(x + (x0 + x1) / 2, y + (a + b) / 2, z + (z0 + z1) / 2); mesh.castShadow = shadow; mesh.receiveShadow = true; courseGroup.add(mesh)
+      }
+    }
+  }
+  const last = c.platforms.length - 1
+  c.platforms.forEach((p, k) => {
+    const shape = shapeAt(c, k)
+    for (let x = p[0]; x <= p[1]; x++) {
+      for (let z = p[2]; z <= p[3]; z++) {
+        if (shape) boxes(x, p[4], z, DATA.shapes[shape].boxes, mat('shape:' + shape), mat('shapeTop:' + shape))
+        else if (slime.has(k)) {
+          cube(x, p[4], z, mat('slime'), false)
+          const core = new THREE.Mesh(BOX, mat('slimeCore')); core.scale.setScalar(0.625); core.position.set(x + 0.5, p[4] + 0.5, z + 0.5); core.castShadow = true; courseGroup.add(core)
+        } else cube(x, p[4], z, ice.has(k) ? mat('ice') : k === 0 ? mat('start') : k === last ? mat('goal') : mat('stone' + (k % 2)))
+      }
+    }
+  })
+  const roles = c.extra_roles || []
+  ;(c.extra || []).forEach(([x, y, z], i) => cube(x, y, z, roles[i] === 'roof' ? mat('roof') : mat('wall')))
+  for (const [x, y, z, f] of c.ladders || []) boxes(x, y, z, DATA.shapes['ladder_' + FACING[f]].boxes, mat('ladder'))
+  const g = c.platforms[last]
+  const beamMat = new THREE.MeshBasicMaterial({ color: cssVar('--blk-beam'), transparent: true, opacity: 0.35, side: THREE.DoubleSide })
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 30, 8, 1, true), beamMat)
+  beam.userData.ownMaterial = true
+  beam.position.set((g[0] + g[1] + 1) / 2, g[4] + 16, (g[2] + g[3] + 1) / 2)
+  courseGroup.add(beam)
+  scene.add(courseGroup)
+  const ctr = centre(c)
+  sun.position.set(ctr.x + 25, ctr.y + 45, ctr.z + 15); sun.target.position.copy(ctr)
+}
+function centre (c) {
+  const v = new THREE.Vector3()
+  c.platforms.forEach(p => v.add(new THREE.Vector3((p[0] + p[1] + 1) / 2, p[4] + 1, (p[2] + p[3] + 1) / 2)))
+  return v.multiplyScalar(1 / c.platforms.length)
+}
+// True when the point lies inside a block's collision boxes. A box can reach into the cell above its own (a post's
+// top half), so the cell below is tested too. Unless roofsSolid, the see-through roofs do not count.
+function pointInBlock (x, y, z, roofsSolid) {
+  const fx = Math.floor(x); const fy = Math.floor(y); const fz = Math.floor(z)
+  for (const by of [fy, fy - 1]) {
+    const key = `${fx},${by},${fz}`
+    if (!roofsSolid && seeThrough.has(key)) continue
+    const list = cells.get(key)
+    if (list && list.some(b => x > b[0] && x < b[3] && y > b[1] && y < b[4] && z > b[2] && z < b[5])) return true
+  }
+  return false
+}
+
+// ---------- blocky player inside its 0.6 x 1.8 x 0.6 hitbox (the outline, drawn at the recorded feet position) ----------
+// The figure is 0.525 wide and 0.44 deep, narrower than the hitbox; the hitbox outline is the box the physics has.
+const BOT_PARTS = { skin: '--bot-skin', hair: '--bot-hair', pants: '--bot-pants', shoe: '--bot-shoe', eyes: '--bot-eyes' }
+const HIP = 0.68; const SOLE = 0.07 // a leg's length from the hip to the sole, and half the shoe's depth
+function makePlayer () {
+  const mats = Object.fromEntries(Object.entries(BOT_PARTS).map(([k, v]) => [k, new THREE.MeshLambertMaterial({ color: cssVar(v) })]))
+  mats.shirt = new THREE.MeshLambertMaterial({ color: cssVar('--trail-live') })
+  const s = 0.52
+  const P = new THREE.Group()
+  const part = (w, h, d, mt, x, y, z) => { const g = new THREE.Group(); const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mt); b.position.y = -h / 2; b.castShadow = true; g.add(b); g.position.set(x, y, z); P.add(g); return g }
+  const legL = part(s / 4, HIP, s / 4, mats.pants, -s / 8, HIP, 0)
+  const legR = part(s / 4, HIP, s / 4, mats.pants, s / 8, HIP, 0)
+  for (const leg of [legL, legR]) { const f = new THREE.Mesh(new THREE.BoxGeometry(2 * SOLE, 0.1, 2 * SOLE), mats.shoe); f.position.y = 0.05 - HIP; leg.add(f) }
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(s / 2, 0.68, s / 4), mats.shirt); torso.position.y = 1.02; torso.castShadow = true; P.add(torso)
+  const armL = part(s / 4, 0.66, s / 4, mats.shirt, -3 * s / 8, 1.36, 0)
+  const armR = part(s / 4, 0.66, s / 4, mats.shirt, 3 * s / 8, 1.36, 0)
+  for (const arm of [armL, armR]) { const h = new THREE.Mesh(new THREE.BoxGeometry(s / 4 + 0.005, 0.18, s / 4 + 0.005), mats.skin); h.position.y = -0.57; arm.add(h) }
+  const head = new THREE.Group(); head.position.y = 1.36
+  const face = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.42), mats.skin); face.position.y = 0.21; face.castShadow = true; head.add(face)
+  const hat = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.12, 0.44), mats.hair); hat.position.y = 0.38; head.add(hat)
+  const eyes = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, 0.01), mats.eyes); eyes.position.set(0, 0.24, -0.215); head.add(eyes)
+  P.add(head)
+  P.userData = { legL, legR, armL, armR, phase: 0, mats }
+  return P
+}
+// The limbs from the recorded state alone: straight on the ground when paused or after a seek, a stride whose size
+// follows the recorded horizontal speed while playing, a fixed pose in the air. Returns how far the lowest sole sits
+// above the feet, so the caller can lower the figure onto the recorded feet height.
+function poseLimbs (P, F, moving, dticks) {
+  const u = P.userData
+  let a = [0, 0, 0, 0] // left leg, right leg, left arm, right arm
+  if (!F[COL.on_ground]) a = [0.45, -0.25, -0.36, -1.1]
+  else if (moving && !reduceMotion) {
+    const v = Math.hypot(F[COL.vx], F[COL.vz]) // blocks per tick
+    u.phase += v * dticks * 2.6
+    const sw = Math.sin(u.phase) * Math.min(1, v * 3.5) * 0.6
+    a = [sw, -sw, -0.8 * sw, 0.8 * sw]
+  }
+  u.legL.rotation.x = a[0]; u.legR.rotation.x = a[1]; u.armL.rotation.x = a[2]; u.armR.rotation.x = a[3]
+  // A leg turned by th about the hip has its sole's lower edge this far above the feet; the lower of the two soles counts.
+  const lift = th => HIP - (HIP * Math.cos(th) + SOLE * Math.abs(Math.sin(th)))
+  return Math.min(lift(a[0]), lift(a[1]))
+}
+const player = makePlayer(); scene.add(player)
+const hitbox = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(0.6, 1.8, 0.6)), new THREE.LineBasicMaterial({ color: cssVar('--hitbox'), fog: false }))
+scene.add(hitbox)
+// Whole-course camera: an arrow above the bot, which is small from far away.
+const marker = new THREE.Mesh(new THREE.ConeGeometry(0.4, 0.9, 4), new THREE.MeshBasicMaterial({ color: cssVar('--ghost'), fog: false }))
+marker.rotation.x = Math.PI; marker.visible = false; scene.add(marker)
+let trail = null; let ghostPath = null
+function lineFor (e, color, opacity) {
+  const pts = e.frames.map(f => new THREE.Vector3(f[COL.x], f[COL.y] + 0.04, f[COL.z]))
+  return new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color, transparent: true, opacity, fog: false }))
+}
+// The run's colour on the bot, its trail, the marker; the whole path in the ghost colour.
+function paintRun () {
+  const c = cssVar(runLook(ep.run).trail)
+  player.userData.mats.shirt.color.set(c); marker.material.color.set(c)
+  if (trail) trail.material.color.set(c)
+  if (ghostPath) ghostPath.material.color.set(cssVar('--ghost'))
+}
+// A theme change repaints the sky, fog, light, blocks, bot and hitbox from the tokens.
+function refreshScene () {
+  paintSky(); scene.fog.color.set(cssVar('--fog'))
+  hemi.color.set(cssVar('--light-sky')); hemi.groundColor.set(cssVar('--light-ground')); sun.color.set(cssVar('--light-sun'))
+  for (const [k, v] of Object.entries(BOT_PARTS)) player.userData.mats[k].color.set(cssVar(v))
+  hitbox.material.color.set(cssVar('--hitbox'))
+  dropMaterials(); buildCourse(ep.c); paintRun()
+  invalidate()
+}
+
+// ---------- reading the recording ----------
+// Between two recorded ticks the bot is drawn on a straight line, unless that line would cut into a block's collision
+// boxes; then in Minecraft's axis order (Y, X, Z). On whole ticks it is exactly at the recorded position.
+function insideBlock (x, y, z) {
+  const e = 1e-3
+  // From the row below the feet: a box can reach into the cell above its own (a post's top half).
+  for (let bx = Math.floor(x - 0.3); bx <= Math.floor(x + 0.3); bx++) for (let by = Math.floor(y) - 1; by <= Math.floor(y + 1.8); by++) for (let bz = Math.floor(z - 0.3); bz <= Math.floor(z + 0.3); bz++) {
+    const list = cells.get(`${bx},${by},${bz}`)
+    if (list && list.some(b => x + 0.3 > b[0] + e && x - 0.3 < b[3] - e && y + 1.8 > b[1] + e && y < b[4] - e && z + 0.3 > b[2] + e && z - 0.3 < b[5] - e)) return true
+  }
+  return false
+}
+function between (A, B, f) {
+  const a = [A[COL.x], A[COL.y], A[COL.z]]; const b = [B[COL.x], B[COL.y], B[COL.z]]
+  if (f <= 0) return a
+  const line = a.map((v, k) => v + (b[k] - v) * f)
+  if (!insideBlock(...line)) return line
+  const g = f * 3; const s = [Math.min(1, g), Math.min(1, Math.max(0, g - 1)), Math.min(1, Math.max(0, g - 2))]
+  const axis = [a[0] + (b[0] - a[0]) * s[1], a[1] + (b[1] - a[1]) * s[0], a[2] + (b[2] - a[2]) * s[2]]
+  if (!insideBlock(...axis)) return axis
+  return f < 0.5 ? a : b
+}
+function stateAt (e, tt) {
+  const F = e.frames; const n = F.length
+  const i = Math.max(0, Math.min(n - 1, Math.floor(tt))); const j = Math.min(n - 1, i + 1)
+  const f = tt >= n - 1 ? 0 : Math.min(1, Math.max(0, tt - i))
+  const p = between(F[i], F[j], f)
+  let dy = F[j][COL.yaw] - F[i][COL.yaw]
+  while (dy > Math.PI) dy -= 2 * Math.PI
+  while (dy < -Math.PI) dy += 2 * Math.PI
+  return { x: p[0], y: p[1], z: p[2], yaw: F[i][COL.yaw] + dy * f, i, done: i >= n - 1 }
+}
+
+// ---------- selection ----------
+let playing = !reduceMotion; let lastTime = null; let lastT = 0
+const camPos = new THREE.Vector3(); const camLook = new THREE.Vector3()
+// Kind and block type combine; when the pair has no course, the filter not just changed gives way. Switching the
+// recording keeps the course, the shown tick and play or pause, so the two recordings can be compared.
+function applyFilters (changed) {
+  let kind = $('kind').value; let type = $('btype').value; const run = $('run').value
+  if (!DATA.courses.some(c => kindOk(c, kind) && typeOk(c, type))) {
+    if (changed === 'btype') { kind = 'all'; $('kind').value = 'all' } else { type = 'all'; $('btype').value = 'all' }
+  }
+  view = EPS.filter(e => e.run === run && kindOk(e.c, kind) && typeOk(e.c, type))
+  const cs = $('course'); cs.innerHTML = ''
+  for (const e of view) option(cs, e.id, `${e.label} · ${RESULT[e.result]}`)
+  const made = view.filter(e => e.success).length
+  $('count').textContent = `${plural(view.length, 'course')} · ${made} made · ${runLook(run).name}`
+  $('listCount').textContent = `${view.length} shown · ${runLook(run).name}`
+  renderList(type, e => select(e))
+  if (!view.length) return
+  if (!view.includes(ep)) {
+    const same = view.find(e => e.course === ep.course)
+    select(same || view[0], changed === 'run' && !!same)
+  } else { cs.value = ep.id; markRow() }
+}
+function select (e, keepTime) {
+  const before = ep; const wasPlaying = playing; const tt = t
+  ep = e
+  $('course').value = e.id
+  markRow()
+  if (!keepTime || before.c !== e.c) buildCourse(e.c)
+  for (const path of [trail, ghostPath]) {
+    if (path) { scene.remove(path); path.geometry.dispose(); path.material.dispose() }
+  }
+  trail = lineFor(e, cssVar(runLook(e.run).trail), 0.95); scene.add(trail)
+  ghostPath = lineFor(e, cssVar('--ghost'), 0.35); scene.add(ghostPath)
+  trail.visible = $('trail').checked; ghostPath.visible = $('ghost').checked
+  paintRun()
+  $('timeline').setAttribute('aria-valuemax', String(e.frames.length - 1))
+  $('srcTag').textContent = runLook(e.run).tag
+  if (keepTime) { t = Math.min(tt, e.frames.length - 1); setPlaying(wasPlaying && t < e.frames.length - 1) } else {
+    t = 0; setPlaying(!reduceMotion)
+    const c = centre(e.c)
+    if (controls) { controls.target.copy(c); camera.position.set(c.x + 16, c.y + 14, c.z + 16) }
+    orbitReady = false
+  }
+  lastT = t
+  renderFacts(); renderJumps(); drawTimeline()
+  pose(true)
+  try { history.replaceState(null, '', '#' + e.id) } catch (err) { /* the hash is only a convenience */ }
+}
+function openFromHash () {
+  const e = fromHash()
+  if (!e || e === ep) return false
+  $('run').value = e.run; $('kind').value = e.c.kind; $('btype').value = 'all'
+  ep = e; applyFilters('hash'); select(e)
+  return true
+}
+
+// ---------- HUD, keys and timeline ----------
+const fmt = (v, d = 3) => (v >= 0 ? ' ' : '') + v.toFixed(d)
+const COMPASS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
+// Mineflayer's yaw (0 = north, -Z; growing counter-clockwise seen from above) as a compass bearing (clockwise, 90 = east).
+const bearing = yaw => (360 - ((yaw * 180 / Math.PI) % 360 + 360) % 360) % 360
+let hudKey = ''
+function renderHud (s) {
+  const key = ep.id + ':' + s.i
+  if (key === hudKey) return
+  hudKey = key
+  const F = ep.frames[s.i]; const n = ep.c.platforms.length - 1
+  const b = bearing(F[COL.yaw])
+  const hs = Math.hypot(F[COL.vx], F[COL.vz]) * TICK_HZ
+  const ground = F[COL.on_ground] ? (ep.past.has(s.i) ? 'on the ground (landed this tick, then moved past the edge)' : 'on the ground') : 'in the air'
+  $('hud').innerHTML = '<b></b><span class="dim"></span>' +
+    `<span>tick ${s.i} / ${ep.frames.length - 1} · ${(s.i / TICK_HZ).toFixed(2)} s</span>` +
+    `<span>x${fmt(F[COL.x])}  y${fmt(F[COL.y])}  z${fmt(F[COL.z])}</span>` +
+    `<span class="opt">speed ${hs.toFixed(2)} blocks/s · facing ${b.toFixed(1)}° (${COMPASS[Math.round(b / 22.5) % 16]})</span>` +
+    `<span class="opt">${ground}${F[COL.jump_ticks] ? ` · jump cooldown ${F[COL.jump_ticks]}` : ''}</span>` +
+    `<span>platform ${F[COL.platform_reached]} / ${n}</span>`
+  $('hud').querySelector('b').textContent = ep.label
+  $('hud').querySelector('.dim').textContent = `${runLook(ep.run).name} · level ${ep.c.level} · recorded outcome: ${RESULT[ep.result].toLowerCase()} at tick ${ep.ticks}`
+  const done = s.i >= ep.frames.length - 1
+  const ban = $('banner'); ban.hidden = !done
+  if (done) { ban.className = 'banner ' + ep.result; ban.textContent = `${RESULT[ep.result]} · tick ${ep.ticks}` }
+  // The action taken at this tick (the step from frame i to i + 1); none after the last one.
+  const a = s.i < ep.actions.length ? ep.actions[s.i] : null
+  const on = (cls, v) => $('keys').querySelector('.' + cls).classList.toggle('on', !!v)
+  on('w', a && a[0] === 2); on('s', a && a[0] === 0); on('a', a && a[1] === 0); on('d', a && a[1] === 2)
+  on('jump', a && a[2] === 1); on('sprint', a && a[3] === 1)
+  const turn = a ? YAW_STEPS[a[4]] : 0 // a positive yaw step turns left
+  $('turnKey').innerHTML = `${turn > 0 ? 'left' : turn < 0 ? 'right' : 'turn'}<br>${Math.abs(turn)}°`
+  $('turnKey').classList.toggle('on', !!(a && turn !== 0))
+  $('clock').textContent = `tick ${s.i} · ${(s.i / TICK_HZ).toFixed(2)} s of ${(ep.ticks / TICK_HZ).toFixed(2)} s`
+  $('timeline').setAttribute('aria-valuenow', String(s.i))
+  $('timeline').setAttribute('aria-valuetext', `tick ${s.i} of ${ep.frames.length - 1}, ${(s.i / TICK_HZ).toFixed(2)} seconds, platform ${F[COL.platform_reached]}`)
+  markJumps(F[COL.platform_reached])
+}
+let COLORS = null
+function readColors () { COLORS = Object.fromEntries(['fg', 'line', 'accent', 'good', 'bad', 'warn', 'live', 'off', 'muted'].map(k => [k, cssVar('--' + k)])) }
+function refreshColors () { readColors(); refreshScene(); hudKey = ''; pose(true) }
+const TL_PAD_L = 10; const TL_PAD_R = 18 // the outcome bar sits in the right padding, past the last tick
+function drawTimeline () {
+  const cv = $('tl'); const w = cv.clientWidth; const h = cv.clientHeight
+  if (!w || !h) return
+  if (!COLORS) readColors()
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr) }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h)
+  const F = ep.frames; const N = F.length - 1; const n = ep.c.platforms.length - 1
+  const X = i => TL_PAD_L + (w - TL_PAD_L - TL_PAD_R) * (N ? i / N : 0)
+  // Upper band: the ticks in the air.
+  g.fillStyle = COLORS.line; g.fillRect(X(0), 5, X(N) - X(0), 7)
+  g.fillStyle = COLORS[runLook(ep.run).token] || COLORS.muted
+  for (let i = 0; i < N; i++) if (!F[i + 1][COL.on_ground]) g.fillRect(X(i), 5, Math.max(1, X(i + 1) - X(i)), 7)
+  // Below: the platform reached, a staircase from the start (bottom) to the goal (top).
+  const Y = k => h - 5 - (h - 22) * (n ? k / n : 0)
+  g.globalAlpha = 0.25; g.fillStyle = COLORS.fg; g.fillRect(X(0), Y(n), X(N) - X(0), 1); g.globalAlpha = 1
+  g.strokeStyle = COLORS.fg; g.lineWidth = 1.5; g.beginPath()
+  g.moveTo(X(0), Y(F[0][COL.platform_reached]))
+  for (let i = 1; i <= N; i++) { g.lineTo(X(i), Y(F[i - 1][COL.platform_reached])); g.lineTo(X(i), Y(F[i][COL.platform_reached])) }
+  g.stroke()
+  // After the end: the recorded outcome, apart from the track, so the shown-tick line never covers it.
+  g.fillStyle = ep.result === 'success' ? COLORS.good : ep.result === 'fell' ? COLORS.bad : COLORS.warn
+  g.fillRect(X(N) + 6, 3, 5, h - 6)
+  // The shown tick, in the text colour (not an outcome colour).
+  g.fillStyle = COLORS.fg; g.fillRect(X(Math.min(N, t)) - 1, 1, 2, h - 2)
+}
+function seek (tt, snap) { t = Math.max(0, Math.min(ep.frames.length - 1, tt)); pose(!!snap) }
+function setPlaying (p) { playing = p; $('play').textContent = playing ? 'Pause' : 'Play' }
+{
+  const tl = $('timeline')
+  let dragging = false
+  const at = ev => { const r = tl.getBoundingClientRect(); const f = (ev.clientX - r.left - TL_PAD_L) / Math.max(1, r.width - TL_PAD_L - TL_PAD_R); return Math.round(Math.max(0, Math.min(1, f)) * (ep.frames.length - 1)) }
+  tl.addEventListener('pointerdown', ev => { dragging = true; tl.setPointerCapture(ev.pointerId); setPlaying(false); seek(at(ev), true) })
+  tl.addEventListener('pointermove', ev => { if (dragging) seek(at(ev), true) })
+  tl.addEventListener('pointerup', () => { dragging = false })
+  tl.addEventListener('pointercancel', () => { dragging = false })
+  tl.addEventListener('keydown', ev => {
+    const step = ev.shiftKey ? 20 : 1
+    if (ev.key === ' ' || ev.code === 'Space') $('play').click()
+    else if (ev.key === 'ArrowRight') { setPlaying(false); seek(Math.floor(t) + step, true) } else if (ev.key === 'ArrowLeft') { setPlaying(false); seek(Math.ceil(t) - step, true) } else if (ev.key === 'Home') { setPlaying(false); seek(0, true) } else if (ev.key === 'End') { setPlaying(false); seek(ep.frames.length - 1, true) } else return
+    ev.preventDefault()
+  })
+}
+
+// ---------- cameras ----------
+const OVERVIEW_FOV = 30
+function setFov (f) { if (camera.fov !== f) { camera.fov = f; camera.updateProjectionMatrix() } }
+function overviewCamera (c) {
+  let x0 = Infinity; let x1 = -Infinity; let y0 = Infinity; let y1 = -Infinity; let z0 = Infinity; let z1 = -Infinity
+  for (const p of c.platforms) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[1] + 1); z0 = Math.min(z0, p[2]); z1 = Math.max(z1, p[3] + 1); y0 = Math.min(y0, p[4]); y1 = Math.max(y1, p[4] + 3) }
+  for (const [x, y, z] of (c.extra || []).concat(c.ladders || [])) { x0 = Math.min(x0, x); x1 = Math.max(x1, x + 1); z0 = Math.min(z0, z); z1 = Math.max(z1, z + 1); y0 = Math.min(y0, y); y1 = Math.max(y1, y + 1) }
+  const mid = new THREE.Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)
+  const r = 0.5 * Math.hypot(x1 - x0, y1 - y0 + 2, z1 - z0)
+  // Fit the course in the narrower of the two fields of view (on a phone the view is taller than wide).
+  const vf = OVERVIEW_FOV * Math.PI / 180; const hf = 2 * Math.atan(Math.tan(vf / 2) * camera.aspect)
+  const dist = r / Math.sin(Math.min(vf, hf) / 2) * (camera.aspect < 1 ? 1 : 0.78)
+  const side = (x1 - x0) >= (z1 - z0) ? new THREE.Vector3(0.22, 0.5, 1) : new THREE.Vector3(1, 0.5, 0.22)
+  side.normalize()
+  // The readouts cover the top of the view: aim a little above the middle, so the course sits lower in it.
+  const look = mid.clone(); look.y += 0.12 * r
+  return { pos: mid.clone().add(side.multiplyScalar(dist)), look, dist, r }
+}
+// True when no block lies on the straight line from a to b (sampled every 0.2 blocks); see pointInBlock for roofs.
+function clearLine (a, b, roofsSolid) {
+  const d = b.clone().sub(a); const n = Math.max(1, Math.ceil(d.length() / 0.2))
+  for (let k = 1; k <= n; k++) if (pointInBlock(a.x + d.x * k / n, a.y + d.y * k / n, a.z + d.z * k / n, roofsSolid)) return false
+  return true
+}
+// How many see-through roof blocks the straight line from a to b crosses.
+function roofsCrossed (a, b) {
+  const d = b.clone().sub(a); const n = Math.max(1, Math.ceil(d.length() / 0.2)); const seen = new Set()
+  for (let k = 1; k <= n; k++) {
+    const key = `${Math.floor(a.x + d.x * k / n)},${Math.floor(a.y + d.y * k / n)},${Math.floor(a.z + d.z * k / n)}`
+    if (seeThrough.has(key)) seen.add(key)
+  }
+  return seen.size
+}
+const FOLLOW_SPOTS = [[6, 3.6], [5.5, 5.2], [4.5, 7], [3, 9]] // [behind, above] the bot, tried in order
+const orbitLast = new THREE.Vector3()
+let orbitReady = false
+function placeCamera (s, snap) {
+  const cm = $('cam').value
+  if (controls) controls.enabled = cm === 'orbit'
+  canvas.classList.toggle('orbiting', cm === 'orbit')
+  setFov(cm === 'overview' ? OVERVIEW_FOV : 60)
+  const ease = snap || reduceMotion ? 1 : 0
+  if (cm === 'overview') {
+    orbitReady = false
+    const o = overviewCamera(ep.c); camera.position.copy(o.pos); camera.lookAt(o.look)
+    scene.fog.near = Math.max(1, o.dist - o.r); scene.fog.far = o.dist + 3 * o.r // the course itself stays clear of the fog
+    return
+  }
+  scene.fog.near = FOG_NEAR; scene.fog.far = FOG_FAR
+  if (cm === 'follow') {
+    orbitReady = false
+    const fx = -Math.sin(s.yaw); const fz = -Math.cos(s.yaw)
+    // Behind and above the bot, higher and closer when a block would hide it: the first spot clear of every block, the
+    // see-through roofs included (looking through stacked roof layers hides the bot too); under a roof, where none is,
+    // the spot clear of the other blocks that looks through the fewest roof blocks.
+    const head = new THREE.Vector3(s.x, s.y + 1.6, s.z)
+    const spot = ([back, up]) => new THREE.Vector3(s.x - fx * back, s.y + up, s.z - fz * back)
+    let want = null
+    for (const sp of FOLLOW_SPOTS) { const w = spot(sp); if (clearLine(head, w, true)) { want = w; break } }
+    if (!want) {
+      let fewest = Infinity
+      for (const sp of FOLLOW_SPOTS) { const w = spot(sp); if (!clearLine(head, w, false)) continue; const k = roofsCrossed(head, w); if (k < fewest) { fewest = k; want = w } }
+    }
+    if (!want) want = spot(FOLLOW_SPOTS[FOLLOW_SPOTS.length - 1])
+    const look = new THREE.Vector3(s.x + fx * 3, s.y + 0.8, s.z + fz * 3)
+    if (ease) { camPos.copy(want); camLook.copy(look) } else { camPos.lerp(want, 0.06); camLook.lerp(look, 0.1) }
+    camera.position.copy(camPos); camera.lookAt(camLook)
+  } else if (controls) {
+    // Orbit: drag to turn, scroll or pinch to zoom; the camera rides along with the bot.
+    const here = new THREE.Vector3(s.x, s.y + 0.9, s.z)
+    if (!orbitReady) {
+      controls.target.copy(here)
+      if (camera.position.distanceTo(here) > 30 || camera.position.distanceTo(here) < 2) camera.position.set(s.x + 7, s.y + 5, s.z + 7)
+      orbitReady = true
+    } else {
+      const d = here.clone().sub(orbitLast); camera.position.add(d); controls.target.add(d)
+    }
+    orbitLast.copy(here)
+    controls.update()
+  }
+}
+
+// ---------- pose and loop ----------
+function pose (snap) {
+  const s = stateAt(ep, t)
+  const F = ep.frames[s.i]
+  const dticks = Math.max(0, t - lastT); lastT = t
+  const low = poseLimbs(player, F, playing && !snap, dticks)
+  player.position.set(s.x, s.y - low, s.z); player.rotation.y = s.yaw
+  hitbox.position.set(s.x, s.y + 0.9, s.z); hitbox.visible = $('hitbox').checked // the physics box does not turn
+  if (trail) trail.geometry.setDrawRange(0, s.i + 1)
+  renderHud(s)
+  placeCamera(s, snap)
+  marker.visible = $('cam').value === 'overview'
+  if (marker.visible) {
+    const k = Math.max(1, camera.position.distanceTo(player.position) / 18)
+    marker.scale.setScalar(k); marker.position.set(s.x, s.y + 2.3 + 0.5 * k, s.z)
+  }
+  drawTimeline()
+  invalidate()
+}
+function resize () {
+  const b = $('box')
+  if (renderer) renderer.setSize(b.clientWidth, b.clientHeight, false)
+  camera.aspect = b.clientWidth / Math.max(1, b.clientHeight); camera.updateProjectionMatrix()
+  if ($('cam').value === 'overview') pose(true) // the whole-course framing depends on the aspect
+  drawTimeline()
+  invalidate()
+}
+function frame (now) {
+  requestAnimationFrame(frame)
+  if (lastTime === null) lastTime = now
+  const dt = Math.min(0.1, (now - lastTime) / 1000); lastTime = now
+  const end = ep.frames.length - 1
+  if (playing) {
+    t = Math.min(end, t + dt * TICK_HZ * Number($('speed').value))
+    if (t >= end) setPlaying(false)
+    pose(false)
+  }
+  if (renderer && renderDirty) {
+    renderDirty = false
+    renderer.render(scene, camera)
+  }
+}
+
+// ---------- wiring ----------
+$('play').onclick = () => { if (t >= ep.frames.length - 1) { t = 0; lastT = 0 } setPlaying(!playing); pose(true) }
+$('restart').onclick = () => { t = 0; lastT = 0; setPlaying(true); pose(true) }
+$('back').onclick = () => { setPlaying(false); seek(Math.ceil(t) - 1, true) }
+$('fwd').onclick = () => { setPlaying(false); seek(Math.floor(t) + 1, true) }
+$('cam').onchange = () => { orbitReady = false; pose(true) }
+$('hitbox').onchange = () => { hitbox.visible = $('hitbox').checked; invalidate() }
+$('trail').onchange = () => { if (trail) trail.visible = $('trail').checked; invalidate() }
+$('ghost').onchange = () => { if (ghostPath) ghostPath.visible = $('ghost').checked; invalidate() }
+$('kind').onchange = () => applyFilters('kind')
+$('btype').onchange = () => applyFilters('btype')
+$('run').onchange = () => applyFilters('run')
+$('course').onchange = () => { const e = EPS.find(x => x.id === $('course').value); if (e) select(e) }
+// Space plays or pauses everywhere but in form fields and on the page's buttons (a course row is chosen with Enter or
+// a click); the arrow keys step one tick.
+const isRow = el => !!(el && el.classList && el.classList.contains('row'))
+document.addEventListener('keydown', e => {
+  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName) || e.target.id === 'timeline') return
+  if (e.code === 'Space' && (e.target.tagName !== 'BUTTON' || isRow(e.target))) { e.preventDefault(); if (!e.repeat) $('play').click() } else if (e.key === 'ArrowRight') { e.preventDefault(); $('fwd').click() } else if (e.key === 'ArrowLeft') { e.preventDefault(); $('back').click() }
+})
+document.addEventListener('keyup', e => { if (e.code === 'Space' && isRow(e.target)) e.preventDefault() }) // no click on the row
+window.addEventListener('hashchange', openFromHash)
+if (window.matchMedia) {
+  const mq = window.matchMedia('(prefers-color-scheme: dark)')
+  if (mq.addEventListener) mq.addEventListener('change', refreshColors)
+}
+new MutationObserver(refreshColors).observe(ROOT, { attributes: true, attributeFilter: ['data-theme'] })
+
+// Start: the recording named in the link (#slime-1, or #slime-1-offline for one recording), else the first course of
+// the set in the first recording, whatever its outcome.
+fillFilters(); renderStats(); renderNotes(); renderLegendShapes()
+const start = fromHash() || EPS[0]
+$('run').value = start.run; $('kind').value = start === EPS[0] ? 'all' : start.c.kind; $('btype').value = 'all'
+ep = start
+applyFilters('start')
+select(start)
+new ResizeObserver(resize).observe($('box'))
+resize()
+requestAnimationFrame(frame)
+})()
+</script>

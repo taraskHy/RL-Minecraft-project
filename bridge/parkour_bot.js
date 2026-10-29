@@ -31,6 +31,9 @@ function stateString (name) {
   const props = Object.entries(s.properties).map(([k, v]) => `${k}=${v}`).join(',')
   return `minecraft:${s.block}` + (props ? `[${props}]` : '')
 }
+function sameBoxes (a, b) {
+  return a.length === b.length && a.every((q, i) => q.length === b[i].length && q.every((v, j) => Math.abs(v - b[i][j]) < 1e-9))
+}
 
 function parseArgs (argv) {
   const a = { port: 25570, host: '127.0.0.1', origin: '0,80,0', pad: '-20,100,-20', stall: 200, maxTicks: 3000, username: 'ParkourBot', viewer: '', style: 'stone', webViewer: 0, hold: 0, planner: '', fallRule: 'local', assist: '' }
@@ -227,6 +230,12 @@ async function runCourse (c, index) {
   for (const [x, y, z] of extra) await chatCommand(`/setblock ${x + OX} ${y + OY} ${z + OZ} ${OBSTACLE_BLOCK()}`)
   for (const [k, name] of Object.entries(shapes)) {
     const [x0, x1, z0, z1, y] = c.platforms[Number(k)]
+    if (SHAPES[name].block.endsWith('_carpet')) {
+      // Vanilla breaks a carpet with air below it at its next shape update, and a /fill of several carpets updates
+      // each one. Structure void is not air but has no collision box (boundingBox 'empty'), so the cells under the
+      // carpet stay empty for the physics and for isSolid, as in the simulator.
+      await chatCommand(`/fill ${x0 + OX} ${y - 1 + OY} ${z0 + OZ} ${x1 + OX} ${y - 1 + OY} ${z1 + OZ} minecraft:structure_void replace minecraft:air`)
+    }
     await chatCommand(`/fill ${x0 + OX} ${y + OY} ${z0 + OZ} ${x1 + OX} ${y + OY} ${z1 + OZ} ${stateString(name)}`)
   }
   const ladders = c.ladders || [] // after their walls (the obstacle cells): a ladder needs a block behind it
@@ -257,11 +266,13 @@ async function runCourse (c, index) {
   }, 10000, 'teleport')
   await waitFor(() => c.platforms.every(([x0, x1, z0, z1, y]) => isSolid(x0, y, z0) && isSolid(x1, y, z1)), 10000, 'course blocks')
   await waitFor(() => extra.every(([x, y, z]) => isSolid(x, y, z)), 10000, 'obstacle blocks')
-  // Every shaped platform must be exactly its block state (the physics collides with its shape).
+  // Every shaped platform must be exactly its block state (the physics collides with its shape), or the same block
+  // with the same collision boxes: at noon a daylight detector's power follows the sky light within a second, which
+  // changes its state but not its shape.
   await waitFor(() => Object.entries(shapes).every(([k, name]) => {
     const [x0, , z0, , y] = c.platforms[Number(k)]
     const b = bot.blockAt(new Vec3(x0 + OX, y + OY, z0 + OZ), false)
-    return !!b && b.stateId === SHAPES[name].state
+    return !!b && (b.stateId === SHAPES[name].state || (b.name === SHAPES[name].block && sameBoxes(b.shapes, SHAPES[name].boxes)))
   }), 10000, 'shaped blocks')
   await waitFor(() => ladders.every(([x, y, z, f]) => {
     const b = bot.blockAt(new Vec3(x + OX, y + OY, z + OZ), false)

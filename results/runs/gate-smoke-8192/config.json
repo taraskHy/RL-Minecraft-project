@@ -1,0 +1,118 @@
+{
+ "run": "gate-smoke-8192",
+ "experts": "configs/gate_experts.json",
+ "init_from": "",
+ "swap": false,
+ "seed": 0,
+ "device": "cuda",
+ "threads": 0,
+ "num_envs": 8192,
+ "rollout": 64,
+ "iterations": 5,
+ "epochs": 4,
+ "minibatches": 8,
+ "lr": 0.0003,
+ "gamma": 0.995,
+ "lam": 0.95,
+ "clip": 0.2,
+ "dual_clip": 3.0,
+ "ent_coef": 0.005,
+ "vf_coef": 1.0,
+ "value_clip": 0.0,
+ "max_grad_norm": 1.0,
+ "target_kl": 0.01,
+ "kl_stop": 0.05,
+ "lr_min": 1e-05,
+ "lr_max": 0.001,
+ "hidden": [
+  256,
+  128
+ ],
+ "skills": "basic,advanced,extra",
+ "ice_prob": 0.3,
+ "obstacle_prob": 0.3,
+ "pool_size": 1024,
+ "pool_refresh_every": 20,
+ "pool_refresh_frac": 0.125,
+ "jumps_min": 5,
+ "jumps_max": 12,
+ "turn_prob": 0.25,
+ "curriculum": "uniform",
+ "wide_neo": false,
+ "compact_ice": true,
+ "stall_ticks": 200,
+ "reward": {
+  "progress": 1.0,
+  "landing": 1.0,
+  "goal": 10.0,
+  "fall": 5.0,
+  "time": 0.01,
+  "stall": 0.0
+ },
+ "eval_per_level": 200,
+ "val_per_level": 2,
+ "eval_jumps": 10,
+ "eval_every": 5,
+ "eval_batch_size": 600,
+ "save_at": "",
+ "test_once": false,
+ "what": "parkour.gate: a skill gate over frozen experts, PPO on its decisions (semi-MDP)",
+ "slots": [
+  {
+   "slot": "final",
+   "skill": "basic",
+   "checkpoint": "results/final_policy.pt",
+   "sha1": "e4bfb177bc55ecabdf8b9dcaa807394de44db938"
+  },
+  {
+   "slot": "g995-ice",
+   "skill": "ice",
+   "checkpoint": "runs/g995-ice/checkpoints/best.pt",
+   "sha1": "fcfb988b078757a1f270789e751e1bdbf2d75b1d"
+  },
+  {
+   "slot": "neo",
+   "skill": "neo",
+   "checkpoint": "results/neo_policy.pt",
+   "sha1": "b1806cad6dc68f2bfa4a8e8a6c75a28b4b061a1d"
+  },
+  {
+   "slot": "g995-extra",
+   "skill": "extra",
+   "checkpoint": "runs/g995-extra/checkpoints/best.pt",
+   "sha1": "aa58dd6b5ada89dc65a87a4d9bdb749edb221e07"
+  },
+  {
+   "slot": "combined-distill",
+   "skill": "all",
+   "checkpoint": "runs/combined-distill/checkpoints/best.pt",
+   "sha1": "86fdbbd49a0a84ec9a3711268fdbe4a701ad6c13"
+  },
+  {
+   "slot": "skills-hh-ft",
+   "skill": "all",
+   "checkpoint": "runs/skills-hh-ft/checkpoints/best.pt",
+   "sha1": "86d6afb1e5ca2a0330684f698246c6f5f671bba1"
+  },
+  {
+   "slot": "neo-combined-r1",
+   "skill": "all",
+   "checkpoint": "runs/neo-combined-r1/checkpoints/best.pt",
+   "sha1": "f173d5b4d3921377b014f317a837a0f7c565e418"
+  }
+ ],
+ "swaps": [],
+ "features": [
+  "current_stone",
+  "current_ice",
+  "current_slime",
+  "current_shaped",
+  "current_ladder",
+  "next_stone",
+  "next_ice",
+  "next_slime",
+  "next_shaped",
+  "next_ladder",
+  "next_ceiling"
+ ]
+}

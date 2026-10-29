@@ -1,0 +1,257 @@
+{
+ "best": {
+  "iteration": 4,
+  "updates": 5,
+  "validation_success": 0.84375,
+  "validation_groups": {
+   "basic": 1.0,
+   "ice": 1.0,
+   "advanced": 0.5833333333333334,
+   "extra": 0.7916666666666666
+  },
+  "slot_usage": {
+   "basic": {
+    "decisions": {
+     "final": 0.20920502092050208,
+     "g995-ice": 0.10460251046025104,
+     "neo": 0.09205020920502092,
+     "g995-extra": 0.05439330543933055,
+     "combined-distill": 0.13389121338912133,
+     "skills-hh-ft": 0.2719665271966527,
+     "neo-combined-r1": 0.13389121338912133
+    },
+    "ticks": {
+     "final": 0.2196749854904237,
+     "g995-ice": 0.0914103308183401,
+     "neo": 0.07603017991874637,
+     "g995-extra": 0.053395240858966915,
+     "combined-distill": 0.1424840394660476,
+     "skills-hh-ft": 0.2687173534532792,
+     "neo-combined-r1": 0.14828786999419616
+    },
+    "n_decisions": 239,
+    "n_ticks": 3446
+   },
+   "ice": {
+    "decisions": {
+     "final": 0.25210084033613445,
+     "g995-ice": 0.20168067226890757,
+     "neo": 0.04201680672268908,
+     "g995-extra": 0.06722689075630252,
+     "combined-distill": 0.15126050420168066,
+     "skills-hh-ft": 0.1092436974789916,
+     "neo-combined-r1": 0.17647058823529413
+    },
+    "ticks": {
+     "final": 0.268140589569161,
+     "g995-ice": 0.1870748299319728,
+     "neo": 0.03231292517006803,
+     "g995-extra": 0.06065759637188209,
+     "combined-distill": 0.1354875283446712,
+     "skills-hh-ft": 0.12811791383219956,
+     "neo-combined-r1": 0.18820861678004536
+    },
+    "n_decisions": 119,
+    "n_ticks": 1764
+   },
+   "advanced": {
+    "decisions": {
+     "final": 0.12962962962962962,
+     "g995-ice": 0.027777777777777776,
+     "neo": 0.046296296296296294,
+     "g995-extra": 0.05555555555555555,
+     "combined-distill": 0.23148148148148148,
+     "skills-hh-ft": 0.25,
+     "neo-combined-r1": 0.25925925925925924
+    },
+    "ticks": {
+     "final": 0.13019079685746351,
+     "g995-ice": 0.030303030303030304,
+     "neo": 0.044332210998877665,
+     "g995-extra": 0.04826038159371493,
+     "combined-distill": 0.22951739618406286,
+     "skills-hh-ft": 0.25869809203142535,
+     "neo-combined-r1": 0.25869809203142535
+    },
+    "n_decisions": 108,
+    "n_ticks": 1782
+   },
+   "extra": {
+    "decisions": {
+     "final": 0.0962962962962963,
+     "g995-ice": 0.025925925925925925,
+     "neo": 0.025925925925925925,
+     "g995-extra": 0.10740740740740741,
+     "combined-distill": 0.1925925925925926,
+     "skills-hh-ft": 0.2814814814814815,
+     "neo-combined-r1": 0.27037037037037037
+    },
+    "ticks": {
+     "final": 0.09726880689985626,
+     "g995-ice": 0.021082894106372783,
+     "neo": 0.022041207474844275,
+     "g995-extra": 0.10924772400574988,
+     "combined-distill": 0.2232870148538572,
+     "skills-hh-ft": 0.25083852419741254,
+     "neo-combined-r1": 0.276233828461907
+    },
+    "n_decisions": 270,
+    "n_ticks": 4174
+   }
+  },
+  "seconds": 35.7
+ },
+ "last_eval": {
+  "iteration": 4,
+  "updates": 5,
+  "validation_success": 0.84375,
+  "validation_groups": {
+   "basic": 1.0,
+   "ice": 1.0,
+   "advanced": 0.5833333333333334,
+   "extra": 0.7916666666666666
+  },
+  "slot_usage": {
+   "basic": {
+    "decisions": {
+     "final": 0.20920502092050208,
+     "g995-ice": 0.10460251046025104,
+     "neo": 0.09205020920502092,
+     "g995-extra": 0.05439330543933055,
+     "combined-distill": 0.13389121338912133,
+     "skills-hh-ft": 0.2719665271966527,
+     "neo-combined-r1": 0.13389121338912133
+    },
+    "ticks": {
+     "final": 0.2196749854904237,
+     "g995-ice": 0.0914103308183401,
+     "neo": 0.07603017991874637,
+     "g995-extra": 0.053395240858966915,
+     "combined-distill": 0.1424840394660476,
+     "skills-hh-ft": 0.2687173534532792,
+     "neo-combined-r1": 0.14828786999419616
+    },
+    "n_decisions": 239,
+    "n_ticks": 3446
+   },
+   "ice": {
+    "decisions": {
+     "final": 0.25210084033613445,
+     "g995-ice": 0.20168067226890757,
+     "neo": 0.04201680672268908,
+     "g995-extra": 0.06722689075630252,
+     "combined-distill": 0.15126050420168066,
+     "skills-hh-ft": 0.1092436974789916,
+     "neo-combined-r1": 0.17647058823529413
+    },
+    "ticks": {
+     "final": 0.268140589569161,
+     "g995-ice": 0.1870748299319728,
+     "neo": 0.03231292517006803,
+     "g995-extra": 0.06065759637188209,
+     "combined-distill": 0.1354875283446712,
+     "skills-hh-ft": 0.12811791383219956,
+     "neo-combined-r1": 0.18820861678004536
+    },
+    "n_decisions": 119,
+    "n_ticks": 1764
+   },
+   "advanced": {
+    "decisions": {
+     "final": 0.12962962962962962,
+     "g995-ice": 0.027777777777777776,
+     "neo": 0.046296296296296294,
+     "g995-extra": 0.05555555555555555,
+     "combined-distill": 0.23148148148148148,
+     "skills-hh-ft": 0.25,
+     "neo-combined-r1": 0.25925925925925924
+    },
+    "ticks": {
+     "final": 0.13019079685746351,
+     "g995-ice": 0.030303030303030304,
+     "neo": 0.044332210998877665,
+     "g995-extra": 0.04826038159371493,
+     "combined-distill": 0.22951739618406286,
+     "skills-hh-ft": 0.25869809203142535,
+     "neo-combined-r1": 0.25869809203142535
+    },
+    "n_decisions": 108,
+    "n_ticks": 1782
+   },
+   "extra": {
+    "decisions": {
+     "final": 0.0962962962962963,
+     "g995-ice": 0.025925925925925925,
+     "neo": 0.025925925925925925,
+     "g995-extra": 0.10740740740740741,
+     "combined-distill": 0.1925925925925926,
+     "skills-hh-ft": 0.2814814814814815,
+     "neo-combined-r1": 0.27037037037037037
+    },
+    "ticks": {
+     "final": 0.09726880689985626,
+     "g995-ice": 0.021082894106372783,
+     "neo": 0.022041207474844275,
+     "g995-extra": 0.10924772400574988,
+     "combined-distill": 0.2232870148538572,
+     "skills-hh-ft": 0.25083852419741254,
+     "neo-combined-r1": 0.276233828461907
+    },
+    "n_decisions": 270,
+    "n_ticks": 4174
+   }
+  },
+  "seconds": 35.7
+ },
+ "iteration": 4,
+ "updates": 5,
+ "env_ticks": 2621440,
+ "env_steps": 2621440,
+ "minutes": 0.78,
+ "completed": true,
+ "slots": [
+  {
+   "slot": "final",
+   "skill": "basic",
+   "checkpoint": "results/final_policy.pt",
+   "sha1": "e4bfb177bc55ecabdf8b9dcaa807394de44db938"
+  },
+  {
+   "slot": "g995-ice",
+   "skill": "ice",
+   "checkpoint": "runs/g995-ice/checkpoints/best.pt",
+   "sha1": "fcfb988b078757a1f270789e751e1bdbf2d75b1d"
+  },
+  {
+   "slot": "neo",
+   "skill": "neo",
+   "checkpoint": "results/neo_policy.pt",
+   "sha1": "b1806cad6dc68f2bfa4a8e8a6c75a28b4b061a1d"
+  },
+  {
+   "slot": "g995-extra",
+   "skill": "extra",
+   "checkpoint": "runs/g995-extra/checkpoints/best.pt",
+   "sha1": "aa58dd6b5ada89dc65a87a4d9bdb749edb221e07"
+  },
+  {
+   "slot": "combined-distill",
+   "skill": "all",
+   "checkpoint": "runs/combined-distill/checkpoints/best.pt",
+   "sha1": "86fdbbd49a0a84ec9a3711268fdbe4a701ad6c13"
+  },
+  {
+   "slot": "skills-hh-ft",
+   "skill": "all",
+   "checkpoint": "runs/skills-hh-ft/checkpoints/best.pt",
+   "sha1": "86d6afb1e5ca2a0330684f698246c6f5f671bba1"
+  },
+  {
+   "slot": "neo-combined-r1",
+   "skill": "all",
+   "checkpoint": "runs/neo-combined-r1/checkpoints/best.pt",
+   "sha1": "f173d5b4d3921377b014f317a837a0f7c565e418"
+  }
+ ],
+ "swaps": []
+}

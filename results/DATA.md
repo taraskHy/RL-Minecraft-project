@@ -40,6 +40,10 @@ The runs:
 | `neo-dagger`, `neo-dagger2`, `neo-dagger3` | DAgger rounds 1 to 3, 500 iterations each, imitation weight 0.3 (constant); each round trains on the imitation pairs of all rounds so far; `neo-dagger3` is the neo policy |
 | `progress-demo` | the progress run: 400 iterations from scratch (seed 3); its snapshots play the `progress-demo-games__*` games, the ghost-race videos and `progress.html` |
 | `film-pov` | not a training run: the real-Minecraft episodes (tour, stairs, sprint) recorded with the first final policy for the first-person videos |
+| `skills-hh-ft` | `combined-distill` fine-tuned on head hitters and slime (skills mode, `--level-weights`, 500 iterations); not kept: validation mean 86.4% against 87.0% |
+| `neo-combined-r1` | a neo DAgger round on `combined-distill` (pairs `runs/neo_dagger_c1.pt`, 500 iterations, a snapshot every 50); not kept: no snapshot reaches `combined-distill`'s validation mean |
+| `neo-dagger4` | one more DAgger round on the neo policy (pairs `runs/neo_dagger_r4.pt`, 500 iterations, a snapshot every 50); its updates-250 snapshot was picked on the single-neo validation set (146 of 320 strict, the best of ten) |
+| `gate-smoke-1024`, `gate-smoke-8192` | smoke runs of the skill gate (`parkour/gate.py`, a few updates) that measured its speed; not results |
 
 Checkpoints (`runs/NAME/checkpoints/best.pt`, `latest.pt`, and
 `updates_*.pt` snapshots for the progress run) are *local only* (about 14 MB
@@ -115,6 +119,11 @@ JavaScript on Mineflayer's physics engine without a server. Every folder's
 
 | Folder | What |
 | --- | --- |
+| `skill-replays-offline-65`, `skill-replays-live-65` | the replays of 29 October, offline and **real Minecraft**: the one network (`results/combined_policy.pt`) on 65 fresh showcase courses (seed families 42-44, `skill-replays-courses-65.json`, `scripts/make_skill_replays.py`): head hitters, hard head hitters, ice run-ups, shaped blocks, slime, ladders (4 each), advanced levels 6-8 (9, three of them with a neo), ice courses (12) and two courses for each of the 10 trained block shapes; 59/65 in both, the same courses as the simulator, 0 corrections |
+| `skill-replays-offline`, `skill-replays-live` | evidence only: the first 45 of those courses offline (identical to the -65 run), and the real-Minecraft run that stopped at course 14 (a 2x2 carpet breaks in mid-air in vanilla Minecraft; 14 episodes, no summary), before the structure-void fix in `bridge/parkour_bot.js` |
+| `skill-replays-untrained-offline`, `skill-replays-untrained-live` | the one network on 8 courses with block shapes no training level uses (stairs, top slab, top trapdoor, iron bars; `skill-replays-courses-untrained.json`, `scripts/make_untrained_shape_courses.py`): 6/8 in both, as the simulator |
+| `skill-replays-neo-network-*`, `skill-replays-neo-planner-*` | 16 fresh courses with exactly one neo (family 45, `skill-replays-courses-neo.json`, `scripts/make_neo_showcase_courses.py`), offline and real Minecraft: the one network alone 7/16, the final policy with the planner (`--assist`, the setting chosen on single-neo validation) 13/16, as the simulator |
+| `single41-offline-policy`, `single41-offline-planner` | the single-neo bot check: the first 64 test courses of family 41 (`single41-first64-courses.json`, `scripts/single_neo_bot_courses.py`) on the offline bot, policy alone (`neo-dagger4` updates 250) and planner mode; compared with `parkour.live`'s own simulator re-run from the same settled start (HANDOFF section 3) |
 | `v2-tuned-planner-offline`, `v2-tuned-planner-offline-obstacles` | the same courses offline with the retuned planner (`cost=distance, align=2.0`): 51/60, 56/60 |
 | `live2-final`, `live2-obstacles`, `live2-showcase` | real Minecraft, first final policy, re-run with the collision-tolerance patch: 59/60, 58/60, 3/4 |
 | `recheck-std`, `recheck-obs`, `recheck-show` | the same re-check offline: identical |
@@ -175,6 +184,7 @@ on every course, and the real-Minecraft runs had 0 server corrections.
 | `physics_parity_climb.json` | the same check with ladders and vines (optional climb grid; in 1.21 climbing also by jumping): 60,000 ticks, largest error 7.1e-15 blocks; climbing changes 48 of 300 trajectories (`scripts/shape_parity.py --climb`) |
 | `results/extra/` | head hitters, ice run-ups, shaped blocks, slime bounces and ladders (the opt-in extra levels): `jump_eval_final_policy.json` every kind alone at 16 angles (`parkour.jumpeval --extra`); `course_preview_family1.json` whole held-out courses of the measured levels, the final policy alone and with the planner (`scripts/extra_preview.py`). Simulator only |
 | `hparams_defaults_validation.json` | the defaults' validation score for the hyperparameter table |
+| `gate_headroom.json` (in `results/skills/`) | the skill-gate measurement (`scripts/gate_headroom.py`, validation, simulator): every expert on every course of the four groups' validation sets, the group-level and per-course ceilings (87.83%, 94.06%) against the one network (86.98%), and the reference ceilings |
 | `audit_claims.json` | the audit of 829 claims in the documents against the run files (28 Oct) |
 | `level5_by_position.json` | failure rate by position in the course on 3,000 extra level-5 courses (seed family 11, analysis only; `scripts/level5_positions.py`) |
 | `level5_pause_test.jsonl` | a test-time pause after each landing (0, 3, 6, 10 ticks) on 2,000 level-5 courses of family 11: worse (`scripts/level5_pause_test.py`) |
@@ -200,6 +210,7 @@ on every course, and the real-Minecraft runs had 0 server corrections.
 | `wide_takeoff_search.json` | which neos are landable from 2x2 and 3x3 takeoffs |
 | `one_policy_comparison.json` | the neo policies on levels 0-5 (the same courses as the standard test set) and the final policies on levels 6-8 and the 210 neo courses (`scripts/one_policy_check.py`) |
 | `assist_validation.jsonl`, `assist_test.jsonl` | the neo assist (`parkour.neo_assist`: a search from the bot's exact state at every planned takeoff): one JSON line per run and setting, validation (families 2, 13) and test (families 1, 12) courses, simulator. Rows tagged `code 587c9b1` ran in a git worktree of that commit (their `checkpoint` is that worktree's copy of `results/final_policy.pt`) with the then-default batched search (batch 32) |
+| `*.lock` | lock files that `parkour.neo_assist` takes while it appends a row (one byte; ignored by Git) |
 | `assist_details/*.json` | the same runs course by course (`--details`): the row, every course's outcome (`stopped_at`, `stopped_at_kind`) and every search (takeoff, target, tick, whether it started where a plan landed, found, plan ticks, rounds, braked) |
 
 ## Pages to show
@@ -211,6 +222,8 @@ on every course, and the real-Minecraft runs had 0 server corrections.
 | `results/neo_preview.html` | neo training in progress |
 | `results/theatre.html` | Minecraft-style 3D replays and the ghost races |
 | `results/showcase.html` | the results page for the presentation ("Learning Minecraft Parkour") |
+| `results/skill_replays.html` | "Parkour Skill Replays": 3D replays of the skill-replays runs (`scripts/make_skill_replays.py page`, template `scripts/skill_replays_template.html`); a page for an artifact's main slot |
+| `results/replays.html`, `replays/` (`*.jpg`, one still per kind) | the same page as a supporting page of the results artifact (`scripts/artifact_subpage.py`), embedded in `showcase.html`, and its preview stills |
 | `results/overnight_plan.html` | the overnight decision tree of 28 October (`docs/overnight_plan.md`) |
 | `results/showcase_replays.html` | 3D replays of the 45 showcase recordings of 29 October: the validation-selected advanced (g995-adv, checkpoint 99) and ice (g995-ice, checkpoint 449) policies after training, offline prismarine-physics, failures included; not training rollouts or benchmark results (`scripts/make_showcase_replays.py`, data on branch `codex/advanced-ice-replay-export-20261029`) |
 

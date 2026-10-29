@@ -1,0 +1,257 @@
+{
+ "best": {
+  "iteration": 5,
+  "updates": 6,
+  "validation_success": 0.8166666666666667,
+  "validation_groups": {
+   "basic": 0.9083333333333333,
+   "ice": 0.9833333333333333,
+   "advanced": 0.5333333333333333,
+   "extra": 0.8416666666666667
+  },
+  "slot_usage": {
+   "basic": {
+    "decisions": {
+     "final": 0.054481546572934976,
+     "g995-ice": 0.08611599297012303,
+     "neo": 0.03602811950790861,
+     "g995-extra": 0.10105448154657294,
+     "combined-distill": 0.07996485061511424,
+     "skills-hh-ft": 0.37434094903339193,
+     "neo-combined-r1": 0.2680140597539543
+    },
+    "ticks": {
+     "final": 0.049367387962634506,
+     "g995-ice": 0.07898782074021521,
+     "neo": 0.030152536360411493,
+     "g995-extra": 0.10387844389263332,
+     "combined-distill": 0.09382759843916283,
+     "skills-hh-ft": 0.4092467778171929,
+     "neo-combined-r1": 0.2345394347877498
+    },
+    "n_decisions": 1138,
+    "n_ticks": 16914
+   },
+   "ice": {
+    "decisions": {
+     "final": 0.08732876712328767,
+     "g995-ice": 0.10102739726027397,
+     "neo": 0.07534246575342465,
+     "g995-extra": 0.0839041095890411,
+     "combined-distill": 0.0547945205479452,
+     "skills-hh-ft": 0.3373287671232877,
+     "neo-combined-r1": 0.2602739726027397
+    },
+    "ticks": {
+     "final": 0.07628294036061026,
+     "g995-ice": 0.0892279241793805,
+     "neo": 0.06807674526121128,
+     "g995-extra": 0.08448913546000925,
+     "combined-distill": 0.06680536292186777,
+     "skills-hh-ft": 0.3771382339343504,
+     "neo-combined-r1": 0.2379796578825705
+    },
+    "n_decisions": 584,
+    "n_ticks": 8652
+   },
+   "advanced": {
+    "decisions": {
+     "final": 0.020066889632107024,
+     "g995-ice": 0.04013377926421405,
+     "neo": 0.016722408026755852,
+     "g995-extra": 0.07692307692307693,
+     "combined-distill": 0.033444816053511704,
+     "skills-hh-ft": 0.3795986622073579,
+     "neo-combined-r1": 0.4331103678929766
+    },
+    "ticks": {
+     "final": 0.014315484280148592,
+     "g995-ice": 0.049651173326084985,
+     "neo": 0.013409440971278427,
+     "g995-extra": 0.11515810455739785,
+     "combined-distill": 0.0353356890459364,
+     "skills-hh-ft": 0.408716136631331,
+     "neo-combined-r1": 0.36341397118782276
+    },
+    "n_decisions": 598,
+    "n_ticks": 11037
+   },
+   "extra": {
+    "decisions": {
+     "final": 0.04175665946724262,
+     "g995-ice": 0.07055435565154787,
+     "neo": 0.01583873290136789,
+     "g995-extra": 0.1259899208063355,
+     "combined-distill": 0.09719222462203024,
+     "skills-hh-ft": 0.33405327573794097,
+     "neo-combined-r1": 0.3146148308135349
+    },
+    "ticks": {
+     "final": 0.032933345011824475,
+     "g995-ice": 0.06709293159323815,
+     "neo": 0.013663834632565472,
+     "g995-extra": 0.1378207935534729,
+     "combined-distill": 0.10602610142769554,
+     "skills-hh-ft": 0.35521590610493126,
+     "neo-combined-r1": 0.2872470876762722
+    },
+    "n_decisions": 1389,
+    "n_ticks": 22834
+   }
+  },
+  "seconds": 46.1
+ },
+ "last_eval": {
+  "iteration": 5,
+  "updates": 6,
+  "validation_success": 0.8166666666666667,
+  "validation_groups": {
+   "basic": 0.9083333333333333,
+   "ice": 0.9833333333333333,
+   "advanced": 0.5333333333333333,
+   "extra": 0.8416666666666667
+  },
+  "slot_usage": {
+   "basic": {
+    "decisions": {
+     "final": 0.054481546572934976,
+     "g995-ice": 0.08611599297012303,
+     "neo": 0.03602811950790861,
+     "g995-extra": 0.10105448154657294,
+     "combined-distill": 0.07996485061511424,
+     "skills-hh-ft": 0.37434094903339193,
+     "neo-combined-r1": 0.2680140597539543
+    },
+    "ticks": {
+     "final": 0.049367387962634506,
+     "g995-ice": 0.07898782074021521,
+     "neo": 0.030152536360411493,
+     "g995-extra": 0.10387844389263332,
+     "combined-distill": 0.09382759843916283,
+     "skills-hh-ft": 0.4092467778171929,
+     "neo-combined-r1": 0.2345394347877498
+    },
+    "n_decisions": 1138,
+    "n_ticks": 16914
+   },
+   "ice": {
+    "decisions": {
+     "final": 0.08732876712328767,
+     "g995-ice": 0.10102739726027397,
+     "neo": 0.07534246575342465,
+     "g995-extra": 0.0839041095890411,
+     "combined-distill": 0.0547945205479452,
+     "skills-hh-ft": 0.3373287671232877,
+     "neo-combined-r1": 0.2602739726027397
+    },
+    "ticks": {
+     "final": 0.07628294036061026,
+     "g995-ice": 0.0892279241793805,
+     "neo": 0.06807674526121128,
+     "g995-extra": 0.08448913546000925,
+     "combined-distill": 0.06680536292186777,
+     "skills-hh-ft": 0.3771382339343504,
+     "neo-combined-r1": 0.2379796578825705
+    },
+    "n_decisions": 584,
+    "n_ticks": 8652
+   },
+   "advanced": {
+    "decisions": {
+     "final": 0.020066889632107024,
+     "g995-ice": 0.04013377926421405,
+     "neo": 0.016722408026755852,
+     "g995-extra": 0.07692307692307693,
+     "combined-distill": 0.033444816053511704,
+     "skills-hh-ft": 0.3795986622073579,
+     "neo-combined-r1": 0.4331103678929766
+    },
+    "ticks": {
+     "final": 0.014315484280148592,
+     "g995-ice": 0.049651173326084985,
+     "neo": 0.013409440971278427,
+     "g995-extra": 0.11515810455739785,
+     "combined-distill": 0.0353356890459364,
+     "skills-hh-ft": 0.408716136631331,
+     "neo-combined-r1": 0.36341397118782276
+    },
+    "n_decisions": 598,
+    "n_ticks": 11037
+   },
+   "extra": {
+    "decisions": {
+     "final": 0.04175665946724262,
+     "g995-ice": 0.07055435565154787,
+     "neo": 0.01583873290136789,
+     "g995-extra": 0.1259899208063355,
+     "combined-distill": 0.09719222462203024,
+     "skills-hh-ft": 0.33405327573794097,
+     "neo-combined-r1": 0.3146148308135349
+    },
+    "ticks": {
+     "final": 0.032933345011824475,
+     "g995-ice": 0.06709293159323815,
+     "neo": 0.013663834632565472,
+     "g995-extra": 0.1378207935534729,
+     "combined-distill": 0.10602610142769554,
+     "skills-hh-ft": 0.35521590610493126,
+     "neo-combined-r1": 0.2872470876762722
+    },
+    "n_decisions": 1389,
+    "n_ticks": 22834
+   }
+  },
+  "seconds": 46.1
+ },
+ "iteration": 5,
+ "updates": 6,
+ "env_ticks": 393216,
+ "env_steps": 393216,
+ "minutes": 1.73,
+ "completed": true,
+ "slots": [
+  {
+   "slot": "final",
+   "skill": "basic",
+   "checkpoint": "results/final_policy.pt",
+   "sha1": "e4bfb177bc55ecabdf8b9dcaa807394de44db938"
+  },
+  {
+   "slot": "g995-ice",
+   "skill": "ice",
+   "checkpoint": "runs/g995-ice/checkpoints/best.pt",
+   "sha1": "fcfb988b078757a1f270789e751e1bdbf2d75b1d"
+  },
+  {
+   "slot": "neo",
+   "skill": "neo",
+   "checkpoint": "results/neo_policy.pt",
+   "sha1": "b1806cad6dc68f2bfa4a8e8a6c75a28b4b061a1d"
+  },
+  {
+   "slot": "g995-extra",
+   "skill": "extra",
+   "checkpoint": "runs/g995-extra/checkpoints/best.pt",
+   "sha1": "aa58dd6b5ada89dc65a87a4d9bdb749edb221e07"
+  },
+  {
+   "slot": "combined-distill",
+   "skill": "all",
+   "checkpoint": "runs/combined-distill/checkpoints/best.pt",
+   "sha1": "86fdbbd49a0a84ec9a3711268fdbe4a701ad6c13"
+  },
+  {
+   "slot": "skills-hh-ft",
+   "skill": "all",
+   "checkpoint": "runs/skills-hh-ft/checkpoints/best.pt",
+   "sha1": "86d6afb1e5ca2a0330684f698246c6f5f671bba1"
+  },
+  {
+   "slot": "neo-combined-r1",
+   "skill": "all",
+   "checkpoint": "runs/neo-combined-r1/checkpoints/best.pt",
+   "sha1": "f173d5b4d3921377b014f317a837a0f7c565e418"
+  }
+ ],
+ "swaps": []
+}

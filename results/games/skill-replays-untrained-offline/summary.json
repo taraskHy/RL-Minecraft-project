@@ -1,0 +1,132 @@
+{
+ "mode": "offline (prismarine-physics, no server)",
+ "checkpoint": "results/combined_policy.pt",
+ "courses": 8,
+ "wall_seconds": 0.6,
+ "success": 0.75,
+ "sim_success_same_courses": 0.75,
+ "outcome_agreement": 1.0,
+ "replay_max_pos_err": 0.0,
+ "replay_exact_episodes": 8,
+ "by_level": {
+  "12": {
+   "n": 8,
+   "success": 0.75,
+   "sim_success": 0.75
+  }
+ },
+ "episodes": [
+  {
+   "index": 0,
+   "name": "",
+   "level": 12,
+   "result": "fell",
+   "platform": 13,
+   "n": 15,
+   "ticks": 211,
+   "server_corrections": null,
+   "replay_max_pos_err": 0.0,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 211
+  },
+  {
+   "index": 1,
+   "name": "",
+   "level": 12,
+   "result": "success",
+   "platform": 15,
+   "n": 16,
+   "ticks": 210,
+   "server_corrections": null,
+   "replay_max_pos_err": 0.0,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 210
+  },
+  {
+   "index": 2,
+   "name": "",
+   "level": 12,
+   "result": "success",
+   "platform": 15,
+   "n": 16,
+   "ticks": 202,
+   "server_corrections": null,
+   "replay_max_pos_err": 0.0,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 202
+  },
+  {
+   "index": 3,
+   "name": "",
+   "level": 12,
+   "result": "success",
+   "platform": 15,
+   "n": 16,
+   "ticks": 181,
+   "server_corrections": null,
+   "replay_max_pos_err": 0.0,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 181
+  },
+  {
+   "index": 4,
+   "name": "",
+   "level": 12,
+   "result": "success",
+   "platform": 15,
+   "n": 16,
+   "ticks": 206,
+   "server_corrections": null,
+   "replay_max_pos_err": 0.0,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 206
+  },
+  {
+   "index": 5,
+   "name": "",
+   "level": 12,
+   "result": "success",
+   "platform": 15,
+   "n": 16,
+   "ticks": 188,
+   "server_corrections": null,
+   "replay_max_pos_err": 0.0,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 188
+  },
+  {
+   "index": 6,
+   "name": "",
+   "level": 12,
+   "result": "success",
+   "platform": 15,
+   "n": 16,
+   "ticks": 234,
+   "server_corrections": null,
+   "replay_max_pos_err": 0.0,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 234
+  },
+  {
+   "index": 7,
+   "name": "",
+   "level": 12,
+   "result": "fell",
+   "platform": 12,
+   "n": 15,
+   "ticks": 170,
+   "server_corrections": null,
+   "replay_max_pos_err": 0.0,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 170
+  }
+ ]
+}
