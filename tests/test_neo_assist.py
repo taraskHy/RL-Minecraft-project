@@ -433,6 +433,97 @@ class StrictNeoMetric(unittest.TestCase):
         self.assertEqual(bare["by_neo_count"], {"1": {"courses": 4, "completed": 2}})
 
 
+def plan_once_4762c22(model, pool, rules, arrival, kind, attempt, cfg, horizon, device):
+    """``neo_assist.plan_once`` of 4762c22, the commit before the neo levers (its request_seed inline), searching with
+    ``search_4762c22``; and 0 restarts, as plan_once returns them now."""
+    pr = NA.policy_prior(model, pool, [arrival], device, horizon) if cfg.prior > 0 else None
+    seed = (cfg.seed * 1_000_003 + arrival.get("seed_course", arrival["course"]) * 4099 + arrival["cp"] * 67
+            + {"takeoff": 0, "retry": 1, "approach": 2}[kind] * 7 + attempt)
+    f, r = search_4762c22(pool, rules, [arrival], device, cfg, seed, pr, horizon)
+    return (f[0][0] if f[0] else None), r[0], 0
+
+
+def search_4762c22(pool, rules, arrivals, device, cfg, seed, prior=None, horizon=ND.HORIZON):
+    """``neo_assist.search`` of 4762c22 (git show 4762c22:parkour/neo_assist.py), verbatim but for the module its
+    helpers are named by."""
+    gen = torch.Generator(device=device).manual_seed(seed)
+    A, S, T = len(arrivals), cfg.samples, horizon
+    steps = torch.tensor(NA.YAW_STEPS_DEG, dtype=torch.float64, device=device) * (math.pi / 180)
+    init = NA._state_rows(arrivals, device)
+    course = torch.tensor([a["course"] for a in arrivals], device=device)
+    target = torch.tensor([a.get("target", a["cp"] + 1) for a in arrivals], device=device)
+    tops = torch.stack([pool.top[a["course"], a["cp"]:a.get("target", a["cp"] + 1) + 1].min() for a in arrivals])
+    goal = pool.centre[course, target]
+    p = {"move": torch.tensor([0.05, 0.15, 0.8], device=device).repeat(A, T, 1),
+         "strafe": torch.full((A, T, 3), 1 / 3, device=device),
+         "jump": torch.tensor([0.7, 0.3], device=device).repeat(A, T, 1),
+         "sprint": torch.tensor([0.2, 0.8], device=device).repeat(A, T, 1),
+         "yaw": torch.tensor([0.05, 0.1, 0.15, 0.4, 0.15, 0.1, 0.05], device=device).repeat(A, T, 1)}
+    if prior is not None and cfg.prior > 0:
+        for key in p:
+            p[key] = (cfg.prior * prior[key] + (1 - cfg.prior) * p[key]).clamp(min=0.01)
+            p[key] = p[key] / p[key].sum(-1, keepdim=True)
+    found = [[] for _ in range(A)]
+    seen = [set() for _ in range(A)]
+    rounds = [0] * A
+    k_elite = max(1, int(S * NA.ELITE))
+    active = list(range(A))
+    for it in range(cfg.iterations):
+        act_idx = torch.tensor(active, device=device)
+        a_n = len(active)
+        n = a_n * S
+        rep = lambda x: x[act_idx].repeat_interleave(S, dim=0)  # noqa: E731
+        acts = {}
+        for key, v in p.items():
+            flat = v[act_idx].reshape(a_n * T, -1)
+            draw = torch.multinomial(flat, S, replacement=True, generator=gen)
+            acts[key] = draw.reshape(a_n, T, S).permute(0, 2, 1).reshape(n, T)
+        s = physics.PlayerState(rep(init.pos), rep(init.vel), rep(init.yaw), rep(init.on_ground), rep(init.jump_ticks),
+                                rep(init.collided_h), rep(init.collided_v))
+        cidx, tgt, top_r, goal_r = rep(course), rep(target), rep(tops), rep(goal)
+        alive = torch.ones(n, dtype=torch.bool, device=device)
+        landed = torch.zeros(n, dtype=torch.bool, device=device)
+        land_tick = torch.full((n,), T, dtype=torch.int64, device=device)
+        closest = torch.full((n,), 1e9, dtype=torch.float64, device=device)
+        for t in range(T):
+            y = s.yaw + steps[acts["yaw"][:, t]]
+            s.yaw = torch.remainder(y + math.pi, 2 * math.pi) - math.pi
+            a_t = torch.stack([acts[k][:, t] for k in NA.HEADS], -1)
+            s = physics.simulate(pool.world, cidx, s, NA.action_to_controls(a_t))
+            alive &= ~rules.on_obstacle(s, cidx) & (s.pos[:, 1] > top_r - 1.0)
+            now = NA.standing_on(pool, s, cidx).gather(1, tgt[:, None]).squeeze(1) & alive & ~landed
+            land_tick = torch.where(now, torch.full_like(land_tick, t + 1), land_tick)
+            landed |= now
+            closest = torch.where(alive & ~landed, torch.minimum(closest, torch.linalg.norm(s.pos - goal_r, dim=-1)),
+                                  closest)
+        L = landed.cpu().numpy()
+        if L.any():
+            lt = land_tick.cpu().numpy()
+            stack = torch.stack([acts[k] for k in NA.HEADS], -1).cpu().numpy()
+            for j in np.flatnonzero(L):
+                a = active[j // S]
+                if len(found[a]) >= cfg.keep:
+                    continue
+                seq = stack[j, :lt[j]]
+                b = seq.tobytes()
+                if b not in seen[a]:
+                    seen[a].add(b)
+                    found[a].append(seq)
+        for a in active:
+            rounds[a] = it + 1
+        score = (landed.double() * 100.0 - torch.where(landed, torch.zeros_like(closest), closest)).reshape(a_n, S)
+        top = torch.topk(score, k_elite, dim=1).indices
+        for key, v in p.items():
+            sel = acts[key].reshape(a_n, S, T).gather(1, top[:, :, None].expand(-1, -1, T))
+            freq = torch.nn.functional.one_hot(sel, v.shape[-1]).float().mean(1)
+            upd = (0.7 * freq + 0.3 * v[act_idx]).clamp(min=0.01)
+            v[act_idx] = upd / upd.sum(-1, keepdim=True)
+        active = [a for a in active if len(found[a]) < cfg.keep]
+        if not active:
+            break
+    return found, rounds
+
+
 class NeoLevers(unittest.TestCase):
     """restarts, neo_samples, neo_iterations, approach_touch: only at neos, off at 0, the same in the bots' service."""
 
@@ -441,26 +532,74 @@ class NeoLevers(unittest.TestCase):
         cls.model = load_model(ROOT / "results" / "final_policy.pt", "cpu")
 
     def test_off_the_planner_plays_as_before(self):
-        def before(model, pool, rules, arrival, kind, attempt, cfg, horizon, device):  # plan_once of 4762c22
-            pr = NA.policy_prior(model, pool, [arrival], device, horizon) if cfg.prior > 0 else None
-            seed = request_seed(cfg.seed, arrival.get("seed_course", arrival["course"]), arrival["cp"], kind, attempt)
-            f, r = NA.search(pool, rules, [arrival], device, cfg, seed, pr, horizon)
-            return (f[0][0] if f[0] else None), r[0], 0
-
         cs = single_neo_courses(SINGLE_VALIDATION_FAMILY, n=4)  # (also compared with a run of 4762c22's code itself)
         cfg = AssistConfig(samples=32, iterations=2, jumps="neo", approach=48, retries=1, brake=14, retry_horizon=48)
         self.assertFalse(any(getattr(cfg, k) for k in NEO_LEVERS))
-        now = evaluate_assisted(self.model, CoursePool(cs, "cpu", C.GRID), "cpu", cfg)
-        with mock.patch.object(NA, "plan_once", before):
-            ref = evaluate_assisted(self.model, CoursePool(cs, "cpu", C.GRID), "cpu", cfg)
-        for key in ("per_course", "events", "plans"):
-            self.assertEqual(now[key], ref[key], key)
-        self.assertEqual({e["kind"] for e in now["events"]}, {"approach", "takeoff", "retry"})
-        self.assertGreater(now["plans"]["brakes"], 0)
-        self.assertNotIn("restarts", now["events"][0])
-        for c in now["per_course"]:  # standing on the takeoff counts it as reached
-            self.assertTrue(not c["neo_done"] or c["neos_reached"] == c["neos"])
+        batched = dataclasses.replace(cfg, batch=2)  # searches batched per tick: course 2 twice, searched together
+        for c, courses in ((cfg, cs), (batched, [cs[2], cs[2]])):
+            now = evaluate_assisted(self.model, CoursePool(courses, "cpu", C.GRID), "cpu", c)
+            with mock.patch.object(NA, "plan_once", plan_once_4762c22), \
+                    mock.patch.object(NA, "search", wraps=search_4762c22) as old:
+                ref = evaluate_assisted(self.model, CoursePool(courses, "cpu", C.GRID), "cpu", c)
+            self.assertEqual(max((len(x.args[2]) for x in old.call_args_list), default=1), c.batch)
+            for key in ("per_course", "events", "plans"):
+                self.assertEqual(now[key], ref[key], (key, c.batch))
+            self.assertEqual({e["kind"] for e in now["events"]}, {"approach", "takeoff", "retry"}, c.batch)
+            self.assertGreater(now["plans"]["brakes"], 0, c.batch)
+            self.assertNotIn("restarts", now["events"][0])
+            for pc in now["per_course"]:  # standing on the takeoff counts it as reached
+                self.assertTrue(not pc["neo_done"] or pc["neos_reached"] == pc["neos"])
         self.assertEqual(config_meta(cfg), {k: v for k, v in dataclasses.asdict(cfg).items() if k not in NEO_LEVERS})
+
+    def test_off_v1s_setting_replays_its_stored_run(self):
+        # The planner track's V1 setting (jumps all, retries 1, brake 14, retry_horizon 48), run on CPU by earlier code.
+        d = json.loads((ROOT / "results" / "neo" / "assist_details" / "official2_all_brake.json").read_text())
+        res = evaluate_assisted(self.model, CoursePool(official_neo_courses(2)[:1], "cpu", C.GRID), "cpu",
+                                AssistConfig(**d["row"]["config"]))
+        self.assertEqual([{k: v for k, v in pc.items() if k != "neo_done"} for pc in res["per_course"]],
+                         d["per_course"][:1])
+        self.assertEqual(res["events"], [e for e in d["events"] if e["course"] == 0])
+
+    def test_touch_gates_the_landing(self):
+        # From the bot's state on platform 2 of course 0, one search round lands on platform 3; the same draws land
+        # nothing when they must first stand on the last platform (a touch platform they cannot reach).
+        c = single_neo_courses(SINGLE_VALIDATION_FAMILY, n=1)[0]
+        pool = CoursePool([c], "cpu", C.GRID)
+        real, arrivals = NA.plan_once, []
+
+        class Stop(Exception):
+            pass
+
+        def grab(model, pool_, rules, arrival, kind, attempt, cfg, horizon, device):
+            if arrival["cp"] == 2:
+                arrivals.append(arrival)
+                raise Stop
+            return real(model, pool_, rules, arrival, kind, attempt, cfg, horizon, device)
+
+        with mock.patch.object(NA, "plan_once", grab), self.assertRaises(Stop):
+            evaluate_assisted(self.model, pool, "cpu", AssistConfig(jumps="all", retries=1, brake=14, retry_horizon=48))
+        self.assertEqual((arrivals[0]["target"], neo_takeoffs(c)), (3, [0]))  # an ordinary jump
+        one, seed, rules = AssistConfig(iterations=1), request_seed(0, 0, 2, "takeoff", 0), Rules(pool)
+        self.assertTrue(NA.search(pool, rules, arrivals, "cpu", one, seed)[0][0])
+        self.assertFalse(NA.search(pool, rules, [dict(arrivals[0], touch=c.n - 1)], "cpu", one, seed)[0][0])
+
+    def test_touch_turns_the_bypass_into_the_neo(self):
+        # Official validation course 1, which the official2_all_brake_approach run completed with an approach plan
+        # straight past the neo's takeoff (StrictNeoMetric): with approach_touch the plan from that state stands on it.
+        d = json.loads((ROOT / "results" / "neo" / "assist_details" / "official2_all_brake_approach.json").read_text())
+        cfg = dataclasses.replace(AssistConfig(**d["row"]["config"]), approach_touch=1)
+        res = evaluate_assisted(self.model, CoursePool(official_neo_courses(2)[1:2], "cpu", C.GRID), "cpu", cfg,
+                                course_offset=1)
+        stored = [e for e in d["events"] if e["course"] == 1]
+        self.assertEqual(res["events"][:-1], stored[:-1])  # the same play up to the approach before the neo
+        last = res["events"][-1]
+        self.assertEqual((last["kind"], last["takeoff"], last["tick"], last["found"]),
+                         ("approach", 9, stored[-1]["tick"], True))
+        # Steered over the takeoff (distance + 1000 until it stands there), the search lands sooner than the search
+        # without the touch rule did on its bypass (7 rounds against 9; the gate without the steering also takes 9).
+        self.assertLess(last["rounds"], stored[-1]["rounds"])
+        pc = res["per_course"][0]
+        self.assertEqual((pc["success"], pc["neos_reached"], pc["neo_done"]), (True, 1, True))
 
     def test_levers_act_at_neos_only(self):
         c = single_neo_courses(SINGLE_VALIDATION_FAMILY, n=3)[2]
