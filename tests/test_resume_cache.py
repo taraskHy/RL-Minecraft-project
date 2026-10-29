@@ -1,5 +1,6 @@
 """Interrupted evaluations must not duplicate workers, mix checkpoints or repeat rows."""
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -65,6 +66,30 @@ def test_restart_after_append_does_not_duplicate_or_recompute(small_run, monkeyp
     assert calls == [0, 1]
 
 
+def test_parts_dir_holds_the_whole_split_run(small_run, monkeypatch):
+    import subprocess
+    root, _, args, calls = small_run
+    other = root / 'elsewhere'
+    monkeypatch.setattr(assist.time, 'sleep', lambda *args: None)
+    monkeypatch.setattr(assist.torch, 'set_num_threads', lambda *args: None)  # (the parts' --threads 1)
+    commands = []
+
+    def here(cmd, **kwargs):  # each part in this process, from the command line the manager gives it
+        commands.append(cmd)
+        assist.main(cmd[3:])
+        return SimpleNamespace(poll=lambda: 0, returncode=0)
+
+    monkeypatch.setattr(subprocess, 'Popen', here)
+    assist.main(args + ['--parts', '2', '--parts-dir', str(other)])
+    assert calls == [0, 1]
+    assert [Path(c[c.index('--parts-dir') + 1]) for c in commands] == [other, other]
+    assert sorted(p.name for p in (other / 'sample').glob('*.json')) == ['1of2.json', '2of2.json', 'merged.json']
+    assert not (root / 'parts').exists()
+    assert len((root / 'rows.jsonl').read_text().splitlines()) == 1
+    assist.main(args + ['--parts', '2', '--parts-dir', str(other)])  # all cached: the same row, not run again
+    assert calls == [0, 1] and len(commands) == 2
+
+
 def test_changed_weights_reject_existing_part_before_evaluation(small_run):
     _, checkpoint, args, calls = small_run
     assist.main(args + ['--part', '1/2'])
@@ -110,7 +135,7 @@ def test_worker_failure_cleans_up_other_children(tmp_path, monkeypatch):
     monkeypatch.setattr(subprocess, 'Popen', lambda *args, **kwargs: next(children))
     monkeypatch.setattr(subprocess, 'run', lambda args, **kwargs: stopped.append(args))
     with pytest.raises(SystemExit, match='part 1 of 2 failed'):
-        assist._run_parts(SimpleNamespace(name='sample', parts=2, jobs=2), {}, 2)
+        assist._run_parts(SimpleNamespace(name='sample', parts=2, jobs=2, parts_dir=str(tmp_path)), {}, 2)
     assert stopped[-1] == 'wait'
     assert stopped[0] == (['taskkill', '/PID', '123', '/T', '/F'] if assist.os.name == 'nt' else 'terminate')
 

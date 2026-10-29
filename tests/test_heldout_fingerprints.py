@@ -38,6 +38,10 @@ ASSIST_SETS = {  # (parkour.neo_assist --set, family) -> sha1 prefix
     ("random", 13): "1e5e4aef0e5b9034",
     ("mixed", 14): "3bcdee9264a4d5b5",  # these two depend on configs/jump_levels_extra.json (computed on d5943ca)
     ("mixed", 15): "607d03c215c1921c",
+    # The single-neo sets (neo_assist.single_neo_courses, 320 courses each; computed on 4762c22 + the sets). With
+    # every course's level set to 6 they are the reference prototype's 262f50a8c817f3f6 and 2aa66562a8eeff99.
+    ("single", 40): "0f92d172cb152161",
+    ("single", 41): "6f47778f3c3d0f71",
 }
 EXTRA_PREVIEW_SETS = {  # scripts/extra_preview.py: levels 0-5 plus one extra level, 200 courses, (level, family) -> sha1
     ("head hitter", 1): "507e74e214ef759c", ("head hitter", 2): "f3030cea3b9a0c02",

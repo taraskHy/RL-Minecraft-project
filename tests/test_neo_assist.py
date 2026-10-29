@@ -1,6 +1,8 @@
 """Neo assist (parkour.neo_assist): off it is train.evaluate; on, its plans land where the search said,
 and the offline bot with the planner service plays exactly like the simulator."""
+import collections
 import dataclasses
+import io
 import json
 import math
 import os
@@ -8,21 +10,28 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
+from unittest import mock
 
 import numpy as np
 import torch
 
 from parkour import courses as C
+from parkour import neo_assist as NA
+from parkour import neo_dagger as ND
 from parkour import physics
+from parkour import train as T
 from parkour.env import CoursePool, on_obstacle
 from parkour.live import load_model
-from parkour.neo_assist import (AssistConfig, Rules, approach_platforms, assist_fields, brake_plan, courses_from_file,
-                                 evaluate_assisted, jump_kind, merge_results, mixed_courses, official_neo_courses,
-                                 part_bounds, plan_target, planned_takeoffs, random_neo_courses, spec_from_key,
-                                 specs_from_keys)
+from parkour.neo_assist import (NEO_LEVERS, SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, TEST_FAMILIES, AssistConfig,
+                                 Rules, approach_platforms, assist_fields, brake_plan, config_meta, courses_from_file,
+                                 evaluate_assisted, jump_kind, merge_results, mixed_courses, neo_level,
+                                 official_neo_courses, part_bounds, plan_once, plan_target, planned_takeoffs,
+                                 random_neo_courses, request_seed, serve, single_neo_courses, single_neo_hashes,
+                                 single_neo_ok, single_neo_types, spec_from_key, specs_from_keys, summarize)
 from parkour.neo_dagger import neo_takeoffs
 from parkour.paths import BRIDGE, CONFIGS, NODE, ROOT
-from parkour.train import evaluate
+from parkour.train import course_hash, evaluate
 
 
 class NeoAssist(unittest.TestCase):
@@ -244,6 +253,14 @@ class AssistBotParity(unittest.TestCase):
         self.assertGreater(res["plans"]["brakes"], 0)
         self.assertEqual(sum(x.get("braked", False) for x in bot), res["plans"]["brakes"])
 
+    def test_same_with_the_neo_levers(self):
+        cfg = AssistConfig(samples=64, iterations=3, jumps="neo", approach=48, retries=1, brake=14, restarts=1,
+                           approach_touch=1, neo_samples=96, neo_iterations=4)  # passed to the service as strings
+        res, bot = self.check(cfg, single_neo_courses(SINGLE_VALIDATION_FAMILY, n=4))
+        self.assertTrue(any(e["found"] and e["restarts"] == 1 for e in res["events"]))  # landed after a restart
+        by_course = sorted(res["events"], key=lambda e: e["course"])  # the bot's log: course by course
+        self.assertEqual([x["kind"] for x in bot], [e["kind"] for e in by_course])
+
     def check(self, cfg, cs):
         from parkour.live import SETTLE_TICKS
         model = load_model(ROOT / "results" / "final_policy.pt", "cpu")
@@ -268,6 +285,390 @@ class AssistBotParity(unittest.TestCase):
         self.assertTrue(all(x["verified"] == x["found"] for x in bot))  # prismarine-physics agrees with every plan
         self.assertGreater(sum(x["played"] for x in bot), 0)
         return res, bot
+
+
+class SingleNeoSets(unittest.TestCase):
+    """The single-neo sets (--set single, families 40 and 41) and how they stay out of training."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.sets = {f: single_neo_courses(f) for f in (SINGLE_VALIDATION_FAMILY, SINGLE_TEST_FAMILY)}
+
+    def test_one_neo_at_its_position_and_every_type_and_position_equally_often(self):
+        types = single_neo_types()
+        self.assertEqual([s for _, s in types], neo_level())
+        self.assertEqual(collections.Counter(L for L, _ in types), {6: 22, 7: 10})
+        basic = {s for L in C.load_levels() for s in L}
+        for family, cs in self.sets.items():
+            self.assertEqual(len(cs), 320)
+            pairs = []
+            for i, c in enumerate(cs):
+                level, spec = types[i % 32]
+                k = (i % 32 + i // 32) % 10
+                self.assertEqual(neo_takeoffs(c), [k])
+                self.assertEqual([j for j, sp in enumerate(c.specs) if sp.neo], [k])
+                self.assertTrue(single_neo_ok(c, k))  # also: no wall cell in another jump's corridor
+                self.assertEqual((c.specs[k], c.n, c.level, c.seed), (spec, 11, level, i))
+                self.assertTrue(all(sp in basic for j, sp in enumerate(c.specs) if j != k))
+                if k == 0:  # a 1x1 start
+                    x0, x1, z0, z1, _ = c.platforms[0]
+                    self.assertEqual((x0, z0), (x1, z1))
+                pairs.append((spec.key(), k))
+            self.assertEqual(len(set(pairs)), 320)  # every type once at every position
+            self.assertEqual(set(collections.Counter(t for t, _ in pairs).values()), {10})
+            self.assertEqual(collections.Counter(k for _, k in pairs), {k: 32 for k in range(10)})
+        self.assertEqual([c.to_json() for c in single_neo_courses(SINGLE_VALIDATION_FAMILY, n=40)],
+                         [c.to_json() for c in self.sets[SINGLE_VALIDATION_FAMILY][:40]])  # a prefix: the same courses
+        self.assertIn(SINGLE_TEST_FAMILY, TEST_FAMILIES)
+        self.assertNotIn(SINGLE_VALIDATION_FAMILY, TEST_FAMILIES)
+
+    def test_kept_out_of_training(self):
+        hashes = single_neo_hashes()
+        self.assertEqual(hashes, {course_hash(c) for cs in self.sets.values() for c in cs})
+        self.assertEqual(len(hashes), 640)
+        original = T.held_out_courses
+        tiny = lambda levels, per_level, n_jumps, obstacle_prob=0.0, family=1, ice_prob=0.0: original(  # noqa: E731
+            levels, 1, 2, obstacle_prob=obstacle_prob, family=family, ice_prob=ice_prob)
+        # neo_dagger's training courses: one equal to a course of the sets is skipped.
+        with mock.patch.object(ND, "held_out_courses", tiny), mock.patch.object(NA, "single_neo_hashes", set):
+            first = ND.training_neo_courses(2, 0)
+        with mock.patch.object(ND, "held_out_courses", tiny), \
+                mock.patch.object(NA, "single_neo_hashes", lambda: {course_hash(first[0])}):
+            again = ND.training_neo_courses(2, 0)
+        self.assertEqual(len(again), 2)
+        self.assertNotIn(course_hash(first[0]), {course_hash(c) for c in again})
+
+        # train.py's CourseFactory: only when the training levels contain neos (--advanced, skills with advanced).
+        class Stop(Exception):
+            pass
+
+        seen = []
+
+        def factory(cfg, levels, exclude):
+            seen.append("single" in exclude)
+            raise Stop
+
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(T, "RUNS", Path(d)), \
+                mock.patch.object(T, "held_out_courses", tiny), mock.patch.object(T, "CourseFactory", factory), \
+                mock.patch.object(NA, "single_neo_hashes", lambda: {"single"}):
+            for i, flags in enumerate(({}, {"extra": True}, {"advanced": True}, {"skills": "basic,extra"},
+                                       {"skills": "basic,advanced,extra"})):
+                with self.assertRaises(Stop):
+                    T.train(T.TrainConfig(run=f"r{i}", device="cpu", test_once=True, **flags))
+        self.assertEqual(seen, [False, False, True, False, True])
+
+
+class StrictNeoMetric(unittest.TestCase):
+    """neo_done: the bot stood on the neo's takeoff, then on its target (not past either)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.model = load_model(ROOT / "results" / "final_policy.pt", "cpu")
+        cls.neo_model = load_model(ROOT / "results" / "neo_policy.pt", "cpu")
+
+    def test_the_rule(self):
+        # The values the checkpoint took (it only grows): the neo's takeoff, then its target, each before a later one.
+        self.assertTrue(NA.neo_done([3], {0, 1, 2, 3, 4, 10}))
+        self.assertFalse(NA.neo_done([3], {0, 1, 2, 4, 10}))  # jumped past the takeoff
+        self.assertFalse(NA.neo_done([3], {0, 1, 2, 3, 5, 10}))  # past the target (on it later, if at all, from 5 on)
+        self.assertFalse(NA.neo_done([3, 6], {0, 1, 2, 3, 4, 5, 6, 8, 9, 10}))  # every neo
+        self.assertTrue(NA.neo_done([9], set(range(11))))
+        self.assertTrue(NA.neo_done([], {0}))
+
+    def test_policy_alone_past_the_target_onto_the_goal_and_a_fall_after(self):
+        cs = single_neo_courses(SINGLE_VALIDATION_FAMILY, n=162)
+        self.assertEqual(neo_takeoffs(cs[60]), [cs[60].n - 2])
+        for i, want in ((161, (True, False)),  # stood on takeoff 6, then landed on 8, past its target 7
+                        (60, (True, True)),  # the target is the goal: the checkpoint takes it only in the last tick
+                        (34, (False, True))):  # did the neo from 3, fell after 7
+            pc = evaluate_assisted(self.neo_model, CoursePool(cs[i:i + 1], "cpu", C.GRID), "cpu",
+                                   AssistConfig(enabled=False))["per_course"][0]
+            self.assertEqual((pc["success"], pc["neo_done"]), want, i)
+
+    def test_a_bypass_is_completed_but_not_neo_done(self):
+        # Official validation course 1: the planner run of results/neo/assist_details/official2_all_brake_approach.json
+        # completed it with an approach plan from the platform before the neo's takeoff straight onto its target.
+        d = json.loads((ROOT / "results" / "neo" / "assist_details" / "official2_all_brake_approach.json").read_text())
+        res = evaluate_assisted(self.model, CoursePool(official_neo_courses(2)[1:2], "cpu", C.GRID), "cpu",
+                                AssistConfig(**d["row"]["config"]), course_offset=1)
+        pc = res["per_course"][0]
+        self.assertEqual({k: v for k, v in pc.items() if k != "neo_done"}, d["per_course"][1])  # the run, replayed
+        self.assertEqual(res["events"], [e for e in d["events"] if e["course"] == 1])
+        self.assertEqual((pc["success"], pc["neos"], pc["neos_reached"], pc["neo_done"]), (True, 1, 0, False))
+        self.assertEqual({k: summarize(res)[k] for k in ("completed", "completed_neo_done")},
+                         {"completed": 1, "completed_neo_done": 0})
+
+    def test_policy_alone_reports_it(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / "rows.jsonl"
+            NA.main(["--off", "--set", "single", "--family", str(SINGLE_VALIDATION_FAMILY), "--courses", "2",
+                     "--checkpoint", str(ROOT / "results" / "neo_policy.pt"), "--device", "cpu", "--out", str(out)])
+            row = json.loads(out.read_text().splitlines()[-1])
+        self.assertEqual((row["set"], row["split"], row["assist"], row["courses"]), ("single", "validation", False, 2))
+        self.assertEqual(list(row)[list(row).index("completed") + 1], "completed_neo_done")
+        self.assertEqual((row["completed"], row["completed_neo_done"]), (1, 1))  # the neo policy makes course 0's neo
+        self.assertEqual(row["by_level"], {"6": {"courses": 2, "completed": 1, "completed_neo_done": 1}})
+        self.assertFalse(set(NEO_LEVERS) & set(row["config"]))  # levers off: the config as before they existed
+        with self.assertRaises(SystemExit):
+            NA.main(["--off", "--set", "single", "--family", "2", "--courses", "1", "--device", "cpu"])
+
+    def test_summary(self):
+        rec = dict(fell=False, neos=1, neos_reached=1, neos_passed=1, stopped_at_neo=False, stopped_at_kind=None)
+        pc = [dict(rec, success=True, neo_done=True, level=6), dict(rec, success=True, neo_done=False, level=7),
+              dict(rec, success=False, neo_done=True, level=6), dict(rec, success=False, neo_done=False, level=7)]
+        s = summarize({"per_course": pc, "events": [], "plans": {}, "search_seconds": 0.0})
+        self.assertEqual(list(s)[:3], ["courses", "completed", "completed_neo_done"])
+        self.assertEqual((s["completed"], s["completed_neo_done"]), (2, 1))
+        self.assertEqual(s["by_level"], {"6": {"courses": 2, "completed": 1, "completed_neo_done": 1},
+                                         "7": {"courses": 2, "completed": 1, "completed_neo_done": 0}})
+        self.assertEqual(s["by_neo_count"], {"1": {"courses": 4, "completed": 2, "completed_neo_done": 1}})
+        old = summarize({"per_course": [{k: v for k, v in c.items() if k != "neo_done"} for c in pc], "events": [],
+                         "plans": {}, "search_seconds": 0.0})  # cached parts of runs from before the metric
+        self.assertNotIn("completed_neo_done", old)
+        self.assertNotIn("by_level", old)  # their summary as before, so a rerun of the split run republishes its row
+        self.assertEqual(old["by_neo_count"], {"1": {"courses": 4, "completed": 2}})
+        bare = summarize({"per_course": [{k: v for k, v in c.items() if k not in ("neo_done", "level")} for c in pc],
+                          "events": [], "plans": {}, "search_seconds": 0.0})  # records without a level: as before
+        self.assertNotIn("by_level", bare)
+        self.assertEqual(bare["by_neo_count"], {"1": {"courses": 4, "completed": 2}})
+
+
+def plan_once_4762c22(model, pool, rules, arrival, kind, attempt, cfg, horizon, device):
+    """``neo_assist.plan_once`` of 4762c22, the commit before the neo levers (its request_seed inline), searching with
+    ``search_4762c22``; and 0 restarts, as plan_once returns them now."""
+    pr = NA.policy_prior(model, pool, [arrival], device, horizon) if cfg.prior > 0 else None
+    seed = (cfg.seed * 1_000_003 + arrival.get("seed_course", arrival["course"]) * 4099 + arrival["cp"] * 67
+            + {"takeoff": 0, "retry": 1, "approach": 2}[kind] * 7 + attempt)
+    f, r = search_4762c22(pool, rules, [arrival], device, cfg, seed, pr, horizon)
+    return (f[0][0] if f[0] else None), r[0], 0
+
+
+def search_4762c22(pool, rules, arrivals, device, cfg, seed, prior=None, horizon=ND.HORIZON):
+    """``neo_assist.search`` of 4762c22 (git show 4762c22:parkour/neo_assist.py), verbatim but for the module its
+    helpers are named by."""
+    gen = torch.Generator(device=device).manual_seed(seed)
+    A, S, T = len(arrivals), cfg.samples, horizon
+    steps = torch.tensor(NA.YAW_STEPS_DEG, dtype=torch.float64, device=device) * (math.pi / 180)
+    init = NA._state_rows(arrivals, device)
+    course = torch.tensor([a["course"] for a in arrivals], device=device)
+    target = torch.tensor([a.get("target", a["cp"] + 1) for a in arrivals], device=device)
+    tops = torch.stack([pool.top[a["course"], a["cp"]:a.get("target", a["cp"] + 1) + 1].min() for a in arrivals])
+    goal = pool.centre[course, target]
+    p = {"move": torch.tensor([0.05, 0.15, 0.8], device=device).repeat(A, T, 1),
+         "strafe": torch.full((A, T, 3), 1 / 3, device=device),
+         "jump": torch.tensor([0.7, 0.3], device=device).repeat(A, T, 1),
+         "sprint": torch.tensor([0.2, 0.8], device=device).repeat(A, T, 1),
+         "yaw": torch.tensor([0.05, 0.1, 0.15, 0.4, 0.15, 0.1, 0.05], device=device).repeat(A, T, 1)}
+    if prior is not None and cfg.prior > 0:
+        for key in p:
+            p[key] = (cfg.prior * prior[key] + (1 - cfg.prior) * p[key]).clamp(min=0.01)
+            p[key] = p[key] / p[key].sum(-1, keepdim=True)
+    found = [[] for _ in range(A)]
+    seen = [set() for _ in range(A)]
+    rounds = [0] * A
+    k_elite = max(1, int(S * NA.ELITE))
+    active = list(range(A))
+    for it in range(cfg.iterations):
+        act_idx = torch.tensor(active, device=device)
+        a_n = len(active)
+        n = a_n * S
+        rep = lambda x: x[act_idx].repeat_interleave(S, dim=0)  # noqa: E731
+        acts = {}
+        for key, v in p.items():
+            flat = v[act_idx].reshape(a_n * T, -1)
+            draw = torch.multinomial(flat, S, replacement=True, generator=gen)
+            acts[key] = draw.reshape(a_n, T, S).permute(0, 2, 1).reshape(n, T)
+        s = physics.PlayerState(rep(init.pos), rep(init.vel), rep(init.yaw), rep(init.on_ground), rep(init.jump_ticks),
+                                rep(init.collided_h), rep(init.collided_v))
+        cidx, tgt, top_r, goal_r = rep(course), rep(target), rep(tops), rep(goal)
+        alive = torch.ones(n, dtype=torch.bool, device=device)
+        landed = torch.zeros(n, dtype=torch.bool, device=device)
+        land_tick = torch.full((n,), T, dtype=torch.int64, device=device)
+        closest = torch.full((n,), 1e9, dtype=torch.float64, device=device)
+        for t in range(T):
+            y = s.yaw + steps[acts["yaw"][:, t]]
+            s.yaw = torch.remainder(y + math.pi, 2 * math.pi) - math.pi
+            a_t = torch.stack([acts[k][:, t] for k in NA.HEADS], -1)
+            s = physics.simulate(pool.world, cidx, s, NA.action_to_controls(a_t))
+            alive &= ~rules.on_obstacle(s, cidx) & (s.pos[:, 1] > top_r - 1.0)
+            now = NA.standing_on(pool, s, cidx).gather(1, tgt[:, None]).squeeze(1) & alive & ~landed
+            land_tick = torch.where(now, torch.full_like(land_tick, t + 1), land_tick)
+            landed |= now
+            closest = torch.where(alive & ~landed, torch.minimum(closest, torch.linalg.norm(s.pos - goal_r, dim=-1)),
+                                  closest)
+        L = landed.cpu().numpy()
+        if L.any():
+            lt = land_tick.cpu().numpy()
+            stack = torch.stack([acts[k] for k in NA.HEADS], -1).cpu().numpy()
+            for j in np.flatnonzero(L):
+                a = active[j // S]
+                if len(found[a]) >= cfg.keep:
+                    continue
+                seq = stack[j, :lt[j]]
+                b = seq.tobytes()
+                if b not in seen[a]:
+                    seen[a].add(b)
+                    found[a].append(seq)
+        for a in active:
+            rounds[a] = it + 1
+        score = (landed.double() * 100.0 - torch.where(landed, torch.zeros_like(closest), closest)).reshape(a_n, S)
+        top = torch.topk(score, k_elite, dim=1).indices
+        for key, v in p.items():
+            sel = acts[key].reshape(a_n, S, T).gather(1, top[:, :, None].expand(-1, -1, T))
+            freq = torch.nn.functional.one_hot(sel, v.shape[-1]).float().mean(1)
+            upd = (0.7 * freq + 0.3 * v[act_idx]).clamp(min=0.01)
+            v[act_idx] = upd / upd.sum(-1, keepdim=True)
+        active = [a for a in active if len(found[a]) < cfg.keep]
+        if not active:
+            break
+    return found, rounds
+
+
+class NeoLevers(unittest.TestCase):
+    """restarts, neo_samples, neo_iterations, approach_touch: only at neos, off at 0, the same in the bots' service."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.model = load_model(ROOT / "results" / "final_policy.pt", "cpu")
+
+    def test_off_the_planner_plays_as_before(self):
+        cs = single_neo_courses(SINGLE_VALIDATION_FAMILY, n=4)  # (also compared with a run of 4762c22's code itself)
+        cfg = AssistConfig(samples=32, iterations=2, jumps="neo", approach=48, retries=1, brake=14, retry_horizon=48)
+        self.assertFalse(any(getattr(cfg, k) for k in NEO_LEVERS))
+        batched = dataclasses.replace(cfg, batch=2)  # searches batched per tick: course 2 twice, searched together
+        for c, courses in ((cfg, cs), (batched, [cs[2], cs[2]])):
+            now = evaluate_assisted(self.model, CoursePool(courses, "cpu", C.GRID), "cpu", c)
+            with mock.patch.object(NA, "plan_once", plan_once_4762c22), \
+                    mock.patch.object(NA, "search", wraps=search_4762c22) as old:
+                ref = evaluate_assisted(self.model, CoursePool(courses, "cpu", C.GRID), "cpu", c)
+            self.assertEqual(max((len(x.args[2]) for x in old.call_args_list), default=1), c.batch)
+            for key in ("per_course", "events", "plans"):
+                self.assertEqual(now[key], ref[key], (key, c.batch))
+            self.assertEqual({e["kind"] for e in now["events"]}, {"approach", "takeoff", "retry"}, c.batch)
+            self.assertGreater(now["plans"]["brakes"], 0, c.batch)
+            self.assertNotIn("restarts", now["events"][0])
+            for pc in now["per_course"]:  # standing on the takeoff counts it as reached
+                self.assertTrue(not pc["neo_done"] or pc["neos_reached"] == pc["neos"])
+        self.assertEqual(config_meta(cfg), {k: v for k, v in dataclasses.asdict(cfg).items() if k not in NEO_LEVERS})
+
+    def test_off_v1s_setting_replays_its_stored_run(self):
+        # The planner track's V1 setting (jumps all, retries 1, brake 14, retry_horizon 48), run on CPU by earlier code.
+        d = json.loads((ROOT / "results" / "neo" / "assist_details" / "official2_all_brake.json").read_text())
+        res = evaluate_assisted(self.model, CoursePool(official_neo_courses(2)[:1], "cpu", C.GRID), "cpu",
+                                AssistConfig(**d["row"]["config"]))
+        self.assertEqual([{k: v for k, v in pc.items() if k != "neo_done"} for pc in res["per_course"]],
+                         d["per_course"][:1])
+        self.assertEqual(res["events"], [e for e in d["events"] if e["course"] == 0])
+
+    def test_touch_gates_the_landing(self):
+        # From the bot's state on platform 2 of course 0, one search round lands on platform 3; the same draws land
+        # nothing when they must first stand on the last platform (a touch platform they cannot reach).
+        c = single_neo_courses(SINGLE_VALIDATION_FAMILY, n=1)[0]
+        pool = CoursePool([c], "cpu", C.GRID)
+        real, arrivals = NA.plan_once, []
+
+        class Stop(Exception):
+            pass
+
+        def grab(model, pool_, rules, arrival, kind, attempt, cfg, horizon, device):
+            if arrival["cp"] == 2:
+                arrivals.append(arrival)
+                raise Stop
+            return real(model, pool_, rules, arrival, kind, attempt, cfg, horizon, device)
+
+        with mock.patch.object(NA, "plan_once", grab), self.assertRaises(Stop):
+            evaluate_assisted(self.model, pool, "cpu", AssistConfig(jumps="all", retries=1, brake=14, retry_horizon=48))
+        self.assertEqual((arrivals[0]["target"], neo_takeoffs(c)), (3, [0]))  # an ordinary jump
+        one, seed, rules = AssistConfig(iterations=1), request_seed(0, 0, 2, "takeoff", 0), Rules(pool)
+        self.assertTrue(NA.search(pool, rules, arrivals, "cpu", one, seed)[0][0])
+        self.assertFalse(NA.search(pool, rules, [dict(arrivals[0], touch=c.n - 1)], "cpu", one, seed)[0][0])
+
+    def test_touch_turns_the_bypass_into_the_neo(self):
+        # Official validation course 1, which the official2_all_brake_approach run completed with an approach plan
+        # straight past the neo's takeoff (StrictNeoMetric): with approach_touch the plan from that state stands on it.
+        d = json.loads((ROOT / "results" / "neo" / "assist_details" / "official2_all_brake_approach.json").read_text())
+        cfg = dataclasses.replace(AssistConfig(**d["row"]["config"]), approach_touch=1)
+        res = evaluate_assisted(self.model, CoursePool(official_neo_courses(2)[1:2], "cpu", C.GRID), "cpu", cfg,
+                                course_offset=1)
+        stored = [e for e in d["events"] if e["course"] == 1]
+        self.assertEqual(res["events"][:-1], stored[:-1])  # the same play up to the approach before the neo
+        last = res["events"][-1]
+        self.assertEqual((last["kind"], last["takeoff"], last["tick"], last["found"]),
+                         ("approach", 9, stored[-1]["tick"], True))
+        # Steered over the takeoff (distance + 1000 until it stands there), the search lands sooner than the search
+        # without the touch rule did on its bypass (7 rounds against 9; the gate without the steering also takes 9).
+        self.assertLess(last["rounds"], stored[-1]["rounds"])
+        pc = res["per_course"][0]
+        self.assertEqual((pc["success"], pc["neos_reached"], pc["neo_done"]), (True, 1, True))
+
+    def test_levers_act_at_neos_only(self):
+        c = single_neo_courses(SINGLE_VALIDATION_FAMILY, n=3)[2]
+        k = neo_takeoffs(c)[0]
+        self.assertEqual(k, 2)
+        pool = CoursePool([c], "cpu", C.GRID)
+        calls = []
+
+        def search(pool_, rules, arrivals, device, cfg, seed, prior=None, horizon=32):  # lands on the calls in hit
+            calls.append((seed, cfg.samples, cfg.iterations, arrivals[0].get("touch")))
+            return ([[np.zeros((3, 5), dtype=np.int64)]] if len(calls) in hit else [[]]), [cfg.iterations]
+
+        def plan(cp, kind, attempt, cfg):
+            calls.clear()
+            arrival = {"course": 0, "cp": cp, "seed_course": 7}
+            seq, rounds, restarts = plan_once(None, pool, Rules(pool), arrival, kind, attempt, cfg, 32, "cpu")
+            return seq is not None, rounds, restarts
+
+        cfg = AssistConfig(samples=64, iterations=3, restarts=2, neo_samples=256, neo_iterations=5, approach_touch=1)
+        with mock.patch.object(NA, "search", search):
+            hit = {2}  # the neo's takeoff: found by the first restart, with the next seed
+            self.assertEqual(plan(k, "takeoff", 0, cfg), (True, 10, 1))
+            s = request_seed(0, 7, k, "takeoff", 0)
+            self.assertEqual(calls, [(s, 256, 5, None), (s + 1_000_000_007, 256, 5, None)])
+            hit = set()  # the approach before it must stand on the takeoff first; 1 + 2 searches without a landing
+            self.assertEqual(plan(k - 1, "approach", 0, cfg), (False, 15, 2))
+            s = request_seed(0, 7, k - 1, "approach", 0)
+            self.assertEqual(calls, [(s + r * 1_000_000_007, 256, 5, k) for r in range(3)])
+            self.assertEqual(plan(k, "retry", 1, cfg), (False, 15, 2))  # its retries
+            self.assertEqual(calls[0], (request_seed(0, 7, k, "retry", 1), 256, 5, None))
+            for cp, kind in ((k + 1, "takeoff"), (k + 1, "approach"), (k - 1, "takeoff")):  # not a neo's: as before
+                self.assertEqual(plan(cp, kind, 0, cfg), (False, 3, 0))
+                self.assertEqual(calls, [(request_seed(0, 7, cp, kind, 0), 64, 3, None)])
+            off = AssistConfig(samples=64, iterations=3)
+            self.assertEqual(plan(k, "takeoff", 0, off), (False, 3, 0))
+            self.assertEqual(calls, [(request_seed(0, 7, k, "takeoff", 0), 64, 3, None)])
+        with self.assertRaises(ValueError):  # batched searches cannot apply them per request
+            evaluate_assisted(self.model, pool, "cpu", dataclasses.replace(cfg, batch=4))
+
+    def test_service_plans_as_the_simulator_with_restarts_and_touch(self):
+        cs = single_neo_courses(SINGLE_VALIDATION_FAMILY, n=5)  # course 4: the approach plan lands after a restart
+        cfg = AssistConfig(samples=64, iterations=3, jumps="neo", approach=48, restarts=1, approach_touch=1)
+        calls = []
+        real = NA.plan_once
+
+        def spy(model, pool, rules, arrival, kind, attempt, cfg_, horizon, device):
+            out = real(model, pool, rules, arrival, kind, attempt, cfg_, horizon, device)
+            calls.append((arrival, kind, attempt, out))
+            return out
+
+        with mock.patch.object(NA, "plan_once", spy):
+            res = evaluate_assisted(self.model, CoursePool(cs[4:], "cpu", C.GRID), "cpu", cfg, course_offset=4)
+        approaches = [x for x in calls if x[1] == "approach"]
+        self.assertTrue(any(out[0] is not None and out[2] == 1 for _, _, _, out in approaches))
+        self.assertEqual([e.get("restarts") for e in res["events"]], [out[2] for _, _, _, out in calls])
+        lines = [json.dumps({"index": 4, "cp": a["cp"], "target": a["target"], "kind": kind, "attempt": attempt,
+                             "state": {"pos": a["pos"], "vel": a["vel"], "yaw": a["yaw"], "onGround": a["on_ground"],
+                                       "jumpTicks": a["jump_ticks"], "collidedH": a["collided_h"]},
+                             "lastAction": a["last_action"]}) for a, kind, attempt, _ in calls]
+        out = io.StringIO()
+        serve(self.model, cs, cfg, "cpu", inp=io.StringIO("\n".join(lines) + "\n"), out=out)
+        answers = [json.loads(x) for x in out.getvalue().splitlines()]
+        self.assertEqual(len(answers), len(calls))
+        for (_, _, _, (seq, rounds, restarts)), ans in zip(calls, answers):
+            self.assertEqual(ans["plan"], None if seq is None else seq.tolist())
+            self.assertEqual((ans["rounds"], ans["restarts"]), (rounds, restarts))
+        # The approach plan stood on the neo's takeoff before it landed on the target: the neo is done.
+        self.assertEqual(res["plans"]["landed_as_planned"], res["plans"]["played"])
+        self.assertTrue(res["per_course"][0]["neo_done"])
 
 
 if __name__ == "__main__":
