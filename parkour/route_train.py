@@ -13,7 +13,9 @@ discount ``gamma`` per tick, minus ``trunc_penalty`` when the episode ends by th
 Optional imitation (``--bc-coef``): a cross-entropy loss towards the course's next platform (the
 selectable token whose course index is the smallest above the player's progress). The course is
 used for the reward and this training signal only; it is never an input. ``--bc-decay`` lowers the
-weight linearly to ``--bc-floor`` (default 0) by ``--bc-until``.
+weight linearly to ``--bc-floor`` (default 0) by ``--bc-until``. With ``--fill policy`` the slots after
+the chosen platform are the route policy's own argmax from it; ``--fill-bc`` trains those steps by
+imitation of the course's next platform after the one they extend (their actions are not PPO actions).
 
 Checkpoints are chosen on the validation families (2 standard, 5 obstacles), never on test.
 """
@@ -73,6 +75,8 @@ class RouteTrainConfig:
     bc_until: int = 200
     bc_floor: float = 0.0  # with --bc-decay the weight never falls below this
     fill: str = "greedy"  # slots 2 and 3: greedy | policy
+    fill_bc: float = 0.0  # with --fill policy: imitation weight on the fill steps (course's next platform)
+    fill_cap: int = 32768  # fill examples kept per iteration (random subset)
     d: int = 128
     layers: int = 2
     heads: int = 4
@@ -238,6 +242,8 @@ def train(cfg: RouteTrainConfig) -> Path:
                      sampler=None, seed=cfg.seed)
     pcfg, rcfg = PlannerConfig(), RouteConfig(fill=cfg.fill)
     run = RouteRunner(env, tables, pcfg, rcfg)
+    if cfg.fill == "policy" and cfg.fill_bc > 0:
+        run.fill_log = []
     net = RoutePolicy(cfg.d, cfg.layers, cfg.heads).to(dev)
     if cfg.init_from:
         ck = torch.load(cfg.init_from, map_location=dev, weights_only=False)
@@ -267,7 +273,8 @@ def train(cfg: RouteTrainConfig) -> Path:
     train_log = open(out / "train_log.csv", "a", newline="")
     tw = csv.writer(train_log)
     tw.writerow(["iteration", "ticks", "minutes", "decisions", "episodes", "success", "fell", "truncated",
-                 "pi_loss", "v_loss", "entropy", "kl", "bc_loss", "bc_acc", "bc_coef", "lr", "updates", "work_s"])
+                 "pi_loss", "v_loss", "entropy", "kl", "bc_loss", "bc_acc", "bc_coef", "lr", "updates", "work_s",
+                 "fill_loss", "fill_acc", "fill_n"])
     eval_log = open(out / "eval_log.csv", "a", newline="")
     ew = csv.writer(eval_log)
     ew.writerow(["iteration", "standard", "obstacles", "mean"] + [f"std_L{L}" for L in range(6)] + [f"obs_L{L}" for L in range(6)])
@@ -312,15 +319,23 @@ def train(cfg: RouteTrainConfig) -> Path:
                 with torch.no_grad():
                     decide(hit.nonzero().squeeze(1), run.start_cells())
         b = tr.batch(cfg.lam)
+        fb = None
+        if run.fill_log:
+            fb = {k: torch.cat([x[k] for x in run.fill_log]) for k in run.fill_log[0]}
+            run.fill_log.clear()
+            if fb["label"].shape[0] > cfg.fill_cap:
+                keep = torch.randperm(fb["label"].shape[0], device=dev)[:cfg.fill_cap]
+                fb = {k: v[keep] for k, v in fb.items()}
         bc_w = max(cfg.bc_floor, cfg.bc_coef * max(0.0, 1 - it / cfg.bc_until)) if cfg.bc_decay else cfg.bc_coef
-        stats = update(net, opt, b, cfg, bc_w)
+        stats = update(net, opt, b, cfg, bc_w, fb)
         if dev == "cuda":
             torch.cuda.synchronize()
         work = time.time() - tw0
         tw.writerow([it, ticks, round((time.time() - t0) / 60, 2), b["r"].shape[0] if b else 0, int(ep[0]),
                      round(ep[1] / max(ep[0], 1), 4), round(ep[2] / max(ep[0], 1), 4), round(ep[3] / max(ep[0], 1), 4)]
                     + [round(stats[k], 5) for k in ("pi", "v", "ent", "kl", "bc", "bc_acc")]
-                    + [round(bc_w, 4), opt.param_groups[0]["lr"], stats["updates"], round(work, 2)])
+                    + [round(bc_w, 4), opt.param_groups[0]["lr"], stats["updates"], round(work, 2),
+                       round(stats["fill"], 5), round(stats["fill_acc"], 4), 0 if fb is None else fb["label"].shape[0]])
         train_log.flush()
         if (it + 1) % cfg.eval_every == 0 or it == cfg.iterations - 1:
             res = evaluate_router(net, jumper, vals, rcfg, cfg.eval_max_ticks)
@@ -345,8 +360,8 @@ def train(cfg: RouteTrainConfig) -> Path:
     return out
 
 
-def update(net, opt, b, cfg: RouteTrainConfig, bc_w: float) -> dict:
-    stats = {"pi": 0.0, "v": 0.0, "ent": 0.0, "kl": 0.0, "bc": 0.0, "bc_acc": 0.0, "updates": 0}
+def update(net, opt, b, cfg: RouteTrainConfig, bc_w: float, fb: dict | None = None) -> dict:
+    stats = {"pi": 0.0, "v": 0.0, "ent": 0.0, "kl": 0.0, "bc": 0.0, "bc_acc": 0.0, "fill": 0.0, "fill_acc": 0.0, "updates": 0}
     if b is None or b["r"].shape[0] < 64:
         return stats
     net.train()
@@ -371,6 +386,15 @@ def update(net, opt, b, cfg: RouteTrainConfig, bc_w: float) -> dict:
                 loss = loss + bc_w * bc
             with torch.no_grad():
                 acc = (lg[has].argmax(-1) == lab[has]).float().mean() if bool(has.any()) else torch.zeros(())
+            fl, facc = torch.zeros((), device=lg.device), torch.zeros(())
+            if fb is not None and cfg.fill_bc > 0 and fb["label"].shape[0]:
+                nf = fb["label"].shape[0]
+                j = torch.randint(0, nf, (min(nf, math.ceil(nf / cfg.minibatches)),), device=lg.device)
+                flg = net.logits(fb["feats"][j], fb["ok"][j], fb["inview"][j])
+                fl = torch.nn.functional.cross_entropy(flg, fb["label"][j])
+                loss = loss + cfg.fill_bc * fl
+                with torch.no_grad():
+                    facc = (flg.argmax(-1) == fb["label"][j]).float().mean()
             with torch.no_grad():
                 multi = b["ok"][i].sum(1) > 1
                 kl = ((ratio - 1) - torch.log(ratio))[multi].mean().item() if bool(multi.any()) else 0.0
@@ -381,13 +405,13 @@ def update(net, opt, b, cfg: RouteTrainConfig, bc_w: float) -> dict:
             torch.nn.utils.clip_grad_norm_(net.parameters(), cfg.max_grad_norm)
             opt.step()
             for k, x in (("pi", pg.item()), ("v", vl.item()), ("ent", ent.mean().item()), ("kl", kl),
-                         ("bc", bc.item()), ("bc_acc", acc.item())):
+                         ("bc", bc.item()), ("bc_acc", acc.item()), ("fill", fl.item()), ("fill_acc", facc.item())):
                 stats[k] += x
             stats["updates"] += 1
         else:
             continue
         break
-    for k in ("pi", "v", "ent", "kl", "bc", "bc_acc"):
+    for k in ("pi", "v", "ent", "kl", "bc", "bc_acc", "fill", "fill_acc"):
         stats[k] /= max(stats["updates"], 1)
     return stats
 

@@ -421,6 +421,7 @@ class RouteRunner:
         self.decisions = torch.zeros(n, dtype=torch.int64, device=dev)
         self.new_tick = torch.zeros(n, dtype=torch.int64, device=dev)  # env tick of the last landing on a new platform
         self.dec_tick = torch.zeros(n, dtype=torch.int64, device=dev)  # env tick of the last decision
+        self.fill_log = None  # a list: record policy-filled steps (route_train's fill imitation)
         self.R = torch.zeros(n, PLATFORM_SLOTS, 5, dtype=torch.int64, device=dev)
         self.V = torch.zeros(n, PLATFORM_SLOTS, dtype=torch.bool, device=dev)
         self.G = torch.zeros(n, PLATFORM_SLOTS, dtype=torch.bool, device=dev)
@@ -531,6 +532,10 @@ class RouteRunner:
                 fd, okd, _ = sc.tokens(frm, here, ex, visited, chain, depth, prog, None, timing)
                 nxt = fill_choose(fd, okd, sc.inview)
                 nxt = torch.where(okd.any(1), nxt, torch.full_like(nxt, -1))
+                if self.fill_log is not None:  # training: these steps, labelled with the course's next platform
+                    lab = next_on_course(sc.cidx, okd, sc.cidx[ar, frm])
+                    keep = live & (sc.cidx[ar, frm] >= 0) & (lab >= 0) & (okd.sum(1) > 1)
+                    self.fill_log.append({"feats": fd[keep], "ok": okd[keep], "inview": sc.inview[keep], "label": lab[keep]})
             prev = torch.where(live, nxt, torch.full_like(nxt, -1))
             picks.append(prev)
         picks = torch.stack(picks, 1)  # (M, LOOK) tokens, -1 = none
