@@ -297,6 +297,16 @@ class AssistBotParity(unittest.TestCase):
         self.assertEqual(every[1], [("takeoff", 0, 0), ("retry", 0, 3), ("retry", 0, 6)])  # by the timer
         self.assertGreater(played, 0)
 
+    def test_same_with_the_corner_limit(self):
+        # The planner service gets corner_limit with the rest of the config and drops the same landings.
+        cfg = AssistConfig(samples=64, iterations=3, jumps="all", retries=1, brake=14, retry_horizon=48, plan_start=1,
+                           corner_limit=0.25)
+        res, bot = self.check(cfg, single_neo_courses(SINGLE_VALIDATION_FAMILY, n=4))
+        self.assertTrue(res["events"] and all("corner_dropped" in e for e in res["events"]))
+        by_course = sorted(res["events"], key=lambda e: e["course"])
+        self.assertEqual([(x["kind"], x["takeoff"], x["tick"]) for x in bot],
+                         [(e["kind"], e["takeoff"], e["tick"]) for e in by_course])
+
     def check(self, cfg, cs, played=True):
         from parkour.live import SETTLE_TICKS
         model = load_model(ROOT / "results" / "final_policy.pt", "cpu")

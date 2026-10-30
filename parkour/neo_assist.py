@@ -46,6 +46,14 @@ and a first action that jumps is then the policy's own. With
 first tick's action (opt-in; from the simulator's own start it changes
 nothing, since the bot is not yet on the ground).
 
+The simulator and the bots resolve horizontal collisions x then z
+(prismarine-physics); the game resolves the larger component first. Past a
+wall's corner the two can end more than 0.25 blocks apart, and a server then
+sends the bot back. With ``--corner-limit L`` (opt-in; 0.25 is the server's
+limit) a landing the search found is played again tick by tick in both
+orders (``corner_gap``), and one with a tick more than L apart counts as no
+landing: a neo's search restarts, an ordinary jump brakes and retries.
+
 Every course's record says whether the bot did its neos as neos
 (``neo_done``): it stood on each neo's takeoff before on any later platform,
 then on the neo's target before on any later one, so a jump past the takeoff,
@@ -139,10 +147,11 @@ class AssistConfig:
     neo_iterations: int = 0  # >0: replaces iterations there
     approach_touch: int = 0  # 1: an approach plan counts only if it stands on the neo's takeoff before it lands
     plan_start: int = 0  # 1: the searches also run on the start state, before the first tick's action
+    corner_limit: float = 0.0  # >0: a landing whose plan has a tick this far apart in the game's collision order is dropped
 
 
 NEO_LEVERS = ("restarts", "neo_samples", "neo_iterations", "approach_touch")
-OPTIONAL = NEO_LEVERS + ("plan_start",)  # the fields a row's config lists only when they are set
+OPTIONAL = NEO_LEVERS + ("plan_start", "corner_limit")  # the fields a row's config lists only when they are set
 KIND_CODE = {"takeoff": 0, "retry": 1, "approach": 2}
 
 
@@ -164,13 +173,14 @@ def neo_request(course: C.Course, cp: int, kind: str) -> bool:
 
 
 def plan_once(model, pool: CoursePool, rules: "Rules", arrival: dict, kind: str, attempt: int, cfg: "AssistConfig",
-              horizon: int, device):
+              horizon: int, device, stats: dict | None = None):
     """One search from one state: (the first landing's actions or None, rounds used, restarts used).
 
     For a neo's request (``neo_request``) the neo levers apply: ``neo_samples`` and ``neo_iterations`` replace
     ``samples`` and ``iterations``, an approach plan must stand on the neo's takeoff before it lands
     (``approach_touch``), and while no search has landed, the search runs again from the same state with the next
-    seed, up to ``restarts`` times."""
+    seed, up to ``restarts`` times. With ``corner_limit`` a landing whose ``corner_gap`` exceeds it counts as none
+    (``stats["corner_dropped"]`` counts them)."""
     neo = neo_request(pool.courses[arrival["course"]], arrival["cp"], kind)
     if neo:
         cfg = replace(cfg, samples=cfg.neo_samples or cfg.samples, iterations=cfg.neo_iterations or cfg.iterations)
@@ -184,8 +194,33 @@ def plan_once(model, pool: CoursePool, rules: "Rules", arrival: dict, kind: str,
         f, r = search(pool, rules, [arrival], device, cfg, seed, pr, horizon)
         rounds += r[0]
         if f[0]:
+            if cfg.corner_limit and corner_gap(pool, arrival, f[0][0], device) > cfg.corner_limit:
+                if stats is not None:
+                    stats["corner_dropped"] = stats.get("corner_dropped", 0) + 1
+                continue
             return f[0][0], rounds, restart
     return None, rounds, restart
+
+
+def corner_gap(pool: CoursePool, arrival: dict, seq, device) -> float:
+    """The largest horizontal distance, over the ticks of a plan played from ``arrival``, between where a tick ends
+    with prismarine-physics' collisions (x then z: the simulator and the bots) and where it ends with the game's
+    order (the larger component first, ``physics.simulate(..., larger_first=True)``), both from the tick's start as
+    the bots play it. A server sends the bot back when its own result is more than 0.25 blocks away ("moved
+    wrongly"): past a wall's corner the two orders can end that far apart."""
+    s = _state_rows([arrival], device)
+    course = torch.tensor([arrival["course"]], device=device)
+    acts = torch.as_tensor(np.asarray(seq), dtype=torch.int64, device=device).reshape(-1, 5)
+    steps = torch.tensor(YAW_STEPS_DEG, dtype=torch.float64, device=device) * (math.pi / 180)
+    gap = 0.0
+    for t in range(len(acts)):
+        y = s.yaw + steps[acts[t:t + 1, 4]]
+        s.yaw = torch.remainder(y + math.pi, 2 * math.pi) - math.pi
+        controls = action_to_controls(acts[t:t + 1])
+        game = physics.simulate(pool.world, course, s, controls, larger_first=True)
+        s = physics.simulate(pool.world, course, s, controls)
+        gap = max(gap, float(torch.linalg.norm(s.pos[0, [0, 2]] - game.pos[0, [0, 2]])))
+    return gap
 
 
 BRAKE_BACK_TICKS = 6  # brake_plan holds "back" for 0 to this many ticks
@@ -651,8 +686,9 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
     n = pool.size
     if cfg.enabled and cfg.prior > 0:
         assert model.obs_dim != OBS_DIM_EXT, "the search prior uses the 255-number observation"
-    if cfg.enabled and cfg.batch > 1 and any(getattr(cfg, k) for k in NEO_LEVERS):
-        raise ValueError(f"{', '.join(NEO_LEVERS)} act per request (plan_once): they need batch 1")
+    per_request = NEO_LEVERS + ("corner_limit",)
+    if cfg.enabled and cfg.batch > 1 and any(getattr(cfg, k) for k in per_request):
+        raise ValueError(f"{', '.join(per_request)} act per request (plan_once): they need batch 1")
     env = ParkourEnv(pool, EnvConfig(num_envs=n, stall_ticks=stall_ticks, max_ticks=max_ticks, fall_rule=fall_rule,
                                      extended_obs=model.obs_dim == OBS_DIM_EXT), sampler=None)
     obs = env.reset_all(torch.arange(n, device=device))
@@ -724,14 +760,17 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
                 k = arr["cp"] + 1 if kind == "approach" else arr["cp"]
                 arr["target"] = plan_target(pool.courses[i], k)
                 horizon.append(plan_horizon(pool.courses[i], k, kind, cfg))
-            found, rounds, restarts = [], [], []
+            found, rounds, restarts, dropped = [], [], [], []
             if cfg.batch <= 1:
                 for i, arr, h in zip(want, arrivals, horizon):
                     attempt = 0 if kind == "approach" else int(tries[i, int(cp[i])])
-                    seq, r, rs = plan_once(model, pool, rules, arr, kind, attempt, cfg, h, device)
+                    st = {}
+                    seq, r, rs = plan_once(model, pool, rules, arr, kind, attempt, cfg, h, device,
+                                           **({"stats": st} if cfg.corner_limit else {}))
                     found.append([] if seq is None else [seq])
                     rounds.append(r)
                     restarts.append(rs)
+                    dropped.append(st.get("corner_dropped", 0))
             else:  # searches batched per tick (faster on a GPU); the bots cannot reproduce these seeds
                 found, rounds = [None] * len(arrivals), [None] * len(arrivals)
                 for h in sorted(set(horizon)):
@@ -755,6 +794,8 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
                                "plan_ticks": len(found[j][0]) if found[j] else 0, "rounds": rounds[j], "braked": False})
                 if cfg.restarts:  # searches again after none landed (all rounds above count)
                     events[-1]["restarts"] = restarts[j]
+                if cfg.corner_limit:  # landings dropped by the corner check
+                    events[-1]["corner_dropped"] = dropped[j]
                 if kind == "approach":
                     tried_before[i, c] = True
                 else:
@@ -888,6 +929,8 @@ def summarize(res: dict) -> dict:
                 out["searches"][kind] = {"n": len(e), "found": sum(x["found"] for x in e)}
         out["plans_played"] = res["plans"]["played"]
         out["plans_landed_as_planned"] = res["plans"]["landed_as_planned"]
+        if any("corner_dropped" in x for x in ev):  # (runs with corner_limit only)
+            out["corner_dropped"] = sum(x["corner_dropped"] for x in ev)
         if res["plans"].get("brakes"):
             out["brakes"] = res["plans"]["brakes"]
         out["search_seconds"] = res["search_seconds"]
@@ -944,13 +987,16 @@ def serve(model, courses: list[C.Course], cfg: AssistConfig, device, inp=None, o
             t0 = time.time()
             k = arr["cp"] + 1 if req["kind"] == "approach" else arr["cp"]
             attempt = int(req.get("attempt", 0))
+            st = {}
             seq, rounds, restarts = plan_once(model, pool, rules, arr, req["kind"], attempt, cfg,
-                                              plan_horizon(courses[arr["course"]], k, req["kind"], cfg), device)
+                                              plan_horizon(courses[arr["course"]], k, req["kind"], cfg), device,
+                                              **({"stats": st} if cfg.corner_limit else {}))
             brake = None
             if seq is None and cfg.brake and req["kind"] != "approach" and attempt + 1 <= cfg.retries:
                 brake = brake_plan(pool, rules, arr, cfg.brake, device)
             out.write(json.dumps({"plan": None if seq is None else seq.tolist(), "rounds": rounds,
                                   **({"restarts": restarts} if cfg.restarts else {}),
+                                  **({"corner_dropped": st.get("corner_dropped", 0)} if cfg.corner_limit else {}),
                                   "brake": None if brake is None else brake.tolist(),
                                   "seconds": round(time.time() - t0, 3)}) + "\n")
             out.flush()

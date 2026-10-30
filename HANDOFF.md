@@ -466,7 +466,9 @@ done; `results/neo/assist_validation.jsonl`, per course in
   the start block (`SETTLE_TICKS`); the scored test started without
   settling, which changes outcomes on many courses by chaos alone (policy
   alone: 26 completed in the bot and its re-run against 27 in the test, 19
-  courses different, the bot equal to its re-run on 64 of 64). Each bot score
+  courses different, the bot equal to its re-run on 64 of 64; planner mode:
+  58 against 57, 13 courses different, courses 9, 10, 13, 16, 19, 24, 25,
+  28, 42, 44, 45, 50 and 57; with the start fix 55, 14 different). Each bot score
   is reported next to the test run's on the same 64 courses.
 - **Offline bot, first 64 test courses (CPU, settled start):** the bot
   equals `parkour.live`'s simulator re-run on 64 of 64 courses in both modes
@@ -556,6 +558,85 @@ done; `results/neo/assist_validation.jsonl`, per course in
   the bot back (its log has both). The server logged that warning outside
   episodes in earlier runs too (3 times in the planner run before the fix),
   never inside one. Section 4, problem 9.
+
+**Overnight, 30 Oct (Ethan, relayed by the side session at about 05:10:
+"make sure to tell main to do as much as he can with the cpu/gpu at night
+im going to sleep so the pc will be free and idle").** The limits stay: two
+GPU training processes, the 65 C watchdog, 10 cores for the project's
+processes unless Ethan lifts it. Rules fixed at 05:16, before any run (the
+fine-tunes started at 05:17:01; the times written here first, 05:20 and
+05:40, were guesses and later than the true ones, corrected at 06:15 from
+the files' times):
+
+- **Level 5 with obstacles (section 4, problem 3), GPU, through the queue:**
+  two fine-tunes of `results/final_policy.pt` with its recipe (the queue's
+  base flags: discount 0.995, 1,000 iterations, validation every 50 on the
+  1,200 courses of families 2 and 5, levels 0-5, best by validation, tested
+  once at the end; 1,024-course pool, 8,192 games, rollout 64, 32
+  minibatches). `l5-obs05`: obstacles on half the jumps
+  (`--obstacle-prob 0.5`, as in the obstacle test sets; training had 0.3,
+  so a level-5 jump meets three fifths as many beams in training).
+  `l5-obs05-w3`: the same plus three times as many level-5 courses
+  (`--level-weights 1,1,1,1,1,3`, which replaces the adaptive curriculum).
+  The baseline is the final policy's validation, 97.58% (1,171 of 1,200,
+  `runs/obstacles-g995`, iteration 699). The run with the higher validation
+  is the candidate; it counts as better only if its validation is above
+  97.58%. Both test results are reported (each run tests its own best
+  once); nothing is chosen on them. A better candidate is not shipped as
+  the final policy without Ethan: the planner, the neo planner and the
+  router were all measured with the current one.
+- **The one network on ordinary courses in the bots (CPU):**
+  `results/combined_policy.pt` has played only skill, ice and neo courses
+  in the bots. The offline bot, then real Minecraft, on the 60 standard and
+  60 obstacle test courses the final policy played (`--per-level 10`), each
+  compared with `parkour.live`'s simulator re-run. A check, no choice.
+  **Result (05:42; `runs/combined-{stone,obstacles}-{offline,live}`, on the
+  course files of `v2-live` and `v2-live-obstacles`):** 59 of 60 standard
+  and 59 of 60 obstacle courses, offline and in real Minecraft, the same
+  courses and ticks as the simulator re-run on all 120, 0 server
+  corrections, largest replay difference 2.1e-14 blocks. The final policy on
+  the same courses: 59 and 57.
+- **Wall corners (section 4, problem 9), CPU; rule fixed at about 05:19,
+  before any run of it (written before the physics change, saved 05:20:15;
+  run C started at 05:33:21):** `corner_limit` (opt-in `AssistConfig` field; 0.25 is the
+  server's limit). A landing the search found is played again tick by tick,
+  each tick also with the horizontal collisions in the game's order (the
+  larger component first: `physics.simulate(..., larger_first=True)`,
+  opt-in, the default path unchanged); a plan with a tick more than 0.25
+  blocks apart counts as no landing, so a neo's search restarts
+  (`restarts`) and an ordinary jump brakes and retries. Validation, family
+  40, from the bots' start (`--settle 10`), the bots' setting (V3b with
+  `plan_start`), simulator, CPU: run C with `corner_limit` 0.25 against run
+  B (292). C is kept if its strict count is at least 288 (B less 4, a small
+  allowance for chance: B and V3b, both with a planned start, differ on 38
+  courses; the check drops only plans the server would reject). If kept:
+  the offline bot, then real Minecraft, on the same 64 test courses, once;
+  the gate is parity with the simulator re-run, and the server corrections
+  are counted. **Run C (05:52; `results/neo/assist_validation.jsonl`,
+  `results/neo/assist_details/single40-v3b-settle10-planstart-corner.json`):
+  292 of 320, the same courses as B, so it is kept.** The check dropped 11
+  landings in 9 requests, all at neo takeoffs, and each of those searches
+  found another landing on a restart. Before it, the check was tested
+  against every recorded real-Minecraft run: replaying each one, the ticks
+  it flags are exactly the ones the server logged as "moved wrongly" (13 of
+  13 in the five neo runs), and the server sent the bot back only on the two
+  whose box was not already touching the wall before the tick (it let the
+  other 11 through). Over all 40 recorded real-Minecraft runs the flagged
+  ticks equal the logged warnings in 38; in the other two (obstacle
+  courses, `planner-live-obstacles` and `v2-live-obstacles`) one tick each is
+  flagged with no warning. The review (three reviewers, each finding
+  checked) found why, and a second way the check is stricter than the
+  server, both verified: the check applies the game's order to the tick's
+  velocity, the server to the bot's displacement after its own collisions
+  (so a tick where the bot's move already collided can be flagged though
+  the server sees nothing); and a gap over 0.25 is only the server's
+  warning: it sends the bot back only when the bot's box starts the tick
+  clear of every block (the server's box is 0.3F wide, so a box flush on a
+  face overlaps it by 1.2e-8 and is let through). Neither makes the check
+  miss a move the server sends back (none in the 40 runs, none in a
+  reviewer's sweep of 35,712 starts beside a pillar), and on validation it
+  cost nothing (C = B), so it stays as validated; a version matching the
+  server exactly would drop fewer landings and needs its own validation.
 
 **Queued after the combined runs (requested 29 Oct via the side chat): a
 head-hitter and slime fine-tune.** Rules fixed before any combined result:
@@ -1170,18 +1251,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `5ddbdc2` (2026-10-30 05:00, branch `main`): Merge remote-tracking branch 'origin/main' (routing PR #2, merged on GitHub at 04:02)
+Generated on top of commit `fb12509` (2026-10-30 05:10, branch `main`): Handoff: the routing result merged (PR #2), the start fix's session log
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 20 |
-| `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `1a16df0` 2026-10-29 14:14 | 36 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 204 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 187 |
-| `results/README.md` | `70a6ee0` 2026-10-30 04:59 | 11 |
-| `results/DATA.md` | `70a6ee0` 2026-10-30 04:59 | 11 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 21 |
+| `HANDOFF.md` | `fb12509` 2026-10-30 05:10 | 0 |
+| `TEAM_STATUS.md` | `fb12509` 2026-10-30 05:10 | 0 |
+| `README.md` | `1a16df0` 2026-10-29 14:14 | 37 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 205 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 188 |
+| `results/README.md` | `70a6ee0` 2026-10-30 04:59 | 12 |
+| `results/DATA.md` | `70a6ee0` 2026-10-30 04:59 | 12 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 

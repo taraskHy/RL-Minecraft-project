@@ -322,18 +322,32 @@ class _Cells:
         return torch.where(d > 0, torch.where(up < d, up, d), torch.where(d < 0, torch.where(down > d, down, d), d))
 
 
+def _horizontal(cells: "_Cells", bb: torch.Tensor, dx: torch.Tensor, dz: torch.Tensor, larger_first: bool):
+    """The x then z sweeps of moveEntity: (x offset, z offset, box). With ``larger_first``, rows whose |dz| exceeds
+    |dx| sweep z first, as the game does (Direction.axisStepOrder); prismarine-physics always sweeps x first."""
+    cx = cells.offset(bb, dx, 0)
+    bx = _offset_axis(bb, 0, cx)
+    cz = cells.offset(bx, dz, 2)
+    out = _offset_axis(bx, 2, cz)
+    if not larger_first:
+        return cx, cz, out
+    zf = cells.offset(bb, dz, 2)
+    bz = _offset_axis(bb, 2, zf)
+    xf = cells.offset(bz, dx, 0)
+    swap = dz.abs() > dx.abs()
+    return (torch.where(swap, xf, cx), torch.where(swap, zf, cz),
+            torch.where(swap[:, None], _offset_axis(bz, 0, xf), out))
+
+
 def _move(world: World, course: torch.Tensor, pos: torch.Tensor, vel: torch.Tensor,
-          on_ground: torch.Tensor, check: bool):
-    """moveEntity without webs, sneaking or special blocks."""
+          on_ground: torch.Tensor, check: bool, larger_first: bool = False):
+    """moveEntity without webs, sneaking or special blocks (``larger_first``: see ``_horizontal``)."""
     dx, dy, dz = vel.unbind(-1)
     bb0 = player_bb(pos)
     cells = _Cells(world, course, _extend(bb0, vel))
     cy = cells.offset(bb0, dy, 1)
     bb = _offset_axis(bb0, 1, cy)
-    cx = cells.offset(bb, dx, 0)
-    bb = _offset_axis(bb, 0, cx)
-    cz = cells.offset(bb, dz, 2)
-    bb = _offset_axis(bb, 2, cz)
+    cx, cz, bb = _horizontal(cells, bb, dx, dz, larger_first)
 
     # Step-up attempt (stepHeight 0.6), computed for every row and then selected.
     step_y = torch.full_like(dy, STEP_HEIGHT)
@@ -345,14 +359,8 @@ def _move(world: World, course: torch.Tensor, pos: torch.Tensor, vel: torch.Tens
     sy2 = cells2.offset(bb0, step_y, 1)
     b1 = _offset_axis(bb0, 1, sy1)
     b2 = _offset_axis(bb0, 1, sy2)
-    sx1 = cells2.offset(b1, dx, 0)
-    sx2 = cells2.offset(b2, dx, 0)
-    b1 = _offset_axis(b1, 0, sx1)
-    b2 = _offset_axis(b2, 0, sx2)
-    sz1 = cells2.offset(b1, dz, 2)
-    sz2 = cells2.offset(b2, dz, 2)
-    b1 = _offset_axis(b1, 2, sz1)
-    b2 = _offset_axis(b2, 2, sz2)
+    sx1, sz1, b1 = _horizontal(cells2, b1, dx, dz, larger_first)
+    sx2, sz2, b2 = _horizontal(cells2, b2, dx, dz, larger_first)
     pick1 = (sx1 * sx1 + sz1 * sz1) > (sx2 * sx2 + sz2 * sz2)
     sx = torch.where(pick1, sx1, sx2)
     sy = torch.where(pick1, -sy1, -sy2)
@@ -392,12 +400,16 @@ def _move(world: World, course: torch.Tensor, pos: torch.Tensor, vel: torch.Tens
 
 
 def simulate(world: World, course: torch.Tensor, state: PlayerState, controls: torch.Tensor,
-             check: bool = False) -> PlayerState:
+             check: bool = False, larger_first: bool = False) -> PlayerState:
     """One 50 ms tick of physics.simulatePlayer for every row.
 
     ``controls`` is a bool tensor (N, 6) in the order FORWARD, BACK, LEFT,
     RIGHT, JUMP, SPRINT. The yaw in ``state`` is the yaw for this tick.
-    Returns a new state; the input is not modified.
+    Returns a new state; the input is not modified. ``larger_first``
+    (opt-in, off everywhere by default): the horizontal collisions in the
+    game's order, the larger of the two components first, instead of
+    prismarine-physics' x then z (``_horizontal``); the neo planner's
+    ``corner_limit`` uses it to find moves a server would reject.
     """
     vel = state.vel
     vel = torch.where(vel.abs() < NEGLIGIBLE_VELOCITY, torch.zeros_like(vel), vel)
@@ -455,7 +467,7 @@ def simulate(world: World, course: torch.Tensor, state: PlayerState, controls: t
         vy = torch.where(on, torch.maximum(vy, const(-m)), vy)
 
     pos, mvel, on_ground, collided_h, collided_v = _move(
-        world, course, state.pos, torch.stack((vx, vy, vz), -1), state.on_ground, check)
+        world, course, state.pos, torch.stack((vx, vy, vz), -1), state.on_ground, check, larger_first)
 
     mx, my, mz = mvel.unbind(-1)
     if world.climb is not None:  # pushing against something, or jumping (1.14+), while on a ladder climbs it
