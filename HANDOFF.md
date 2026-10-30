@@ -609,6 +609,15 @@ the files' times):
   measurement only): A and C with seed 2 (`single40-a-seed2`,
   `single40-c-seed2`) and the scored setting, V3b from the simulator's own
   start, with seed 1 (`single40-v3b-seed1`), for the noise of one run.
+  **Result (10:01; strict counts of 320, seeds 0, 1, 2):** A 265, 285, 281
+  (mean 277.0, standard deviation 10.6); C 292, 280, 276 (282.7, 8.3); V3b
+  286, 276 (281.0, 7.1). About 70 of the 320 courses change outcome between
+  a setting's seeds. **So one planner run of these 320 courses has a
+  standard deviation of about 9 courses (3 points) from its search seed
+  alone;** C against A is +5.7 on average, within that. The levers of 29 Oct
+  were kept on margins of about 4 courses at seed 0 (V3a +11, V3b +4), and
+  V3b's seed 1 gives 276, so those decisions sit inside this noise too; the
+  test (276 of 320, one seed) is one draw from it.
 - **Level 5, a closer look (rule fixed at 06:40, after the test results
   above, before this evaluation; it chooses only on validation):** two new
   validation-only sets of level-5 courses, 2,000 with obstacles on half the

@@ -10,7 +10,7 @@ the data: training runs, policies, the route planner and neo files, the game
 folders (including the v2, planner, noroute, neo and film games) and the
 videos.
 
-**Last updated:** 30 Oct 2026, 09:03, training PC (Claude), overnight: the bots plan their first jump and avoid the wall-corner moves a server rejects; on the 64 single-neo test courses 55 offline and 55 in real Minecraft, equal to the simulator, 0 corrections. A planner run's count moves by about 10 of 320 with its search seed, so the start fix's 292-against-265 was mostly chance. The one network plays the final policy's 120 bot courses at 59/60 and 59/60. Level 5 with obstacles: fine-tuning with obstacles on half the jumps plus three times as many level-5 courses gains 2.7 points on 2,000 validation courses (three seeds, all up) and 2.8 on test on average (81.0 to 83.8), standard courses level; obstacles alone gain nothing; not shipped (Ethan's call); an ablation (the level-5 weight alone) is running. Earlier, 30 Oct 05:00: the bots now plan their first jump too. Earlier: single neos meet the 85% goal on the test set (86.25% with the planner, narrowly) and the bots reproduced it in real Minecraft (58/64); the gate is built: 86.80% on test against the one network's 86.45%, a match; follow-up rounds not kept; replays of every new skill and block type on the results page; CPU capped at 85%.
+**Last updated:** 30 Oct 2026, 09:03, training PC (Claude), overnight: the bots plan their first jump and avoid the wall-corner moves a server rejects; on the 64 single-neo test courses 55 offline and 55 in real Minecraft, equal to the simulator, 0 corrections. A planner run's count has a standard deviation of about 9 of 320 from its search seed (three seeds), so the start fix's 292-against-265 was mostly chance. The one network plays the final policy's 120 bot courses at 59/60 and 59/60. Level 5 with obstacles: fine-tuning with obstacles on half the jumps plus three times as many level-5 courses gains 2.7 points on 2,000 validation courses (three seeds, all up) and 2.8 on test on average (81.0 to 83.8), standard courses level; obstacles alone gain nothing; not shipped (Ethan's call); an ablation (the level-5 weight alone) is running. Earlier, 30 Oct 05:00: the bots now plan their first jump too. Earlier: single neos meet the 85% goal on the test set (86.25% with the planner, narrowly) and the bots reproduced it in real Minecraft (58/64); the gate is built: 86.80% on test against the one network's 86.45%, a match; follow-up rounds not kept; replays of every new skill and block type on the results page; CPU capped at 85%.
 
 ## Team split / what we want next (29 Oct 2026)
 
@@ -425,7 +425,9 @@ then landed on its target; `results/neo/assist_*.jsonl`, HANDOFF section 3).
 | neo policy alone; one network alone | 133; 136 | |
 
 The setting was chosen on validation by fixed rules: each change had to add at
-least 4 courses, and the search stopped at 89%. The test margin is small (4
+least 4 courses, and the search stopped at 89%; measured on 30 Oct, a single
+planner run varies by about 9 courses with its search seed, so those margins
+are inside the planner's own chance (the chosen setting's seed 1: 276). The test margin is small (4
 courses; 95% interval 82.0-89.6%), and counting a course only if every
 platform was a takeoff gives 271 (84.7%): 5 of the 276 skipped one ordinary
 platform's search. **In real Minecraft**, on the first 64 test courses
@@ -441,9 +443,10 @@ start with their neo.
 state, before the first move (`plan_start`, opt-in; from the simulator's own
 start it changes nothing). From the bots' settled start on validation it
 completed 292 of 320 against 265 without it (simulator), so by the rule the
-bots use it; but with a second search seed the two are level (280 and 285):
-**one planner run of 320 courses moves by about 10 courses with its search
-seed**, so that gap was mostly chance. What the fix surely does is plan the
+bots use it; but with other search seeds the two are level (A 285 and 281, C
+280 and 276): **one planner run of 320 courses has a standard deviation of
+about 9 courses (3 points) from its search seed alone** (three seeds each,
+HANDOFF section 3), so that gap was mostly chance. What the fix surely does is plan the
 first jump where the policy would jump at once (24 of 320 courses). On the
 same 64 test courses, played once with it: 55 offline and 54 in real
 Minecraft (before: 58); course 10 now plans its first jump and completes.
