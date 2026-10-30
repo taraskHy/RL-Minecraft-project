@@ -177,6 +177,38 @@ hand-designed courses (the neo course is not in its training):
 | v2-live-obstacles | live (Minecraft 1.21.4 server) | 57/60 | 95.0 | 100.0 | 0 | 2.1e-14 |
 | v2-live-showcase | live (Minecraft 1.21.4 server) | 3/4 | 75.0 | 100.0 | 0 | 2.1e-14 |
 
+### Level 5 with obstacles: a fine-tune recipe (reported, not shipped)
+
+The final policy (first row) against fine-tunes of it. The fine-tunes run 1,000 iterations at discount 0.995 with the training queue's settings (8,192 games, rollout 64, 1,024 courses in the pool, 32 minibatches; the final policy's own obstacle fine-tune had 16,384 games, rollout 32, 8,192 courses in the pool, 8 minibatches, the same 524,288 game ticks per update), choose their checkpoint on validation and play each test set once (the final policy's run scored its test sets at every checkpoint, without choosing on them).
+They change the share of jumps with obstacles (`--obstacle-prob`; the final policy trained with 0.3, the
+obstacle test sets have 0.5), the mix of levels (`--level-weights 1,1,1,1,1,3`: level 5 weighted 3 against 1
+for each other level, so 3 of every 8 training games, where the adaptive curriculum gives each level 1 of 6
+once it reaches level 5), or both; none has neither change. Families 46 and 47 are new validation-only sets
+of 2,000 level-5 courses each, with obstacles on half the jumps and without
+(`results/level5_closer_look.json`, deterministic first episode).
+
+| Obstacles | Levels | Run | Iteration | Validation | Family 46 | Family 47 | Test, standard | L5 | Test, obstacles | Obstacles L5 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 0.3 | adaptive | `obstacles-g995` | 699 | 97.6 | 1,704 (85.20) | 1,831 (91.55) | 98.4 | 93.5 | 95.2 | 81.0 |
+| 0.5 | adaptive | `l5-obs05` | 999 | 97.9 | 1,750 (87.50) | 1,832 (91.60) | 98.2 | 91.0 | 96.8 | 88.0 |
+| 0.5 | adaptive | `l5-obs05-s1` | 49 | 97.0 | 1,694 (84.70) | 1,813 (90.65) | 98.1 | 89.5 | 95.3 | 81.5 |
+| 0.5 | adaptive | `l5-obs05-s2` | 99 | 97.6 | 1,666 (83.30) | 1,830 (91.50) | 97.8 | 88.5 | 94.7 | 79.0 |
+| 0.5 | adaptive | mean of 3 | | | 85.17 | 91.25 | 98.0 | 89.7 | 95.6 | 82.8 |
+| 0.5 | 1,1,1,1,1,3 | `l5-obs05-w3` | 249 | 98.2 | 1,758 (87.90) | 1,804 (90.20) | 98.3 | 91.5 | 95.5 | 81.0 |
+| 0.5 | 1,1,1,1,1,3 | `l5-obs05-w3-s1` | 99 | 98.1 | 1,792 (89.60) | 1,855 (92.75) | 98.4 | 94.0 | 95.2 | 84.5 |
+| 0.5 | 1,1,1,1,1,3 | `l5-obs05-w3-s2` | 49 | 98.0 | 1,722 (86.10) | 1,838 (91.90) | 98.5 | 93.5 | 96.5 | 86.0 |
+| 0.5 | 1,1,1,1,1,3 | mean of 3 | | | 87.87 | 91.62 | 98.4 | 93.0 | 95.8 | 83.8 |
+| 0.3 | 1,1,1,1,1,3 | `l5-w3` | 699 | 97.3 | 1,729 (86.45) | 1,799 (89.95) | 96.6 | 85.0 | 95.2 | 83.0 |
+| 0.3 | 1,1,1,1,1,3 | `l5-w3-s1` | 199 | 97.8 | 1,694 (84.70) | 1,809 (90.45) | 98.2 | 92.5 | 95.4 | 85.5 |
+| 0.3 | 1,1,1,1,1,3 | mean of 2 | | | 85.58 | 90.20 | 97.4 | 88.8 | 95.3 | 84.2 |
+
+Family 46 was fixed at 06:39:26 (HANDOFF section 3), after the first two runs (`l5-obs05`, `l5-obs05-w3`) were
+tested and before any run was played on it; the other six runs came after it. One run's bar was 2 points
+above the final policy; the seeds compared the recipes' means (with a family-47 guard), and the level
+weights alone had to be 2 points above on their mean. Mean of the seeds on family 46: both changes +2.67 (every seed above the final policy), obstacles alone -0.03, the level weights alone +0.38; on family 47 +0.07, -0.30 and -1.35. On the obstacle test set's level 5 (200 courses per run, played once) the means are 83.8, 82.8 and 84.2 against 81.0: the test does not confirm that both changes are needed, and with no fine-tune that has neither change it cannot separate them from the extra training they share.
+Reported, not shipped: the final policy stays `results/final_policy.pt` (decided 30 Oct). The planner, the
+neo planner, the router and the final policy's bot runs were all measured with it.
+
 ## Neo jumps: learning from demonstrations
 
 Held-out test courses of levels 6-8 that contain a neo: 210 courses, 337 neo jumps.

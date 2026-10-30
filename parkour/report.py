@@ -287,6 +287,74 @@ def pct(v):
     return "-" if v is None or (isinstance(v, float) and np.isnan(v)) else f"{v * 100:.1f}"
 
 
+L5_RUNS = ("obstacles-g995", "l5-obs05", "l5-obs05-s1", "l5-obs05-s2", "l5-obs05-w3", "l5-obs05-w3-s1", "l5-obs05-w3-s2",
+           "l5-w3", "l5-w3-s1")
+
+
+def level5_recipe(out: Path) -> list:
+    """Fine-tunes of the final policy for level 5 with obstacles (30 Oct): reported, not shipped."""
+    f = out / "level5_closer_look.json"
+    if not f.exists() or not all((RUNS / n / "summary.json").exists() for n in L5_RUNS):
+        return []
+    d = json.loads(f.read_text())
+    sets = {**d["seeds"]["completed_of_2000"], **d["ablation"]["runs"], "obstacles-g995": d["seeds"]["final_policy"]}
+    groups, cfgs = {}, {}
+    for name in L5_RUNS:
+        run = RUNS / name
+        cfgs[name] = cfg = json.loads((run / "config.json").read_text())
+        it = json.loads((run / "summary.json").read_text())["best"]
+        t = {int(r["iteration"]): r for r in csv.DictReader(open(run / "eval_log.csv"))}[it["iteration"]]
+        o = {int(r["iteration"]): r for r in csv.DictReader(open(run / "eval_obstacles_log.csv"))}[it["iteration"]]
+        groups.setdefault((cfg["obstacle_prob"], cfg.get("level_weights") or "adaptive"), []).append(
+            (name, it["iteration"], it["validation_success"], sets[name]["46"], sets[name]["47"],
+             *(float(x) for x in (t["success"], t["success_L5"], o["success"], o["success_L5"]))))
+    setting = lambda c: (f"{c['num_envs']:,} games, rollout {c['rollout']}, {c['pool_size']:,} courses in the pool, "
+                         f"{c['minibatches']} minibatches")
+    fp, ft = cfgs["obstacles-g995"], cfgs["l5-obs05"]
+    same = all(setting(cfgs[n]) == setting(ft) and cfgs[n]["iterations"] == ft["iterations"] for n in L5_RUNS[1:])
+    ticks = {c["num_envs"] * c["rollout"] for c in (fp, ft)}
+    lines = ["### Level 5 with obstacles: a fine-tune recipe (reported, not shipped)", "",
+             f"The final policy (first row) against fine-tunes of it. The fine-tunes run {ft['iterations']:,} iterations at "
+             f"discount {ft['gamma']} with the training queue's settings ({setting(ft)}"
+             + ("" if same else "; settings differ between the runs, see each `config.json`")
+             + f"; the final policy's own obstacle fine-tune had {setting(fp)}, "
+             + (f"the same {ticks.pop():,} game ticks per update" if len(ticks) == 1 else "other ticks per update")
+             + "), choose their checkpoint on validation and play each test set once (the final policy's run scored its "
+             "test sets at every checkpoint, without choosing on them).",
+             "They change the share of jumps with obstacles (`--obstacle-prob`; the final policy trained with 0.3, the",
+             "obstacle test sets have 0.5), the mix of levels (`--level-weights 1,1,1,1,1,3`: level 5 weighted 3 against 1",
+             "for each other level, so 3 of every 8 training games, where the adaptive curriculum gives each level 1 of 6",
+             "once it reaches level 5), or both; none has neither change. Families 46 and 47 are new validation-only sets",
+             "of 2,000 level-5 courses each, with obstacles on half the jumps and without",
+             "(`results/level5_closer_look.json`, deterministic first episode).", "",
+             "| Obstacles | Levels | Run | Iteration | Validation | Family 46 | Family 47 | Test, standard | L5 | "
+             "Test, obstacles | Obstacles L5 |", "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+    mean = {}
+    for (prob, weights), rows in groups.items():
+        for name, it, val, f46, f47, *test in rows:
+            lines.append(f"| {prob} | {weights} | `{name}` | {it} | {pct(val)} | {f46:,} ({f46 / 20:.2f}) | "
+                         f"{f47:,} ({f47 / 20:.2f}) | " + " | ".join(pct(v) for v in test) + " |")
+        mean[prob, weights] = m = [sum(c) / len(rows) for c in list(zip(*rows))[3:]]
+        if len(rows) > 1:
+            lines.append(f"| {prob} | {weights} | mean of {len(rows)} | | | {m[0] / 20:.2f} | {m[1] / 20:.2f} | "
+                         + " | ".join(pct(v) for v in m[2:]) + " |")
+    base, both, obs, lw = (mean[k] for k in ((0.3, "adaptive"), (0.5, "1,1,1,1,1,3"), (0.5, "adaptive"), (0.3, "1,1,1,1,1,3")))
+    gain = lambda m, i: f"{(m[i] - base[i]) / 20:+.2f}"
+    above = all(r[3] > base[0] for r in groups[0.5, "1,1,1,1,1,3"])
+    lines += ["", "Family 46 was fixed at 06:39:26 (HANDOFF section 3), after the first two runs (`l5-obs05`, `l5-obs05-w3`) were",
+              "tested and before any run was played on it; the other six runs came after it. One run's bar was 2 points",
+              "above the final policy; the seeds compared the recipes' means (with a family-47 guard), and the level",
+              f"weights alone had to be 2 points above on their mean. Mean of the seeds on family 46: both changes {gain(both, 0)}"
+              + (" (every seed above the final policy)" if above else "") + f", obstacles alone {gain(obs, 0)}, the level "
+              f"weights alone {gain(lw, 0)}; on family 47 {gain(both, 1)}, {gain(obs, 1)} and {gain(lw, 1)}. On the obstacle "
+              f"test set's level 5 (200 courses per run, played once) the means are {pct(both[5])}, {pct(obs[5])} and "
+              f"{pct(lw[5])} against {pct(base[5])}: the test does not confirm that both changes are needed, and with no "
+              "fine-tune that has neither change it cannot separate them from the extra training they share.",
+              "Reported, not shipped: the final policy stays `results/final_policy.pt` (decided 30 Oct). The planner, the",
+              "neo planner, the router and the final policy's bot runs were all measured with it.", ""]
+    return lines
+
+
 def new_abilities(out: Path) -> list:
     """Tables of the planning assist, the extra jump kinds and the new blocks' physics checks (simulator)."""
     lines = []
@@ -622,6 +690,7 @@ def main(argv=None):
         if rows:
             lines += ["The bot with the final policy, on the same 60 + 60 held-out courses as before and the four",
                       "hand-designed courses (the neo course is not in its training):", ""] + GAME_HEADER + rows + [""]
+        lines += level5_recipe(out)
 
     # Neo jumps: learning from demonstrations.
     ne = out / "neo" / "course_eval.json"

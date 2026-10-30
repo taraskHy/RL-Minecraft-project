@@ -581,16 +581,39 @@ im going to sleep so the pc will be free and idle").** The limits stay: two
 GPU training processes, the 65 C watchdog, 10 cores for the project's
 processes unless Ethan lifts it. Rules fixed at 05:16:42, before any run
 (the fine-tunes started at 05:17:01; the times written here first, 05:20
-and 05:40, were guesses and later than the true ones, corrected at 06:15
-from the files' times; the seconds are the session transcript's time of
-each edit, which the side session confirmed independently):
+and 05:40, were guesses and later than the true ones, corrected at 06:14:17
+and 06:14:18 from the files' times; their seconds, 05:16:42 and 05:19:49,
+are the session transcript's time of each edit, which the side session
+confirmed independently. Three labels below and the first correction's own
+("06:15") were also written ahead of the clock and were set at 18:33 to the
+transcript's times: 06:40 to 06:39:26, 06:45 to 06:40:44, 07:27 to
+07:26:51, and 06:15 to 06:14:17; each rule still comes before the runs it
+governs):
 
 - **Level 5 with obstacles (section 4, problem 3), GPU, through the queue:**
   two fine-tunes of `results/final_policy.pt` with its recipe (the queue's
   base flags: discount 0.995, 1,000 iterations, validation every 50 on the
   1,200 courses of families 2 and 5, levels 0-5, best by validation, tested
   once at the end; 1,024-course pool, 8,192 games, rollout 64, 32
-  minibatches). **Results (06:37; simulator; `runs/l5-obs05*/summary.json`,
+  minibatches). `l5-obs05`: obstacles on half the jumps
+  (`--obstacle-prob 0.5`, as in the obstacle test sets; training had 0.3,
+  so a level-5 jump meets three fifths as many beams in training).
+  `l5-obs05-w3`: the same plus three times as many level-5 courses
+  (`--level-weights 1,1,1,1,1,3`, which replaces the adaptive curriculum).
+  The baseline is the final policy's validation, 97.58% (1,171 of 1,200,
+  `runs/obstacles-g995`, iteration 699). The run with the higher validation
+  is the candidate; it counts as better only if its validation is above
+  97.58%. Both test results are reported (each run tests its own best
+  once); nothing is chosen on them. A better candidate is not shipped as
+  the final policy without Ethan: the planner, the neo planner and the
+  router were all measured with the current one. (This rule text,
+  unchanged since its first commit `c00cc75`, was moved back here at 17:50;
+  later edits had left it as the last sentences of the 09:09 bullet.)
+  [18:57: "three times as many level-5 courses", here and below, means
+  level 5 weighted 3 against 1 for each other level: 3 of every 8 training
+  games, against 1 of 6 under the adaptive curriculum once it reaches level
+  5, so level 5's share is 2.25 times as large (`parkour/env.py`,
+  `LevelSampler`); the pool holds as many level-5 courses either way.] **Results (06:37; simulator; `runs/l5-obs05*/summary.json`,
   their queue logs):** `l5-obs05` best at iteration 999, validation 97.92%;
   `l5-obs05-w3` best at iteration 249, validation 98.17%: the candidate,
   above 97.58%. Tested once: `l5-obs05-w3` 98.33% standard (level 5 91.5%)
@@ -601,7 +624,7 @@ each edit, which the side session confirmed independently):
   and 96.83% obstacles (88.0%); `l5-obs05` 98.50% (93.0%) and 97.33%
   (91.0%); `l5-obs05-w3` 98.83% (95.0%) and 97.50% (88.0%); 100 courses per
   level, so a level's number moves 1 point per course.
-- **The planner's own chance (07:27, measurement only, no choice):** the
+- **The planner's own chance (07:26:51, measurement only, no choice):** the
   search is the planner's only random part (`--seed`, 0 so far). Runs A
   and C again on validation (family 40, `--settle 10`, CPU) with seed 1
   (`single40-a-seed1`, `single40-c-seed1`), to see how much of A's 265
@@ -619,7 +642,7 @@ each edit, which the side session confirmed independently):
   were kept on margins of about 4 courses at seed 0 (V3a +11, V3b +4), and
   V3b's seed 1 gives 276, so those decisions sit inside this noise too; the
   test (276 of 320, one seed) is one draw from it.
-- **Level 5, a closer look (rule fixed at 06:40, after the test results
+- **Level 5, a closer look (rule fixed at 06:39:26, after the test results
   above, before this evaluation; it chooses only on validation):** two new
   validation-only sets of level-5 courses, 2,000 with obstacles on half the
   jumps (family 46) and 2,000 without (family 47), simulator (GPU),
@@ -627,7 +650,7 @@ each edit, which the side session confirmed independently):
   `l5-obs05-w3` best. A recipe counts as helping level 5 with obstacles if
   its run completes at least 2 points more of family 46 than the final
   policy. If one does: two more seeds of that recipe on the GPU, each tested
-  once; nothing shipped without Ethan. **Result (06:45,
+  once; nothing shipped without Ethan. **Result (06:40:44,
   `results/level5_closer_look.json`):** level 5 with obstacles, final policy
   85.20% (1,704 of 2,000), `l5-obs05` 87.50% (+2.30; 219 courses only it, 173
   only the final policy), `l5-obs05-w3` 87.90% (+2.70; 211 and 157); level 5
@@ -644,7 +667,7 @@ each edit, which the side session confirmed independently):
   85.20%); `l5-obs05-w3` 1,758, 1,792, 1,722 (mean 87.87%, +2.67); family 47
   means 91.25% and 91.62% (final 91.55%). **So the better recipe is
   obstacles on half the jumps plus three times as many level-5 courses**
-  (`l5-obs05-w3`); obstacles alone gain nothing on average (the first run's
+  (`l5-obs05-w3`); obstacles alone gain nothing on average [18:12: on family 46] (the first run's
   +2.3 was chance; its seeds chose checkpoints 49 and 99). Each run's test,
   played once (standard / obstacles, level 5 of each): the final policy
   98.42 / 95.25 (93.5 / 81.0); `l5-obs05-w3` 98.33 / 95.50 (91.5 / 81.0),
@@ -659,10 +682,13 @@ each edit, which the side session confirmed independently):
   at iteration 299; the recipe's evidence is the 2,000-course level-5 sets
   over three seeds, not that peak (caveat from the side session's check). Shipping one is Ethan's call; a
   fresh choice among the recipe's three runs would need a rule fixed before
-  looking (the three runs' tests are now seen).
+  looking (the three runs' tests are now seen). **Ethan's decision (30 Oct,
+  17:39): keep the final policy and report the recipe as a finding**
+  (`results/README.md`, final policy section, and the results page);
+  nothing was exported or shipped.
 - **Which part helps (rule fixed at 09:09, before the runs; measurement
   only, nothing shipped):** obstacles alone gained nothing, the pair gained
-  2.7 points. `l5-w3` and `l5-w3-s1`: the level-5 weight alone
+  2.7 points [18:12: both on family 46]. `l5-w3` and `l5-w3-s1`: the level-5 weight alone
   (`--level-weights 1,1,1,1,1,3`, obstacles at the final policy's 0.3),
   queue recipe otherwise unchanged, each tested once. The weight alone
   counts as the active part if the two runs' mean on family 46 is at least
@@ -671,20 +697,21 @@ each edit, which the side session confirmed independently):
   46: 1,729 and 1,694 of 2,000 (mean 85.58%, +0.38), family 47: 1,799 and
   1,809 (90.20%, -1.35): **the weight alone is not the active part; the
   gain needs both, more obstacles and more level-5 courses** (each alone
-  gains nothing on level 5 with obstacles). Tests, played once: `l5-w3`
+  gains nothing on level 5 with obstacles) [18:12: on family 46; see the
+  correction below]. Tests, played once: `l5-w3`
   96.58% standard (level 5 85.0%) and 95.17% obstacles (83.0%); `l5-w3-s1`
-  98.25% (92.5%) and 95.42% (85.5%). `l5-obs05`: obstacles on half the jumps
-  (`--obstacle-prob 0.5`, as in the obstacle test sets; training had 0.3,
-  so a level-5 jump meets three fifths as many beams in training).
-  `l5-obs05-w3`: the same plus three times as many level-5 courses
-  (`--level-weights 1,1,1,1,1,3`, which replaces the adaptive curriculum).
-  The baseline is the final policy's validation, 97.58% (1,171 of 1,200,
-  `runs/obstacles-g995`, iteration 699). The run with the higher validation
-  is the candidate; it counts as better only if its validation is above
-  97.58%. Both test results are reported (each run tests its own best
-  once); nothing is chosen on them. A better candidate is not shipped as
-  the final policy without Ethan: the planner, the neo planner and the
-  router were all measured with the current one.
+  98.25% (92.5%) and 95.42% (85.5%). **Correction (17:50, from the
+  generated table in `results/README.md`, final policy section):** on the
+  obstacle test set's level 5 (200 courses per run) each change alone rose
+  about as much as the pair: mean 82.8% for obstacles alone (three runs)
+  and 84.2% for the weight alone (two runs), against the pair's 83.8% and
+  the final policy's 81.0%. So "needs both" rests on family 46 (2,000
+  courses per run, where one recipe's seeds differ by up to 4.2 points);
+  the test does not confirm it, and with no fine-tune that had neither
+  change it cannot separate the recipes from the extra fine-tuning they
+  share (the training queue's settings; chosen checkpoints at iterations 49
+  to 999). The weight alone does cost on standard courses: family 47
+  -1.35, test standard 97.42% (mean of two) against 98.42%.
 - **The one network on ordinary courses in the bots (CPU):**
   `results/combined_policy.pt` has played only skill, ice and neo courses
   in the bots. The offline bot, then real Minecraft, on the 60 standard and
@@ -965,7 +992,10 @@ Concrete work, most important first. Nothing here needs new research.
    training curves was already cut for space). Rules for it: every number
    comes from `results/` or the run files; Arial 12, 1.5 spacing,
    one-inch margins, 8 to 20 pages without the references. Still to do: a
-   read-through by the team.
+   read-through by the team. Not in it yet (checked 30 Oct, 17:50): the
+   results since 29 Oct (the single-neo goal, the skill gate, the learned
+   router, the bots' first-jump and wall-corner fixes, the level-5 finding);
+   adding them needs cuts.
 4. **Completed on PC:** `results/neo_policy.pt` / `.json` and provenance are shipped; final policy files retained. Original request: **ship the neo policy in Git** (it is nearly a one-policy candidate,
    section 4, item 2): it exists
    only as `runs/neo-dagger3/checkpoints/best.pt` on the PC. Export it next
@@ -1052,13 +1082,20 @@ Concrete work, most important first. Nothing here needs new research.
    strategies). Do not change the generator (the test sets are fixed); a
    training-side fix (more such beams in training) is the natural try.
    **Tried overnight 30 Oct (section 3):** fine-tunes of the final policy
-   with obstacles on half the jumps, alone or with three times as many
-   level-5 courses, three seeds each. With the level-5 weight, level 5 with
-   obstacles rises by 2.7 points on 2,000 validation courses (all three
-   seeds up) and by 2.8 on test on average (81.0 to 83.8), with standard
-   courses level; obstacles alone gain nothing, and the level-5 weight
-   alone gains nothing either (two seeds), so it takes both. Not shipped
-   (Ethan's call).
+   with obstacles on half the jumps, alone or with level 5 weighted 3 to 1
+   against each other level (3 of every 8 training games instead of 1 of
+   6), three seeds each, and that weight alone, two seeds. With both, level 5 with obstacles rises by 2.7 points on 2,000
+   validation courses (all three seeds up) and by 2.8 on test on average
+   (81.0 to 83.8), with standard courses level. On those validation courses
+   each change alone gains nothing (-0.03 and +0.38), but on test each
+   alone rose about as much (82.8 and 84.2; 200 courses per run), so the
+   test does not confirm that both are needed (`results/README.md`, final
+   policy section). **Ethan's decision (30 Oct, 17:39): the final policy
+   stays and this is reported as a finding.** (This session's note: the
+   planner, the neo planner, the router and the final policy's bot runs
+   were measured with the current one, so a new final policy would need
+   those checks re-run; on validation this recipe is the one to start
+   from.)
 4. **Planner shortcuts:** most planner failures take a shortcut to a later
    platform that is in reach, and that jump is harder
    (`results/planner/`, report 7.11). With the final policy 98 of the 109
@@ -1389,18 +1426,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `d9e5ae5` (2026-10-30 10:26, branch `main`): Level 5 ablation: the gain needs both more obstacles and more level-5 courses
+Generated on top of commit `0c6c786` (2026-10-30 10:28, branch `main`): Handoff: exact rule times and the level-5 selection caveat
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 27 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 28 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `d9e5ae5` 2026-10-30 10:26 | 0 |
-| `README.md` | `1a16df0` 2026-10-29 14:14 | 43 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 211 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 194 |
-| `results/README.md` | `d9e5ae5` 2026-10-30 10:26 | 0 |
-| `results/DATA.md` | `af631d3` 2026-10-30 09:03 | 3 |
+| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
+| `README.md` | `1a16df0` 2026-10-29 14:14 | 44 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 212 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 195 |
+| `results/README.md` | updated together with this snapshot | 0 |
+| `results/DATA.md` | `af631d3` 2026-10-30 09:03 | 4 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -1619,8 +1656,9 @@ At the end of a session, or after each result:
 
 ## Session log
 
-- **30 Oct 2026, 10:26, Claude (Claude Code, training PC), end of the night:** the planner's seed noise measured (three seeds each on validation: one run's standard deviation is about 9 of 320 courses, so the start fix's gap and the 29 Oct lever margins are inside it); level 5 with obstacles: obstacles on half the jumps plus three times as many level-5 courses gains 2.7 points on 2,000 validation courses (three seeds) and 2.8 on test on average, while each change alone gains nothing (ablation, two seeds); nothing shipped. Next: Ethan's calls (whether to ship a level-5 candidate, which would need a choice rule fixed now that the tests are seen; the report).
-- **30 Oct 2026, 09:03, Claude (Claude Code, training PC), overnight (Ethan, via the side session: use the CPU and GPU as much as possible while asleep):** (1) Wall corners, problem 9: the game's collision order as an opt-in physics flag (default path bit-identical) and the planner's `corner_limit`, kept on validation (292, the same courses as without it); the server's rule measured on all 40 recorded real-Minecraft runs (`results/corner_scan.json`); on the 64 single-neo test courses with both fixes 55 offline and 55 in real Minecraft, equal to the simulator, 0 corrections, no warnings. (2) The planner's search seed moves a 320-course count by about 10 (A 265 and 285, C 292 and 280): the start fix's gap was mostly chance; caveats added here, in TEAM_STATUS and on the results page. (3) The one network on the final policy's 120 bot courses: 59/60 and 59/60, offline and real Minecraft, equal to the simulator. (4) Level 5 with obstacles (problem 3): two fine-tunes beat the final policy on validation, and on 2,000 level-5 obstacle validation courses by 2.3 and 2.7 points; their tests are mixed; two more seeds of each are running under a rule fixed at 06:45; nothing shipped. (5) The results page's test-once and bot-difference wording fixed; this file's rule times corrected (05:16:42 and 05:19:49, both before their runs). Next: the seeds' comparison, then Ethan's calls (a level-5 candidate, the report).
+- **30 Oct 2026, 18:57, Claude (Claude Code, training PC):** Ethan's decision (17:39): the final policy stays and the level-5 recipe is reported as a finding; nothing exported or shipped. New generated section in `results/README.md` (final policy section; `parkour/report.py`, `level5_recipe`): every level-5 run with its validation, families 46 and 47, both tests, and each recipe's mean. That table showed a wording error: on the obstacle test set's level 5 each change alone also rose about as much as the pair (82.8% and 84.2% against 83.8%; final policy 81.0%), so "it takes both" rests on family 46 alone; corrected in section 3 (the older time-stamped text kept, with marked notes), in section 4 problem 3 (rewritten) and in `TEAM_STATUS.md`. The results page gets its first paragraph on these fine-tunes, already qualified, and the learned router's result in place of its "next" line. The 05:16 rule text moved back under its own bullet (later edits had left it as the last sentences of the 09:09 one). Three independent checks (numbers against the run files, wording and times against the rules and the session transcript) found 7, 4 and 4 problems in successive drafts, all fixed. Among them: the fine-tunes used the training queue's settings, not those of the final policy's own fine-tune (8,192 games and rollout 64 against 16,384 and 32); "three times as many level-5 courses" is level 5 in 3 of every 8 training games instead of 1 of 6 (2.25 times the share); and four overnight labels had been written ahead of the clock, now set to the transcript's times (06:39:26, 06:40:44 and 07:26:51 for 06:40, 06:45 and 07:27, and 06:14:17 for the header's 06:15), with every rule still before its runs. Next: the course report has nothing since 29 Oct (section 3, item 3; additions need cuts).
+- **30 Oct 2026, 10:26, Claude (Claude Code, training PC), end of the night:** the planner's seed noise measured (three seeds each on validation: one run's standard deviation is about 9 of 320 courses, so the start fix's gap and the 29 Oct lever margins are inside it); level 5 with obstacles: obstacles on half the jumps plus three times as many level-5 courses gains 2.7 points on 2,000 validation courses (three seeds) and 2.8 on test on average, while each change alone gains nothing (ablation, two seeds; 17:51 note: on family 46 only, on test each alone also rose, entry above); nothing shipped. Next: Ethan's calls (whether to ship a level-5 candidate, which would need a choice rule fixed now that the tests are seen; the report).
+- **30 Oct 2026, 09:03, Claude (Claude Code, training PC), overnight (Ethan, via the side session: use the CPU and GPU as much as possible while asleep):** (1) Wall corners, problem 9: the game's collision order as an opt-in physics flag (default path bit-identical) and the planner's `corner_limit`, kept on validation (292, the same courses as without it); the server's rule measured on all 40 recorded real-Minecraft runs (`results/corner_scan.json`); on the 64 single-neo test courses with both fixes 55 offline and 55 in real Minecraft, equal to the simulator, 0 corrections, no warnings. (2) The planner's search seed moves a 320-course count by about 10 (A 265 and 285, C 292 and 280): the start fix's gap was mostly chance; caveats added here, in TEAM_STATUS and on the results page. (3) The one network on the final policy's 120 bot courses: 59/60 and 59/60, offline and real Minecraft, equal to the simulator. (4) Level 5 with obstacles (problem 3): two fine-tunes beat the final policy on validation, and on 2,000 level-5 obstacle validation courses by 2.3 and 2.7 points; their tests are mixed; two more seeds of each are running under a rule fixed at 06:45 [18:33: written at 06:40:44, section 3]; nothing shipped. (5) The results page's test-once and bot-difference wording fixed; this file's rule times corrected (05:16:42 and 05:19:49, both before their runs). Next: the seeds' comparison, then Ethan's calls (a level-5 candidate, the report).
 - **30 Oct 2026, 05:00, Claude (Claude Code, training PC):** the planner's first-jump fix (Ethan: "Yes, fix it"): `plan_start` (opt-in; the searches also run on the start state, before the first action; Python and the bots), rules fixed at 02:31. Validation from the bots' settled start: 292 of 320 with it, 265 without (the simulator's own start: 286), so it is kept (`61a833e`); an independent review found two real defects in the replay-page builder, fixed (the page rebuilds byte for byte). On the 64 test courses, played once: offline 55 (= its simulator re-run; course 10 now plans its first jump), real Minecraft 54 with 2 server corrections (before: 58, 0), both at the corner of a neo's wall, where prismarine-physics moves x before z and the game the larger component first (section 4, problem 9). The results page now says where the never-trained-block courses failed (Ethan): 32 of 33 landings on the new blocks. Merged `origin/main`, which holds the routing pull request #2 (merged on GitHub at 04:02; the learned router 97.83% / 95.00% on test against the planner's 92.33% / 90.50%; section "Team split"). Next: Ethan's call on problem 9.
 - **30 Oct 2026, 00:00, Claude (Claude Code, training PC):** the skill gate built, reviewed, merged (`6946602`) and trained (`gate-r1`): validation 87.75% against 86.98%, so it replaces the one network in the simulator; tested once 86.80% against 86.45%, a match; the first expert swap is not kept. Single neos: the bots reproduce the simulator from the same start on the first 64 test courses, offline and in real Minecraft (planner 58/64, policy alone 26/64, 0 corrections). The replay page now holds 89 courses in 210 recordings: the one-neo courses with the planner (13/16, every completion did its neo) and the one network (7/16), and the never-trained shapes (6/8); results page version 17. GPU watchdog restarted from the merged code. Next: a fix for the settled-start first jump in the planner (to be chosen on validation), and whatever the user asks next.
 - **29 Oct 2026, 22:50, Claude (Claude Code, training PC):** single neos at 85%: the sets (families 40/41), the strict metric and the planner levers merged (`031d7c3`); on validation the final policy with the planner and 3 search restarts reaches 286 of 320 (89.4%, levers stopped by the 89% rule); the test, played once, 276 of 320 (86.25%): the goal is met under the pre-registered rule, narrowly (caveats and an independent audit in section 3). Follow-up rounds (head hitters and slime, neos in the one network, one more neo round) not kept; gate headroom measured (per-course ceiling +7.1, mostly chance; the gate gets built, with swappable experts). Replays of every new skill and block type, offline and in real Minecraft (59/65 as the simulator; carpets needed a structure void in real Minecraft, `bridge/parkour_bot.js`), on the results page (version 15); the CPU cap of 85% (AGENTS.md). Next: the bot check of the single-neo test courses, the gate's training on the GPU, the one-neo and untrained-shape replays on the page.

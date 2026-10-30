@@ -163,6 +163,7 @@ a { color: var(--sky); }
         <h3>One hyperparameter made the final policy</h3>
         <p>We changed one setting at a time around the defaults and trained each for 0.52 B ticks. Only a longer horizon, discount 0.995 instead of 0.99, beat the defaults by more than 3 points on validation, in all three seeds. We retrained the final policy with it at full length: 3,000 updates, then 1,000 with obstacles.</p>
         <p>It completes 98.4% of the standard test courses and 95.2% with obstacles, against 97.1% and 93.6% for the first final policy. Level 5, the hardest, rose from 90.5% to 93.5%.</p>
+        <p>A later fine-tune aimed at level 5 with obstacles puts obstacles on half the jumps and plays level 5 in 3 of every 8 training games instead of 1 of 6. On 2,000 new level-5 validation courses with obstacles it completes 87.9% (mean of three seeds, each above the final policy's 85.2%), and on the obstacle test set's level 5, 83.8% on average (final policy 81.0%). Each change alone stayed within half a point of the final policy on that validation set (85.2% and 85.6%) but rose about as much on test (82.8% and 84.2%), so the test does not confirm that both are needed. We report it as a finding and keep the final policy.</p>
       </div>
       <div class="panel">
         <div class="legend"><span><i style="background:var(--grass)"></i>discount 0.995, three seeds</span><span><i style="background:var(--fg)"></i>other settings</span><span><i style="background:transparent;border:1px dashed var(--muted)"></i>defaults</span></div>
@@ -352,7 +353,7 @@ a { color: var(--sky); }
           </tbody>
         </table></div>
         <p class="muted">The planner's settings were tuned on validation courses. Most of its failures are route choices, not jumps: it skips ahead to a platform that is in reach but harder to land. The learned column is a model trained to find platforms itself from a wide block scan and a memory of its last landings; decoy pillars fool it.</p>
-        <p><span class="tag run">next</span> A route policy trained by RL, to beat the planner, is a teammate's mission on his own PC (<span class="path">docs/MISSION_ROUTING.md</span>).</p>
+        <p><span class="tag ok">done</span> A route policy trained by RL on a teammate's PC picks the next platform instead of the planner, with the same final policy jumping: 97.8% of the standard and 95.0% of the obstacle test courses (simulator, played once), and 57/60 and 56/60 in real Minecraft with 0 server corrections (<span class="path">results/routing/README.md</span>).</p>
       </div>
     </div>
     <div class="two">
