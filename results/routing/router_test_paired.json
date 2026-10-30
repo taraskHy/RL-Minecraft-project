@@ -1,0 +1,88 @@
+{
+ "router": "results\\routing\\router_policy.pt",
+ "set": "test",
+ "measured": "simulator (GPU)",
+ "note": "router minus greedy planner on the same courses; ci95: bootstrap over courses (10,000 resamples); mcnemar_exact_p: two-sided exact test on the courses where exactly one succeeds",
+ "local": {
+  "standard": {
+   "courses": 1200,
+   "router": 0.9783333333333334,
+   "planner": 0.9233333333333333,
+   "difference": 0.055,
+   "ci95": [
+    0.04,
+    0.07
+   ],
+   "router_only": 79,
+   "planner_only": 13,
+   "mcnemar_exact_p": 1.073374741074801e-12
+  },
+  "obstacles": {
+   "courses": 1200,
+   "router": 0.95,
+   "planner": 0.905,
+   "difference": 0.045,
+   "ci95": [
+    0.029166666666666667,
+    0.060833333333333336
+   ],
+   "router_only": 76,
+   "planner_only": 22,
+   "mcnemar_exact_p": 3.896413240891271e-08
+  },
+  "combined": {
+   "courses": 2400,
+   "router": 0.9641666666666666,
+   "planner": 0.9141666666666667,
+   "difference": 0.05,
+   "ci95": [
+    0.03916666666666667,
+    0.060833333333333336
+   ],
+   "router_only": 155,
+   "planner_only": 35,
+   "mcnemar_exact_p": 3.205114070563495e-19
+  }
+ },
+ "remaining": {
+  "standard": {
+   "courses": 1200,
+   "router": 0.98,
+   "planner": 0.9466666666666667,
+   "difference": 0.03333333333333333,
+   "ci95": [
+    0.020833333333333332,
+    0.04666666666666667
+   ],
+   "router_only": 53,
+   "planner_only": 13,
+   "mcnemar_exact_p": 7.237175237417024e-07
+  },
+  "obstacles": {
+   "courses": 1200,
+   "router": 0.9516666666666667,
+   "planner": 0.9241666666666667,
+   "difference": 0.0275,
+   "ci95": [
+    0.013333333333333334,
+    0.041666666666666664
+   ],
+   "router_only": 55,
+   "planner_only": 22,
+   "mcnemar_exact_p": 0.00021680385841747665
+  },
+  "combined": {
+   "courses": 2400,
+   "router": 0.9658333333333333,
+   "planner": 0.9354166666666667,
+   "difference": 0.030416666666666668,
+   "ci95": [
+    0.020833333333333332,
+    0.04
+   ],
+   "router_only": 108,
+   "planner_only": 35,
+   "mcnemar_exact_p": 7.381338353514592e-10
+  }
+ }
+}

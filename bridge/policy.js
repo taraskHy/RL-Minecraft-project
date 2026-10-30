@@ -7,6 +7,9 @@
 const fs = require('fs')
 const path = require('path')
 const { GreedyPlanner } = require('./planner')
+const { LearnedRouter, RouterNet } = require('./router')
+
+const routerNets = new Map() // loaded once per file
 const { Assist } = require('./assist')
 
 const SCAN_FORWARD = Array.from({ length: 14 }, (_, i) => -1.0 + 0.5 * i)
@@ -316,7 +319,14 @@ class Episode {
     this.planner = null
     if (planner) {
       const inGrid = (x, y, z) => x >= 0 && x < GRID[0] && y >= 0 && y < GRID[1] && z >= 0 && z < GRID[2] && isSolid(x, y, z)
-      this.planner = new GreedyPlanner(inGrid, centre(platforms[platforms.length - 1]), planner)
+      const goal = centre(platforms[platforms.length - 1])
+      if (planner.router) { // a learned route policy (bridge/router.js) instead of the greedy rule
+        if (!routerNets.has(planner.router)) routerNets.set(planner.router, RouterNet.load(planner.router))
+        const { router, fill, ...cfg } = planner
+        this.planner = new LearnedRouter(inGrid, goal, routerNets.get(router), cfg, fill || 'greedy')
+      } else {
+        this.planner = new GreedyPlanner(inGrid, goal, planner)
+      }
     }
     this.policy = policy
     this.platforms = platforms
@@ -350,13 +360,13 @@ class Episode {
         this.result = success ? 'success' : fell ? 'fell' : 'truncated'
         return null
       }
-      if (this.planner) this.planner.update(s.pos, s.onGround, this.ticks)
+      if (this.planner) this.planner.update(s.pos, s.onGround, this.ticks, s)
       if (this.memory) this.memory.update(s)
       if (this.assist && this.queue.length === 0 && this._ask(s)) return PLAN
     } else {
       this.started = true
       this.init = s
-      if (this.planner) this.planner.start(s.pos)
+      if (this.planner) this.planner.start(s.pos, s)
       if (this.extended) this.memory = new LandingMemory(s.pos, s.onGround)
       // plan_start: the start state is searched from too, before the first action (the bot settled on the start block)
       if (this.assist && this.assist.cfg.plan_start && this._ask(s)) return PLAN

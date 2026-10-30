@@ -1,0 +1,42 @@
+{
+ "standard": {
+  "courses": 1800,
+  "router": 0.9661111111111111,
+  "planner": 0.9277777777777778,
+  "difference": 0.03833333333333333,
+  "ci95": [
+   0.027777777777777776,
+   0.04888888888888889
+  ],
+  "router_only": 82,
+  "planner_only": 13,
+  "mcnemar_exact_p": 2.0830055605008275e-13
+ },
+ "obstacles": {
+  "courses": 1800,
+  "router": 0.9338888888888889,
+  "planner": 0.89,
+  "difference": 0.04388888888888889,
+  "ci95": [
+   0.03277777777777778,
+   0.05555555555555555
+  ],
+  "router_only": 97,
+  "planner_only": 18,
+  "mcnemar_exact_p": 2.792528455178106e-14
+ },
+ "combined": {
+  "courses": 3600,
+  "router": 0.95,
+  "planner": 0.9088888888888889,
+  "difference": 0.04111111111111111,
+  "ci95": [
+   0.03333333333333333,
+   0.049166666666666664
+  ],
+  "router_only": 179,
+  "planner_only": 31,
+  "mcnemar_exact_p": 1.6903906410933644e-26
+ },
+ "note": "route-ppo-e it 39 (pure PPO, no imitation) minus the recorded greedy planner (planner_validation_*.json, local rule), same courses"
+}
