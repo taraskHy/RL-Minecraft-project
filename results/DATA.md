@@ -201,7 +201,7 @@ on every course, and the real-Minecraft runs had 0 server corrections.
 | `results/routing/` | the RL routing work on the teammate's PC (`docs/MISSION_ROUTING.md`): `README.md` (what was tried and chosen, every number with its file, the session log), `planner_*.json` (the greedy planner re-measured there), `route_*` and `router_*` with any extension (the router's evaluations, its bot runs' summaries, courses and episodes, its weights `router_policy.pt` and their provenance); subfolders such as `runs/<run>/` (the router's training logs) need no entry; a file named by none of these patterns needs its own entry here |
 | `results/skills/` | one network for every skill (`docs/combine_policies.md`): `validation_matrix.json` every candidate policy on the validation sets of each skill group (basic, ice, advanced, extra; simulator, `python -m parkour.skills matrix`) and the teachers and starting checkpoint chosen from it, with the two halves it was computed in (`validation_matrix.part1.json`, `validation_matrix.part2.json`); `defaults_check.json` the check that training with default flags is bit for bit unchanged by the skills mode; `combined_test_comparison.json` the two students (`combined-distill`, `combined-union`, each tested once) against every specialist on each group's test courses (families 1, 4, ice 16; simulator; `scripts/combined_compare.py`), from the specialists' existing test rows and, for the pairs no test had covered, `test_matrix_ice.json`, `test_matrix_advanced.json`, `test_matrix_advanced_obstacles.json` and `test_matrix_extra.json` (`python -m parkour.skills matrix --split test`; one replay: the final policy's 600 standard courses at extra levels 9-11 in `test_matrix_extra.json` repeat `results/extra/course_preview_family1.json` of 28 Oct, with identical results, which the script checks); these test numbers choose nothing |
 | `results/operations/` | the training queue's records: `g995-*-comparison.json` each specialist and ice seed against the final policy (simulator, validation-selected checkpoint, test run once), the handoff and GPU-mode evidence (`claude-handoff-20261029.json`, `full-gpu-transition-20261029.json`, `gpu-limit-*`), `extra-feasibility-reconciliation.json` |
-| `report_draft.pdf` | an export of `docs/report_draft.md` in the submission format (`scripts/report_docx.py --pdf`); older than the current source |
+| `report_draft.pdf` | an export of `docs/report_draft.md` (commit `25eced6`) in the submission format (`scripts/report_docx.py --pdf`, 30 Oct): 22 pages, the body ending two lines into page 21 |
 
 `results/neo/`:
 
@@ -243,7 +243,7 @@ Open them in a browser; they need no server.
 the audit of the documents' claims against the data: 829 claims, 111 flagged
 wrong, 60 confirmed wrong, 14 disputed, 37 overturned.
 
-The cloud `report_draft.docx` and `.pdf` were generated before the PC merge. Rebuild them from the merged report and verify the page count before submission.
+`report_draft.docx` and `.pdf` were exported on the training PC on 30 Oct (22:31) from commit `25eced6`. Export them again after every change to the report, and check that the body ends by page 20 before submission.
 
 ## PC integration and new training
 

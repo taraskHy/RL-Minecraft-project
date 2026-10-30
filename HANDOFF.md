@@ -998,18 +998,23 @@ Concrete work, most important first. Nothing here needs new research.
    the one network and the gate. Then 8 (discussion and limitations), 9
    (conclusion), 18 references, figures 1-4 from `results/figures/`. Three
    independent checks of its numbers and claims against `results/` and the
-   run files found 45, 16 and 2 problems, all fixed. Length: pandoc,
-   python-docx and LibreOffice are not on the PC, so
-   `scripts/report_pages.py` estimates it with headless Chrome, calibrated
-   on `568763d` (20 pages before the references in the cloud export): the
-   draft is about 19 pages at the calibrated spacing and 20 at the two
-   looser ones, one page below `568763d` at each. The exact count needs
-   `scripts/report_docx.py --pdf` on a machine with those tools;
-   `results/report_draft.docx` / `.pdf` are stale (last exported in
-   `12c736a`, 28 Oct). Rules for it: every number comes from `results/` or
-   the run files; Arial 12, 1.5 spacing, one-inch margins, 8 to 20 pages
+   run files found 45, 16 and 2 problems, all fixed. **Length, measured
+   (30 Oct 22:31, Ethan approved installing the export tools):**
+   `scripts/report_docx.py --pdf` on `25eced6` writes
+   `results/report_draft.docx` / `.pdf` (Letter, 22 pages): 20 pages before
+   the References page, but the body ends two lines into page 21 (the last
+   sentence of section 9, "Next steps ...", sits above the heading). The
+   28 Oct export that HANDOFF called "20 pages" ran half a page into page
+   21 the same way. So by a strict reading of "20 pages without the
+   references" the body is two lines over: trim about 150 words to end on
+   page 20 with room. The script now reports the page on which the body
+   ends. The Chrome estimate (`scripts/report_pages.py`) had said about 19:
+   it was a page optimistic, because its calibration version also ran
+   onto page 21; its defaults are recalibrated on both real exports and
+   now err high. Rules for it: every number comes from `results/` or the
+   run files; Arial 12, 1.5 spacing, one-inch margins, 8 to 20 pages
    without the references, so any addition needs a cut. Still to do: the
-   exact page count and a read-through by the team.
+   trim above and a read-through by the team.
 4. **Completed on PC:** `results/neo_policy.pt` / `.json` and provenance are shipped; final policy files retained. Original request: **ship the neo policy in Git** (it is nearly a one-policy candidate,
    section 4, item 2): it exists
    only as `runs/neo-dagger3/checkpoints/best.pt` on the PC. Export it next
@@ -1229,6 +1234,12 @@ python scripts/report_docx.py --pdf                      the report as .docx/.pd
 Checkout: `C:\Users\ethan\OneDrive\Desktop\etgar\RL\RL-Minecraft-parkour`
 (OneDrive folder). Python 3.12 venv in `.venv` (torch 2.11.0+cu128).
 Portable Node, Java and the 1.21.4 server jar in `.local` (ignored by Git).
+The report export tools (installed 30 Oct with Ethan's approval, no admin
+rights, outside OneDrive): pandoc 3.12.1 and LibreOffice 26.2.6 unpacked in
+`C:\Users\ethan\AppData\Local\Programs` (`pandoc-3.12.1`,
+`LibreOffice-26.2.6\program`; both checked against their published
+SHA-256), python-docx 1.2.0 in `.venv`, pdftotext from Git Bash. Put the
+two folders on PATH before `scripts/report_docx.py --pdf`.
 The Minecraft EULA was accepted by the user on 27 Oct 2026
 (`.local/minecraft-eula-consent.json`). `runs/` (checkpoints, full logs)
 exists only there.
@@ -1421,8 +1432,8 @@ before restarting; held part locks prevent duplicate evaluation.
   and the `planner-*`, `v2-planner-*`, `v2-tuned-planner-*` games.
 - Report in the submission format: `results/report_draft.docx` / `.pdf`,
   written by `scripts/report_docx.py --pdf` from `docs/report_draft.md`
-  (stale since the 30 Oct rewrite: last exported in `12c736a`). Page
-  estimate without pandoc or LibreOffice: `scripts/report_pages.py`.
+  (exported from `25eced6` on 30 Oct, 22:31). Page estimate without pandoc
+  or LibreOffice: `scripts/report_pages.py` (can be a page off).
 - Failure analysis of the final policy by jump type: `results/jump_failures.json`
   (`scripts/jump_failures.py`).
 - Claim audit: `results/audit_claims.json` (829 claims checked against the
@@ -1442,18 +1453,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `f286d5f` (2026-10-30 19:14, branch `main`): Keep the final policy; report the level-5 fine-tune as a finding
+Generated on top of commit `25eced6` (2026-10-30 22:06, branch `main`): Course report: every result through 30 Oct, the MDP stated, about 19 pages
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 29 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 30 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `1a16df0` 2026-10-29 14:14 | 45 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 213 |
-| `docs/report_draft.md` | updated together with this snapshot | 0 |
-| `results/README.md` | `f286d5f` 2026-10-30 19:14 | 0 |
-| `results/DATA.md` | `af631d3` 2026-10-30 09:03 | 5 |
+| `README.md` | `1a16df0` 2026-10-29 14:14 | 46 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 214 |
+| `docs/report_draft.md` | `25eced6` 2026-10-30 22:06 | 0 |
+| `results/README.md` | `f286d5f` 2026-10-30 19:14 | 1 |
+| `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -1672,6 +1683,7 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **30 Oct 2026, 22:31, Claude (Claude Code, training PC, a session forked from the main one):** the report export tools installed with Ethan's approval ("Yes, install them"): pandoc 3.12.1 and LibreOffice 26.2.6 unpacked under `%LOCALAPPDATA%\Programs`, python-docx in `.venv` (section 6). `scripts/report_docx.py --pdf` on `25eced6`: 22 pages, 20 before the References page, but the body ends two lines into page 21, so it needs a trim of about 150 words to fit 20 pages strictly (section 3, item 3). The exports in `results/` are current; `report_docx.py` now prints where the body ends, and `report_pages.py`'s defaults are recalibrated (its 19 was a page optimistic). Next: the trim, then a fresh export.
 - **30 Oct 2026, 22:05, Claude (Claude Code, training PC):** the course report brought up to date (Ethan: "Yes, update it"). `docs/report_draft.md` is rewritten with every result through 30 Oct (the single-neo goal, the skill gate, the learned router, the bots' first-jump and wall-corner fixes, the level-5 finding) and states the MDP in section 5 (the block offered on 29 Oct); cut from about 24 estimated pages to about 19 before the references. The count is an estimate: pandoc and LibreOffice are not on the PC, so the new `scripts/report_pages.py` renders the draft with headless Chrome, calibrated on `568763d` (20 pages in the cloud export), and the new draft is one page below it at all three spacings tried (section 3, item 3). Three independent checks of its numbers and claims against `results/` and the run files found 45, 16 and 2 problems, all fixed; the last: the learned router is the best of 14 checkpoints, not 13 (corrected in `results/routing/README.md` too, whose table holds two checkpoints in one row). Section 3 item 2 (the retuned planner in real Minecraft) marked done; old report section numbers updated here and in `TEAM_STATUS.md`. Next: the exact page count (`scripts/report_docx.py --pdf` on a machine with pandoc, python-docx and LibreOffice), the team's read-through, and the neo-routing pull request from the side session when it arrives.
 - **30 Oct 2026, 18:57, Claude (Claude Code, training PC):** Ethan's decision (17:39): the final policy stays and the level-5 recipe is reported as a finding; nothing exported or shipped. New generated section in `results/README.md` (final policy section; `parkour/report.py`, `level5_recipe`): every level-5 run with its validation, families 46 and 47, both tests, and each recipe's mean. That table showed a wording error: on the obstacle test set's level 5 each change alone also rose about as much as the pair (82.8% and 84.2% against 83.8%; final policy 81.0%), so "it takes both" rests on family 46 alone; corrected in section 3 (the older time-stamped text kept, with marked notes), in section 4 problem 3 (rewritten) and in `TEAM_STATUS.md`. The results page gets its first paragraph on these fine-tunes, already qualified, and the learned router's result in place of its "next" line. The 05:16 rule text moved back under its own bullet (later edits had left it as the last sentences of the 09:09 one). Three independent checks (numbers against the run files, wording and times against the rules and the session transcript) found 7, 4 and 4 problems in successive drafts, all fixed. Among them: the fine-tunes used the training queue's settings, not those of the final policy's own fine-tune (8,192 games and rollout 64 against 16,384 and 32); "three times as many level-5 courses" is level 5 in 3 of every 8 training games instead of 1 of 6 (2.25 times the share); and four overnight labels had been written ahead of the clock, now set to the transcript's times (06:39:26, 06:40:44 and 07:26:51 for 06:40, 06:45 and 07:27, and 06:14:17 for the header's 06:15), with every rule still before its runs. Next: the course report has nothing since 29 Oct (section 3, item 3; additions need cuts).
 - **30 Oct 2026, 10:26, Claude (Claude Code, training PC), end of the night:** the planner's seed noise measured (three seeds each on validation: one run's standard deviation is about 9 of 320 courses, so the start fix's gap and the 29 Oct lever margins are inside it); level 5 with obstacles: obstacles on half the jumps plus three times as many level-5 courses gains 2.7 points on 2,000 validation courses (three seeds) and 2.8 on test on average, while each change alone gains nothing (ablation, two seeds; 17:51 note: on family 46 only, on test each alone also rose, entry above); nothing shipped. Next: Ethan's calls (whether to ship a level-5 candidate, which would need a choice rule fixed now that the tests are seen; the report).

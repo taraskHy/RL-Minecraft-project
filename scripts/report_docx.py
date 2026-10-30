@@ -7,8 +7,11 @@ Arial 12, 1.5 line spacing for the text (table cells single-spaced),
 one-inch margins (the course's format), figures from results/figures/. With --pdf, LibreOffice also writes
 results/report_draft.pdf and the script prints the page count with and
 without the references (the limit is 8 to 20 pages without them).
-Needs pandoc and python-docx (and LibreOffice for --pdf); none of them is
-part of setup.cmd.
+Needs pandoc and python-docx (and LibreOffice and pdftotext for --pdf);
+none of them is part of setup.cmd. On the training PC: pandoc 3.12.1 and
+LibreOffice 26.2.6 unpacked under %LOCALAPPDATA%\\Programs (put
+pandoc-3.12.1 and LibreOffice-26.2.6\\program on PATH), python-docx in
+.venv, pdftotext from Git Bash.
 """
 import argparse
 import re
@@ -78,14 +81,18 @@ def single_space_tables(path: Path) -> None:
     doc.save(str(path))
 
 
-def page_counts(pdf: Path) -> tuple[int, int | None]:
-    """Total pages, and the page on which the References heading starts."""
+def page_counts(pdf: Path) -> tuple[int, int | None, int]:
+    """Total pages, the page on which the References heading starts, and the page on which the body ends."""
     text = subprocess.run(["pdftotext", "-layout", str(pdf), "-"], capture_output=True, text=True, check=True).stdout
     pages = text.split("\f")
     if pages and not pages[-1].strip():
         pages = pages[:-1]
     ref = next((i + 1 for i, p in enumerate(pages) if re.search(r"^\s*References\s*$", p, re.M)), None)
-    return len(pages), ref
+    if ref is None:
+        return len(pages), None, len(pages)
+    # Body text above the heading on its page means the body runs onto that page.
+    above = re.split(r"^\s*References\s*$", pages[ref - 1], maxsplit=1, flags=re.M)[0]
+    return len(pages), ref, ref if above.strip() else ref - 1
 
 
 def main(argv=None):
@@ -109,10 +116,10 @@ def main(argv=None):
         subprocess.run([office, "--headless", "--convert-to", "pdf", "--outdir", str(OUT.parent), str(OUT)],
                        check=True, capture_output=True)
         pdf = OUT.with_suffix(".pdf")
-        total, ref_page = page_counts(pdf)
+        total, ref_page, end = page_counts(pdf)
         body = (ref_page - 1) if ref_page else total
-        print(f"wrote {pdf.relative_to(ROOT)}: {total} pages; {body} before the references "
-              f"(the limit is 8 to 20)")
+        print(f"wrote {pdf.relative_to(ROOT)}: {total} pages; {body} before the references page, and the body "
+              f"ends on page {end} (the limit is 8 to 20 pages without the references)")
 
 
 if __name__ == "__main__":

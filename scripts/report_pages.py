@@ -1,15 +1,17 @@
 """Estimate the report's page count without pandoc or LibreOffice (headless Chrome, calibrated).
 
-    python scripts/report_pages.py [REV_OR_FILE ...] [--line 1.64] [--para 6]
+    python scripts/report_pages.py [REV_OR_FILE ...] [--line 1.80] [--para 6]
 
-Renders docs/report_draft.md (the working file by default, or a git revision such as 568763d,
-or a path) to HTML in the submission format (Letter, one-inch margins, Arial 12, 1.5 line
-spacing, single-spaced tables, figures at their natural size capped to the text width), prints
-it to PDF with headless Chrome or Edge and reports the pages before the References heading, the
-way scripts/report_docx.py counts them. It is an estimate: the defaults are calibrated so that
-commit 568763d, measured at 20 pages before the references by scripts/report_docx.py --pdf (the
-cloud export), comes out at 20; a version that comes out at least a page below 568763d at
---line 1.64, 1.68 and 1.72 should fit. Use scripts/report_docx.py --pdf for the real count.
+Renders the body of docs/report_draft.md (everything before "## References"; the working file by
+default, or a git revision, or a path) to HTML in the submission format (Letter, one-inch margins,
+Arial 12, 1.5 line spacing, single-spaced tables, figures at their natural size capped to the text
+width), prints it to PDF with headless Chrome or Edge and reports the page on which the body ends.
+
+It is an estimate and can be a page off: Chrome lays out tables and lists differently from
+LibreOffice. Two real exports (scripts/report_docx.py --pdf) calibrate it: 12c736a's body ends
+about half a page into page 21 and 25eced6's two lines into page 21. The defaults read 22 and 21
+for them, so they err high. Use scripts/report_docx.py --pdf for the real count (the tools are
+installed on the training PC; see its docstring).
 """
 import argparse
 import re
@@ -103,7 +105,7 @@ def pages(md: str, line: float, para: float, table_line: float) -> int:
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("specs", nargs="*", help="git revisions or files (default: the working docs/report_draft.md)")
-    ap.add_argument("--line", type=float, default=1.64, help="CSS line height of the text (calibrated)")
+    ap.add_argument("--line", type=float, default=1.80, help="CSS line height of the text (calibrated, errs high)")
     ap.add_argument("--para", type=float, default=6.0, help="space after a paragraph, points (calibrated)")
     ap.add_argument("--table-line", type=float, default=1.15)
     a = ap.parse_args(argv)
@@ -114,7 +116,7 @@ def main(argv=None):
                     if l.strip() and not l.lstrip().startswith("|") and not l.startswith("!["))
         tables = sum(1 for l in body_md.splitlines() if l.lstrip().startswith("|"))
         n = pages(body_md, a.line, a.para, a.table_line)
-        print(f"{spec or 'docs/report_draft.md'}: about {n} pages before the references "
+        print(f"{spec or 'docs/report_draft.md'}: the body ends on about page {n} "
               f"({words} words of text, {tables} table lines)")
 
 
