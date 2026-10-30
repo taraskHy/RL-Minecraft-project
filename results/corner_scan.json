@@ -1,0 +1,462 @@
+{
+ "measured": "simulator replay of real-Minecraft recordings (CPU)",
+ "limit": 0.25,
+ "summary": {
+  "runs": 40,
+  "warnings_equal_displacement_flags": 40,
+  "warnings_equal_velocity_flags": 38,
+  "send_backs_equal_corrections": 40
+ },
+ "runs": {
+  "film-neo_level7-1028-112702": {
+   "episodes": 1,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "film-sprint-1028-014252": {
+   "episodes": 1,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "film-sprint-1028-024939": {
+   "episodes": 1,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "film-stairs-1028-014205": {
+   "episodes": 1,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "film-stairs-1028-024852": {
+   "episodes": 1,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "film-tour-1028-014014": {
+   "episodes": 1,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "film-tour-1028-014119": {
+   "episodes": 1,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "film-tour-1028-024805": {
+   "episodes": 1,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "live-final": {
+   "episodes": 60,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "live-final-obstacles": {
+   "episodes": 60,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "live-rainbow-test": {
+   "episodes": 4,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "live-showcase": {
+   "episodes": 3,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "live-smoke": {
+   "episodes": 6,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "live2-final": {
+   "episodes": 60,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "live2-obstacles": {
+   "episodes": 60,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "live2-showcase": {
+   "episodes": 4,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "neo-live-final": {
+   "episodes": 31,
+   "server_warnings": 1,
+   "flagged_by_velocity": [
+    [
+     17,
+     105
+    ]
+   ],
+   "flagged_by_displacement": [
+    [
+     17,
+     105
+    ]
+   ],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "noroute-live": {
+   "episodes": 60,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "noroute-live-obstacles": {
+   "episodes": 60,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "planner-live": {
+   "episodes": 60,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "planner-live-obstacles": {
+   "episodes": 60,
+   "server_warnings": 0,
+   "flagged_by_velocity": [
+    [
+     11,
+     41
+    ]
+   ],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "progress-demo-games__live_00000": {
+   "episodes": 3,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "progress-demo-games__live_00010": {
+   "episodes": 3,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "progress-demo-games__live_00050": {
+   "episodes": 3,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "progress-demo-games__live_00400": {
+   "episodes": 3,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "single41-live-planner": {
+   "episodes": 64,
+   "server_warnings": 3,
+   "flagged_by_velocity": [
+    [
+     3,
+     73
+    ],
+    [
+     4,
+     106
+    ],
+    [
+     35,
+     94
+    ]
+   ],
+   "flagged_by_displacement": [
+    [
+     3,
+     73
+    ],
+    [
+     4,
+     106
+    ],
+    [
+     35,
+     94
+    ]
+   ],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "single41-live-planstart": {
+   "episodes": 64,
+   "server_warnings": 6,
+   "flagged_by_velocity": [
+    [
+     0,
+     6
+    ],
+    [
+     4,
+     96
+    ],
+    [
+     5,
+     111
+    ],
+    [
+     34,
+     77
+    ],
+    [
+     35,
+     100
+    ],
+    [
+     57,
+     141
+    ]
+   ],
+   "flagged_by_displacement": [
+    [
+     0,
+     6
+    ],
+    [
+     4,
+     96
+    ],
+    [
+     5,
+     111
+    ],
+    [
+     34,
+     77
+    ],
+    [
+     35,
+     100
+    ],
+    [
+     57,
+     141
+    ]
+   ],
+   "predicted_send_backs": [
+    5,
+    57
+   ],
+   "corrected_episodes": [
+    5,
+    57
+   ]
+  },
+  "single41-live-policy": {
+   "episodes": 64,
+   "server_warnings": 2,
+   "flagged_by_velocity": [
+    [
+     5,
+     84
+    ],
+    [
+     35,
+     81
+    ]
+   ],
+   "flagged_by_displacement": [
+    [
+     5,
+     84
+    ],
+    [
+     35,
+     81
+    ]
+   ],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "skill-replays-live-65": {
+   "episodes": 65,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "skill-replays-neo-network-live": {
+   "episodes": 16,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "skill-replays-neo-planner-live": {
+   "episodes": 16,
+   "server_warnings": 1,
+   "flagged_by_velocity": [
+    [
+     1,
+     65
+    ]
+   ],
+   "flagged_by_displacement": [
+    [
+     1,
+     65
+    ]
+   ],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "skill-replays-untrained-live": {
+   "episodes": 8,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "v2-live": {
+   "episodes": 60,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "v2-live-obstacles": {
+   "episodes": 60,
+   "server_warnings": 0,
+   "flagged_by_velocity": [
+    [
+     7,
+     81
+    ]
+   ],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "v2-live-showcase": {
+   "episodes": 4,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "v2-planner-live": {
+   "episodes": 60,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "v2-planner-live-obstacles": {
+   "episodes": 60,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "v2-tuned-planner-live": {
+   "episodes": 60,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "v2-tuned-planner-live-obstacles": {
+   "episodes": 60,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  },
+  "viewer-test": {
+   "episodes": 1,
+   "server_warnings": 0,
+   "flagged_by_velocity": [],
+   "flagged_by_displacement": [],
+   "predicted_send_backs": [],
+   "corrected_episodes": []
+  }
+ }
+}

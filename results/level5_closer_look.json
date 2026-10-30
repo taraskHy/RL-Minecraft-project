@@ -1,0 +1,22 @@
+{
+ "measured": "simulator (CUDA), deterministic first episode, stall 200",
+ "rule": "HANDOFF section 3, 30 Oct 06:40",
+ "sets": {
+  "family 46": "2,000 level-5 courses, obstacle_prob 0.5",
+  "family 47": "2,000 level-5 courses, no obstacles"
+ },
+ "completed": {
+  "final policy": {
+   "family 46, level 5 with obstacles": 1704,
+   "family 47, level 5 standard": 1831
+  },
+  "l5-obs05 best (it 999)": {
+   "family 46, level 5 with obstacles": 1750,
+   "family 47, level 5 standard": 1832
+  },
+  "l5-obs05-w3 best (it 249)": {
+   "family 46, level 5 with obstacles": 1758,
+   "family 47, level 5 standard": 1804
+  }
+ }
+}

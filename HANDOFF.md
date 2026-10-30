@@ -441,7 +441,9 @@ done; `results/neo/assist_validation.jsonl`, per course in
   margin is small: 4 courses, 0.65 standard errors; Wilson 95% interval
   82.0-89.6%; a true rate of exactly 85% gives 276 or more in about 30% of
   tests. So it meets the pre-registered rule; it does not show the true rate
-  is at least 85%. Planner failures: 28 at the neo (18 falls, 10 stops), 15
+  is at least 85%. (Added 30 Oct: the interval counts only the courses'
+  chance; the planner's search seed adds about 10 courses either way on
+  320, measured on validation, see the start fix below.) Planner failures: 28 at the neo (18 falls, 10 stops), 15
   at ordinary jumps. Both modes lost about 10 courses from validation to
   test. Policy alone (`neo-dagger4` updates 250): 137 (42.8%); that its
   validation pick (146) was mostly selection is plausible, not shown (the
@@ -527,7 +529,21 @@ done; `results/neo/assist_validation.jsonl`, per course in
   bot lands a few ticks after the spawn), yet V3b reaches 286. A differs
   from V3b one-sidedly (35 courses only V3b, 14 only A), B about evenly
   (22 only B, 16 only V3b): B is level with V3b within noise, and A is
-  below both. Every plan played landed as planned (A 2,866, B 3,043). The
+  below both. Every plan played landed as planned (A 2,866, B 3,043).
+  **Correction (30 Oct, 09:05): most of that gain was the planner's own
+  chance.** The search is the planner's only random part; with search seed
+  1 instead of 0 (`--seed 1`, otherwise the same; `single40-a-seed1`,
+  `single40-c-seed1`) A completes 285 and C (B with the corner check) 280:
+  the order reverses. One planner run of these 320 courses moves by about
+  10 courses with its seed (A 265 and 285, C 292 and 280; about 50 courses
+  change outcome between the two seeds), so A's seed-0 run was unlucky, and
+  the "not established" cost above was chance, not a mechanism. What
+  `plan_start` does for sure is plan the first jump where the policy would
+  jump at once (24 of 320 courses; +3 there at seed 0). The rule's decision
+  stands as fixed, but the 27-course gain is not evidence of a large
+  effect. The same noise sits in every single-seed planner comparison of 29
+  Oct (the levers' rules of "at least 4 more") and in the single-neo test
+  (276 of 320, one seed). The
   review (three reviewers, each finding checked) found that the new field
   broke the rebuild of the replay page (`scripts/make_skill_replays.py`
   compared the recorded config key by key, and its row lookup did not skip
@@ -573,7 +589,42 @@ the files' times):
   base flags: discount 0.995, 1,000 iterations, validation every 50 on the
   1,200 courses of families 2 and 5, levels 0-5, best by validation, tested
   once at the end; 1,024-course pool, 8,192 games, rollout 64, 32
-  minibatches). `l5-obs05`: obstacles on half the jumps
+  minibatches). **Results (06:37; simulator; `runs/l5-obs05*/summary.json`,
+  their queue logs):** `l5-obs05` best at iteration 999, validation 97.92%;
+  `l5-obs05-w3` best at iteration 249, validation 98.17%: the candidate,
+  above 97.58%. Tested once: `l5-obs05-w3` 98.33% standard (level 5 91.5%)
+  and 95.50% obstacles (level 5 81.0%), level with the final policy's 98.42%
+  and 95.25% (93.5% and 81.0%); `l5-obs05`, not chosen, 98.17% (91.0%) and
+  96.83% (88.0%). Nothing is chosen on these. On validation split by set
+  (re-measured at 06:38, GPU): final policy 98.33% standard (level 5 94.0%)
+  and 96.83% obstacles (88.0%); `l5-obs05` 98.50% (93.0%) and 97.33%
+  (91.0%); `l5-obs05-w3` 98.83% (95.0%) and 97.50% (88.0%); 100 courses per
+  level, so a level's number moves 1 point per course.
+- **The planner's own chance (07:27, measurement only, no choice):** the
+  search is the planner's only random part (`--seed`, 0 so far). Runs A
+  and C again on validation (family 40, `--settle 10`, CPU) with seed 1
+  (`single40-a-seed1`, `single40-c-seed1`), to see how much of A's 265
+  against B's and C's 292 is the seed. **Result (09:00):** A 285, C 280
+  (see the correction under the start fix's validation).
+- **Level 5, a closer look (rule fixed at 06:40, after the test results
+  above, before this evaluation; it chooses only on validation):** two new
+  validation-only sets of level-5 courses, 2,000 with obstacles on half the
+  jumps (family 46) and 2,000 without (family 47), simulator (GPU),
+  deterministic first episode; the final policy, `l5-obs05` best and
+  `l5-obs05-w3` best. A recipe counts as helping level 5 with obstacles if
+  its run completes at least 2 points more of family 46 than the final
+  policy. If one does: two more seeds of that recipe on the GPU, each tested
+  once; nothing shipped without Ethan. **Result (06:45,
+  `results/level5_closer_look.json`):** level 5 with obstacles, final policy
+  85.20% (1,704 of 2,000), `l5-obs05` 87.50% (+2.30; 219 courses only it, 173
+  only the final policy), `l5-obs05-w3` 87.90% (+2.70; 211 and 157); level 5
+  standard 91.55%, 91.60% (+0.05) and 90.20% (-1.35; 122 and 149). Both
+  recipes pass, so each gets two more seeds (`l5-obs05-s1`, `-s2`,
+  `l5-obs05-w3-s1`, `-s2`, the same flags plus `--seed`). Rule for them,
+  fixed now: the recipe with the higher mean family-46 completion over its
+  three runs is the better one, provided its mean family-47 completion is
+  not more than 1 point below the final policy's; each run tests its own
+  best once; nothing is chosen on the tests, nothing shipped without Ethan. `l5-obs05`: obstacles on half the jumps
   (`--obstacle-prob 0.5`, as in the obstacle test sets; training had 0.3,
   so a level-5 jump meets three fifths as many beams in training).
   `l5-obs05-w3`: the same plus three times as many level-5 courses
@@ -637,6 +688,28 @@ the files' times):
   reviewer's sweep of 35,712 starts beside a pillar), and on validation it
   cost nothing (C = B), so it stays as validated; a version matching the
   server exactly would drop fewer landings and needs its own validation.
+  That exact version is measured on the recordings: re-applying each tick's
+  displacement in the game's order (`physics._move(..., nxt.pos - s.pos,
+  ..., larger_first=True)`, as the server's `player.move` does) flags exactly
+  the logged warnings in all 40 runs, and those of them whose box starts
+  clear of every block are exactly the corrected episodes, 40 of 40
+  (`scripts/corner_scan.py` -> `results/corner_scan.json`, which has both
+  definitions per run). **On the same 64 test courses, played once with the
+  check (planner on the CPU; `runs/single41-offline-corner`,
+  `runs/single41-live-corner`):** offline 55 of 64, the same as its
+  simulator re-run on every course (outcome and ticks; replay difference
+  7.1e-15 blocks), so the gate is passed; the planner found, verified and
+  played 594 of 624 requests, 0 errors. The check changed the plans on
+  exactly the six courses where the server had logged "moved wrongly"
+  (0, 4, 5, 34, 35, 57); all six still complete, and the other 58 courses
+  play move for move as before. **Real Minecraft (09:00): 55 of 64, the
+  same courses and ticks as the offline bot and the simulator re-run on all
+  64, 0 server corrections, and no "moved wrongly" in the server's log**
+  (the run without the check: 54, 2 corrections, 6 warnings); largest
+  replay difference 2.1e-14 blocks; 594 of 624 requests found, verified and
+  played, 0 errors. Across the three real-Minecraft runs of these 64
+  courses (58, 54, 55) the differences are within the planner's chance
+  (about 10 courses on 320, see the correction above).
 
 **Queued after the combined runs (requested 29 Oct via the side chat): a
 head-hitter and slime fine-tune.** Rules fixed before any combined result:
@@ -988,11 +1061,19 @@ Concrete work, most important first. Nothing here needs new research.
    places; above 0.25 blocks apart the server rejects the move ("moved
    wrongly") and sends the bot back. Measured on 2 of 64 neo jumps in real
    Minecraft (`single41-live-planstart`, courses 5 and 57: 0.264 and 0.255
-   blocks; section 3); never inside an episode in earlier runs. Options: an
-   opt-in planner check that rejects plans whose ticks resolve differently
-   in the two orders (chosen on validation), or the game's order as an
-   opt-in physics flag (section 5: every result so far used prismarine's
-   order).
+   blocks; section 3); never inside an episode in earlier runs. **The
+   server's rule, measured on all 40 recorded real-Minecraft runs
+   (`results/corner_scan.json`):** it re-applies the bot's displacement for
+   the tick in its own order; more than 0.25 blocks from the bot's position
+   it logs "moved wrongly", and it sends the bot back only if the bot's box
+   started the tick clear of every block (40 of 40 runs, both). **Done (30
+   Oct):** the game's order as an opt-in physics flag
+   (`physics.simulate(..., larger_first=True)`, default unchanged) and an
+   opt-in planner check, `corner_limit`, kept on validation (section 3); it
+   is stricter than the server (it orders the tick's velocity and drops
+   every warning). Still open: the policy's own moves (unplanned) can still
+   meet it, and a check matching the server exactly would drop fewer
+   landings.
 
 ## 5. Do not touch: use as a black box
 
@@ -1251,18 +1332,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `fb12509` (2026-10-30 05:10, branch `main`): Handoff: the routing result merged (PR #2), the start fix's session log
+Generated on top of commit `be8943e` (2026-10-30 06:16, branch `main`): Corner check review fixes: a parity test that drops a landing, accurate wording, true rule times
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 21 |
-| `HANDOFF.md` | `fb12509` 2026-10-30 05:10 | 0 |
-| `TEAM_STATUS.md` | `fb12509` 2026-10-30 05:10 | 0 |
-| `README.md` | `1a16df0` 2026-10-29 14:14 | 37 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 205 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 188 |
-| `results/README.md` | `70a6ee0` 2026-10-30 04:59 | 12 |
-| `results/DATA.md` | `70a6ee0` 2026-10-30 04:59 | 12 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 23 |
+| `HANDOFF.md` | updated together with this snapshot | 0 |
+| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
+| `README.md` | `1a16df0` 2026-10-29 14:14 | 39 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 207 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 190 |
+| `results/README.md` | updated together with this snapshot | 0 |
+| `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -1327,6 +1408,12 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `hp-kl0.02` | 999 | 0.52 | 899 | 92.7 | 92.2 | 91.8 | - |
 | `hp-net-large` | 999 | 0.52 | 649 | 94.5 | 95.3 | 95.4 | - |
 | `hp-net-small` | 999 | 0.52 | 999 | 92.5 | 91.3 | 91.3 | - |
+| `l5-obs05` | 999 | 0.52 | 999 | 97.9 | 98.2 | - | - |
+| `l5-obs05-s1` | 999 | 0.52 | 49 | 97.0 | 98.1 | - | - |
+| `l5-obs05-s2` | 949 | 0.50 | 99 | 97.6 | - | - | - |
+| `l5-obs05-w3` | 999 | 0.52 | 249 | 98.2 | 98.3 | - | - |
+| `l5-obs05-w3-s1` | 999 | 0.52 | 99 | 98.1 | 98.4 | - | - |
+| `l5-obs05-w3-s2` | 999 | 0.52 | 49 | 98.0 | 98.5 | - | - |
 | `main-g995` | 2999 | 1.57 | 2799 | 98.7 | 97.9 | 96.2 | - |
 | `main-s0` | 2999 | 1.57 | - | - | - | 95.5 | - |
 | `neo-bc` | 799 | 0.42 | 699 | 86.1 | 85.7 | 86.5 | 83.1 |
@@ -1363,6 +1450,10 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | Folder | Where | Checkpoint | Completed | Simulator, same courses | Same outcome |
 | --- | --- | --- | --- | --- | --- |
 | `cheat-check` | offline (prismarine-physics, no server) | `runs/neo-ck.pt` | 0/1 | 0.0 | 100.0 |
+| `combined-obstacles-live` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 59/60 | 98.3 | 100.0 |
+| `combined-obstacles-offline` | offline (prismarine-physics, no server) | `results/combined_policy.pt` | 59/60 | 98.3 | 100.0 |
+| `combined-stone-live` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 59/60 | 98.3 | 100.0 |
+| `combined-stone-offline` | offline (prismarine-physics, no server) | `results/combined_policy.pt` | 59/60 | 98.3 | 100.0 |
 | `film-neo_level7-1028-112702` | live (Minecraft 1.21.4 server) | `runs/neo-dagger3/checkpoints/best.pt` | 1/1 | 100.0 | 100.0 |
 | `film-sprint-1028-014252` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
 | `film-sprint-1028-024939` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
@@ -1416,9 +1507,11 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `recheck-obs` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 58/60 | 96.7 | 100.0 |
 | `recheck-show` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 3/4 | 75.0 | 100.0 |
 | `recheck-std` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 59/60 | 98.3 | 100.0 |
+| `single41-live-corner` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 55/64 | 85.9 | 100.0 |
 | `single41-live-planner` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 58/64 | 90.6 | 100.0 |
 | `single41-live-planstart` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 54/64 | 85.9 | 98.4 |
 | `single41-live-policy` | live (Minecraft 1.21.4 server) | `runs/neo-dagger4/checkpoints/updates_00250.pt` | 26/64 | 40.6 | 100.0 |
+| `single41-offline-corner` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 55/64 | 85.9 | 100.0 |
 | `single41-offline-planner` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 58/64 | 90.6 | 100.0 |
 | `single41-offline-planstart` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 55/64 | 85.9 | 100.0 |
 | `single41-offline-policy` | offline (prismarine-physics, no server) | `runs/neo-dagger4/checkpoints/updates_00250.pt` | 26/64 | 40.6 | 100.0 |
@@ -1467,6 +1560,7 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **30 Oct 2026, 09:15, Claude (Claude Code, training PC), overnight (Ethan, via the side session: use the CPU and GPU as much as possible while asleep):** (1) Wall corners, problem 9: the game's collision order as an opt-in physics flag (default path bit-identical) and the planner's `corner_limit`, kept on validation (292, the same courses as without it); the server's rule measured on all 40 recorded real-Minecraft runs (`results/corner_scan.json`); on the 64 single-neo test courses with both fixes 55 offline and 55 in real Minecraft, equal to the simulator, 0 corrections, no warnings. (2) The planner's search seed moves a 320-course count by about 10 (A 265 and 285, C 292 and 280): the start fix's gap was mostly chance; caveats added here, in TEAM_STATUS and on the results page. (3) The one network on the final policy's 120 bot courses: 59/60 and 59/60, offline and real Minecraft, equal to the simulator. (4) Level 5 with obstacles (problem 3): two fine-tunes beat the final policy on validation, and on 2,000 level-5 obstacle validation courses by 2.3 and 2.7 points; their tests are mixed; two more seeds of each are running under a rule fixed at 06:45; nothing shipped. (5) The results page's test-once and bot-difference wording fixed; this file's rule times corrected (05:16 and about 05:19, both before their runs). Next: the seeds' comparison, then Ethan's calls (a level-5 candidate, the report).
 - **30 Oct 2026, 05:00, Claude (Claude Code, training PC):** the planner's first-jump fix (Ethan: "Yes, fix it"): `plan_start` (opt-in; the searches also run on the start state, before the first action; Python and the bots), rules fixed at 02:31. Validation from the bots' settled start: 292 of 320 with it, 265 without (the simulator's own start: 286), so it is kept (`61a833e`); an independent review found two real defects in the replay-page builder, fixed (the page rebuilds byte for byte). On the 64 test courses, played once: offline 55 (= its simulator re-run; course 10 now plans its first jump), real Minecraft 54 with 2 server corrections (before: 58, 0), both at the corner of a neo's wall, where prismarine-physics moves x before z and the game the larger component first (section 4, problem 9). The results page now says where the never-trained-block courses failed (Ethan): 32 of 33 landings on the new blocks. Merged `origin/main`, which holds the routing pull request #2 (merged on GitHub at 04:02; the learned router 97.83% / 95.00% on test against the planner's 92.33% / 90.50%; section "Team split"). Next: Ethan's call on problem 9.
 - **30 Oct 2026, 00:00, Claude (Claude Code, training PC):** the skill gate built, reviewed, merged (`6946602`) and trained (`gate-r1`): validation 87.75% against 86.98%, so it replaces the one network in the simulator; tested once 86.80% against 86.45%, a match; the first expert swap is not kept. Single neos: the bots reproduce the simulator from the same start on the first 64 test courses, offline and in real Minecraft (planner 58/64, policy alone 26/64, 0 corrections). The replay page now holds 89 courses in 210 recordings: the one-neo courses with the planner (13/16, every completion did its neo) and the one network (7/16), and the never-trained shapes (6/8); results page version 17. GPU watchdog restarted from the merged code. Next: a fix for the settled-start first jump in the planner (to be chosen on validation), and whatever the user asks next.
 - **29 Oct 2026, 22:50, Claude (Claude Code, training PC):** single neos at 85%: the sets (families 40/41), the strict metric and the planner levers merged (`031d7c3`); on validation the final policy with the planner and 3 search restarts reaches 286 of 320 (89.4%, levers stopped by the 89% rule); the test, played once, 276 of 320 (86.25%): the goal is met under the pre-registered rule, narrowly (caveats and an independent audit in section 3). Follow-up rounds (head hitters and slime, neos in the one network, one more neo round) not kept; gate headroom measured (per-course ceiling +7.1, mostly chance; the gate gets built, with swappable experts). Replays of every new skill and block type, offline and in real Minecraft (59/65 as the simulator; carpets needed a structure void in real Minecraft, `bridge/parkour_bot.js`), on the results page (version 15); the CPU cap of 85% (AGENTS.md). Next: the bot check of the single-neo test courses, the gate's training on the GPU, the one-neo and untrained-shape replays on the page.

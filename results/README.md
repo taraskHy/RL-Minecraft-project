@@ -258,6 +258,9 @@ are the chosen settings.
 | validation | single (family 40) | `final_policy` | single V3b: V1 + restarts 3 | all | 286/320 (89.4) | 292/316 | 3004/3004 |
 | validation | single (family 40) | `final_policy` | Fix B: A + plan_start | all | 292/320 (91.2) | 301/316 | 3043/3043 |
 | validation | single (family 40) | `final_policy` | Fix A: V3b from the bots' start (settle 10) | all | 265/320 (82.8) | 273/313 | 2866/2866 |
+| validation | single (family 40) | `final_policy` | Fix C: B + corner_limit 0.25 | all | 292/320 (91.2) | 301/316 | 3041/3041 |
+| validation | single (family 40) | `final_policy` | Seed check: A with search seed 1 | all | 286/320 (89.4) | 294/314 | 2958/2958 |
+| validation | single (family 40) | `final_policy` | Seed check: C with search seed 1 | all | 281/320 (87.8) | 285/315 | 2984/2984 |
 | test | random (family 12) | `final_policy` | policy alone |  | 33/200 (16.5) | 1/162 |  |
 | test | official (family 1) | `final_policy` | policy alone |  | 0/210 (0.0) | 0/124 |  |
 | test | mixed (family 14) | `final_policy` | policy alone |  | 35/200 (17.5) | 0/16 |  |

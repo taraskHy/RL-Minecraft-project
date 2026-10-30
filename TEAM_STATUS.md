@@ -10,7 +10,7 @@ the data: training runs, policies, the route planner and neo files, the game
 folders (including the v2, planner, noroute, neo and film games) and the
 videos.
 
-**Last updated:** 30 Oct 2026, 05:00, training PC (Claude): the bots now plan their first jump too (chosen on validation, 292 against 265 of 320); on the 64 test courses 55 offline and 54 in real Minecraft, with 2 server corrections at wall corners (a physics-engine difference, now an open problem). Earlier: single neos meet the 85% goal on the test set (86.25% with the planner, narrowly) and the bots reproduced it in real Minecraft (58/64); the gate is built: 86.80% on test against the one network's 86.45%, a match; follow-up rounds not kept; replays of every new skill and block type on the results page; CPU capped at 85%.
+**Last updated:** 30 Oct 2026, 09:10, training PC (Claude), overnight: the bots plan their first jump and avoid the wall-corner moves a server rejects; on the 64 single-neo test courses 55 offline and 55 in real Minecraft, equal to the simulator, 0 corrections. A planner run's count moves by about 10 of 320 with its search seed, so the start fix's 292-against-265 was mostly chance. The one network plays the final policy's 120 bot courses at 59/60 and 59/60. Two level-5 obstacle fine-tunes beat the final policy on validation (2,000 level-5 obstacle courses: +2.3 and +2.7 points) but not clearly on test; seeds running, nothing shipped. Earlier, 30 Oct 05:00: the bots now plan their first jump too. Earlier: single neos meet the 85% goal on the test set (86.25% with the planner, narrowly) and the bots reproduced it in real Minecraft (58/64); the gate is built: 86.80% on test against the one network's 86.45%, a match; follow-up rounds not kept; replays of every new skill and block type on the results page; CPU capped at 85%.
 
 ## Team split / what we want next (29 Oct 2026)
 
@@ -278,7 +278,11 @@ rows; pairs never tested before were played once for this table
 (`results/skills/test_matrix_*.json`), except the final policy's 600
 standard head-hitter, hard-head-hitter and ice run-up courses, first played
 on 28 Oct (`results/extra/course_preview_family1.json`) and replayed with
-identical results.
+identical results. **In the bots on ordinary courses (30 Oct):** on the 60
+standard and 60 obstacle test courses the final policy played, the one
+network completes 59 and 59, offline and in real Minecraft, the same courses
+and ticks as the simulator, 0 server corrections (the final policy: 59 and
+57).
 
 **Three follow-up rounds, none kept (simulator, rules fixed before each
 result).**
@@ -436,16 +440,27 @@ start with their neo.
 **The start fix (30 Oct):** the planner now also searches from the start
 state, before the first move (`plan_start`, opt-in; from the simulator's own
 start it changes nothing). From the bots' settled start on validation it
-completes 292 of 320 against 265 without it (simulator; the simulator's own
-start: 286), so the bots use it. On the same 64 test courses, played once
-with it: **55 offline**, the same courses as the simulator, and **54 in real
-Minecraft** (before: 58). Course 10 now plans its first jump and completes;
-the other changes go both ways at later neo searches. In real Minecraft the
-server corrected the bot twice (courses 5 and 57), both while it jumped past
-the corner of a neo's wall: the bots' physics engine (prismarine-physics,
-copied by the simulator) moves sideways before forward there, the game moves
-the larger way first, and the two ended just over the server's 0.25-block
-limit apart (HANDOFF section 4, problem 9).
+completed 292 of 320 against 265 without it (simulator), so by the rule the
+bots use it; but with a second search seed the two are level (280 and 285):
+**one planner run of 320 courses moves by about 10 courses with its search
+seed**, so that gap was mostly chance. What the fix surely does is plan the
+first jump where the policy would jump at once (24 of 320 courses). On the
+same 64 test courses, played once with it: 55 offline and 54 in real
+Minecraft (before: 58); course 10 now plans its first jump and completes.
+In real Minecraft the server corrected the bot twice (courses 5 and 57),
+both while it jumped past the corner of a neo's wall: the bots' physics
+engine (prismarine-physics, copied by the simulator) moves sideways before
+forward there, the game moves the larger way first.
+
+**The corner check (30 Oct):** the planner now drops a landing whose replay
+ends more than 0.25 blocks apart in the game's order at any tick (opt-in;
+kept on validation: 292 of 320, the same courses as without it). Replaying
+all 40 recorded real-Minecraft runs, the server's own rule is now measured
+exactly: it re-applies the bot's displacement in its order, logs "moved
+wrongly" over 0.25 blocks, and sends the bot back only when the bot's box
+started clear of every block (40 of 40 runs). On the 64 test courses with
+both fixes: **55 offline and 55 in real Minecraft, the same courses and
+ticks as the simulator, 0 corrections and no warnings** (HANDOFF section 3).
 
 ## Codex stopped; handoff to Claude (29 Oct 2026, 12:49, Israel time)
 
