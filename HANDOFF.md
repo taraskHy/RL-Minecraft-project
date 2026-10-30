@@ -482,7 +482,8 @@ done; `results/neo/assist_validation.jsonl`, per course in
   policy's own (course 10 jumped on its first tick and fell). The scored test
   (no settling) planned every first jump. 7 of the 64 courses have the neo
   as their first jump. A fix is a change to the planner (Python and the
-  bots), to be chosen on validation, not tuning on the test.
+  bots), to be chosen on validation, not tuning on the test. Fixed on 30 Oct
+  by `plan_start` (next bullets).
 - **The fix, rules fixed 30 Oct, 02:31, before any run of it (Ethan: "Yes,
   fix it"):** an opt-in `plan_start` (`AssistConfig`, `--plan-start 1`; the
   bots get it with the rest of the config): the searches also run on the
@@ -518,8 +519,32 @@ done; `results/neo/assist_validation.jsonl`, per course in
   broke the rebuild of the replay page (`scripts/make_skill_replays.py`
   compared the recorded config key by key, and its row lookup did not skip
   settled rows); fixed, and the page rebuilds byte for byte. The test suite
-  passes with CUDA hidden. Next, as fixed: the offline bot, then real
-  Minecraft, on the 64 test courses.
+  passes with CUDA hidden (158, 1 skipped: the GPU physics check).
+- **The fix on the same 64 test courses, played once (planner on the CPU;
+  `runs/single41-offline-planstart`, `runs/single41-live-planstart`):**
+  **offline bot 55 of 64**, the same as `parkour.live`'s simulator re-run
+  on every course (outcome and ticks; replay difference 7.1e-15 blocks), so
+  the gate is passed; every course's first search ran at tick 0, and
+  course 10 now plans its first jump and completes. Against the 58 before:
+  4 gained (courses 9, 10, 19, 28), 7 lost (18, 29, 33, 50, 53, 60, 62). Apart
+  from course 10, each of them turns on a neo search that found nothing
+  after its restarts and the retry, after a different path from the start
+  (course 18: a fall on the jump after its neo). The validation gain was not
+  even either: none on validation's first 64 courses (57 and 57; 3 courses
+  each way), +4 to +9 on each later block of 64; not explained. **Real
+  Minecraft 54 of 64:** 62 courses as offline to the tick; on courses 5 and
+  57 the server corrected the bot once each, the first corrections inside
+  an episode in any run, and on 57 it then fell (offline it completes). The
+  planner found, verified and played 593 of 620 requests, 0 errors. The
+  cause, measured from the recordings: both times the bot jumps diagonally
+  past the corner of the neo's wall (0.011 and 0.020 blocks from it).
+  prismarine-physics, and so the simulator and the bot, moves along x and
+  then z, which clears the wall; the game moves along the larger of the two
+  first (z here), which the corner stops. The two end 0.264 and 0.255 blocks
+  apart, over the 0.25 at which the server logs "moved wrongly" and sends
+  the bot back (its log has both). The server logged that warning outside
+  episodes in earlier runs too (3 times in the planner run before the fix),
+  never inside one. Section 4, problem 9.
 
 **Queued after the combined runs (requested 29 Oct via the side chat): a
 head-hitter and slime fine-tune.** Rules fixed before any combined result:
@@ -863,6 +888,19 @@ Concrete work, most important first. Nothing here needs new research.
    map instead of generating courses.
 8. Double and triple neos: reopen only with a new search method; the
    current search found none (section 2).
+9. **Wall corners: the bots' physics moves along x before z, the game
+   along the larger component first.** prismarine-physics (and so
+   `parkour/physics.py` and the bots) resolves horizontal collisions x then
+   z; the game resolves the larger of the two first. Passing within a
+   hundredth of a block of a wall's corner, the two can end in different
+   places; above 0.25 blocks apart the server rejects the move ("moved
+   wrongly") and sends the bot back. Measured on 2 of 64 neo jumps in real
+   Minecraft (`single41-live-planstart`, courses 5 and 57: 0.264 and 0.255
+   blocks; section 3); never inside an episode in earlier runs. Options: an
+   opt-in planner check that rejects plans whose ticks resolve differently
+   in the two orders (chosen on validation), or the game's order as an
+   opt-in physics flag (section 5: every result so far used prismarine's
+   order).
 
 ## 5. Do not touch: use as a black box
 
@@ -1121,17 +1159,17 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `6426c18` (2026-10-29 23:58, branch `main`): Gate trained and tested (a match); single neos reproduced in real Minecraft
+Generated on top of commit `61a833e` (2026-10-30 03:25, branch `main`): Planner: plan_start searches the start state too; kept on validation (292 vs 265)
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 6 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 8 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `6426c18` 2026-10-29 23:58 | 0 |
-| `README.md` | `1a16df0` 2026-10-29 14:14 | 22 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 190 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 173 |
-| `results/README.md` | `2ceba5f` 2026-10-29 22:40 | 6 |
+| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
+| `README.md` | `1a16df0` 2026-10-29 14:14 | 24 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 192 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 175 |
+| `results/README.md` | updated together with this snapshot | 0 |
 | `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
@@ -1287,8 +1325,10 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `recheck-show` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 3/4 | 75.0 | 100.0 |
 | `recheck-std` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 59/60 | 98.3 | 100.0 |
 | `single41-live-planner` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 58/64 | 90.6 | 100.0 |
+| `single41-live-planstart` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 54/64 | 85.9 | 98.4 |
 | `single41-live-policy` | live (Minecraft 1.21.4 server) | `runs/neo-dagger4/checkpoints/updates_00250.pt` | 26/64 | 40.6 | 100.0 |
 | `single41-offline-planner` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 58/64 | 90.6 | 100.0 |
+| `single41-offline-planstart` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 55/64 | 85.9 | 100.0 |
 | `single41-offline-policy` | offline (prismarine-physics, no server) | `runs/neo-dagger4/checkpoints/updates_00250.pt` | 26/64 | 40.6 | 100.0 |
 | `skill-replays-live-65` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 59/65 | 90.8 | 100.0 |
 | `skill-replays-neo-network-live` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 7/16 | 43.8 | 100.0 |
@@ -1335,6 +1375,7 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **30 Oct 2026, 05:00, Claude (Claude Code, training PC):** the planner's first-jump fix (Ethan: "Yes, fix it"): `plan_start` (opt-in; the searches also run on the start state, before the first action; Python and the bots), rules fixed at 02:31. Validation from the bots' settled start: 292 of 320 with it, 265 without (the simulator's own start: 286), so it is kept (`61a833e`); an independent review found two real defects in the replay-page builder, fixed (the page rebuilds byte for byte). On the 64 test courses, played once: offline 55 (= its simulator re-run; course 10 now plans its first jump), real Minecraft 54 with 2 server corrections (before: 58, 0), both at the corner of a neo's wall, where prismarine-physics moves x before z and the game the larger component first (section 4, problem 9). The results page now says where the never-trained-block courses failed (Ethan): 32 of 33 landings on the new blocks. Next: Ethan's call on problem 9.
 - **30 Oct 2026, 00:00, Claude (Claude Code, training PC):** the skill gate built, reviewed, merged (`6946602`) and trained (`gate-r1`): validation 87.75% against 86.98%, so it replaces the one network in the simulator; tested once 86.80% against 86.45%, a match; the first expert swap is not kept. Single neos: the bots reproduce the simulator from the same start on the first 64 test courses, offline and in real Minecraft (planner 58/64, policy alone 26/64, 0 corrections). The replay page now holds 89 courses in 210 recordings: the one-neo courses with the planner (13/16, every completion did its neo) and the one network (7/16), and the never-trained shapes (6/8); results page version 17. GPU watchdog restarted from the merged code. Next: a fix for the settled-start first jump in the planner (to be chosen on validation), and whatever the user asks next.
 - **29 Oct 2026, 22:50, Claude (Claude Code, training PC):** single neos at 85%: the sets (families 40/41), the strict metric and the planner levers merged (`031d7c3`); on validation the final policy with the planner and 3 search restarts reaches 286 of 320 (89.4%, levers stopped by the 89% rule); the test, played once, 276 of 320 (86.25%): the goal is met under the pre-registered rule, narrowly (caveats and an independent audit in section 3). Follow-up rounds (head hitters and slime, neos in the one network, one more neo round) not kept; gate headroom measured (per-course ceiling +7.1, mostly chance; the gate gets built, with swappable experts). Replays of every new skill and block type, offline and in real Minecraft (59/65 as the simulator; carpets needed a structure void in real Minecraft, `bridge/parkour_bot.js`), on the results page (version 15); the CPU cap of 85% (AGENTS.md). Next: the bot check of the single-neo test courses, the gate's training on the GPU, the one-neo and untrained-shape replays on the page.
 - **29 Oct 2026, 17:00, Claude (Claude Code, training PC):** `combined-distill` and `combined-union` finished and were tested once; `combined-distill` won on validation (87.0% vs 84.7% over the four groups) and is shipped as `results/combined_policy.*` (`scripts/export_combined.py`). Per-group test comparison with every specialist (`results/skills/combined_test_comparison.json`, `scripts/combined_compare.py`): the specialists' existing test rows reused, only the pairs never tested played once (`results/skills/test_matrix_*.json`), except the final policy's 600 standard courses at extra levels 9-11, first played on 28 Oct (`results/extra/course_preview_family1.json`) and replayed with identical results. The margins over the best specialist (+2.9, +1.1) are about 1.5 and 1.1 standard errors of one test: a match, not a win (an independent check corrected the page and these files to say so, and "three specialists", not five). Started `skills-hh-ft` (head hitters and slime, section 3) from it; collected the neo DAgger demonstrations from it (`runs/neo_dagger_c1.pt`); the round itself is held for the new top priority, single neos at 85% (section 3). Skill-gate headroom script ready (`scripts/gate_headroom.py`, run after the fine-tunes). Report run; results page version 9. Next: the single-neo sets, baselines and failure analysis.

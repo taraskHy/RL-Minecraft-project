@@ -10,7 +10,7 @@ the data: training runs, policies, the route planner and neo files, the game
 folders (including the v2, planner, noroute, neo and film games) and the
 videos.
 
-**Last updated:** 29 Oct 2026, 23:40, training PC (Claude): single neos meet the 85% goal on the test set (86.25% with the planner, narrowly) and the bots reproduce it in real Minecraft (58/64); the gate is built: 86.80% on test against the one network's 86.45%, a match; follow-up rounds not kept; replays of every new skill and block type on the results page; CPU capped at 85%.
+**Last updated:** 30 Oct 2026, 05:00, training PC (Claude): the bots now plan their first jump too (chosen on validation, 292 against 265 of 320); on the 64 test courses 55 offline and 54 in real Minecraft, with 2 server corrections at wall corners (a physics-engine difference, now an open problem). Earlier: single neos meet the 85% goal on the test set (86.25% with the planner, narrowly) and the bots reproduced it in real Minecraft (58/64); the gate is built: 86.80% on test against the one network's 86.45%, a match; follow-up rounds not kept; replays of every new skill and block type on the results page; CPU capped at 85%.
 
 ## Team split / what we want next (29 Oct 2026)
 
@@ -423,9 +423,23 @@ platform's search. **In real Minecraft**, on the first 64 test courses
 the same courses as the offline bot and the simulator from the same start,
 0 server corrections. The bots settle 10 ticks on the start block, so they
 are compared with the simulator from that settled start (the scored test
-started without settling: 57 and 27 on those courses); a settled bot can
+started without settling: 57 and 27 on those courses); a settled bot could
 take its first jump without a plan, which cost one of the 7 courses that
 start with their neo.
+
+**The start fix (30 Oct):** the planner now also searches from the start
+state, before the first move (`plan_start`, opt-in; from the simulator's own
+start it changes nothing). From the bots' settled start on validation it
+completes 292 of 320 against 265 without it (simulator; the simulator's own
+start: 286), so the bots use it. On the same 64 test courses, played once
+with it: **55 offline**, the same courses as the simulator, and **54 in real
+Minecraft** (before: 58). Course 10 now plans its first jump and completes;
+the other changes go both ways at later neo searches. In real Minecraft the
+server corrected the bot twice (courses 5 and 57), both while it jumped past
+the corner of a neo's wall: the bots' physics engine (prismarine-physics,
+copied by the simulator) moves sideways before forward there, the game moves
+the larger way first, and the two ended just over the server's 0.25-block
+limit apart (HANDOFF section 4, problem 9).
 
 ## Codex stopped; handoff to Claude (29 Oct 2026, 12:49, Israel time)
 

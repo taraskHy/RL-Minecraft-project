@@ -256,6 +256,8 @@ are the chosen settings.
 | validation | single (family 40) | `neo_policy` | single V2: neo policy + planner (all, retries 1, brake 14, retry horizon 48) | all | 267/320 (83.4) | 276/315 | 2878/2878 |
 | validation | single (family 40) | `final_policy` | single V3a: V1 + restarts 1 | all | 282/320 (88.1) | 288/316 | 2967/2967 |
 | validation | single (family 40) | `final_policy` | single V3b: V1 + restarts 3 | all | 286/320 (89.4) | 292/316 | 3004/3004 |
+| validation | single (family 40) | `final_policy` | Fix B: A + plan_start | all | 292/320 (91.2) | 301/316 | 3043/3043 |
+| validation | single (family 40) | `final_policy` | Fix A: V3b from the bots' start (settle 10) | all | 265/320 (82.8) | 273/313 | 2866/2866 |
 | test | random (family 12) | `final_policy` | policy alone |  | 33/200 (16.5) | 1/162 |  |
 | test | official (family 1) | `final_policy` | policy alone |  | 0/210 (0.0) | 0/124 |  |
 | test | mixed (family 14) | `final_policy` | policy alone |  | 35/200 (17.5) | 0/16 |  |
