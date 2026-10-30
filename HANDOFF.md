@@ -1007,7 +1007,12 @@ Concrete work, most important first. Nothing here needs new research.
    28 Oct export that HANDOFF called "20 pages" ran half a page into page
    21 the same way. So by a strict reading of "20 pages without the
    references" the body is two lines over: trim about 150 words to end on
-   page 20 with room. The script now reports the page on which the body
+   page 20 with room. Pipeline check (22:33, old revisions exported here in
+   a separate folder): `568763d` gives 20 pages before the References page,
+   as the cloud reported; `12c736a` gives 21 (its body ending on page 22),
+   where the cloud's own export of the same text gave 20 (body half a page
+   into page 21). This PC's tools run about half a page longer than the
+   cloud's, so fit the report on this PC's export. The script now reports the page on which the body
    ends. The Chrome estimate (`scripts/report_pages.py`) had said about 19:
    it was a page optimistic, because its calibration version also ran
    onto page 21; its defaults are recalibrated on both real exports and
@@ -1453,18 +1458,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `25eced6` (2026-10-30 22:06, branch `main`): Course report: every result through 30 Oct, the MDP stated, about 19 pages
+Generated on top of commit `bad06eb` (2026-10-30 22:32, branch `main`): Report export measured: body ends two lines into page 21
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 30 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 31 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `1a16df0` 2026-10-29 14:14 | 46 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 214 |
-| `docs/report_draft.md` | `25eced6` 2026-10-30 22:06 | 0 |
-| `results/README.md` | `f286d5f` 2026-10-30 19:14 | 1 |
-| `results/DATA.md` | updated together with this snapshot | 0 |
+| `TEAM_STATUS.md` | `bad06eb` 2026-10-30 22:32 | 0 |
+| `README.md` | `1a16df0` 2026-10-29 14:14 | 47 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 215 |
+| `docs/report_draft.md` | `25eced6` 2026-10-30 22:06 | 1 |
+| `results/README.md` | `f286d5f` 2026-10-30 19:14 | 2 |
+| `results/DATA.md` | `bad06eb` 2026-10-30 22:32 | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
