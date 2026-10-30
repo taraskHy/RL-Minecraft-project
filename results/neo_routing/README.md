@@ -146,6 +146,25 @@ At seed 0 the margin was 2, under 10, so both ran seeds 1 and 2. B's mean is 3.0
 the choice is **A**. B searched about 4 times as long (19,750 to 20,995 s of searching per run, against 4,728 to
 4,878 s for A).
 
+### Rule 3: lever C kept (outcome written 00:11:03 on 31 Oct, before any run of rule 2)
+
+Same set, protocol and files.
+
+| Search seed | A | C = A + `plan_on` (`single40-wall-C-sS`) |
+| --- | --- | --- |
+| 0 | 241 (245) | 255 (259) |
+| 1 | 238 (241) | 257 (260) |
+| 2 | 238 (242) | 251 (255) |
+| Mean | 239.0 | 254.3 |
+
+C's mean is 15.3 above A's, more than the rule's 4, so `plan_on` is kept. Rule 2's setting is `{"samples": 1024,
+"iterations": 25, "horizon": 32, "retry_horizon": 48, "retries": 1, "brake": 14, "restarts": 3, "plan_on": 1}`.
+Up to the neo's landing C plays as A: the same neo jumps passed (267, 268, 263) and the same courses lost at the
+neo (36, 35, 40). After the landing it loses fewer: 25, 25 and 25 courses at ordinary jumps, against 39, 44 and 38
+for A (`failed_at`). It makes 4.7 to 4.8 times as many takeoff searches (1,417 to 1,450 per run, against 303) in
+about 1.6 times A's search time (7,649 to 7,982 s per run), and every plan played landed as planned (1,396, 1,391,
+1,356).
+
 ## Reproduce
 
 ```text
