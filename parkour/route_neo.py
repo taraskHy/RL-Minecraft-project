@@ -4,16 +4,18 @@
     python -m parkour.route_neo --set standard --family 2 --assist '{"restarts": 3}' --name NAME --tag "..."
 
 Without the course list (``parkour.route_env``), the planner's straight-path rule (``PlannerConfig.clear_path``)
-drops a neo's landing: the line from the takeoff to it passes through the neo's wall (``neo_dagger.neo_takeoffs``
-makes the same test on the course list). With ``RouteConfig(blocked="plan")`` such a platform stays selectable,
-with its head-hitter flag, and when the router chooses one, the jump to it is a neo: the neo planner
-(``neo_assist.plan_once``) searches it from the bot's exact state with the chosen platform as the target, and the
-actions found replace the jumper's until they have landed. With no landing the jumper keeps control; as in
-``neo_assist.evaluate_assisted``, with ``brake`` the bot first stops on the takeoff, and with ``retries`` the search
-runs again while it stands there.
+drops a neo's landing: the line from the takeoff to it passes through the neo's wall. With
+``RouteConfig(blocked="plan")`` every platform whose straight path is blocked stays selectable, with its head-hitter
+flag, and when the router chooses one whose path is blocked by a block that is no part of a platform in view
+(``route_env.wall_blocked``: a wall, pillar or beam, the blocks ``neo_dagger.neo_takeoffs`` counts on the course
+list), the jump to it is a neo: the neo planner (``neo_assist.plan_once``) searches it from the bot's exact state
+with the chosen platform as the target, and the actions found replace the jumper's until they have landed. A path
+blocked only by other platforms (a jump past or over another platform) is the jumper's, as with "keep". With no
+landing the jumper keeps control; as in ``neo_assist.evaluate_assisted``, with ``brake`` the bot first stops on the
+takeoff, and with ``retries`` the search runs again while it stands there.
 
 The trigger is the router's own: a decision (the bot stands on a new platform, ``RouteRunner``) whose first
-choice is blocked. The course list only names the two platforms for the search: the platform stood on is the
+choice is blocked by a wall. The course list only names the two platforms for the search: the platform stood on is the
 request's ``cp``, the chosen one its ``target`` (perception equals the course's platforms, tests/test_route.py),
 so the search lands on the chosen platform, its fall line is the lower top of the two (``floor``) and its seeds
 are those of a course-list request from that platform. A choice that is no course platform (an obstacle's top:
@@ -92,7 +94,8 @@ def evaluate_routed_neo(jumper, pool: CoursePool, tables: RouteTables, choose=No
                         fall_rule: str = "local", record: bool = False, settle: int = 0,
                         search_pool: CoursePool | None = None, course_offset: int = 0, log=None) -> dict:
     """First episode on every course, the jumper's slots filled by the router (``route_env.evaluate_routed``), and
-    with ``rcfg.blocked == "plan"`` (and ``acfg.enabled``) every blocked first choice planned by the neo planner.
+    with ``rcfg.blocked == "plan"`` (and ``acfg.enabled``) every first choice blocked by a wall planned by the neo
+    planner.
 
     ``search_pool``: the same courses on the searches' device (default ``pool``). ``course_offset``: the index of the
     pool's first course in the whole set (search seeds and event numbers, for a run in parts). Returns
@@ -126,7 +129,7 @@ def evaluate_routed_neo(jumper, pool: CoursePool, tables: RouteTables, choose=No
     for i, ks in enumerate(takeoffs):
         neo[i, ks] = True
     frm = torch.full((n,), -1, dtype=torch.int64, device=dev)  # course platform the last decision planned from
-    want = torch.full((n,), -1, dtype=torch.int64, device=dev)  # its blocked first choice, to plan (-1: none)
+    want = torch.full((n,), -1, dtype=torch.int64, device=dev)  # its first choice blocked by a wall, to plan (-1: none)
     tries = torch.zeros(n, K, dtype=torch.int64, device=dev)  # searches per platform planned from
     last_try = torch.full((n,), -10**9, dtype=torch.int64, device=dev)
     H = max(hz["takeoff"], hz["retry"], acfg.brake, 1)
@@ -149,7 +152,7 @@ def evaluate_routed_neo(jumper, pool: CoursePool, tables: RouteTables, choose=No
     search_seconds = 0.0
 
     def decided(res, t: int) -> None:
-        """A decision's platform planned from and, if its first choice is blocked, the platform to plan."""
+        """A decision's platform planned from and, if its first choice is blocked by a wall, the platform to plan."""
         if res is None:
             return
         r = res["rows"]
@@ -158,7 +161,7 @@ def evaluate_routed_neo(jumper, pool: CoursePool, tables: RouteTables, choose=No
         act = res["action"]
         tk = torch.where(act >= 0, res["cidx"][ar, act.clamp(min=0)], torch.full_like(act, -1))
         frm[r] = hk
-        want[r] = torch.where(res["blocked"] & (hk >= 0) & (tk >= 0), tk, torch.full_like(tk, -1))
+        want[r] = torch.where(res["walled"] & (hk >= 0) & (tk >= 0), tk, torch.full_like(tk, -1))
         if record:
             rects = res["rect"].tolist()
             for j, i in enumerate(r.tolist()):

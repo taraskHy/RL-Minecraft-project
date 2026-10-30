@@ -70,7 +70,8 @@ class Assist {
 }
 
 // The neo planner in router mode (parkour/route_neo.py): when the episode's LearnedRouter (bridge/router.js,
-// cfg.blocked "plan") chose a platform whose straight path is blocked, that jump is planned. The course list
+// cfg.blocked "plan") chose a platform whose straight path is blocked by a wall (a block that is no part of a
+// platform in view: walledChoice), that jump is planned. The course list
 // (platforms; q: their standing areas and tops, as policy.js platformGeometry) only names the platform stood
 // on (the request's cp) and the chosen one (its target), as route_neo.route_arrival does; a choice that is no
 // course platform is not planned. Per platform planned from: one takeoff request, then up to cfg.retries
@@ -96,7 +97,7 @@ class RouteAssist {
     const braked = this.braked
     this.braked = false
     const r = this.router
-    if (!s.onGround || r.current === null || !r.blockedChoice || !r.chain.length) return null
+    if (!s.onGround || r.current === null || !r.walledChoice || !r.chain.length) return null
     const frm = this.index(r.current.rect())
     const want = this.index(r.chain[0].rect())
     if (frm < 0 || want < 0 || !standsOn(s, this.q[frm])) return null

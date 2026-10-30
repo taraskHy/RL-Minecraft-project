@@ -34,6 +34,13 @@ def neo_courses(idx):
     return [cs[i] for i in idx]
 
 
+def standard_courses(idx):
+    """Courses of the router's standard validation set (family 2, 300 per level, route_eval's order)."""
+    from parkour.route_neo import course_set
+    cs = course_set("standard", 2)
+    return [cs[i] for i in idx]
+
+
 class Shared(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -93,9 +100,33 @@ class RouteNeoSimulator(Shared):
             ok, *_ = sc.options(here, excluded)
             self.assertEqual(ok[course, target].tolist(), [keep] * len(cs))  # dropped by the straight-path rule
             self.assertEqual(sc.blocked[course, target].tolist(), [keep] * len(cs))
-            self.assertTrue(bool((sc.blocked <= ok).all()))  # flags only on selectable platforms
+            self.assertEqual(sc.walled[course, target].tolist(), [keep] * len(cs))  # by the neo's wall
+            self.assertTrue(bool((sc.blocked <= ok).all()) and bool((sc.walled <= sc.blocked).all()))
         with self.assertRaises(ValueError):
             Scene(pool, tables, course, pos, cells, PlannerConfig(clear_path=False), keep_blocked=True)
+
+    def test_a_path_blocked_only_by_platforms_is_no_neo(self):
+        # Standard validation courses (family 2) 311, 818 and 1346: the line to the next platform passes through another
+        # platform (a jump past it), not a wall. It is selectable with "keep" and "plan", but only a wall makes a neo: on
+        # these courses "plan" searches nothing and plays as "keep" (the planner's plans touched the platform in the way).
+        cs = standard_courses([311, 818, 1346])
+        ks = [8, 4, 6]
+        pool = CoursePool(cs, "cpu", C.GRID)
+        cells = torch.tensor([[int(c.platforms[k][0]), int(c.platforms[k][4]), int(c.platforms[k][2])] for c, k in zip(cs, ks)])
+        pos = torch.stack((cells[:, 0] + 0.5, cells[:, 1] + 1.0, cells[:, 2] + 0.5), -1).to(torch.float64)
+        course = torch.arange(len(cs))
+        sc = Scene(pool, RouteTables(pool), course, pos, cells, PlannerConfig(), keep_blocked=True)
+        here, target = sc.token_of(torch.tensor(ks)), sc.token_of(torch.tensor(ks) + 1)
+        excluded = torch.zeros(len(cs), sc.kt, dtype=torch.bool)
+        excluded[course, here] = True
+        ok, *_ = sc.options(here, excluded)
+        self.assertEqual((ok[course, target].tolist(), sc.blocked[course, target].tolist(), sc.walled[course, target].tolist()),
+                         ([True] * 3, [True] * 3, [False] * 3))
+        keep = self.routed(cs, "keep")
+        plan = self.routed(cs, "plan", AssistConfig(samples=64, iterations=3))
+        self.assertEqual(plan["events"], [])
+        self.assertEqual([c["success"] for c in plan["per_course"]], keep["per_course"]["success"])
+        self.assertEqual(plan["decisions"], keep["events"])
 
     def test_plans_land_as_searched_and_only_the_neos_are_planned(self):
         cs = neo_courses([0, 1, 2, 3, 41])
@@ -194,8 +225,11 @@ class RouteNeoSimulator(Shared):
 @unittest.skipUnless(NODE.exists(), "portable Node runtime not installed (run setup.cmd)")
 class RouteNeoBotParity(Shared):
     def test_offline_bot_with_planner_service_plays_like_the_simulator(self):
-        res, bot = self.check(AssistConfig(samples=256, iterations=8, restarts=1), neo_courses([1, 2, 3, 12, 33]))
+        # Five single-neo courses (their neos planned) and three standard ones whose blocked choices are no neos.
+        res, bot = self.check(AssistConfig(samples=256, iterations=8, restarts=1),
+                              neo_courses([1, 2, 3, 12, 33]) + standard_courses([311, 818, 1346]))
         self.assertGreater(sum(x["played"] for x in bot), 0)
+        self.assertEqual({e["course"] for e in res["events"]}, {0, 1, 2, 3, 4})
 
     def test_same_with_brakes_and_retries(self):
         res, bot = self.check(AssistConfig(samples=16, iterations=1, retries=1, brake=14, retry_horizon=48),

@@ -33,8 +33,9 @@ the planner's own rule) or by the route policy's argmax with the chosen platform
 ``RouteConfig.blocked`` (opt-in) says what happens to a platform whose straight flight path from the
 platform planned from passes through blocks (``path_clear``): ``"drop"`` (the default, the planner's
 rule) leaves it out; ``"keep"`` makes it selectable like any other, with its head-hitter flag; with
-``"plan"`` it is also selectable, and a chosen one is a neo: ``parkour.route_neo`` plans that jump with
-the neo planner instead of the jumper.
+``"plan"`` it is also selectable, and a chosen one whose path is blocked by a block that is no part of
+a platform in view (``wall_blocked``: a wall, pillar or beam, as ``neo_dagger.neo_takeoffs`` counts
+them) is a neo: ``parkour.route_neo`` plans that jump with the neo planner instead of the jumper.
 """
 from __future__ import annotations
 
@@ -65,7 +66,7 @@ class RouteConfig:
     fill: str = "greedy"  # how slots 2 and 3 are filled: "greedy" (the planner's rule) or "policy"
     mark_passed: bool = True  # landing beyond the plan's next platform marks the ones skipped as passed
     # Platforms whose straight path is blocked: "drop" (the planner's clear_path rule), "keep" (selectable, head-hitter
-    # flags kept), "plan" (as keep; a chosen one is planned by the neo planner, parkour.route_neo).
+    # flags kept), "plan" (as keep; a chosen one blocked by a wall, not a platform, is planned: parkour.route_neo).
     blocked: str = "drop"
 
     def __post_init__(self):
@@ -215,10 +216,51 @@ def path_clear(world: physics.World, course: torch.Tensor, a: torch.Tensor, b: t
     return out & ~(blocked.any(-1) & check), above.any(-1) & check
 
 
+def wall_blocked(world: physics.World, course: torch.Tensor, a: torch.Tensor, rects: torch.Tensor, inview: torch.Tensor,
+                 check: torch.Tensor) -> torch.Tensor:
+    """For the pairs in ``check`` (M, K): whether a block that ``path_clear`` finds on the straight path from rect a
+    (M, 1, 5) to ``rects`` (M, K, 5) is no part of a platform in view (``rects`` where ``inview``, at its own height):
+    a wall, pillar or beam, the blocks ``neo_dagger.neo_takeoffs`` counts on the course list, not another platform."""
+    out = torch.zeros_like(check)
+    mi, ki = torch.nonzero(check, as_tuple=True)
+    if mi.numel() == 0:
+        return out
+    fa, fb = a[mi, 0], rects[mi, ki]  # (B, 5)
+    ac, bc = centres(fa), centres(fb)
+    ddx, ddz = bc[:, 0] - ac[:, 0], bc[:, 2] - ac[:, 2]
+    n = torch.clamp(torch.ceil(torch.sqrt(ddx * ddx + ddz * ddz) / 0.25), min=1).to(torch.int64)
+    nmax = int(n.max())
+    if nmax <= 1:
+        return out
+    k = torch.arange(1, nmax, device=check.device, dtype=torch.int64)
+    t = k.to(torch.float64)[None, :] / n.to(torch.float64)[:, None]  # (B, P), as path_clear
+    x = torch.floor(ac[:, 0:1] + t * (bc[:, 0:1] - ac[:, 0:1])).to(torch.int64)
+    z = torch.floor(ac[:, 2:3] + t * (bc[:, 2:3] - ac[:, 2:3])).to(torch.int64)
+
+    def inside(r):
+        return (r[:, 0:1] <= x) & (x <= r[:, 1:2]) & (r[:, 2:3] <= z) & (z <= r[:, 3:4])
+    live = (k[None, :] < n[:, None]) & ~inside(fa) & ~inside(fb)
+    y0 = torch.minimum(fa[:, 4], fb[:, 4]) + 1
+    y1 = torch.maximum(fa[:, 4], fb[:, 4]) + 2
+    r, v = rects[mi][:, None], inview[mi][:, None]  # (B, 1, T, 5), (B, 1, T)
+    xe, ze = x[..., None], z[..., None]
+    cidx = course[mi][:, None].expand_as(x)
+    wall = torch.zeros(len(mi), dtype=torch.bool, device=check.device)
+    for j in range(5):
+        y = (y0 + j)[:, None].expand_as(x)
+        solid = live & (y <= y1[:, None]) & world.lookup(cidx, x, y, z)
+        plat = (v & (r[..., 4] == y[..., None]) & (r[..., 0] <= xe) & (xe <= r[..., 1]) & (r[..., 2] <= ze)
+                & (ze <= r[..., 3])).any(-1)
+        wall |= (solid & ~plat).any(-1)
+    out[mi, ki] = wall
+    return out
+
+
 class Scene:
     """The platforms in view of M deciding rows, in the planner's scan order. ``keep_blocked``
     (``RouteConfig.blocked`` "keep" or "plan"): a platform whose straight path is blocked stays
-    selectable; ``options`` flags it in ``self.blocked``."""
+    selectable; ``options`` flags it in ``self.blocked``, and in ``self.walled`` if a block in the way
+    is no part of a platform in view (``wall_blocked``: a neo)."""
 
     def __init__(self, pool: CoursePool, tables: RouteTables, course: torch.Tensor, pos: torch.Tensor,
                  cell: torch.Tensor, cfg: PlannerConfig, keep_blocked: bool = False):
@@ -286,10 +328,12 @@ class Scene:
         ok[ar, frm] = False
         head = torch.zeros_like(ok)
         self.blocked = torch.zeros_like(ok)
+        self.walled = torch.zeros_like(ok)
         if cfg.clear_path:
             clear, head = path_clear(self.pool.world, self.course, f, self.rect, ok)
             if self.keep_blocked:
                 self.blocked = ok & ~clear
+                self.walled = wall_blocked(self.pool.world, self.course, f, self.rect, self.inview, self.blocked)
             else:
                 ok = ok & clear
         fc, pc = centres(f), centres(self.rect)
@@ -527,7 +571,7 @@ class RouteRunner:
         chain = torch.zeros_like(excluded)
         feats, ok, cost = sc.tokens(here, here, excluded, visited, chain, 0, prog,
                                     (env.state.pos[rows], env.state.vel[rows]), timing)
-        blocked = sc.blocked  # from ``here`` (the fill below recomputes it from the chosen platforms)
+        blocked, walled = sc.blocked, sc.walled  # from ``here`` (the fill below recomputes them from the chosen platforms)
         any_ok = ok.any(1)
         out = None
         if choose is None:
@@ -578,7 +622,7 @@ class RouteRunner:
         self.G[rows, 1:] = sc.is_goal[ar[:, None], pc] & pv
         return {"rows": rows, "feats": feats, "ok": ok, "inview": sc.inview, "action": act, "any_ok": any_ok,
                 "out": out, "cidx": sc.cidx, "here": here, "picks": picks, "rect": sc.rect,
-                "blocked": blocked[ar, act.clamp(min=0)] & (act >= 0)}
+                "blocked": blocked[ar, act.clamp(min=0)] & (act >= 0), "walled": walled[ar, act.clamp(min=0)] & (act >= 0)}
 
     def observe(self) -> torch.Tensor:
         env = self.env
