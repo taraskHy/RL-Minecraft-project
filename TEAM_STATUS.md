@@ -36,6 +36,12 @@ that does everything, and then a clear conclusion and presentation.
   autonomous Claude agent works from a fresh clone): RL routing, a learned
   policy that picks the next platform without the course list and beats the
   greedy planner. The brief is [docs/MISSION_ROUTING.md](docs/MISSION_ROUTING.md).
+  **Done and merged (30 Oct, pull request #2):** the learned router, with the
+  final policy jumping, completes 97.83% of the standard and 95.00% of the
+  obstacle test courses (simulator, played once), against the greedy
+  planner's 92.33% and 90.50%; in real Minecraft 57/60 and 56/60 against
+  51/60 and 56/60, the same outcomes as the simulator, 0 server corrections
+  (`results/routing/README.md`).
 
 **How we coordinate.** Only the main session on Ethan's PC edits `main`. The
 friend's agent pushes only its own branch `routing/<name>` and opens a pull

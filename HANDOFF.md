@@ -43,6 +43,17 @@ anyone.
   policy that picks the next platform without the course list and beats the
   greedy planner. Everything it needs is in
   [docs/MISSION_ROUTING.md](docs/MISSION_ROUTING.md).
+- **Routing result (pull request #2, merged into `main` on GitHub on 30 Oct
+  at 04:02 by `taraskHy`; in this checkout from `5ddbdc2`):** a learned
+  router (`results/routing/router_policy.pt`, run `route-full-f` iteration
+  29, chosen on validation) picks the next platform without the course list,
+  and the unchanged final policy jumps. Test, played once, simulator: 97.83%
+  standard and 95.00% with obstacles, against the greedy planner's 92.33% and
+  90.50% (with the course list: 98.42% and 95.25%). Real Minecraft: 57/60 and
+  56/60, against the planner's 51/60 and 56/60, outcomes as in the simulator,
+  0 server corrections. Details: `results/routing/README.md`. Its changes
+  outside `results/routing/` are opt-in (`parkour.live --router`,
+  `bridge/router.js`, `parkour/route_*.py`, `tests/test_route.py`).
 
 **How we coordinate.**
 
@@ -1159,18 +1170,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `61a833e` (2026-10-30 03:25, branch `main`): Planner: plan_start searches the start state too; kept on validation (292 vs 265)
+Generated on top of commit `5ddbdc2` (2026-10-30 05:00, branch `main`): Merge remote-tracking branch 'origin/main' (routing PR #2, merged on GitHub at 04:02)
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 8 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 20 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `1a16df0` 2026-10-29 14:14 | 24 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 192 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 175 |
-| `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | updated together with this snapshot | 0 |
+| `README.md` | `1a16df0` 2026-10-29 14:14 | 36 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 204 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 187 |
+| `results/README.md` | `70a6ee0` 2026-10-30 04:59 | 11 |
+| `results/DATA.md` | `70a6ee0` 2026-10-30 04:59 | 11 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -1375,7 +1386,7 @@ At the end of a session, or after each result:
 
 ## Session log
 
-- **30 Oct 2026, 05:00, Claude (Claude Code, training PC):** the planner's first-jump fix (Ethan: "Yes, fix it"): `plan_start` (opt-in; the searches also run on the start state, before the first action; Python and the bots), rules fixed at 02:31. Validation from the bots' settled start: 292 of 320 with it, 265 without (the simulator's own start: 286), so it is kept (`61a833e`); an independent review found two real defects in the replay-page builder, fixed (the page rebuilds byte for byte). On the 64 test courses, played once: offline 55 (= its simulator re-run; course 10 now plans its first jump), real Minecraft 54 with 2 server corrections (before: 58, 0), both at the corner of a neo's wall, where prismarine-physics moves x before z and the game the larger component first (section 4, problem 9). The results page now says where the never-trained-block courses failed (Ethan): 32 of 33 landings on the new blocks. Next: Ethan's call on problem 9.
+- **30 Oct 2026, 05:00, Claude (Claude Code, training PC):** the planner's first-jump fix (Ethan: "Yes, fix it"): `plan_start` (opt-in; the searches also run on the start state, before the first action; Python and the bots), rules fixed at 02:31. Validation from the bots' settled start: 292 of 320 with it, 265 without (the simulator's own start: 286), so it is kept (`61a833e`); an independent review found two real defects in the replay-page builder, fixed (the page rebuilds byte for byte). On the 64 test courses, played once: offline 55 (= its simulator re-run; course 10 now plans its first jump), real Minecraft 54 with 2 server corrections (before: 58, 0), both at the corner of a neo's wall, where prismarine-physics moves x before z and the game the larger component first (section 4, problem 9). The results page now says where the never-trained-block courses failed (Ethan): 32 of 33 landings on the new blocks. Merged `origin/main`, which holds the routing pull request #2 (merged on GitHub at 04:02; the learned router 97.83% / 95.00% on test against the planner's 92.33% / 90.50%; section "Team split"). Next: Ethan's call on problem 9.
 - **30 Oct 2026, 00:00, Claude (Claude Code, training PC):** the skill gate built, reviewed, merged (`6946602`) and trained (`gate-r1`): validation 87.75% against 86.98%, so it replaces the one network in the simulator; tested once 86.80% against 86.45%, a match; the first expert swap is not kept. Single neos: the bots reproduce the simulator from the same start on the first 64 test courses, offline and in real Minecraft (planner 58/64, policy alone 26/64, 0 corrections). The replay page now holds 89 courses in 210 recordings: the one-neo courses with the planner (13/16, every completion did its neo) and the one network (7/16), and the never-trained shapes (6/8); results page version 17. GPU watchdog restarted from the merged code. Next: a fix for the settled-start first jump in the planner (to be chosen on validation), and whatever the user asks next.
 - **29 Oct 2026, 22:50, Claude (Claude Code, training PC):** single neos at 85%: the sets (families 40/41), the strict metric and the planner levers merged (`031d7c3`); on validation the final policy with the planner and 3 search restarts reaches 286 of 320 (89.4%, levers stopped by the 89% rule); the test, played once, 276 of 320 (86.25%): the goal is met under the pre-registered rule, narrowly (caveats and an independent audit in section 3). Follow-up rounds (head hitters and slime, neos in the one network, one more neo round) not kept; gate headroom measured (per-course ceiling +7.1, mostly chance; the gate gets built, with swappable experts). Replays of every new skill and block type, offline and in real Minecraft (59/65 as the simulator; carpets needed a structure void in real Minecraft, `bridge/parkour_bot.js`), on the results page (version 15); the CPU cap of 85% (AGENTS.md). Next: the bot check of the single-neo test courses, the gate's training on the GPU, the one-neo and untrained-shape replays on the page.
 - **29 Oct 2026, 17:00, Claude (Claude Code, training PC):** `combined-distill` and `combined-union` finished and were tested once; `combined-distill` won on validation (87.0% vs 84.7% over the four groups) and is shipped as `results/combined_policy.*` (`scripts/export_combined.py`). Per-group test comparison with every specialist (`results/skills/combined_test_comparison.json`, `scripts/combined_compare.py`): the specialists' existing test rows reused, only the pairs never tested played once (`results/skills/test_matrix_*.json`), except the final policy's 600 standard courses at extra levels 9-11, first played on 28 Oct (`results/extra/course_preview_family1.json`) and replayed with identical results. The margins over the best specialist (+2.9, +1.1) are about 1.5 and 1.1 standard errors of one test: a match, not a win (an independent check corrected the page and these files to say so, and "three specialists", not five). Started `skills-hh-ft` (head hitters and slime, section 3) from it; collected the neo DAgger demonstrations from it (`runs/neo_dagger_c1.pt`); the round itself is held for the new top priority, single neos at 85% (section 3). Skill-gate headroom script ready (`scripts/gate_headroom.py`, run after the fine-tunes). Report run; results page version 9. Next: the single-neo sets, baselines and failure analysis.
