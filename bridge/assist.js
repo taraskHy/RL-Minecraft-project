@@ -4,7 +4,8 @@
 // for a plan; the bot pauses, the Python planner service searches an action sequence from the
 // bot's exact state with the simulator, the bot checks the sequence with prismarine-physics on its
 // own world, and plays it; then the policy plays on. Assist mirrors the trigger rules of
-// evaluate_assisted (tests/test_neo_assist.py checks the offline bot against the simulator).
+// evaluate_assisted (tests/test_neo_assist.py checks the offline bot against the simulator); the
+// rules run after every tick, and with "plan_start": 1 also on the start state, before the first action.
 
 const { spawn } = require('child_process')
 const readline = require('readline')
@@ -16,7 +17,7 @@ const YAW_STEPS_DEG = [-20.0, -6.0, -1.5, 0.0, 1.5, 6.0, 20.0]
 
 // AssistConfig's defaults (parkour/neo_assist.py) for the fields the trigger rules read, so a partial
 // --assist JSON behaves as in Python (tests/test_neo_assist.py checks they agree).
-const DEFAULTS = { horizon: 32, retry_horizon: 0, retries: 0, retry_every: 10, approach: 0, brake: 0 }
+const DEFAULTS = { horizon: 32, retry_horizon: 0, retries: 0, retry_every: 10, approach: 0, brake: 0, plan_start: 0 }
 
 // When to plan, per episode: AssistConfig fields (snake_case, as parkour/neo_assist.py writes them).
 // targets[i]: the platform a plan from takeoffs[i] ends on (neo_assist.plan_target; default the next one);

@@ -483,6 +483,43 @@ done; `results/neo/assist_validation.jsonl`, per course in
   (no settling) planned every first jump. 7 of the 64 courses have the neo
   as their first jump. A fix is a change to the planner (Python and the
   bots), to be chosen on validation, not tuning on the test.
+- **The fix, rules fixed 30 Oct, 02:31, before any run of it (Ethan: "Yes,
+  fix it"):** an opt-in `plan_start` (`AssistConfig`, `--plan-start 1`; the
+  bots get it with the rest of the config): the searches also run on the
+  start state, before the first tick's action, as they run after every
+  tick. The simulator's own start is in the air (no settling), where it
+  changes nothing, so the scored simulator results stand as they are (a
+  test checks it). Validation, family 40, the chosen setting (V3b) from the
+  bots' start (`--settle 10`, as `parkour.live`'s re-run), simulator, CPU:
+  run A without `plan_start`, run B with it. B is kept, and the bots use
+  it, if its strict count is at least A's. If kept: the offline bot, then
+  real Minecraft, on the same 64 test courses as before
+  (`results/games/single41-first64-courses.json`), once, with B; the gate
+  is parity with `parkour.live`'s re-run, as before; reported next to the
+  earlier 58 of 64. Nothing is tuned on the test.
+- **Validation of the fix (simulator, CPU, family 40, from the bots' start
+  `--settle 10`; `results/neo/assist_validation.jsonl`, per course in
+  `results/neo/assist_details/single40-v3b-settle10*.json`):** run A
+  (V3b's setting) 265 of 320 (82.8%); run B (with `plan_start`) 292
+  (91.25%). **B is kept by the rule: the bots use `plan_start` from now
+  on.** From the standing start the policy's first action is a jump on 24
+  courses (7 of them the neo): A completes 18 of them, B 21. The other 24 of
+  the 27 courses gained have a first action without a jump; there A's first
+  search ran one tick later, after that action, mostly a sprint with a 20°
+  turn (166 courses: A 135, B 156). Why that costs neo searches further on
+  is not established: A's extra failures are neo searches that found
+  nothing after three restarts and the retry, at every neo position. The
+  simulator's own start also plays the policy before its first search (the
+  bot lands a few ticks after the spawn), yet V3b reaches 286. A differs
+  from V3b one-sidedly (35 courses only V3b, 14 only A), B about evenly
+  (22 only B, 16 only V3b): B is level with V3b within noise, and A is
+  below both. Every plan played landed as planned (A 2,866, B 3,043). The
+  review (three reviewers, each finding checked) found that the new field
+  broke the rebuild of the replay page (`scripts/make_skill_replays.py`
+  compared the recorded config key by key, and its row lookup did not skip
+  settled rows); fixed, and the page rebuilds byte for byte. The test suite
+  passes with CUDA hidden. Next, as fixed: the offline bot, then real
+  Minecraft, on the 64 test courses.
 
 **Queued after the combined runs (requested 29 Oct via the side chat): a
 head-hitter and slime fine-tune.** Rules fixed before any combined result:

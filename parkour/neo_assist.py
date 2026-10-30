@@ -37,6 +37,15 @@ if it stands on the neo's takeoff before it lands on the neo's target. They
 act in ``plan_once``, so the bots' planner service uses them too (they need
 ``--batch 1``). Rows list them in their config only when they are set.
 
+The searches run after each tick's step, so the first action comes from the
+start state unsearched. The simulator's start is in the air, and the bot
+lands before it can jump; the bots first stand 10 ticks on the start block
+(``parkour.live.SETTLE_TICKS``; ``--settle 10`` starts the same way here),
+and a first action that jumps is then the policy's own. With
+``--plan-start 1`` the searches also run on the start state, before the
+first tick's action (opt-in; from the simulator's own start it changes
+nothing, since the bot is not yet on the ground).
+
 Every course's record says whether the bot did its neos as neos
 (``neo_done``): it stood on each neo's takeoff before on any later platform,
 then on the neo's target before on any later one, so a jump past the takeoff,
@@ -129,9 +138,11 @@ class AssistConfig:
     neo_samples: int = 0  # >0: replaces samples there
     neo_iterations: int = 0  # >0: replaces iterations there
     approach_touch: int = 0  # 1: an approach plan counts only if it stands on the neo's takeoff before it lands
+    plan_start: int = 0  # 1: the searches also run on the start state, before the first tick's action
 
 
 NEO_LEVERS = ("restarts", "neo_samples", "neo_iterations", "approach_touch")
+OPTIONAL = NEO_LEVERS + ("plan_start",)  # the fields a row's config lists only when they are set
 KIND_CODE = {"takeoff": 0, "retry": 1, "approach": 2}
 
 
@@ -142,9 +153,9 @@ def request_seed(seed: int, course: int, cp: int, kind: str, attempt: int, resta
 
 
 def config_meta(cfg: "AssistConfig") -> dict:
-    """The config a run's row records: every field, the neo levers only when set (rows from before they existed,
-    and the cached parts of split runs, stay valid)."""
-    return {k: v for k, v in asdict(cfg).items() if k not in NEO_LEVERS or v}
+    """The config a run's row records: every field, the neo levers and ``plan_start`` only when set (rows from before
+    they existed, and the cached parts of split runs, stay valid)."""
+    return {k: v for k, v in asdict(cfg).items() if k not in OPTIONAL or v}
 
 
 def neo_request(course: C.Course, cp: int, kind: str) -> bool:
@@ -633,7 +644,9 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
     are seeded and events numbered by that index, as in one run over the whole set. ``neo_done`` per course:
     every neo was done as a neo, the checkpoint (the furthest platform stood on) took the value of its takeoff
     and then of its target, so the bot stood on the takeoff before on any later platform and then on the target
-    before on any later one.
+    before on any later one. ``settle``: ticks without keys on the start block first (the bots' start,
+    ``parkour.live.SETTLE_TICKS``); a bot on the ground there is searched from before its first action only with
+    ``cfg.plan_start``.
     """
     n = pool.size
     if cfg.enabled and cfg.prior > 0:
@@ -686,7 +699,93 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
     events = []  # one per search: course, kind, takeoff, target, tick, after_plan (a plan or brake ended this tick), ...
     plans = {"played": 0, "landed_as_planned": 0, "brakes": 0}
     search_seconds = 0.0
+
+    def searches(t: int, cp: torch.Tensor, on: torch.Tensor, ended: torch.Tensor, retry_now: torch.Tensor) -> None:
+        """The searches the rules call for after tick t's step (t = -1: the start state, ``plan_start``); a plan
+        found is played from the next tick on."""
+        nonlocal search_seconds
+        n_try = tries[rows, cp]
+        for kind in ("approach", "takeoff", "retry"):  # an approach first; without its plan, the takeoff's own
+            free = on & (plan_pos >= plan_len)  # search in the same tick (the bots do the same)
+            if kind == "approach":
+                mask = free & before[rows, cp] & ~tried_before[rows, cp] if cfg.approach else None
+            elif kind == "takeoff":
+                mask = free & plan_at[rows, cp] & (n_try == 0)
+            else:
+                mask = (free & plan_at[rows, cp] & (n_try > 0) & (n_try <= cfg.retries)
+                        & ((t - last_try >= cfg.retry_every) | retry_now) & (env.stall + retry_h[rows, cp] < stall_ticks))
+            want = [] if mask is None else torch.nonzero(mask).flatten().tolist()
+            if not want:
+                continue
+            t0 = time.time()
+            arrivals = [dict(_arrival(env, i), seed_course=course_offset + i) for i in want]
+            horizon = []
+            for i, arr in zip(want, arrivals):
+                k = arr["cp"] + 1 if kind == "approach" else arr["cp"]
+                arr["target"] = plan_target(pool.courses[i], k)
+                horizon.append(plan_horizon(pool.courses[i], k, kind, cfg))
+            found, rounds, restarts = [], [], []
+            if cfg.batch <= 1:
+                for i, arr, h in zip(want, arrivals, horizon):
+                    attempt = 0 if kind == "approach" else int(tries[i, int(cp[i])])
+                    seq, r, rs = plan_once(model, pool, rules, arr, kind, attempt, cfg, h, device)
+                    found.append([] if seq is None else [seq])
+                    rounds.append(r)
+                    restarts.append(rs)
+            else:  # searches batched per tick (faster on a GPU); the bots cannot reproduce these seeds
+                found, rounds = [None] * len(arrivals), [None] * len(arrivals)
+                for h in sorted(set(horizon)):
+                    idx = [j for j, hj in enumerate(horizon) if hj == h]
+                    for b in range(0, len(idx), cfg.batch):
+                        part = idx[b:b + cfg.batch]
+                        arr_b = [arrivals[j] for j in part]
+                        pr = policy_prior(model, pool, arr_b, device, h) if cfg.prior > 0 else None
+                        seed = cfg.seed + 1009 * t + b if h == hz[kind] else cfg.seed + 1009 * t + b + 7919 * h
+                        f, r = search(pool, rules, arr_b, device, cfg, seed, pr, h)
+                        for j, fj, rj in zip(part, f, r):
+                            found[j], rounds[j] = fj, rj
+            dt = time.time() - t0
+            search_seconds += dt
+            for j, i in enumerate(want):
+                c = int(cp[i])
+                k = c + 1 if kind == "approach" else c
+                events.append({"course": course_offset + i, "kind": kind, "takeoff": k, "target": arrivals[j]["target"],
+                               "tick": t + 1,
+                               "after_plan": bool(ended[i]), "found": bool(found[j]),
+                               "plan_ticks": len(found[j][0]) if found[j] else 0, "rounds": rounds[j], "braked": False})
+                if cfg.restarts:  # searches again after none landed (all rounds above count)
+                    events[-1]["restarts"] = restarts[j]
+                if kind == "approach":
+                    tried_before[i, c] = True
+                else:
+                    tries[i, c] += 1
+                    last_try[i] = t
+                if found[j]:
+                    seq = torch.as_tensor(found[j][0], dtype=torch.int64, device=device)
+                    plan[i, :len(seq)] = seq
+                    plan_len[i] = len(seq)
+                    plan_pos[i] = 0
+                    plan_t[i] = arrivals[j]["target"]
+                elif cfg.brake and kind != "approach" and int(tries[i, c]) <= cfg.retries:
+                    seq = brake_plan(pool, rules, arrivals[j], cfg.brake, device)
+                    if seq is not None:
+                        plan[i, :len(seq)] = torch.as_tensor(seq, device=device)
+                        plan_len[i] = len(seq)
+                        plan_pos[i] = 0
+                        braking[i] = True
+                        plans["brakes"] += 1
+                        events[-1]["braked"] = True
+            if log:
+                log({"tick": t + 1, "kind": kind, "searched": len(want), "found": sum(bool(f) for f in found),
+                     "seconds": round(dt, 1), "unfinished": int((~finished).sum())})
+
     with torch.no_grad():
+        if cfg.enabled and cfg.plan_start:  # a start on the ground (settled): its searches before the first action
+            on = env.state.on_ground.clone()
+            for i in torch.nonzero(on & neo[rows, env.cp]).flatten().tolist():
+                reached[i].add(int(env.cp[i]))
+            none = torch.zeros(n, dtype=torch.bool, device=device)
+            searches(-1, env.cp, on, none, none)
         for t in range(max_ticks):
             a, _, _ = model.act(obs, deterministic=True)
             active = plan_pos < plan_len
@@ -720,80 +819,7 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
                 if t % 25 == 0 and bool(finished.all()):
                     break
                 continue
-            n_try = tries[rows, cp]
-            for kind in ("approach", "takeoff", "retry"):  # an approach first; without its plan, the takeoff's own
-                free = on & (plan_pos >= plan_len)  # search in the same tick (the bots do the same)
-                if kind == "approach":
-                    mask = free & before[rows, cp] & ~tried_before[rows, cp] if cfg.approach else None
-                elif kind == "takeoff":
-                    mask = free & plan_at[rows, cp] & (n_try == 0)
-                else:
-                    mask = (free & plan_at[rows, cp] & (n_try > 0) & (n_try <= cfg.retries)
-                            & ((t - last_try >= cfg.retry_every) | retry_now) & (env.stall + retry_h[rows, cp] < stall_ticks))
-                want = [] if mask is None else torch.nonzero(mask).flatten().tolist()
-                if not want:
-                    continue
-                t0 = time.time()
-                arrivals = [dict(_arrival(env, i), seed_course=course_offset + i) for i in want]
-                horizon = []
-                for i, arr in zip(want, arrivals):
-                    k = arr["cp"] + 1 if kind == "approach" else arr["cp"]
-                    arr["target"] = plan_target(pool.courses[i], k)
-                    horizon.append(plan_horizon(pool.courses[i], k, kind, cfg))
-                found, rounds, restarts = [], [], []
-                if cfg.batch <= 1:
-                    for i, arr, h in zip(want, arrivals, horizon):
-                        attempt = 0 if kind == "approach" else int(tries[i, int(cp[i])])
-                        seq, r, rs = plan_once(model, pool, rules, arr, kind, attempt, cfg, h, device)
-                        found.append([] if seq is None else [seq])
-                        rounds.append(r)
-                        restarts.append(rs)
-                else:  # searches batched per tick (faster on a GPU); the bots cannot reproduce these seeds
-                    found, rounds = [None] * len(arrivals), [None] * len(arrivals)
-                    for h in sorted(set(horizon)):
-                        idx = [j for j, hj in enumerate(horizon) if hj == h]
-                        for b in range(0, len(idx), cfg.batch):
-                            part = idx[b:b + cfg.batch]
-                            arr_b = [arrivals[j] for j in part]
-                            pr = policy_prior(model, pool, arr_b, device, h) if cfg.prior > 0 else None
-                            seed = cfg.seed + 1009 * t + b if h == hz[kind] else cfg.seed + 1009 * t + b + 7919 * h
-                            f, r = search(pool, rules, arr_b, device, cfg, seed, pr, h)
-                            for j, fj, rj in zip(part, f, r):
-                                found[j], rounds[j] = fj, rj
-                dt = time.time() - t0
-                search_seconds += dt
-                for j, i in enumerate(want):
-                    c = int(cp[i])
-                    k = c + 1 if kind == "approach" else c
-                    events.append({"course": course_offset + i, "kind": kind, "takeoff": k, "target": arrivals[j]["target"],
-                                   "tick": t + 1,
-                                   "after_plan": bool(ended[i]), "found": bool(found[j]),
-                                   "plan_ticks": len(found[j][0]) if found[j] else 0, "rounds": rounds[j], "braked": False})
-                    if cfg.restarts:  # searches again after none landed (all rounds above count)
-                        events[-1]["restarts"] = restarts[j]
-                    if kind == "approach":
-                        tried_before[i, c] = True
-                    else:
-                        tries[i, c] += 1
-                        last_try[i] = t
-                    if found[j]:
-                        seq = torch.as_tensor(found[j][0], dtype=torch.int64, device=device)
-                        plan[i, :len(seq)] = seq
-                        plan_len[i] = len(seq)
-                        plan_pos[i] = 0
-                        plan_t[i] = arrivals[j]["target"]
-                    elif cfg.brake and kind != "approach" and int(tries[i, c]) <= cfg.retries:
-                        seq = brake_plan(pool, rules, arrivals[j], cfg.brake, device)
-                        if seq is not None:
-                            plan[i, :len(seq)] = torch.as_tensor(seq, device=device)
-                            plan_len[i] = len(seq)
-                            plan_pos[i] = 0
-                            braking[i] = True
-                            plans["brakes"] += 1
-                            events[-1]["braked"] = True
-                if log:
-                    log({"tick": t + 1, "kind": kind, "searched": len(want), "found": sum(bool(f) for f in found),
-                         "seconds": round(dt, 1), "unfinished": int((~finished).sum())})
+            searches(t, cp, on, ended, retry_now)
             if t % 25 == 0 and bool(finished.all()):
                 break
     lv = pool.level.cpu().numpy()
@@ -942,6 +968,8 @@ def _part_command(a, k: int, n: int) -> list[str]:
         cmd.append("--off")
     if a.courses:
         cmd += ["--courses", str(a.courses)]
+    if a.settle:
+        cmd += ["--settle", str(a.settle)]
     if a.device:
         cmd += ["--device", a.device]
     for key in asdict(AssistConfig()):
@@ -1012,6 +1040,8 @@ def main(argv=None):
     ap.add_argument("--family", type=int, default=VALIDATION_FAMILY)
     ap.add_argument("--off", action="store_true", help="the policy alone, for comparison")
     ap.add_argument("--courses", type=int, default=0, help="only the first N courses (quick checks)")
+    ap.add_argument("--settle", type=int, default=0, help="ticks without keys on the start block first, as the bots "
+                                                          "start (parkour.live.SETTLE_TICKS, 10); in the row only when set")
     ap.add_argument("--threads", type=int, default=0)
     ap.add_argument("--out", default="")
     ap.add_argument("--tag", default="")
@@ -1083,6 +1113,8 @@ def _evaluate_cli(a, cfg, dev):
             "measured": f"simulator (float64 port of prismarine-physics), {dev.upper() if dev == 'cpu' else 'CUDA'}"}
     if a.courses:
         meta["first_courses_only"] = a.courses
+    if a.settle:
+        meta["settle"] = a.settle
     if a.part or a.parts:
         meta['courses_sha256'] = hashlib.sha256(json.dumps([c.to_json() for c in courses], sort_keys=True).encode()).hexdigest()
     if a.parts:
@@ -1116,7 +1148,8 @@ def _evaluate_cli(a, cfg, dev):
             raise SystemExit('Checkpoint changed while loading; use an immutable checkpoint copy')
         pool = CoursePool(courses[lo:hi], dev, C.GRID)
         t0 = time.time()
-        res = evaluate_assisted(model, pool, dev, cfg, log=lambda d: print(json.dumps(d), flush=True), course_offset=lo)
+        res = evaluate_assisted(model, pool, dev, cfg, settle=a.settle, log=lambda d: print(json.dumps(d), flush=True),
+                                course_offset=lo)
         if a.part:
             part_file.parent.mkdir(parents=True, exist_ok=True)
             write_json_atomic(part_file, {"meta": meta, "courses": [lo, hi], **res, "seconds": round(time.time() - t0, 1)})

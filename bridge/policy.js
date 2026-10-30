@@ -352,20 +352,23 @@ class Episode {
       }
       if (this.planner) this.planner.update(s.pos, s.onGround, this.ticks)
       if (this.memory) this.memory.update(s)
-      if (this.assist && this.queue.length === 0) {
-        const req = this.assist.request(s, this.cp, this.stall, this.ticks, this.stallLimit)
-        if (req) {
-          this.pending = { ...req, tick: this.ticks, state: s, lastAction: this.lastAction.slice() }
-          return PLAN
-        }
-      }
+      if (this.assist && this.queue.length === 0 && this._ask(s)) return PLAN
     } else {
       this.started = true
       this.init = s
       if (this.planner) this.planner.start(s.pos)
       if (this.extended) this.memory = new LandingMemory(s.pos, s.onGround)
+      // plan_start: the start state is searched from too, before the first action (the bot settled on the start block)
+      if (this.assist && this.assist.cfg.plan_start && this._ask(s)) return PLAN
     }
     return this._act(s)
+  }
+
+  // The assist's request for state s, if its rules make one: then this.pending is set and the result is true.
+  _ask (s) {
+    const req = this.assist.request(s, this.cp, this.stall, this.ticks, this.stallLimit)
+    if (req) this.pending = { ...req, tick: this.ticks, state: s, lastAction: this.lastAction.slice() }
+    return !!req
   }
 
   // After PLAN: play ``plan`` (a list of actions) or, with null, let the policy act; with no plan, a

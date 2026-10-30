@@ -861,11 +861,13 @@ def assist_setting(summaries: list) -> dict:
     planner's policy alone there, if there (each measured on this results/final_policy.pt: its sha1)."""
     from parkour.neo_assist import AssistConfig, config_meta
     cfgs = [s["assist"]["config"] for s in summaries]
-    assert all(c == cfgs[0] for c in cfgs), "the planner runs differ in their config"
-    assert cfgs[0] == asdict(AssistConfig(**{"batch": 1, **PLANNER_SETTING})), cfgs[0]
+    full = lambda c: asdict(AssistConfig(**c))  # noqa: E731  (fields added after a recording, as plan_start: their defaults)
+    assert all(full(c) == full(cfgs[0]) for c in cfgs), "the planner runs differ in their config"
+    assert full(cfgs[0]) == asdict(AssistConfig(**{"batch": 1, **PLANNER_SETTING})), cfgs[0]
     cfg = AssistConfig(**cfgs[0])
     rows = [json.loads(line) for line in (ROOT / ASSIST_VALIDATION).read_text(encoding="utf-8").splitlines() if line.strip()]
-    single = [r for r in rows if r.get("set") == "single" and r.get("split") == "validation" and r.get("checkpoint") == PLANNER_POLICY]
+    single = [r for r in rows if r.get("set") == "single" and r.get("split") == "validation" and r.get("checkpoint") == PLANNER_POLICY
+              and not r.get("settle") and not r.get("first_courses_only")]  # the simulator's own start, every course
     mine = [r for r in single if r.get("assist") and r.get("config") == config_meta(cfg)]
     alone = [r for r in single if r.get("assist") is False]
     assert len(mine) <= 1 and len(alone) <= 1, "two validation rows with the planner's setting, or of its policy alone"
