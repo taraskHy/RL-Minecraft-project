@@ -157,7 +157,7 @@ function planThenAct (ep) {
   bot.physicsEnabled = false
   const q = ep.pending
   const c = courses[courseIndex]
-  service.plan({ index: courseIndex, cp: q.cp, target: q.target, kind: q.kind, attempt: q.attempt, state: q.state, lastAction: q.lastAction })
+  service.plan(A.serviceRequest(courseIndex, q))
     .then(r => {
       const e = bot.entity
       const here = { pos: [e.position.x, e.position.y, e.position.z], vel: [e.velocity.x, e.velocity.y, e.velocity.z], yaw: e.yaw, onGround: !!e.onGround, jumpTicks: bot.jumpTicks || 0, collidedH: !!e.isCollidedHorizontally }
@@ -165,7 +165,8 @@ function planThenAct (ep) {
       const extra = (c.extra || []).map(([x, y, z]) => [x + OX, y + OY, z + OZ])
       const geom = ep.geom ? ep.geom.map(([x0, x1, z0, z1, top]) => [x0 + OX, x1 + OX, z0 + OZ, z1 + OZ, top + OY]) : null
       const world = { getBlock: p => bot.blockAt(p, false) }
-      const verified = !!r.plan && A.verifyPlan(Physics(bot.registry, world), world, here, r.plan, plats, q.cp, q.target, extra, geom)
+      const floor = q.route ? q.floor + OY : null // a router request's fall line (RouteAssist), in world coordinates
+      const verified = !!r.plan && A.verifyPlan(Physics(bot.registry, world), world, here, r.plan, plats, q.cp, q.target, extra, geom, false, floor)
       const brake = !r.plan && r.brake && A.verifyPlan(Physics(bot.registry, world), world, here, r.brake, plats, q.cp, q.cp, extra, geom, true) ? r.brake : null
       const a = ep.resume(verified ? r.plan : null, { found: !!r.plan, verified, rounds: r.rounds, seconds: r.seconds, error: r.error }, brake)
       if (a === P.PLAN) return planThenAct(ep) // a failed approach: the takeoff's own request, still frozen

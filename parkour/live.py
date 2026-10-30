@@ -117,13 +117,23 @@ def main(argv=None):
                          "--planner (no course list); --planner-config still sets the perception and jump limits")
     ap.add_argument("--router-fill", default="", choices=("", "greedy", "policy"),
                     help="slots 2 and 3 with --router (default: the router's training setting)")
+    ap.add_argument("--router-blocked", default="", choices=("", "drop", "keep", "plan"),
+                    help="with --router: platforms whose straight path is blocked (route_env.RouteConfig.blocked; default "
+                         "'plan' with --assist: the neo planner plans the router's blocked choices, parkour.route_neo; "
+                         "else 'drop', the planner's rule)")
     ap.add_argument("--fall-rule", default="local", choices=("local", "remaining"))
     ap.add_argument("--assist", default="",
                     help="JSON overrides of parkour.neo_assist.AssistConfig ('{}': defaults): the bot plans its neos "
-                         "with a Python search from its exact state, checks each plan with prismarine-physics, plays it")
+                         "with a Python search from its exact state, checks each plan with prismarine-physics, plays it; "
+                         "with --router, the router's blocked-path choices (--router-blocked plan)")
     a = ap.parse_args(argv)
     if a.router:
         a.planner = True
+        a.router_blocked = a.router_blocked or ("plan" if a.assist else "drop")
+        if (a.router_blocked == "plan") != bool(a.assist):
+            raise SystemExit("--router-blocked plan and --assist go together (the neo planner plans the blocked choices)")
+    elif a.router_blocked:
+        raise SystemExit("--router-blocked needs --router")
 
     out = Path(a.out).resolve()
     out.mkdir(parents=True, exist_ok=False)
@@ -135,14 +145,20 @@ def main(argv=None):
     course_json = [c.to_json() for c in courses]
     assist_cfg = None
     if a.assist:
-        if a.planner:
-            raise SystemExit("--assist needs the course list (not --planner)")
+        if a.planner and not a.router:
+            raise SystemExit("--assist needs the course list or the learned router (not the greedy --planner)")
         assist_cfg = AssistConfig(**{"batch": 1, **json.loads(a.assist)})
         if assist_cfg.batch != 1:
             raise SystemExit("the bots reproduce only searches with batch 1")
+        if a.router:
+            from .route_env import RouteConfig
+            from .route_neo import check_config
+            check_config(RouteConfig(blocked="plan"), assist_cfg)
         if not assist_cfg.enabled:
+            if a.router:
+                raise SystemExit('--router with an assist that is not enabled: use --router-blocked keep instead')
             assist_cfg = None
-    if assist_cfg is not None:
+    if assist_cfg is not None and not a.router:
         for c, d in zip(courses, course_json):
             d.update(assist_fields(c, assist_cfg))  # takeoffs, targets (past a slime pad: its exit), retry horizons
     (out / "courses.json").write_text(json.dumps({"courses": course_json}))
@@ -166,7 +182,8 @@ def main(argv=None):
             router = load_router(Path(a.router), dev)
             router_fill = a.router_fill or torch.load(a.router, map_location="cpu", weights_only=False)["config"].get("fill", "greedy")
             router.export(out / "router.json", {"checkpoint": str(a.router)})
-            planner_json = json.dumps({**dataclasses.asdict(planner_cfg), "router": str(out / "router.json"), "fill": router_fill})
+            planner_json = json.dumps({**dataclasses.asdict(planner_cfg), "router": str(out / "router.json"), "fill": router_fill,
+                                       **({"blocked": a.router_blocked} if a.router_blocked != "drop" else {})})
     t0 = time.time()
     if a.offline:
         subprocess.run([str(NODE), str(BRIDGE / "offline_bot.js"), "--policy", str(out / "policy.json"),
@@ -191,12 +208,22 @@ def main(argv=None):
     episodes = [json.loads(line) for line in episodes_path.read_text().splitlines() if line.strip()]
     rep = replay(courses, episodes)
     pool = CoursePool(courses, dev, C.GRID)
-    if a.router:
+    if a.router and assist_cfg is not None:  # the neo planner on the router's blocked choices, searching as the service
+        from .route_env import RouteConfig, RouteTables
+        from .route_neo import evaluate_routed_neo
+        from .route_train import router_choosers
+        choose, fill = router_choosers(router, True)
+        pc = evaluate_routed_neo(model, pool, RouteTables(pool), choose, fill, planner_cfg,
+                                 RouteConfig(fill=router_fill, blocked="plan"), assist_cfg, a.stall, settle=SETTLE_TICKS,
+                                 fall_rule=a.fall_rule)["per_course"]
+        sim = {"success": [c["success"] for c in pc], "ticks": [c["ticks"] for c in pc]}
+    elif a.router:
         from .route_env import RouteConfig, RouteTables, evaluate_routed
         from .route_train import router_choosers
         choose, fill = router_choosers(router, True)
-        sim = evaluate_routed(model, pool, RouteTables(pool), choose, fill, planner_cfg, RouteConfig(fill=router_fill),
-                              a.stall, settle=SETTLE_TICKS, fall_rule=a.fall_rule)["per_course"]
+        sim = evaluate_routed(model, pool, RouteTables(pool), choose, fill, planner_cfg,
+                              RouteConfig(fill=router_fill, blocked=a.router_blocked), a.stall, settle=SETTLE_TICKS,
+                              fall_rule=a.fall_rule)["per_course"]
     elif a.planner:
         from .planner import evaluate_planned
         sim = evaluate_planned(model, pool, dev, planner_cfg, a.stall, settle=SETTLE_TICKS, fall_rule=a.fall_rule)["per_course"]
@@ -227,6 +254,7 @@ def main(argv=None):
         "mode": "offline (prismarine-physics, no server)" if a.offline else "live (Minecraft 1.21.4 server)",
         "checkpoint": str(a.checkpoint), "courses": len(rows), "wall_seconds": round(wall, 1),
         **({"router": str(a.router), "router_fill": router_fill} if a.router else {}),
+        **({"router_blocked": a.router_blocked} if a.router and a.router_blocked != "drop" else {}),
         "success": sum(r["result"] == "success" for r in rows) / max(len(rows), 1),
         "sim_success_same_courses": sum(r["sim_success"] for r in rows) / max(len(rows), 1),
         "outcome_agreement": sum((r["result"] == "success") == r["sim_success"] for r in rows) / max(len(rows), 1),

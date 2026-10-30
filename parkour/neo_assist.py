@@ -184,8 +184,9 @@ def plan_once(model, pool: CoursePool, rules: "Rules", arrival: dict, kind: str,
     ``samples`` and ``iterations``, an approach plan must stand on the neo's takeoff before it lands
     (``approach_touch``), and while no search has landed, the search runs again from the same state with the next
     seed, up to ``restarts`` times. With ``corner_limit`` a landing whose ``corner_gap`` exceeds it counts as none
-    (``stats["corner_dropped"]`` counts them)."""
-    neo = neo_request(pool.courses[arrival["course"]], arrival["cp"], kind)
+    (``stats["corner_dropped"]`` counts them). An arrival with a ``neo`` key says itself whether the request is a neo's
+    (the router's blocked-path choices, ``parkour.route_neo``: always)."""
+    neo = arrival["neo"] if "neo" in arrival else neo_request(pool.courses[arrival["course"]], arrival["cp"], kind)
     if neo:
         cfg = replace(cfg, samples=cfg.neo_samples or cfg.samples, iterations=cfg.neo_iterations or cfg.iterations)
         if kind == "approach" and cfg.approach_touch:
@@ -571,7 +572,9 @@ def search(pool: CoursePool, rules: Rules, arrivals: list[dict], device, cfg: As
 
     An arrival may name a ``target`` platform further on than the next one
     (approach plans); the fall rule then uses the lowest top from ``cp`` to
-    the target. With a ``touch`` platform (``approach_touch``) a sequence
+    the target, or the arrival's own ``floor`` (the router's jumps,
+    ``parkour.route_neo``: the lower top of the two platforms). With a
+    ``touch`` platform (``approach_touch``) a sequence
     lands only on the target after standing on that platform; until it has,
     its distance to that platform plus 1000 is its score's distance, so the
     search looks for sequences over it. Returns (found, rounds): per arrival
@@ -584,7 +587,8 @@ def search(pool: CoursePool, rules: Rules, arrivals: list[dict], device, cfg: As
     init = _state_rows(arrivals, device)
     course = torch.tensor([a["course"] for a in arrivals], device=device)
     target = torch.tensor([a.get("target", a["cp"] + 1) for a in arrivals], device=device)
-    tops = torch.stack([pool.top[a["course"], a["cp"]:a.get("target", a["cp"] + 1) + 1].min() for a in arrivals])
+    tops = torch.stack([torch.tensor(float(a["floor"]), dtype=torch.float64, device=device) if "floor" in a else
+                        pool.top[a["course"], a["cp"]:a.get("target", a["cp"] + 1) + 1].min() for a in arrivals])
     goal = pool.centre[course, target]
     touch = None  # the platform to stand on first (-1: none), and its centre
     if any(a.get("touch", -1) >= 0 for a in arrivals):
@@ -975,7 +979,10 @@ def serve(model, courses: list[C.Course], cfg: AssistConfig, device, inp=None, o
     check dropped), "brake": the brake_plan to play before the retry when there is no
     plan and ``brake`` is set (else null), "seconds"}. The search is the one
     ``evaluate_assisted`` runs with ``batch`` 1 (``plan_once``: same seed and
-    neo levers for the same request).
+    neo levers for the same request). A request with "route": true is the
+    router's (``parkour.route_neo``: a blocked-path choice, the jump from
+    platform "cp" to "target"): it is a neo's, its fall line is its "floor",
+    and its horizon is the configured one for its kind, as there.
     """
     inp = inp or sys.stdin
     out = out or sys.stdout
@@ -995,9 +1002,13 @@ def serve(model, courses: list[C.Course], cfg: AssistConfig, device, inp=None, o
             t0 = time.time()
             k = arr["cp"] + 1 if req["kind"] == "approach" else arr["cp"]
             attempt = int(req.get("attempt", 0))
+            if req.get("route"):  # the router's blocked-path choice (route_neo.route_arrival)
+                arr.update(neo=True, floor=float(req["floor"]))
+                horizon = horizons(cfg)[req["kind"]]
+            else:
+                horizon = plan_horizon(courses[arr["course"]], k, req["kind"], cfg)
             st = {}
-            seq, rounds, restarts = plan_once(model, pool, rules, arr, req["kind"], attempt, cfg,
-                                              plan_horizon(courses[arr["course"]], k, req["kind"], cfg), device,
+            seq, rounds, restarts = plan_once(model, pool, rules, arr, req["kind"], attempt, cfg, horizon, device,
                                               **({"stats": st} if cfg.corner_limit else {}))
             brake = None
             if seq is None and cfg.brake and req["kind"] != "approach" and attempt + 1 <= cfg.retries:

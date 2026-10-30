@@ -146,8 +146,10 @@ class RouterNet {
 }
 
 // The planner's options from token ``frm`` (route_env.Scene.options): selectable flags and the
-// greedy cost, air gap, height change, cosine and head flag of every token.
+// greedy cost, air gap, height change, cosine and head flag of every token. With cfg.blocked "keep" or
+// "plan" (RouteConfig.blocked) a token whose straight path is blocked stays selectable, flagged ``blocked``.
 function options (T, frm, excluded, goal, cfg, isSolid) {
+  const keep = cfg.blocked === 'keep' || cfg.blocked === 'plan'
   const f = T[frm]; const fc = centre(f)
   const gx = goal[0] - fc[0]; const gz = goal[2] - fc[2]; const gn = norm(gx, gz)
   return T.map((p, i) => {
@@ -160,12 +162,18 @@ function options (T, frm, excluded, goal, cfg, isSolid) {
     let ok = i !== frm && !excluded[i] && dy >= cfg.dy_min && dy <= cfg.dy_max &&
       d <= (cfg.limits === 'table' ? MAX_GAP[dy] + cfg.slack : cfg.max_gap)
     let head = false
+    let blocked = false
     if (ok && cfg.clear_path) {
       const [clear, h] = pathInfo(isSolid, f, p)
-      ok = clear
-      head = h && clear
+      if (keep) {
+        blocked = !clear
+        head = h
+      } else {
+        ok = clear
+        head = h && clear
+      }
     }
-    return { ok, cost, d, dy, cos, head }
+    return { ok, cost, d, dy, cos, head, blocked }
   })
 }
 
@@ -251,6 +259,7 @@ class LearnedRouter {
     this.newTick = 0
     this.decTick = 0
     this.decisions = 0
+    this.blockedChoice = false // the last decision's first choice has a blocked path (cfg.blocked "plan": a neo)
   }
 
   start (pos, s) {
@@ -298,10 +307,11 @@ class LearnedRouter {
     excluded[here] = true
     const chain = T.map(() => false)
     const player = s ? { pos: s.pos, vel: s.vel } : { pos, vel: [0, 0, 0] }
-    const { feats, ok } = tokens(T, here, here, excluded, visited, chain, 0, this.progress, this.goal, isGoal, edge, cfg, this.isSolid, player, timing)
+    const { feats, ok, opts } = tokens(T, here, here, excluded, visited, chain, 0, this.progress, this.goal, isGoal, edge, cfg, this.isSolid, player, timing)
     const picks = []
     let prev = ok.some(v => v) ? this.net.argmax(feats, ok) : -1
     if (prev >= 0) picks.push(prev)
+    this.blockedChoice = prev >= 0 && opts[prev].blocked
     for (let depth = 1; depth <= 2 && prev >= 0 && !isGoal[prev]; depth++) {
       chain[prev] = true
       const ex = excluded.map((v, i) => v || chain[i])

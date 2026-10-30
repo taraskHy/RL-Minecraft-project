@@ -74,8 +74,9 @@ class RoutePerception(unittest.TestCase):
         self.assertEqual(bad[:3], [])
 
 
-def bot_parity(case, router_ckpt=None, fill="greedy", n=24, seed=7):
-    """The offline bot (bridge/router.js) and the Python evaluation make the same plans, outcomes and ticks."""
+def bot_parity(case, router_ckpt=None, fill="greedy", n=24, seed=7, blocked="drop", extra=()):
+    """The offline bot (bridge/router.js) and the Python evaluation make the same plans, outcomes and ticks
+    (``blocked``: RouteConfig.blocked; ``extra``: more courses after the n random ones)."""
     import dataclasses
     import json
     import os
@@ -92,6 +93,7 @@ def bot_parity(case, router_ckpt=None, fill="greedy", n=24, seed=7):
     levels = C.load_levels()
     rng = np.random.default_rng(seed)
     cs = [C.generate(rng, levels, i % len(levels), 10, obstacle_prob=0.5 if i % 2 else 0.0, seed=i) for i in range(n)]
+    cs += list(extra)
     model = load_model(root / "results" / "final_policy.pt", "cpu")
     if router_ckpt is None:
         torch.manual_seed(0)
@@ -101,7 +103,7 @@ def bot_parity(case, router_ckpt=None, fill="greedy", n=24, seed=7):
     pool = CoursePool(cs, "cpu", C.GRID)
     choose, fill_fn = router_choosers(net, True)
     with torch.no_grad():
-        py = evaluate_routed(model, pool, RouteTables(pool), choose, fill_fn, rcfg=RouteConfig(fill=fill),
+        py = evaluate_routed(model, pool, RouteTables(pool), choose, fill_fn, rcfg=RouteConfig(fill=fill, blocked=blocked),
                              settle=SETTLE_TICKS, record=True, max_ticks=3000)
     with tempfile.TemporaryDirectory() as d:
         pol, crs, out, rj = (os.path.join(d, f) for f in ("policy.json", "courses.json", "episodes.jsonl", "router.json"))
@@ -109,7 +111,8 @@ def bot_parity(case, router_ckpt=None, fill="greedy", n=24, seed=7):
         net.export(rj)
         with open(crs, "w") as f:
             json.dump({"courses": [c.to_json() for c in cs]}, f)
-        cfg = {**dataclasses.asdict(P.PlannerConfig()), "router": rj, "fill": fill}
+        cfg = {**dataclasses.asdict(P.PlannerConfig()), "router": rj, "fill": fill,
+               **({"blocked": blocked} if blocked != "drop" else {})}
         subprocess.run([str(node), str(root / "bridge" / "offline_bot.js"), "--policy", pol, "--courses", crs, "--out", out,
                         "--settle", str(SETTLE_TICKS), "--planner", json.dumps(cfg)],
                        check=True, cwd=str(root / "bridge"), capture_output=True)
@@ -142,6 +145,22 @@ class RouteBotParity(unittest.TestCase):
         py = bot_parity(self, router_ckpt=ck, fill=torch.load(ck, map_location="cpu", weights_only=False)["config"]["fill"],
                         seed=9)
         self.assertGreater(sum(py["per_course"]["success"]), 18)
+
+    def test_shipped_router_keeping_blocked_platforms(self):
+        # RouteConfig(blocked="keep"): no straight-path filter, head-hitter flags kept; on single-neo courses the
+        # router then chooses the neos' landings (bridge/router.js options() with cfg.blocked).
+        from pathlib import Path
+        from parkour.neo_assist import SINGLE_VALIDATION_FAMILY, single_neo_courses
+        from parkour.neo_dagger import neo_takeoffs
+        ck = Path(__file__).resolve().parents[1] / "results" / "routing" / "router_policy.pt"
+        if not ck.exists():
+            self.skipTest("no shipped router")
+        neos = single_neo_courses(SINGLE_VALIDATION_FAMILY, n=8)
+        py = bot_parity(self, router_ckpt=ck, fill=torch.load(ck, map_location="cpu", weights_only=False)["config"]["fill"],
+                        n=8, seed=10, blocked="keep", extra=neos)
+        landings = [tuple(int(v) for v in c.platforms[k + 1]) for c in neos for k in neo_takeoffs(c)]
+        chosen = {tuple(ch[0]) for ev in py["events"][8:] for _, _, ch in ev if ch}
+        self.assertTrue(set(landings) <= chosen)  # every neo's landing was chosen at least once
 
 
 if __name__ == "__main__":

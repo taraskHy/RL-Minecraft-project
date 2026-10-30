@@ -9,6 +9,8 @@
 //
 // With --assist (bridge/assist.js) the courses carry "assist_takeoffs" and a Python planner
 // service plans the bot's neos; every plan is checked with prismarine-physics before it is played.
+// With --assist and a learned router whose --planner JSON has "blocked": "plan", the router's
+// blocked-path choices are planned instead (RouteAssist, parkour/route_neo.py).
 
 const fs = require('fs')
 const path = require('path')
@@ -111,8 +113,8 @@ async function main () {
       let a = ep.step(s)
       while (a === P.PLAN) { // a failed approach is followed by the takeoff's request in the same tick
         const q = ep.pending
-        const r = await service.plan({ index, cp: q.cp, target: q.target, kind: q.kind, attempt: q.attempt, state: q.state, lastAction: q.lastAction })
-        const verified = !!r.plan && A.verifyPlan(physics, world, q.state, r.plan, c.platforms, q.cp, q.target, c.extra, ep.geom)
+        const r = await service.plan(A.serviceRequest(index, q))
+        const verified = !!r.plan && A.verifyPlan(physics, world, q.state, r.plan, c.platforms, q.cp, q.target, c.extra, ep.geom, false, q.route ? q.floor : null)
         const brake = !r.plan && r.brake && A.verifyPlan(physics, world, q.state, r.brake, c.platforms, q.cp, q.cp, c.extra, ep.geom, true) ? r.brake : null
         a = ep.resume(verified ? r.plan : null, { found: !!r.plan, verified, rounds: r.rounds, seconds: r.seconds, error: r.error }, brake)
       }

@@ -29,6 +29,12 @@ The policy scores the selectable tokens (a small transformer over the set, ``rou
 chosen platform fills slot 1. Slots 2 and 3 are filled from it, either greedily (``fill="greedy"``,
 the planner's own rule) or by the route policy's argmax with the chosen platform as ``frm``
 (``fill="policy"``). The episode is judged by ``ParkourEnv`` on the true course, unchanged.
+
+``RouteConfig.blocked`` (opt-in) says what happens to a platform whose straight flight path from the
+platform planned from passes through blocks (``path_clear``): ``"drop"`` (the default, the planner's
+rule) leaves it out; ``"keep"`` makes it selectable like any other, with its head-hitter flag; with
+``"plan"`` it is also selectable, and a chosen one is a neo: ``parkour.route_neo`` plans that jump with
+the neo planner instead of the jumper.
 """
 from __future__ import annotations
 
@@ -51,10 +57,20 @@ TOKEN_DIM = 45
 NEG = -1e9
 
 
+BLOCKED = ("drop", "keep", "plan")
+
+
 @dataclass
 class RouteConfig:
     fill: str = "greedy"  # how slots 2 and 3 are filled: "greedy" (the planner's rule) or "policy"
     mark_passed: bool = True  # landing beyond the plan's next platform marks the ones skipped as passed
+    # Platforms whose straight path is blocked: "drop" (the planner's clear_path rule), "keep" (selectable, head-hitter
+    # flags kept), "plan" (as keep; a chosen one is planned by the neo planner, parkour.route_neo).
+    blocked: str = "drop"
+
+    def __post_init__(self):
+        if self.blocked not in BLOCKED:
+            raise ValueError(f"RouteConfig.blocked must be one of {BLOCKED}, not {self.blocked!r}")
 
 
 def standable_platforms(solid: np.ndarray, slab_only: bool = True) -> list:
@@ -200,12 +216,17 @@ def path_clear(world: physics.World, course: torch.Tensor, a: torch.Tensor, b: t
 
 
 class Scene:
-    """The platforms in view of M deciding rows, in the planner's scan order."""
+    """The platforms in view of M deciding rows, in the planner's scan order. ``keep_blocked``
+    (``RouteConfig.blocked`` "keep" or "plan"): a platform whose straight path is blocked stays
+    selectable; ``options`` flags it in ``self.blocked``."""
 
     def __init__(self, pool: CoursePool, tables: RouteTables, course: torch.Tensor, pos: torch.Tensor,
-                 cell: torch.Tensor, cfg: PlannerConfig):
+                 cell: torch.Tensor, cfg: PlannerConfig, keep_blocked: bool = False):
         dev = pool.device
         self.pool, self.course, self.cfg = pool, course, cfg
+        if keep_blocked and not cfg.clear_path:
+            raise ValueError("keeping blocked platforms needs the path check (PlannerConfig.clear_path)")
+        self.keep_blocked = keep_blocked
         m = course.shape[0]
         kt = self.kt = tables.kt
         plat = tables.rect[course]  # (M, KT, 5)
@@ -264,9 +285,13 @@ class Scene:
         ok = self.inview & ~excluded & (dy >= cfg.dy_min) & (dy <= cfg.dy_max) & (d <= lim)
         ok[ar, frm] = False
         head = torch.zeros_like(ok)
+        self.blocked = torch.zeros_like(ok)
         if cfg.clear_path:
             clear, head = path_clear(self.pool.world, self.course, f, self.rect, ok)
-            ok = ok & clear
+            if self.keep_blocked:
+                self.blocked = ok & ~clear
+            else:
+                ok = ok & clear
         fc, pc = centres(f), centres(self.rect)
         gx, gz = self.goal[:, None, 0] - fc[..., 0], self.goal[:, None, 2] - fc[..., 2]
         vx, vz = pc[..., 0] - fc[..., 0], pc[..., 2] - fc[..., 2]
@@ -465,7 +490,7 @@ class RouteRunner:
         env, dev = self.env, self.dev
         course = env.course[rows]
         cl = cell[rows]
-        sc = Scene(env.pool, self.tables, course, env.state.pos[rows], cl, self.pcfg)
+        sc = Scene(env.pool, self.tables, course, env.state.pos[rows], cl, self.pcfg, keep_blocked=self.rcfg.blocked != "drop")
         hit = contains(sc.rect, cl[:, None, :]) & sc.inview
         has = hit.any(1)
         if not bool(has.all()):  # not on a platform (an obstacle top): keep the old plan
@@ -502,6 +527,7 @@ class RouteRunner:
         chain = torch.zeros_like(excluded)
         feats, ok, cost = sc.tokens(here, here, excluded, visited, chain, 0, prog,
                                     (env.state.pos[rows], env.state.vel[rows]), timing)
+        blocked = sc.blocked  # from ``here`` (the fill below recomputes it from the chosen platforms)
         any_ok = ok.any(1)
         out = None
         if choose is None:
@@ -551,7 +577,8 @@ class RouteRunner:
         self.G[rows, 0] = sc.is_goal[ar, here]
         self.G[rows, 1:] = sc.is_goal[ar[:, None], pc] & pv
         return {"rows": rows, "feats": feats, "ok": ok, "inview": sc.inview, "action": act, "any_ok": any_ok,
-                "out": out, "cidx": sc.cidx, "here": here, "picks": picks, "rect": sc.rect}
+                "out": out, "cidx": sc.cidx, "here": here, "picks": picks, "rect": sc.rect,
+                "blocked": blocked[ar, act.clamp(min=0)] & (act >= 0)}
 
     def observe(self) -> torch.Tensor:
         env = self.env
@@ -568,6 +595,8 @@ def evaluate_routed(jumper, pool: CoursePool, tables: RouteTables, choose=None, 
     greedy planner's choice, which must reproduce parkour.planner.evaluate_planned)."""
     pcfg = pcfg or PlannerConfig()
     rcfg = rcfg or RouteConfig()
+    if rcfg.blocked == "plan":
+        raise ValueError('RouteConfig(blocked="plan") needs the neo planner: parkour.route_neo.evaluate_routed_neo')
     dev = pool.device
     n = pool.size
     env = ParkourEnv(pool, EnvConfig(num_envs=n, stall_ticks=stall_ticks, max_ticks=max_ticks, fall_rule=fall_rule),
