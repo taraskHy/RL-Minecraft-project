@@ -409,7 +409,7 @@ def simulate(world: World, course: torch.Tensor, state: PlayerState, controls: t
     (opt-in, off everywhere by default): the horizontal collisions in the
     game's order, the larger of the two components first, instead of
     prismarine-physics' x then z (``_horizontal``); the neo planner's
-    ``corner_limit`` uses it to find moves a server would reject.
+    ``corner_limit`` uses it to find moves a server would flag.
     """
     vel = state.vel
     vel = torch.where(vel.abs() < NEGLIGIBLE_VELOCITY, torch.zeros_like(vel), vel)

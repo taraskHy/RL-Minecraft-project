@@ -48,11 +48,15 @@ nothing, since the bot is not yet on the ground).
 
 The simulator and the bots resolve horizontal collisions x then z
 (prismarine-physics); the game resolves the larger component first. Past a
-wall's corner the two can end more than 0.25 blocks apart, and a server then
-sends the bot back. With ``--corner-limit L`` (opt-in; 0.25 is the server's
-limit) a landing the search found is played again tick by tick in both
-orders (``corner_gap``), and one with a tick more than L apart counts as no
-landing: a neo's search restarts, an ordinary jump brakes and retries.
+wall's corner the two can end more than 0.25 blocks apart: the server then
+logs "moved wrongly", and sends the bot back if its box started the tick
+clear of every block. With ``--corner-limit L`` (opt-in; 0.25 is the
+server's limit) a landing the search found is played again tick by tick in
+both orders (``corner_gap``), and one with a tick more than L apart counts
+as no landing: a neo's search restarts, an ordinary jump brakes and
+retries. It is stricter than the server: it also drops ticks the server only
+logs, and ticks it would not flag at all (the server orders the bot's
+displacement, ``corner_gap`` the tick's velocity); HANDOFF.md section 3.
 
 Every course's record says whether the bot did its neos as neos
 (``neo_done``): it stood on each neo's takeoff before on any later platform,
@@ -162,8 +166,8 @@ def request_seed(seed: int, course: int, cp: int, kind: str, attempt: int, resta
 
 
 def config_meta(cfg: "AssistConfig") -> dict:
-    """The config a run's row records: every field, the neo levers and ``plan_start`` only when set (rows from before
-    they existed, and the cached parts of split runs, stay valid)."""
+    """The config a run's row records: every field, the neo levers, ``plan_start`` and ``corner_limit`` only when set
+    (rows from before they existed, and the cached parts of split runs, stay valid)."""
     return {k: v for k, v in asdict(cfg).items() if k not in OPTIONAL or v}
 
 
@@ -206,8 +210,11 @@ def corner_gap(pool: CoursePool, arrival: dict, seq, device) -> float:
     """The largest horizontal distance, over the ticks of a plan played from ``arrival``, between where a tick ends
     with prismarine-physics' collisions (x then z: the simulator and the bots) and where it ends with the game's
     order (the larger component first, ``physics.simulate(..., larger_first=True)``), both from the tick's start as
-    the bots play it. A server sends the bot back when its own result is more than 0.25 blocks away ("moved
-    wrongly"): past a wall's corner the two orders can end that far apart."""
+    the bots play it. A server logs "moved wrongly" when its own result is more than 0.25 blocks away, and sends
+    the bot back if the bot's box started the tick clear of every block: past a wall's corner the two orders can end
+    that far apart. The server orders the bot's displacement, this the tick's velocity, so a tick whose move already
+    collided can be counted though the server sees nothing: a stricter check, never a looser one in the recorded
+    runs."""
     s = _state_rows([arrival], device)
     course = torch.tensor([arrival["course"]], device=device)
     acts = torch.as_tensor(np.asarray(seq), dtype=torch.int64, device=device).reshape(-1, 5)
@@ -964,7 +971,8 @@ def serve(model, courses: list[C.Course], cfg: AssistConfig, device, inp=None, o
     "attempt", "state": {"pos", "vel", "yaw", "onGround", "jumpTicks",
     "collidedH"}, "lastAction"}. Answer: {"plan": [[move, strafe, jump,
     sprint, yaw], ...] or null, "rounds", "restarts" (only with ``restarts``
-    set), "brake": the brake_plan to play before the retry when there is no
+    set), "corner_dropped" (only with ``corner_limit`` set: landings the corner
+    check dropped), "brake": the brake_plan to play before the retry when there is no
     plan and ``brake`` is set (else null), "seconds"}. The search is the one
     ``evaluate_assisted`` runs with ``batch`` 1 (``plan_once``: same seed and
     neo levers for the same request).

@@ -298,14 +298,17 @@ class AssistBotParity(unittest.TestCase):
         self.assertGreater(played, 0)
 
     def test_same_with_the_corner_limit(self):
-        # The planner service gets corner_limit with the rest of the config and drops the same landings.
+        # The planner service gets corner_limit with the rest of the config and drops the same landings: on
+        # single-neo validation course 81 (alone in its file) the search's landing from takeoff 5, an ordinary jump,
+        # crosses a corner, so the bot brakes and retries there; a service without the limit would play it instead.
         cfg = AssistConfig(samples=64, iterations=3, jumps="all", retries=1, brake=14, retry_horizon=48, plan_start=1,
                            corner_limit=0.25)
-        res, bot = self.check(cfg, single_neo_courses(SINGLE_VALIDATION_FAMILY, n=4))
+        res, bot = self.check(cfg, single_neo_courses(SINGLE_VALIDATION_FAMILY, n=82)[81:])
         self.assertTrue(res["events"] and all("corner_dropped" in e for e in res["events"]))
-        by_course = sorted(res["events"], key=lambda e: e["course"])
-        self.assertEqual([(x["kind"], x["takeoff"], x["tick"]) for x in bot],
-                         [(e["kind"], e["takeoff"], e["tick"]) for e in by_course])
+        self.assertEqual([(e["takeoff"], e["found"], e["braked"]) for e in res["events"] if e["corner_dropped"]],
+                         [(5, False, True)])
+        self.assertEqual([(x["kind"], x["takeoff"], x["tick"], x["braked"]) for x in bot],
+                         [(e["kind"], e["takeoff"], e["tick"], e["braked"]) for e in res["events"]])
 
     def check(self, cfg, cs, played=True):
         from parkour.live import SETTLE_TICKS

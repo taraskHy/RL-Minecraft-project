@@ -1,6 +1,7 @@
 """The game's collision order at wall corners (``physics.simulate(..., larger_first=True)``) and the neo planner's
 ``corner_limit``: prismarine-physics moves along x before z, the game along the larger component first, and past a
-wall's corner the two can end apart; a server sends the bot back when they end more than 0.25 blocks apart."""
+wall's corner the two can end apart; more than 0.25 blocks apart, a server logs "moved wrongly" and sends the bot
+back if its box started the tick clear of every block."""
 import gzip
 import json
 import math
