@@ -18,5 +18,44 @@
    "family 46, level 5 with obstacles": 1758,
    "family 47, level 5 standard": 1804
   }
+ },
+ "seeds": {
+  "rule": "HANDOFF section 3, 30 Oct 06:45",
+  "completed_of_2000": {
+   "l5-obs05": {
+    "best_iteration": 999,
+    "46": 1750,
+    "47": 1832
+   },
+   "l5-obs05-s1": {
+    "best_iteration": 49,
+    "46": 1694,
+    "47": 1813
+   },
+   "l5-obs05-s2": {
+    "best_iteration": 99,
+    "46": 1666,
+    "47": 1830
+   },
+   "l5-obs05-w3": {
+    "best_iteration": 249,
+    "46": 1758,
+    "47": 1804
+   },
+   "l5-obs05-w3-s1": {
+    "best_iteration": 99,
+    "46": 1792,
+    "47": 1855
+   },
+   "l5-obs05-w3-s2": {
+    "best_iteration": 49,
+    "46": 1722,
+    "47": 1838
+   }
+  },
+  "final_policy": {
+   "46": 1704,
+   "47": 1831
+  }
  }
 }

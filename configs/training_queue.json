@@ -208,6 +208,26 @@
         "--seed",
         "2"
       ]
+    },
+    {
+      "name": "l5-w3",
+      "flags": [
+        "--level-weights",
+        "1,1,1,1,1,3",
+        "--pool-size",
+        "1024"
+      ]
+    },
+    {
+      "name": "l5-w3-s1",
+      "flags": [
+        "--level-weights",
+        "1,1,1,1,1,3",
+        "--pool-size",
+        "1024",
+        "--seed",
+        "1"
+      ]
     }
   ]
 }

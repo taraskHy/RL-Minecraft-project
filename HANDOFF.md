@@ -530,7 +530,7 @@ done; `results/neo/assist_validation.jsonl`, per course in
   from V3b one-sidedly (35 courses only V3b, 14 only A), B about evenly
   (22 only B, 16 only V3b): B is level with V3b within noise, and A is
   below both. Every plan played landed as planned (A 2,866, B 3,043).
-  **Correction (30 Oct, 09:05): most of that gain was the planner's own
+  **Correction (30 Oct, 09:02): most of that gain was the planner's own
   chance.** The search is the planner's only random part; with search seed
   1 instead of 0 (`--seed 1`, otherwise the same; `single40-a-seed1`,
   `single40-c-seed1`) A completes 285 and C (B with the corner check) 280:
@@ -605,7 +605,10 @@ the files' times):
   and C again on validation (family 40, `--settle 10`, CPU) with seed 1
   (`single40-a-seed1`, `single40-c-seed1`), to see how much of A's 265
   against B's and C's 292 is the seed. **Result (09:00):** A 285, C 280
-  (see the correction under the start fix's validation).
+  (see the correction under the start fix's validation). Then (09:04,
+  measurement only): A and C with seed 2 (`single40-a-seed2`,
+  `single40-c-seed2`) and the scored setting, V3b from the simulator's own
+  start, with seed 1 (`single40-v3b-seed1`), for the noise of one run.
 - **Level 5, a closer look (rule fixed at 06:40, after the test results
   above, before this evaluation; it chooses only on validation):** two new
   validation-only sets of level-5 courses, 2,000 with obstacles on half the
@@ -624,7 +627,32 @@ the files' times):
   fixed now: the recipe with the higher mean family-46 completion over its
   three runs is the better one, provided its mean family-47 completion is
   not more than 1 point below the final policy's; each run tests its own
-  best once; nothing is chosen on the tests, nothing shipped without Ethan. `l5-obs05`: obstacles on half the jumps
+  best once; nothing is chosen on the tests, nothing shipped without Ethan.
+  **Result (09:08; `results/level5_closer_look.json` "seeds",
+  `runs/l5-obs05*/summary.json`):** family 46 (level 5 with obstacles, of
+  2,000): `l5-obs05` 1,750, 1,694, 1,666 (mean 85.17%, the final policy
+  85.20%); `l5-obs05-w3` 1,758, 1,792, 1,722 (mean 87.87%, +2.67); family 47
+  means 91.25% and 91.62% (final 91.55%). **So the better recipe is
+  obstacles on half the jumps plus three times as many level-5 courses**
+  (`l5-obs05-w3`); obstacles alone gain nothing on average (the first run's
+  +2.3 was chance; its seeds chose checkpoints 49 and 99). Each run's test,
+  played once (standard / obstacles, level 5 of each): the final policy
+  98.42 / 95.25 (93.5 / 81.0); `l5-obs05-w3` 98.33 / 95.50 (91.5 / 81.0),
+  `-s1` 98.42 / 95.25 (94.0 / 84.5), `-s2` 98.50 / 96.50 (93.5 / 86.0): the
+  recipe's mean 98.42 / 95.75, level 5 with obstacles 83.8 against 81.0,
+  close to the +2.7 on validation; `l5-obs05` 98.17 / 96.83, `-s1` 98.08 /
+  95.33, `-s2` 97.83 / 94.67. The single candidate by the rule of 05:16 (the
+  highest trainer validation) is `l5-obs05-w3` iteration 249 (98.17%), whose
+  own test is level with the final policy. Shipping one is Ethan's call; a
+  fresh choice among the recipe's three runs would need a rule fixed before
+  looking (the three runs' tests are now seen).
+- **Which part helps (rule fixed at 09:09, before the runs; measurement
+  only, nothing shipped):** obstacles alone gained nothing, the pair gained
+  2.7 points. `l5-w3` and `l5-w3-s1`: the level-5 weight alone
+  (`--level-weights 1,1,1,1,1,3`, obstacles at the final policy's 0.3),
+  queue recipe otherwise unchanged, each tested once. The weight alone
+  counts as the active part if the two runs' mean on family 46 is at least
+  2 points above the final policy's 85.20% (both sets measured as above). `l5-obs05`: obstacles on half the jumps
   (`--obstacle-prob 0.5`, as in the obstacle test sets; training had 0.3,
   so a level-5 jump meets three fifths as many beams in training).
   `l5-obs05-w3`: the same plus three times as many level-5 courses
@@ -1002,6 +1030,12 @@ Concrete work, most important first. Nothing here needs new research.
    jump several times less forgiving (this one: 1.2% to 0.27% of scripted
    strategies). Do not change the generator (the test sets are fixed); a
    training-side fix (more such beams in training) is the natural try.
+   **Tried overnight 30 Oct (section 3):** fine-tunes of the final policy
+   with obstacles on half the jumps, alone or with three times as many
+   level-5 courses, three seeds each. With the level-5 weight, level 5 with
+   obstacles rises by 2.7 points on 2,000 validation courses (all three
+   seeds up) and by 2.8 on test on average (81.0 to 83.8), with standard
+   courses level; obstacles alone gain nothing. Not shipped (Ethan's call).
 4. **Planner shortcuts:** most planner failures take a shortcut to a later
    platform that is in reach, and that jump is harder
    (`results/planner/`, report 7.11). With the final policy 98 of the 109
@@ -1560,7 +1594,7 @@ At the end of a session, or after each result:
 
 ## Session log
 
-- **30 Oct 2026, 09:15, Claude (Claude Code, training PC), overnight (Ethan, via the side session: use the CPU and GPU as much as possible while asleep):** (1) Wall corners, problem 9: the game's collision order as an opt-in physics flag (default path bit-identical) and the planner's `corner_limit`, kept on validation (292, the same courses as without it); the server's rule measured on all 40 recorded real-Minecraft runs (`results/corner_scan.json`); on the 64 single-neo test courses with both fixes 55 offline and 55 in real Minecraft, equal to the simulator, 0 corrections, no warnings. (2) The planner's search seed moves a 320-course count by about 10 (A 265 and 285, C 292 and 280): the start fix's gap was mostly chance; caveats added here, in TEAM_STATUS and on the results page. (3) The one network on the final policy's 120 bot courses: 59/60 and 59/60, offline and real Minecraft, equal to the simulator. (4) Level 5 with obstacles (problem 3): two fine-tunes beat the final policy on validation, and on 2,000 level-5 obstacle validation courses by 2.3 and 2.7 points; their tests are mixed; two more seeds of each are running under a rule fixed at 06:45; nothing shipped. (5) The results page's test-once and bot-difference wording fixed; this file's rule times corrected (05:16 and about 05:19, both before their runs). Next: the seeds' comparison, then Ethan's calls (a level-5 candidate, the report).
+- **30 Oct 2026, 09:03, Claude (Claude Code, training PC), overnight (Ethan, via the side session: use the CPU and GPU as much as possible while asleep):** (1) Wall corners, problem 9: the game's collision order as an opt-in physics flag (default path bit-identical) and the planner's `corner_limit`, kept on validation (292, the same courses as without it); the server's rule measured on all 40 recorded real-Minecraft runs (`results/corner_scan.json`); on the 64 single-neo test courses with both fixes 55 offline and 55 in real Minecraft, equal to the simulator, 0 corrections, no warnings. (2) The planner's search seed moves a 320-course count by about 10 (A 265 and 285, C 292 and 280): the start fix's gap was mostly chance; caveats added here, in TEAM_STATUS and on the results page. (3) The one network on the final policy's 120 bot courses: 59/60 and 59/60, offline and real Minecraft, equal to the simulator. (4) Level 5 with obstacles (problem 3): two fine-tunes beat the final policy on validation, and on 2,000 level-5 obstacle validation courses by 2.3 and 2.7 points; their tests are mixed; two more seeds of each are running under a rule fixed at 06:45; nothing shipped. (5) The results page's test-once and bot-difference wording fixed; this file's rule times corrected (05:16 and about 05:19, both before their runs). Next: the seeds' comparison, then Ethan's calls (a level-5 candidate, the report).
 - **30 Oct 2026, 05:00, Claude (Claude Code, training PC):** the planner's first-jump fix (Ethan: "Yes, fix it"): `plan_start` (opt-in; the searches also run on the start state, before the first action; Python and the bots), rules fixed at 02:31. Validation from the bots' settled start: 292 of 320 with it, 265 without (the simulator's own start: 286), so it is kept (`61a833e`); an independent review found two real defects in the replay-page builder, fixed (the page rebuilds byte for byte). On the 64 test courses, played once: offline 55 (= its simulator re-run; course 10 now plans its first jump), real Minecraft 54 with 2 server corrections (before: 58, 0), both at the corner of a neo's wall, where prismarine-physics moves x before z and the game the larger component first (section 4, problem 9). The results page now says where the never-trained-block courses failed (Ethan): 32 of 33 landings on the new blocks. Merged `origin/main`, which holds the routing pull request #2 (merged on GitHub at 04:02; the learned router 97.83% / 95.00% on test against the planner's 92.33% / 90.50%; section "Team split"). Next: Ethan's call on problem 9.
 - **30 Oct 2026, 00:00, Claude (Claude Code, training PC):** the skill gate built, reviewed, merged (`6946602`) and trained (`gate-r1`): validation 87.75% against 86.98%, so it replaces the one network in the simulator; tested once 86.80% against 86.45%, a match; the first expert swap is not kept. Single neos: the bots reproduce the simulator from the same start on the first 64 test courses, offline and in real Minecraft (planner 58/64, policy alone 26/64, 0 corrections). The replay page now holds 89 courses in 210 recordings: the one-neo courses with the planner (13/16, every completion did its neo) and the one network (7/16), and the never-trained shapes (6/8); results page version 17. GPU watchdog restarted from the merged code. Next: a fix for the settled-start first jump in the planner (to be chosen on validation), and whatever the user asks next.
 - **29 Oct 2026, 22:50, Claude (Claude Code, training PC):** single neos at 85%: the sets (families 40/41), the strict metric and the planner levers merged (`031d7c3`); on validation the final policy with the planner and 3 search restarts reaches 286 of 320 (89.4%, levers stopped by the 89% rule); the test, played once, 276 of 320 (86.25%): the goal is met under the pre-registered rule, narrowly (caveats and an independent audit in section 3). Follow-up rounds (head hitters and slime, neos in the one network, one more neo round) not kept; gate headroom measured (per-course ceiling +7.1, mostly chance; the gate gets built, with swappable experts). Replays of every new skill and block type, offline and in real Minecraft (59/65 as the simulator; carpets needed a structure void in real Minecraft, `bridge/parkour_bot.js`), on the results page (version 15); the CPU cap of 85% (AGENTS.md). Next: the bot check of the single-neo test courses, the gate's training on the GPU, the one-neo and untrained-shape replays on the page.
