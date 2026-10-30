@@ -85,11 +85,6 @@ random inputs, and compares every tick: over 99,000 ticks on the CPU and the
 GPU (`results/physics_parity.json`) the largest position difference was
 1.4e-14 blocks, and every on-ground, collision and cooldown flag matched.
 
-**Speed.** The environment step never reads values back from the GPU. With
-16,384 parallel environments, training on one RTX 5080 runs at about 170,000
-to 220,000 game ticks per second over whole runs, evaluations included
-(`main-s0`, `main-g995` and `obstacles-g995` in `results/runs/`).
-
 ## 4. Courses and difficulty
 
 A course is a chain of stone platforms in the void. Each jump has a gap (0 to
@@ -217,9 +212,9 @@ choosing on them; after 28 Oct each setting's test was played once.
 With section 5's settings and discount 0.99, the main run trained for 3,000
 iterations (1.57 billion game ticks, 2.6 hours on one RTX 5080). Its last
 checkpoint completes **95.5%** of the 1,200 test courses (level 5: 80%).
-Levels 0 to 4 pass 90% within 0.08 billion ticks; level 5 reaches 78% by 0.55
-billion and then stays between 64 and 92%, apart from one short dip at 1.0
-billion (figure 2). Section 7.3 repeats it with discount 0.995.
+Levels 0 to 4 pass 90% within 0.08 billion ticks, and level 5 reaches 78% by
+0.55 billion (figure 2; the drop at 1.0 billion lasted one evaluation).
+Section 7.3 repeats it with discount 0.995.
 
 ![Held-out success per difficulty level during the main run](../results/figures/main_learning_curve.png)
 
@@ -279,9 +274,8 @@ Only a longer horizon passed our bar of 3 points over the defaults on
 validation, in all three seeds (+3.6 validation, +1.8 test, +4.3 level 5).
 A 10-jump course takes about 120 to 200 ticks; with discount 0.99 the goal
 bonus is worth 30 to 13% of its value at the start, with 0.995 55 to 37%, so
-the far goal pulls harder. A shorter horizon (0.98) and a tighter KL target
-hurt most. The large network is the best single run on level 5 (83.5%), but
-it is one seed and below the bar on validation.
+the far goal pulls harder. The large network is the best single run on level
+5 (83.5%), but it is one seed and below the bar on validation.
 
 We then trained discount 0.995 at full length: 3,000 iterations as in the
 main run (`main-g995`), then the obstacle fine-tune of section 7.5
@@ -399,10 +393,9 @@ earlier ones and trains for 500 iterations. Two fixes were needed.
   and puts the policy's choice back wherever the neo still lands. The fixed
   rounds also cut the imitation weight from 1 to 0.3, a confound, though
   `neo-bc` did not collapse at 1.
-- *Neo detection.* Round 1's detector also counted one-block-up jumps (only
-  1,090 of its 2,526 takeoffs were neos; `results/neo/detector_check.json`,
-  which counts the collapsed attempt as round 1); from round 2 on, only wall
-  blocks count.
+- *Neo detection.* Round 1 also counted one-block-up jumps as neo takeoffs
+  (`results/neo/detector_check.json`, which calls it round 2); from round 2
+  on, only wall blocks count.
 
 Results on the 210 test courses of levels 6 to 8 with a neo (337 neo jumps,
 simulator):
@@ -429,8 +422,6 @@ test courses with one neo, 3 of 47 with two separate neos, 2 of 25 with three
 and 0 of 9 with more. On 31 neo courses (the first ten test neo courses of
 each of levels 6 to 8, and a hand-designed one) it completes the same 11
 offline, in real Minecraft and in the simulator, with 0 server corrections.
-Our generator puts every neo after a one-block-wide takeoff, though the search
-also lands some from 2x2 takeoffs (`results/neo/wide_takeoff_search.json`).
 Section 7.10 distils the neo policy, with the other specialists, into one
 network that also makes neos.
 
@@ -572,9 +563,8 @@ It runs in the simulator only.
 
 ## 8. Discussion and limitations
 
-**Why the transfer is exact.** A Mineflayer bot computes its own movement
-with prismarine-physics, so a simulator that reproduces prismarine-physics
-reproduces the game as the bot experiences it. In 1,394 real-game episodes
+**Why the transfer is exact.** The simulator reproduces the bot's own physics
+engine (section 3). In 1,394 real-game episodes
 over 43 runs (`results/games/`) and 120 router episodes
 (`results/routing/`), every outcome but one equals the simulator's. That
 one and the only 2 server corrections came from one run before the corner
@@ -590,9 +580,8 @@ failures. Being told the platform chain matters (82.4% without it, 93.3% with,
 section 7.2), but the chain need not come from a course list: a router that
 imitates the list in training but sees only nearby blocks and the goal at play
 closes 5.0 of the 5.4 points between the greedy planner and the course list on
-test (simulator), and most of its remaining failures are failed jumps. A
-policy that learns route and jumps together stays below the greedy planner on
-both test sets (section 7.9).
+test (simulator), and most of its remaining failures are failed jumps
+(section 7.9).
 
 **Reward terms interact with risk.** The fall penalty, our height term,
 helped most on level 5 (72.0% with it, 55.2% without, section 7.2), but on
@@ -658,8 +647,7 @@ exact simulator met the 85% single-neo goal, narrowly: 276 of 320 test
 courses (86.25%, strict, simulator, played once) against 42.8% for the best
 policy alone; in real Minecraft the bot made the simulator's courses on the
 first 64 of them (58, then 55 after two later fixes; section 7.8), with 0
-corrections. No double or triple neo landed in 64
-searched layouts: evidence, not proof, that they are impossible.
+corrections.
 
 Without the course list, a learned router trained with PPO plus an
 imitation term towards the course's next platform picks each platform from

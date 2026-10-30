@@ -1012,14 +1012,21 @@ Concrete work, most important first. Nothing here needs new research.
    as the cloud reported; `12c736a` gives 21 (its body ending on page 22),
    where the cloud's own export of the same text gave 20 (body half a page
    into page 21). This PC's tools run about half a page longer than the
-   cloud's, so fit the report on this PC's export. The script now reports the page on which the body
+   cloud's, so fit the report on this PC's export. **Trimmed at 22:47
+   (Ethan: "Yes, trim it"), about 160 words net:** section 3's speed
+   paragraph and repeats in 7.1, 7.3, 7.7, 8 and 9; an independent check
+   of the cuts kept the 1.0-billion-tick drop in 7.1 and the detector
+   file's round numbering. The export now has 19 pages before the
+   References page, the body ending about three quarters down page 20.
+   The script now reports the page on which the body
    ends. The Chrome estimate (`scripts/report_pages.py`) had said about 19:
    it was a page optimistic, because its calibration version also ran
    onto page 21; its defaults are recalibrated on both real exports and
    now err high. Rules for it: every number comes from `results/` or the
    run files; Arial 12, 1.5 spacing, one-inch margins, 8 to 20 pages
-   without the references, so any addition needs a cut. Still to do: the
-   trim above and a read-through by the team.
+   without the references, so any addition needs a cut. Still to do: a
+   read-through by the team; export again after any change and check that
+   the body still ends by page 20.
 4. **Completed on PC:** `results/neo_policy.pt` / `.json` and provenance are shipped; final policy files retained. Original request: **ship the neo policy in Git** (it is nearly a one-policy candidate,
    section 4, item 2): it exists
    only as `runs/neo-dagger3/checkpoints/best.pt` on the PC. Export it next
@@ -1437,7 +1444,7 @@ before restarting; held part locks prevent duplicate evaluation.
   and the `planner-*`, `v2-planner-*`, `v2-tuned-planner-*` games.
 - Report in the submission format: `results/report_draft.docx` / `.pdf`,
   written by `scripts/report_docx.py --pdf` from `docs/report_draft.md`
-  (exported from `25eced6` on 30 Oct, 22:31). Page estimate without pandoc
+  (exported on 30 Oct, 22:47, after the trim). Page estimate without pandoc
   or LibreOffice: `scripts/report_pages.py` (can be a page off).
 - Failure analysis of the final policy by jump type: `results/jump_failures.json`
   (`scripts/jump_failures.py`).
@@ -1458,18 +1465,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `bad06eb` (2026-10-30 22:32, branch `main`): Report export measured: body ends two lines into page 21
+Generated on top of commit `e1d1e2f` (2026-10-30 22:34, branch `main`): Handoff: this PC's report export runs about half a page longer than the cloud's
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 31 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 32 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `bad06eb` 2026-10-30 22:32 | 0 |
-| `README.md` | `1a16df0` 2026-10-29 14:14 | 47 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 215 |
-| `docs/report_draft.md` | `25eced6` 2026-10-30 22:06 | 1 |
-| `results/README.md` | `f286d5f` 2026-10-30 19:14 | 2 |
-| `results/DATA.md` | `bad06eb` 2026-10-30 22:32 | 0 |
+| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
+| `README.md` | `1a16df0` 2026-10-29 14:14 | 48 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 216 |
+| `docs/report_draft.md` | updated together with this snapshot | 0 |
+| `results/README.md` | `f286d5f` 2026-10-30 19:14 | 3 |
+| `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -1688,6 +1695,7 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **30 Oct 2026, 22:47, Claude (Claude Code, training PC, the forked session):** the report trimmed by about 160 words net (Ethan: "Yes, trim it"): section 3's speed paragraph and repeats in 7.1, 7.3, 7.7, 8 and 9, checked independently (two cuts partly restored). Export: 22 pages, 19 before the References page, the body ending about three quarters down page 20, so it fits 20 pages strictly. `results/report_draft.docx` / `.pdf` are this export. Next: the team's read-through; export again after any change.
 - **30 Oct 2026, 22:31, Claude (Claude Code, training PC, a session forked from the main one):** the report export tools installed with Ethan's approval ("Yes, install them"): pandoc 3.12.1 and LibreOffice 26.2.6 unpacked under `%LOCALAPPDATA%\Programs`, python-docx in `.venv` (section 6). `scripts/report_docx.py --pdf` on `25eced6`: 22 pages, 20 before the References page, but the body ends two lines into page 21, so it needs a trim of about 150 words to fit 20 pages strictly (section 3, item 3). The exports in `results/` are current; `report_docx.py` now prints where the body ends, and `report_pages.py`'s defaults are recalibrated (its 19 was a page optimistic). Next: the trim, then a fresh export.
 - **30 Oct 2026, 22:05, Claude (Claude Code, training PC):** the course report brought up to date (Ethan: "Yes, update it"). `docs/report_draft.md` is rewritten with every result through 30 Oct (the single-neo goal, the skill gate, the learned router, the bots' first-jump and wall-corner fixes, the level-5 finding) and states the MDP in section 5 (the block offered on 29 Oct); cut from about 24 estimated pages to about 19 before the references. The count is an estimate: pandoc and LibreOffice are not on the PC, so the new `scripts/report_pages.py` renders the draft with headless Chrome, calibrated on `568763d` (20 pages in the cloud export), and the new draft is one page below it at all three spacings tried (section 3, item 3). Three independent checks of its numbers and claims against `results/` and the run files found 45, 16 and 2 problems, all fixed; the last: the learned router is the best of 14 checkpoints, not 13 (corrected in `results/routing/README.md` too, whose table holds two checkpoints in one row). Section 3 item 2 (the retuned planner in real Minecraft) marked done; old report section numbers updated here and in `TEAM_STATUS.md`. Next: the exact page count (`scripts/report_docx.py --pdf` on a machine with pandoc, python-docx and LibreOffice), the team's read-through, and the neo-routing pull request from the side session when it arrives.
 - **30 Oct 2026, 18:57, Claude (Claude Code, training PC):** Ethan's decision (17:39): the final policy stays and the level-5 recipe is reported as a finding; nothing exported or shipped. New generated section in `results/README.md` (final policy section; `parkour/report.py`, `level5_recipe`): every level-5 run with its validation, families 46 and 47, both tests, and each recipe's mean. That table showed a wording error: on the obstacle test set's level 5 each change alone also rose about as much as the pair (82.8% and 84.2% against 83.8%; final policy 81.0%), so "it takes both" rests on family 46 alone; corrected in section 3 (the older time-stamped text kept, with marked notes), in section 4 problem 3 (rewritten) and in `TEAM_STATUS.md`. The results page gets its first paragraph on these fine-tunes, already qualified, and the learned router's result in place of its "next" line. The 05:16 rule text moved back under its own bullet (later edits had left it as the last sentences of the 09:09 one). Three independent checks (numbers against the run files, wording and times against the rules and the session transcript) found 7, 4 and 4 problems in successive drafts, all fixed. Among them: the fine-tunes used the training queue's settings, not those of the final policy's own fine-tune (8,192 games and rollout 64 against 16,384 and 32); "three times as many level-5 courses" is level 5 in 3 of every 8 training games instead of 1 of 6 (2.25 times the share); and four overnight labels had been written ahead of the clock, now set to the transcript's times (06:39:26, 06:40:44 and 07:26:51 for 06:40, 06:45 and 07:27, and 06:14:17 for the header's 06:15), with every rule still before its runs. Next: the course report has nothing since 29 Oct (section 3, item 3; additions need cuts).
