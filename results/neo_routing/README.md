@@ -231,12 +231,80 @@ comparison is in `results/neo_routing/ordinary.json` (`scripts/neo_routing_ordin
   - won by the filter: 690 and 1661;
   - won by the plans: 1027, 1095, 1105, 1164, 1360, 1438 and 1757.
 
+### The bots: the 64 test courses of `results/games/single41-first64-courses.json`
+
+**Setting.** C plus the course-list planner's bot-start fixes: `{"samples": 1024, "iterations": 25, "horizon": 32,
+"retry_horizon": 48, "retries": 1, "brake": 14, "restarts": 3, "plan_on": 1, "plan_start": 1, "corner_limit": 0.25}`.
+The router's own fill is `policy`, with `--router-blocked plan`. Everything ran on the CPU (`CUDA_VISIBLE_DEVICES=-1`):
+the episodes' re-run, the planner service and the searches. In router mode, `plan_start` only searches a first jump
+the router chose across a wall, and does so before the first action.
+
+**Check.** Each run is compared with `parkour.live`'s own simulator re-run of the same courses from the bots' start
+(settle 10). The offline bot (offline_bot.js: Mineflayer's JavaScript on prismarine-physics, no server) ran first.
+Real Minecraft ran only after the offline bot had matched its re-run on every course.
+
+| | Offline bot | Real Minecraft (1.21.4 server) |
+| --- | --- | --- |
+| Run | `results/neo_routing/games/single41-offline-routeneo` | `results/neo_routing/games/single41-live-routeneo` |
+| Completed | **52 of 64** | **52 of 64** |
+| Simulator re-run, same courses | 52 | 52 |
+| Courses where outcome or ticks differ from the re-run | 0 | 0 |
+| Replaying the recorded actions in the simulator | max 7.1e-15 blocks; 64 of 64 within 1e-6 on every tick | max 2.1e-14 blocks; 64 of 64 within 1e-6 on every tick |
+| Planner requests: found, verified, played | 290, 290, 290 of 306; 8 brakes; 0 errors | 290, 290, 290 of 306; 8 brakes; 0 errors |
+| Server corrections | (no server) | 0, and no "moved wrongly" in the server's log |
+| Wall time | 1,006 s | 1,646 s |
+
+The two bots play the same courses with the same ticks on all 64 (from 00:12 to 00:46 and from 00:46 to 01:30 on 31
+Oct). The course-list planner on the same 64 courses completes 55 in both bots (`results/games/single41-offline-corner`,
+`single41-live-corner`). The two sets overlap on 44 courses: 11 are completed only with the course list and 8 only
+with the router.
+
+### The first trigger's runs (superseded by the amendment; nothing is chosen on them)
+
+These runs used the first trigger, which planned every blocked choice. Rows are in `validation.jsonl`, details in
+`details/`.
+
+- **`single40-A-s0`** (A, seed 0, family 40): 241 (245). It has the same outcome and ticks as `single40-wall-A-s0` on
+  all 320 courses. It searched one jump more, on course 142 from platform 5 to 6 (at the takeoff and on the retry),
+  which the wall trigger leaves to the jumper.
+- **`route2-A-s0`**: 1,759 of 1,800. The 4 lost courses are listed in the amendment.
+- **`route5-A-s0`**: 1,726 of 1,800.
+
+Both `route*-A-s0` runs used A, with episodes on the GPU and searches on the CPU.
+
+### Follow-ups (not run)
+
+1. **Plan the jumps before the neo too.** 15 courses are lost there, against the course-list planner's 4, and those
+   jumps are the jumper's. A lever that plans every router decision from the start while the plans land would be
+   the router's version of the course-list `jumps: "all"`. It needs its own rule on family 40.
+2. **The searches at the neo.** 36 courses are lost there against the course list's 24, every one with no landing
+   found, and B's bigger neo search did not help (3-seed mean +3.0). A plan for the approach to the router's walled
+   choice, one decision earlier, would mirror the course list's `approach`, which is refused here because it needs
+   the course list.
+
 ## Reproduce
 
+The runs used these commands (each run's own command line is the first line of its log, `runs/NAME.log`). C's JSON
+is `{"samples": 1024, "iterations": 25, "horizon": 32, "retry_horizon": 48, "retries": 1, "brake": 14, "restarts": 3,
+"plan_on": 1, "seed": S}`; the bots add `"plan_start": 1, "corner_limit": 0.25`.
+
 ```text
-python -m parkour.route_neo --set single --family 40 --device cpu --threads 3 --name NAME --tag TAG --assist JSON
-python -m parkour.route_neo --set standard --family 2 --name NAME --tag TAG --assist JSON       (and obstacles 5)
+set CUDA_VISIBLE_DEVICES=-1        CPU runs: the single-neo sets and the bots
+python -m parkour.route_neo --set single --family 40 --device cpu --name NAME --tag TAG --parts 16 --jobs 4 --assist JSON
+python -m parkour.route_neo --set single --family 41 --device cpu ...          the test set (run once)
+python -m parkour.route_neo --set single --family 40 --device cpu --settle 10 ...   from the bots' start
+python -m parkour.route_neo --set standard --family 2 --threads 1 --name NAME --tag TAG --assist JSON   (and --set obstacles --family 5; episodes on the GPU)
 python -m parkour.live --offline --checkpoint results/final_policy.pt --router results/routing/router_policy.pt --assist JSON --courses-file results/games/single41-first64-courses.json --out runs/NAME
+python -m parkour.live --checkpoint ... (the same without --offline: real Minecraft, with the user's EULA acceptance on the PC)
+python scripts/neo_routing_summary.py --out results/neo_routing/breakdown.json NAME ...
+python scripts/neo_routing_ordinary.py route2-wall-C-s0 route5-wall-C-s0 --keep runs/neo-route-check-rulecost.json --out results/neo_routing/ordinary.json
+python scripts/archive_neo_routing_games.py runs/NAME ...
 ```
 
-Rows: `validation.jsonl`, `test.jsonl`; every course, search and router decision: `details/NAME.json.gz`.
+The project's processes ran on the 10 cores of mask 0xC03C0F. The simulator runs were at BelowNormal priority; the
+real-Minecraft run was at normal priority.
+
+- **Rows:** `validation.jsonl`, `test.jsonl`.
+- **Every course, search and router decision:** `details/NAME.json.gz`.
+- **The parts of each split run:** `runs/neo_routing_parts/NAME/`, copied with the bot runs (`runs/single41-*-routeneo`)
+  and the logs into the main checkout's `runs/`.
