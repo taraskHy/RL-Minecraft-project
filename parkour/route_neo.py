@@ -22,7 +22,9 @@ are those of a course-list request from that platform. A choice that is no cours
 standing on it ends the episode) is not planned. Per platform planned from: one takeoff search, then up to
 ``retries`` retries every ``retry_every`` ticks while the bot stands on it (at once after a brake), each only if
 its plan can end before the stall limit. ``prior`` and ``approach`` need the course list and are refused;
-``jumps`` stays "neo" (the blocked-path rule decides which jumps are planned).
+``jumps`` stays "neo" (the blocked-path rule decides which jumps are planned). With ``plan_on`` (opt-in) a
+decision made on a plan's landing is planned too, whatever it chose, and so on while plans land: the jumper
+then never starts from a plan's landing state (the course-list planner's ``jumps`` "all" plans every jump).
 
 The bots do the same (``parkour.live --router R --assist JSON``: bridge/router.js, ``RouteAssist`` in
 bridge/assist.js, the planner service); tests/test_route_neo.py checks the offline bot against this module.
@@ -151,8 +153,9 @@ def evaluate_routed_neo(jumper, pool: CoursePool, tables: RouteTables, choose=No
     plans = {"played": 0, "landed_as_planned": 0, "brakes": 0}
     search_seconds = 0.0
 
-    def decided(res, t: int) -> None:
-        """A decision's platform planned from and, if its first choice is blocked by a wall, the platform to plan."""
+    def decided(res, t: int, landed: torch.Tensor | None = None) -> None:
+        """A decision's platform planned from and, if its first choice is blocked by a wall (or, with ``plan_on``, the
+        decision was made on a plan's landing: ``landed``), the platform to plan."""
         if res is None:
             return
         r = res["rows"]
@@ -161,7 +164,8 @@ def evaluate_routed_neo(jumper, pool: CoursePool, tables: RouteTables, choose=No
         act = res["action"]
         tk = torch.where(act >= 0, res["cidx"][ar, act.clamp(min=0)], torch.full_like(act, -1))
         frm[r] = hk
-        want[r] = torch.where(res["walled"] & (hk >= 0) & (tk >= 0), tk, torch.full_like(tk, -1))
+        plan_it = res["walled"] | (landed[r] if landed is not None else torch.zeros_like(res["walled"]))
+        want[r] = torch.where(plan_it & (hk >= 0) & (tk >= 0), tk, torch.full_like(tk, -1))
         if record:
             rects = res["rect"].tolist()
             for j, i in enumerate(r.tolist()):
@@ -246,11 +250,15 @@ def evaluate_routed_neo(jumper, pool: CoursePool, tables: RouteTables, choose=No
             ended = active & (plan_pos >= plan_len)  # a plan's (or brake's) last action was just played
             retry_now = ended & braking
             braking &= ~ended
+            landed = None  # plan_on: the rows whose plan has just landed on its target (their decision now is planned)
             if bool(ended.any()):
                 stand = standing_on(pool, env.state, env.course)
+                on_target = stand[rows, plan_t.clamp(min=0)] & ended & ~retry_now & ~first
+                if planning and acfg.plan_on:
+                    landed = on_target
                 for i in torch.nonzero(ended & ~retry_now).flatten().tolist():
                     plans["played"] += 1
-                    ok = bool(info["success"][i]) if bool(first[i]) else bool(stand[i, int(plan_t[i])])
+                    ok = bool(info["success"][i]) if bool(first[i]) else bool(on_target[i])
                     plans["landed_as_planned"] += int(ok)
             finished |= done
             plan_len = torch.where(done, torch.zeros_like(plan_len), plan_len)
@@ -262,7 +270,7 @@ def evaluate_routed_neo(jumper, pool: CoursePool, tables: RouteTables, choose=No
             if bool(finished.all()):
                 break
             trig, cell = run.triggers(~finished)
-            decided(run.decide(trig.nonzero().squeeze(1), cell, choose, fill_choose), t + 1)
+            decided(run.decide(trig.nonzero().squeeze(1), cell, choose, fill_choose), t + 1, landed)
             if planning:
                 searches(t, on, ended, retry_now)
             obs = run.observe()

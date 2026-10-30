@@ -138,6 +138,25 @@ class RouteNeoSimulator(Shared):
         self.assertTrue(all(c["neo_done"] for c in res["per_course"] if c["success"]))
         self.assertGreaterEqual(sum(c["success"] for c in res["per_course"]), 4)
 
+    def test_plan_on_plans_the_jumps_after_a_planned_landing(self):
+        cs = neo_courses([1, 2, 3, 11])
+        res = self.routed(cs, "plan", AssistConfig(samples=256, iterations=8, restarts=1, plan_on=1))
+        for i, c in enumerate(cs):
+            k = neo_takeoffs(c)[0]
+            ev = [e for e in res["events"] if e["course"] == i]
+            self.assertEqual((ev[0]["takeoff"], ev[0]["target"]), (k, k + 1))  # the neo first, as without plan_on
+            for a, b in zip(ev, ev[1:]):  # then each landing's next choice: a chain of planned jumps
+                if a["found"] and b["kind"] == "takeoff":
+                    self.assertEqual(b["takeoff"], a["target"])
+            self.assertGreater(len(ev), 1)
+        self.assertEqual(res["plans"]["landed_as_planned"], res["plans"]["played"])
+        without = self.routed(cs, "plan", AssistConfig(samples=256, iterations=8, restarts=1))
+        self.assertEqual(sorted((e["course"], e["takeoff"]) for e in without["events"]),
+                         [(i, neo_takeoffs(c)[0]) for i, c in enumerate(cs)])
+        from parkour.neo_assist import evaluate_assisted
+        with self.assertRaises(ValueError):  # the course-list planner plans every jump with jumps "all" instead
+            evaluate_assisted(self.model, CoursePool(cs[:1], "cpu", C.GRID), "cpu", AssistConfig(plan_on=1))
+
     def test_failed_searches_brake_and_retry(self):
         cs = neo_courses([0, 1, 2, 3, 4, 5])
         res = self.routed(cs, "plan", AssistConfig(samples=16, iterations=1, retries=1, brake=14, retry_horizon=48))
@@ -245,6 +264,14 @@ class RouteNeoBotParity(Shared):
         self.assertEqual([(e["course"], e["kind"], e["tick"]) for e in res["events"] if e["tick"] == 0],
                          [(0, "takeoff", 0), (1, "takeoff", 0)])
         self.assertTrue(all("corner_dropped" in e for e in res["events"]))
+
+    def test_same_with_plan_on(self):
+        # The jumps after each planned landing are planned too; a weak search fails some, which brake and retry.
+        cfg = AssistConfig(samples=64, iterations=3, restarts=1, retries=1, brake=14, retry_horizon=48, plan_on=1)
+        res, bot = self.check(cfg, neo_courses([1, 2, 3, 11]))
+        neo = [neo_takeoffs(c)[0] for c in neo_courses([1, 2, 3, 11])]
+        self.assertTrue(any(e["takeoff"] > neo[e["course"]] for e in res["events"]))  # planned past the neo
+        self.assertGreater(res["plans"]["brakes"], 0)
 
     def check(self, cfg, cs, played=True):
         from parkour.live import SETTLE_TICKS

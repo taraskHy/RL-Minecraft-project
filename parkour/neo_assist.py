@@ -152,10 +152,13 @@ class AssistConfig:
     approach_touch: int = 0  # 1: an approach plan counts only if it stands on the neo's takeoff before it lands
     plan_start: int = 0  # 1: the searches also run on the start state, before the first tick's action
     corner_limit: float = 0.0  # >0: a landing whose plan has a tick this far apart in the game's collision order is dropped
+    # The learned router's mode only (parkour.route_neo): 1: after a planned landing the router's next choice is planned
+    # too (and so on while plans land), so the jumper never starts from a plan's landing state.
+    plan_on: int = 0
 
 
 NEO_LEVERS = ("restarts", "neo_samples", "neo_iterations", "approach_touch")
-OPTIONAL = NEO_LEVERS + ("plan_start", "corner_limit")  # the fields a row's config lists only when they are set
+OPTIONAL = NEO_LEVERS + ("plan_start", "corner_limit", "plan_on")  # the fields a row's config lists only when they are set
 KIND_CODE = {"takeoff": 0, "retry": 1, "approach": 2}
 
 
@@ -695,6 +698,8 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
     ``cfg.plan_start``.
     """
     n = pool.size
+    if cfg.enabled and cfg.plan_on:
+        raise ValueError("plan_on is the learned router's (parkour.route_neo); with the course list use jumps 'all'")
     if cfg.enabled and cfg.prior > 0:
         assert model.obs_dim != OBS_DIM_EXT, "the search prior uses the 255-number observation"
     per_request = NEO_LEVERS + ("corner_limit",)

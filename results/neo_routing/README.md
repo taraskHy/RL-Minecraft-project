@@ -111,6 +111,21 @@ course list and are refused; the blocked-path rule decides which jumps are plann
   first trigger are kept and reported (`single40-A-s0`, `route2-A-s0`, `route5-A-s0`), but nothing is chosen on
   them. Rule 2 is unchanged and uses the new trigger (`route2-wall-*`, `route5-wall-*`).
 
+### Rule 3 (written 19:56:40, before any run with `plan_on`): one more lever, `plan_on`, on rule 1's choice
+
+- **Why.** A's first run (first trigger, seed 0, 241 of 320; nothing is chosen on it) failed 15 courses before
+  the neo, 36 at it (no landing found), 17 on the jump right after it, from the plan's landing state, and 7
+  later. The course-list planner's V3b at seed 0 failed 4, 24, 4 and 2 there (it plans every jump, so the jump
+  after the neo starts from a planned landing too). The search ends a plan the tick it lands, in whatever state;
+  the jumper then has to go on from a state its own jumps do not leave it in.
+- **Lever C, `plan_on` (opt-in `AssistConfig` field, router mode only):** a decision made on a plan's landing is
+  planned too, whatever the router chose there, and so on while plans land; a search that finds nothing leaves
+  that jump to the jumper after the brake and retry, as for a neo. The planner then keeps the bot from the first
+  neo on. It changes nothing on courses with no wall (family 2), since nothing is planned there.
+- **Runs and choice:** rule 1's chosen setting plus `"plan_on": 1`, search seeds 0, 1 and 2 (rule 1's choice has
+  those three seeds too). C is kept only if its mean over the three seeds is at least 4 courses above the chosen
+  setting's mean (the 29 Oct lever rule). The setting for rule 2 is rule 1's choice, with `plan_on` if kept.
+
 ## Results
 
 (Filled in as the runs finish.)

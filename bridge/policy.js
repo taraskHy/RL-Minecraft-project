@@ -394,8 +394,10 @@ class Episode {
     const req = this.pending
     this.pending = null
     this.assistLog.push({ kind: req.kind, cp: req.cp, takeoff: req.takeoff, tick: req.tick, ...info, played: !!plan, braked: !plan && !!brake })
-    if (plan) this.queue = plan.map(a => a.slice())
-    else if (brake) {
+    if (plan) {
+      this.queue = plan.map(a => a.slice())
+      if (this.assist.played) this.assist.played(req, plan.length) // RouteAssist: plan_on follows the landing
+    } else if (brake) {
       this.queue = brake.map(a => a.slice())
       this.assist.braked = true
     } else if (req.kind === 'approach') {
