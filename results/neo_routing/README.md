@@ -8,7 +8,24 @@ HANDOFF section 5 are unchanged. Times are Israel time, read from `date` (Git Ba
 
 ## Headline
 
-(Filled in after the runs below.)
+The chosen setting is A + `plan_on`. On the single-neo sets (320 courses), counts are completions with the neo done
+as a neo. The files for every number are in the sections below.
+
+- **Validation** (family 40, 320 single-neo courses, simulator, CPU): **255, 257 and 251** for search seeds 0, 1 and
+  2 (mean 254.3). As shipped, the router completes 8 to 13. The course-list planner gets 286 at seed 0 and 276 at
+  seed 1.
+- **Test** (family 41, run once): **252** of 320. The course-list planner gets 276.
+- **The router's own validation sets** (1,800 courses each):
+  - Family 2: **1,762**, the shipped number. Nothing is planned there (no walls), and the run equals the 30 Oct
+    filter-off what-if on every course.
+  - Family 5: **1,728** against the shipped 1,720 (9 courses won, 1 lost; 7 of the wins are planned jumps).
+- **Bots** on the 64 test courses of `single41-first64`: **52 of 64 offline and 52 of 64 in real Minecraft**. Each
+  matches its simulator re-run on every course (outcome and ticks), with 0 server corrections, and the two bots match
+  each other. The course-list planner gets 55 in both.
+- **Choices**, by rules written before each run: rule 1 kept A over B, which led by 3.0 (under the rule's 4); rule 3
+  added `plan_on`, which led A by 15.3.
+- **Where the router loses courses against the course list** (seed 0): 15 against 4 before the neo, and 36 against 24
+  at the neo. After the neo it loses 10 against 6.
 
 ## Why (measured on 30 Oct before this branch; simulator, GPU; files in the main checkout's `runs/`)
 
@@ -42,6 +59,8 @@ JSON`):
    the jumper keeps control; with `brake` the bot first stops on the takeoff, with `retries` the search runs again
    while it stands there (as in the course-list planner). (Step 2 first planned every blocked choice; see the
    amendment under the rules.)
+3. With `plan_on` (an opt-in `AssistConfig` field, router mode only; kept by rule 3), a decision made on a plan's
+   landing is planned too, whatever the router chose there, and so on while plans land.
 
 The course list only names the two platforms for the search: the platform stood on is the request's `cp`, the
 chosen one its `target` (the router's perception equals the course platforms, `tests/test_route.py`), so the
@@ -166,9 +185,10 @@ Up to the neo's landing C plays as A, course for course at each seed:
 
 Of the courses that passed the neo, C loses 10, 10 and 10 later, against 24, 29 and 23 for A (per course in the
 details files; the course-list planner's V3b lost 6 there, the 4 and 2 in rule 3's "Why"). The rows' `failed_at`
-"basic" (25 for C, 38 to 44 for A) also counts the 15 courses lost before the neo. It makes 4.7 to 4.8 times as many takeoff searches (1,417 to 1,450 per run, against 303) in
-about 1.6 times A's search time (7,649 to 7,982 s per run), and every plan played landed as planned (1,396, 1,391,
-1,356).
+"basic" (25 for C, 38 to 44 for A) also counts the 15 courses lost before the neo.
+
+C makes 4.7 to 4.8 times as many takeoff searches (1,417 to 1,450 per run, against 303) in about 1.6 times A's search
+time (7,649 to 7,982 s per run), and every plan played landed as planned (1,396, 1,391, 1,356).
 
 ### Where the family-40 courses are lost
 
@@ -231,11 +251,27 @@ comparison is in `results/neo_routing/ordinary.json` (`scripts/neo_routing_ordin
   - won by the filter: 690 and 1661;
   - won by the plans: 1027, 1095, 1105, 1164, 1360, 1438 and 1757.
 
+### The bots' setting from the bots' start (a measurement; nothing is chosen on it)
+
+The bots' setting (C + `plan_start` 1 + `corner_limit` 0.25, seed 0) on family 40 from the bots' start (settle 10);
+simulator, CPU: **248 of 320** (250 completed). The row is `single40-wall-C-settle10-bots` in `validation.jsonl`.
+
+- **Where the courses were lost:** 22 before the neo, 40 at it, 8 after passing it.
+- **Corner limit:** it dropped 14 landings.
+- **Compared with:**
+  - C from the simulator's own start (settle 0), seed 0: 255.
+  - The course-list planner's bot setting from the bots' start: 292 (`assist_parts/single40-v3b-settle10-planstart-corner`
+    in `results/neo/assist_validation.jsonl`).
+
+The run was first started at 00:12 and stopped at 00:13 to keep the CPU under its limit, before any part had
+finished. It started again at 01:05 on 3 jobs, so its log has both start lines.
+
 ### The bots: the 64 test courses of `results/games/single41-first64-courses.json`
 
 **Setting.** C plus the course-list planner's bot-start fixes: `{"samples": 1024, "iterations": 25, "horizon": 32,
 "retry_horizon": 48, "retries": 1, "brake": 14, "restarts": 3, "plan_on": 1, "plan_start": 1, "corner_limit": 0.25}`.
-The router's own fill is `policy`, with `--router-blocked plan`. Everything ran on the CPU (`CUDA_VISIBLE_DEVICES=-1`):
+The router fills slots 2 and 3 with its own `policy`, and `--router-blocked` is `plan`, its default with `--assist`.
+Everything ran on the CPU (`CUDA_VISIBLE_DEVICES=-1`):
 the episodes' re-run, the planner service and the searches. In router mode, `plan_start` only searches a first jump
 the router chose across a wall, and does so before the first action.
 
