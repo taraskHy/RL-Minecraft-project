@@ -1,0 +1,88 @@
+{
+ "router": "runs/route-full-f/checkpoints/it0029.pt",
+ "set": "validation",
+ "measured": "simulator (GPU)",
+ "note": "router minus greedy planner on the same courses; ci95: bootstrap over courses (10,000 resamples); mcnemar_exact_p: two-sided exact test on the courses where exactly one succeeds",
+ "local": {
+  "standard": {
+   "courses": 1800,
+   "router": 0.9788888888888889,
+   "planner": 0.9277777777777778,
+   "difference": 0.051111111111111114,
+   "ci95": [
+    0.03944444444444444,
+    0.06333333333333334
+   ],
+   "router_only": 107,
+   "planner_only": 15,
+   "mcnemar_exact_p": 2.6844286134204812e-18
+  },
+  "obstacles": {
+   "courses": 1800,
+   "router": 0.9555555555555556,
+   "planner": 0.89,
+   "difference": 0.06555555555555556,
+   "ci95": [
+    0.051666666666666666,
+    0.07944444444444444
+   ],
+   "router_only": 143,
+   "planner_only": 25,
+   "mcnemar_exact_p": 2.7276165626071624e-21
+  },
+  "combined": {
+   "courses": 3600,
+   "router": 0.9672222222222222,
+   "planner": 0.9088888888888889,
+   "difference": 0.058333333333333334,
+   "ci95": [
+    0.049166666666666664,
+    0.0675
+   ],
+   "router_only": 250,
+   "planner_only": 40,
+   "mcnemar_exact_p": 2.7319983609767396e-38
+  }
+ },
+ "remaining": {
+  "standard": {
+   "courses": 1800,
+   "router": 0.9811111111111112,
+   "planner": 0.9516666666666667,
+   "difference": 0.029444444444444443,
+   "ci95": [
+    0.019444444444444445,
+    0.03944444444444444
+   ],
+   "router_only": 67,
+   "planner_only": 14,
+   "mcnemar_exact_p": 1.8890284038209312e-09
+  },
+  "obstacles": {
+   "courses": 1800,
+   "router": 0.9561111111111111,
+   "planner": 0.9088888888888889,
+   "difference": 0.04722222222222222,
+   "ci95": [
+    0.034444444444444444,
+    0.059444444444444446
+   ],
+   "router_only": 111,
+   "planner_only": 26,
+   "mcnemar_exact_p": 1.0497375514568333e-13
+  },
+  "combined": {
+   "courses": 3600,
+   "router": 0.9686111111111111,
+   "planner": 0.9302777777777778,
+   "difference": 0.03833333333333333,
+   "ci95": [
+    0.03027777777777778,
+    0.04666666666666667
+   ],
+   "router_only": 178,
+   "planner_only": 40,
+   "mcnemar_exact_p": 5.682967304246959e-22
+  }
+ }
+}

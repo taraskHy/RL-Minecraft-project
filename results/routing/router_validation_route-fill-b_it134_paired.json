@@ -1,0 +1,88 @@
+{
+ "router": "runs/route-fill-b/checkpoints/it0134.pt",
+ "set": "validation",
+ "measured": "simulator (GPU)",
+ "note": "router minus greedy planner on the same courses; ci95: bootstrap over courses (10,000 resamples); mcnemar_exact_p: two-sided exact test on the courses where exactly one succeeds",
+ "local": {
+  "standard": {
+   "courses": 1800,
+   "router": 0.9755555555555555,
+   "planner": 0.9277777777777778,
+   "difference": 0.04777777777777778,
+   "ci95": [
+    0.035555555555555556,
+    0.06
+   ],
+   "router_only": 106,
+   "planner_only": 20,
+   "mcnemar_exact_p": 2.4521419465060444e-15
+  },
+  "obstacles": {
+   "courses": 1800,
+   "router": 0.9555555555555556,
+   "planner": 0.89,
+   "difference": 0.06555555555555556,
+   "ci95": [
+    0.05220833333333335,
+    0.07944444444444444
+   ],
+   "router_only": 142,
+   "planner_only": 24,
+   "mcnemar_exact_p": 1.3807205188798208e-21
+  },
+  "combined": {
+   "courses": 3600,
+   "router": 0.9655555555555555,
+   "planner": 0.9088888888888889,
+   "difference": 0.056666666666666664,
+   "ci95": [
+    0.0475,
+    0.06583333333333333
+   ],
+   "router_only": 248,
+   "planner_only": 44,
+   "mcnemar_exact_p": 1.1320224554979834e-35
+  }
+ },
+ "remaining": {
+  "standard": {
+   "courses": 1800,
+   "router": 0.9772222222222222,
+   "planner": 0.9516666666666667,
+   "difference": 0.025555555555555557,
+   "ci95": [
+    0.015555555555555555,
+    0.03611111111111111
+   ],
+   "router_only": 67,
+   "planner_only": 21,
+   "mcnemar_exact_p": 9.203075999074401e-07
+  },
+  "obstacles": {
+   "courses": 1800,
+   "router": 0.9561111111111111,
+   "planner": 0.9088888888888889,
+   "difference": 0.04722222222222222,
+   "ci95": [
+    0.034444444444444444,
+    0.06
+   ],
+   "router_only": 111,
+   "planner_only": 26,
+   "mcnemar_exact_p": 1.0497375514568333e-13
+  },
+  "combined": {
+   "courses": 3600,
+   "router": 0.9666666666666667,
+   "planner": 0.9302777777777778,
+   "difference": 0.03638888888888889,
+   "ci95": [
+    0.028333333333333332,
+    0.04472222222222222
+   ],
+   "router_only": 178,
+   "planner_only": 47,
+   "mcnemar_exact_p": 3.915341724303685e-19
+  }
+ }
+}

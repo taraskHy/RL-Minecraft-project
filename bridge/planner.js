@@ -200,4 +200,4 @@ class GreedyPlanner {
   }
 }
 
-module.exports = { GreedyPlanner, perceive, choose, DEFAULTS }
+module.exports = { GreedyPlanner, perceive, choose, DEFAULTS, headHitter, goalCell, supportCells, MAX_GAP }

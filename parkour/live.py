@@ -112,11 +112,18 @@ def main(argv=None):
     ap.add_argument("--planner", action="store_true",
                     help="no course list for the policy: a greedy planner finds platforms in the blocks around the bot")
     ap.add_argument("--planner-config", default="{}", help="JSON overrides of parkour.planner.PlannerConfig")
+    ap.add_argument("--router", default="",
+                    help="a learned route policy checkpoint (parkour.route_train) instead of the greedy rule; implies "
+                         "--planner (no course list); --planner-config still sets the perception and jump limits")
+    ap.add_argument("--router-fill", default="", choices=("", "greedy", "policy"),
+                    help="slots 2 and 3 with --router (default: the router's training setting)")
     ap.add_argument("--fall-rule", default="local", choices=("local", "remaining"))
     ap.add_argument("--assist", default="",
                     help="JSON overrides of parkour.neo_assist.AssistConfig ('{}': defaults): the bot plans its neos "
                          "with a Python search from its exact state, checks each plan with prismarine-physics, plays it")
     a = ap.parse_args(argv)
+    if a.router:
+        a.planner = True
 
     out = Path(a.out).resolve()
     out.mkdir(parents=True, exist_ok=False)
@@ -154,6 +161,12 @@ def main(argv=None):
         from .planner import PlannerConfig
         planner_cfg = PlannerConfig(**json.loads(a.planner_config))
         planner_json = json.dumps(dataclasses.asdict(planner_cfg))
+        if a.router:  # the bot's copy of the route policy (bridge/router.js)
+            from .route_policy import load_router
+            router = load_router(Path(a.router), dev)
+            router_fill = a.router_fill or torch.load(a.router, map_location="cpu", weights_only=False)["config"].get("fill", "greedy")
+            router.export(out / "router.json", {"checkpoint": str(a.router)})
+            planner_json = json.dumps({**dataclasses.asdict(planner_cfg), "router": str(out / "router.json"), "fill": router_fill})
     t0 = time.time()
     if a.offline:
         subprocess.run([str(NODE), str(BRIDGE / "offline_bot.js"), "--policy", str(out / "policy.json"),
@@ -178,7 +191,13 @@ def main(argv=None):
     episodes = [json.loads(line) for line in episodes_path.read_text().splitlines() if line.strip()]
     rep = replay(courses, episodes)
     pool = CoursePool(courses, dev, C.GRID)
-    if a.planner:
+    if a.router:
+        from .route_env import RouteConfig, RouteTables, evaluate_routed
+        from .route_train import router_choosers
+        choose, fill = router_choosers(router, True)
+        sim = evaluate_routed(model, pool, RouteTables(pool), choose, fill, planner_cfg, RouteConfig(fill=router_fill),
+                              a.stall, settle=SETTLE_TICKS, fall_rule=a.fall_rule)["per_course"]
+    elif a.planner:
         from .planner import evaluate_planned
         sim = evaluate_planned(model, pool, dev, planner_cfg, a.stall, settle=SETTLE_TICKS, fall_rule=a.fall_rule)["per_course"]
     elif assist_cfg is not None:
@@ -207,6 +226,7 @@ def main(argv=None):
     summary = {
         "mode": "offline (prismarine-physics, no server)" if a.offline else "live (Minecraft 1.21.4 server)",
         "checkpoint": str(a.checkpoint), "courses": len(rows), "wall_seconds": round(wall, 1),
+        **({"router": str(a.router), "router_fill": router_fill} if a.router else {}),
         "success": sum(r["result"] == "success" for r in rows) / max(len(rows), 1),
         "sim_success_same_courses": sum(r["sim_success"] for r in rows) / max(len(rows), 1),
         "outcome_agreement": sum((r["result"] == "success") == r["sim_success"] for r in rows) / max(len(rows), 1),
