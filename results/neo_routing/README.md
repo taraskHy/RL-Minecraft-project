@@ -128,7 +128,23 @@ course list and are refused; the blocked-path rule decides which jumps are plann
 
 ## Results
 
-(Filled in as the runs finish.)
+### Rule 1: candidate A (outcome written 23:09:59, before any run of rule 3)
+
+Family 40 (320 single-neo validation courses), simulator, CPU episodes and searches. The count is completed with
+the neo done as a neo (`neo_done`); plain completions are in brackets. Rows are in
+`results/neo_routing/validation.jsonl` (`run_id` `neo_routing/NAME`), every course in
+`results/neo_routing/details/NAME.json.gz`, the parts in `runs/neo_routing_parts/NAME/`.
+
+| Search seed | A (`single40-wall-A-sS`) | B (`single40-wall-B-sS`) |
+| --- | --- | --- |
+| 0 | 241 (245) | 243 (247) |
+| 1 | 238 (241) | 243 (247) |
+| 2 | 238 (242) | 240 (243) |
+| Mean | 239.0 | 242.0 |
+
+At seed 0 the margin was 2, under 10, so both ran seeds 1 and 2. B's mean is 3.0 above A's, under the rule's 4, so
+the choice is **A**. B searched about 4 times as long (19,750 to 20,995 s of searching per run, against 4,728 to
+4,878 s for A).
 
 ## Reproduce
 
