@@ -261,6 +261,9 @@ are the chosen settings.
 | validation | single (family 40) | `final_policy` | Fix C: B + corner_limit 0.25 | all | 292/320 (91.2) | 301/316 | 3041/3041 |
 | validation | single (family 40) | `final_policy` | Seed check: A with search seed 1 | all | 286/320 (89.4) | 294/314 | 2958/2958 |
 | validation | single (family 40) | `final_policy` | Seed check: C with search seed 1 | all | 281/320 (87.8) | 285/315 | 2984/2984 |
+| validation | single (family 40) | `final_policy` | Seed check: A with search seed 2 | all | 281/320 (87.8) | 286/316 | 2922/2922 |
+| validation | single (family 40) | `final_policy` | Seed check: C with search seed 2 | all | 277/320 (86.6) | 284/316 | 2942/2942 |
+| validation | single (family 40) | `final_policy` | Seed check: V3b (simulator's own start) with search seed 1 | all | 277/320 (86.6) | 285/316 | 2944/2944 |
 | test | random (family 12) | `final_policy` | policy alone |  | 33/200 (16.5) | 1/162 |  |
 | test | official (family 1) | `final_policy` | policy alone |  | 0/210 (0.0) | 0/124 |  |
 | test | mixed (family 14) | `final_policy` | policy alone |  | 35/200 (17.5) | 0/16 |  |

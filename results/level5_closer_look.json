@@ -57,5 +57,34 @@
    "46": 1704,
    "47": 1831
   }
+ },
+ "ablation": {
+  "rule": "HANDOFF section 3, 30 Oct 09:09",
+  "runs": {
+   "l5-w3": {
+    "best_iteration": 699,
+    "validation": 0.9733,
+    "46": 1729,
+    "47": 1799,
+    "test": {
+     "standard": 0.9658333333333333,
+     "standard_L5": 0.85,
+     "obstacles": 0.9516666666666667,
+     "obstacles_L5": 0.83
+    }
+   },
+   "l5-w3-s1": {
+    "best_iteration": 199,
+    "validation": 0.9783,
+    "46": 1694,
+    "47": 1809,
+    "test": {
+     "standard": 0.9825,
+     "standard_L5": 0.925,
+     "obstacles": 0.9541666666666667,
+     "obstacles_L5": 0.855
+    }
+   }
+  }
  }
 }

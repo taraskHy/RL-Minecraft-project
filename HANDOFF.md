@@ -661,7 +661,14 @@ the files' times):
   (`--level-weights 1,1,1,1,1,3`, obstacles at the final policy's 0.3),
   queue recipe otherwise unchanged, each tested once. The weight alone
   counts as the active part if the two runs' mean on family 46 is at least
-  2 points above the final policy's 85.20% (both sets measured as above). `l5-obs05`: obstacles on half the jumps
+  2 points above the final policy's 85.20% (both sets measured as above).
+  **Result (10:26; `results/level5_closer_look.json` "ablation"):** family
+  46: 1,729 and 1,694 of 2,000 (mean 85.58%, +0.38), family 47: 1,799 and
+  1,809 (90.20%, -1.35): **the weight alone is not the active part; the
+  gain needs both, more obstacles and more level-5 courses** (each alone
+  gains nothing on level 5 with obstacles). Tests, played once: `l5-w3`
+  96.58% standard (level 5 85.0%) and 95.17% obstacles (83.0%); `l5-w3-s1`
+  98.25% (92.5%) and 95.42% (85.5%). `l5-obs05`: obstacles on half the jumps
   (`--obstacle-prob 0.5`, as in the obstacle test sets; training had 0.3,
   so a level-5 jump meets three fifths as many beams in training).
   `l5-obs05-w3`: the same plus three times as many level-5 courses
@@ -1044,7 +1051,9 @@ Concrete work, most important first. Nothing here needs new research.
    level-5 courses, three seeds each. With the level-5 weight, level 5 with
    obstacles rises by 2.7 points on 2,000 validation courses (all three
    seeds up) and by 2.8 on test on average (81.0 to 83.8), with standard
-   courses level; obstacles alone gain nothing. Not shipped (Ethan's call).
+   courses level; obstacles alone gain nothing, and the level-5 weight
+   alone gains nothing either (two seeds), so it takes both. Not shipped
+   (Ethan's call).
 4. **Planner shortcuts:** most planner failures take a shortcut to a later
    platform that is in reach, and that jump is harder
    (`results/planner/`, report 7.11). With the final policy 98 of the 109
@@ -1375,18 +1384,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `be8943e` (2026-10-30 06:16, branch `main`): Corner check review fixes: a parity test that drops a landing, accurate wording, true rule times
+Generated on top of commit `1fb037c` (2026-10-30 10:02, branch `main`): The planner's seed noise: about 9 courses of 320 per run
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 23 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 26 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `1a16df0` 2026-10-29 14:14 | 39 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 207 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 190 |
+| `README.md` | `1a16df0` 2026-10-29 14:14 | 42 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 210 |
+| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 193 |
 | `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | updated together with this snapshot | 0 |
+| `results/DATA.md` | `af631d3` 2026-10-30 09:03 | 2 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -1453,10 +1462,12 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `hp-net-small` | 999 | 0.52 | 999 | 92.5 | 91.3 | 91.3 | - |
 | `l5-obs05` | 999 | 0.52 | 999 | 97.9 | 98.2 | - | - |
 | `l5-obs05-s1` | 999 | 0.52 | 49 | 97.0 | 98.1 | - | - |
-| `l5-obs05-s2` | 949 | 0.50 | 99 | 97.6 | - | - | - |
+| `l5-obs05-s2` | 999 | 0.52 | 99 | 97.6 | 97.8 | - | - |
 | `l5-obs05-w3` | 999 | 0.52 | 249 | 98.2 | 98.3 | - | - |
 | `l5-obs05-w3-s1` | 999 | 0.52 | 99 | 98.1 | 98.4 | - | - |
 | `l5-obs05-w3-s2` | 999 | 0.52 | 49 | 98.0 | 98.5 | - | - |
+| `l5-w3` | 999 | 0.52 | 699 | 97.3 | 96.6 | - | - |
+| `l5-w3-s1` | 999 | 0.52 | 199 | 97.8 | 98.2 | - | - |
 | `main-g995` | 2999 | 1.57 | 2799 | 98.7 | 97.9 | 96.2 | - |
 | `main-s0` | 2999 | 1.57 | - | - | - | 95.5 | - |
 | `neo-bc` | 799 | 0.42 | 699 | 86.1 | 85.7 | 86.5 | 83.1 |
@@ -1603,6 +1614,7 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **30 Oct 2026, 10:26, Claude (Claude Code, training PC), end of the night:** the planner's seed noise measured (three seeds each on validation: one run's standard deviation is about 9 of 320 courses, so the start fix's gap and the 29 Oct lever margins are inside it); level 5 with obstacles: obstacles on half the jumps plus three times as many level-5 courses gains 2.7 points on 2,000 validation courses (three seeds) and 2.8 on test on average, while each change alone gains nothing (ablation, two seeds); nothing shipped. Next: Ethan's calls (whether to ship a level-5 candidate, which would need a choice rule fixed now that the tests are seen; the report).
 - **30 Oct 2026, 09:03, Claude (Claude Code, training PC), overnight (Ethan, via the side session: use the CPU and GPU as much as possible while asleep):** (1) Wall corners, problem 9: the game's collision order as an opt-in physics flag (default path bit-identical) and the planner's `corner_limit`, kept on validation (292, the same courses as without it); the server's rule measured on all 40 recorded real-Minecraft runs (`results/corner_scan.json`); on the 64 single-neo test courses with both fixes 55 offline and 55 in real Minecraft, equal to the simulator, 0 corrections, no warnings. (2) The planner's search seed moves a 320-course count by about 10 (A 265 and 285, C 292 and 280): the start fix's gap was mostly chance; caveats added here, in TEAM_STATUS and on the results page. (3) The one network on the final policy's 120 bot courses: 59/60 and 59/60, offline and real Minecraft, equal to the simulator. (4) Level 5 with obstacles (problem 3): two fine-tunes beat the final policy on validation, and on 2,000 level-5 obstacle validation courses by 2.3 and 2.7 points; their tests are mixed; two more seeds of each are running under a rule fixed at 06:45; nothing shipped. (5) The results page's test-once and bot-difference wording fixed; this file's rule times corrected (05:16 and about 05:19, both before their runs). Next: the seeds' comparison, then Ethan's calls (a level-5 candidate, the report).
 - **30 Oct 2026, 05:00, Claude (Claude Code, training PC):** the planner's first-jump fix (Ethan: "Yes, fix it"): `plan_start` (opt-in; the searches also run on the start state, before the first action; Python and the bots), rules fixed at 02:31. Validation from the bots' settled start: 292 of 320 with it, 265 without (the simulator's own start: 286), so it is kept (`61a833e`); an independent review found two real defects in the replay-page builder, fixed (the page rebuilds byte for byte). On the 64 test courses, played once: offline 55 (= its simulator re-run; course 10 now plans its first jump), real Minecraft 54 with 2 server corrections (before: 58, 0), both at the corner of a neo's wall, where prismarine-physics moves x before z and the game the larger component first (section 4, problem 9). The results page now says where the never-trained-block courses failed (Ethan): 32 of 33 landings on the new blocks. Merged `origin/main`, which holds the routing pull request #2 (merged on GitHub at 04:02; the learned router 97.83% / 95.00% on test against the planner's 92.33% / 90.50%; section "Team split"). Next: Ethan's call on problem 9.
 - **30 Oct 2026, 00:00, Claude (Claude Code, training PC):** the skill gate built, reviewed, merged (`6946602`) and trained (`gate-r1`): validation 87.75% against 86.98%, so it replaces the one network in the simulator; tested once 86.80% against 86.45%, a match; the first expert swap is not kept. Single neos: the bots reproduce the simulator from the same start on the first 64 test courses, offline and in real Minecraft (planner 58/64, policy alone 26/64, 0 corrections). The replay page now holds 89 courses in 210 recordings: the one-neo courses with the planner (13/16, every completion did its neo) and the one network (7/16), and the never-trained shapes (6/8); results page version 17. GPU watchdog restarted from the merged code. Next: a fix for the settled-start first jump in the planner (to be chosen on validation), and whatever the user asks next.
