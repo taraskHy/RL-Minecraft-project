@@ -1,0 +1,561 @@
+[
+ {
+  "name": "single40-wall-A-s0",
+  "set": "single",
+  "family": 40,
+  "courses": 320,
+  "completed": 245,
+  "completed_neo_done": 241,
+  "config": {
+   "enabled": true,
+   "samples": 1024,
+   "iterations": 25,
+   "keep": 1,
+   "horizon": 32,
+   "retry_horizon": 48,
+   "approach": 0,
+   "jumps": "neo",
+   "prior": 0.0,
+   "retries": 1,
+   "retry_every": 10,
+   "brake": 14,
+   "batch": 1,
+   "seed": 0,
+   "restarts": 3
+  },
+  "tag": "Rule 1 (wall trigger): candidate A (the course-list planner's levers), search seed 0",
+  "failure_modes": {
+   "success": 245,
+   "wrong_platform": 7,
+   "nothing_in_view": 1,
+   "motor": 67
+  },
+  "searches": {
+   "takeoff": {
+    "n": 303,
+    "found": 262
+   },
+   "retry": {
+    "n": 38,
+    "found": 5
+   }
+  },
+  "plans_played": 266,
+  "plans_landed_as_planned": 266,
+  "pick_at_takeoff": {
+   "ahead": 2,
+   "neo_target": 302,
+   "not_reached": 16
+  },
+  "ends": {
+   "completed past the neo": 4,
+   "completed, neo done": 241,
+   "failed at the neo: no landing found": 36,
+   "failed elsewhere": 39
+  }
+ },
+ {
+  "name": "single40-wall-A-s1",
+  "set": "single",
+  "family": 40,
+  "courses": 320,
+  "completed": 241,
+  "completed_neo_done": 238,
+  "config": {
+   "enabled": true,
+   "samples": 1024,
+   "iterations": 25,
+   "keep": 1,
+   "horizon": 32,
+   "retry_horizon": 48,
+   "approach": 0,
+   "jumps": "neo",
+   "prior": 0.0,
+   "retries": 1,
+   "retry_every": 10,
+   "brake": 14,
+   "batch": 1,
+   "seed": 1,
+   "restarts": 3
+  },
+  "tag": "Rule 1 (wall trigger): candidate A, search seed 1 (margin at seed 0 under 10)",
+  "failure_modes": {
+   "success": 241,
+   "wrong_platform": 7,
+   "nothing_in_view": 1,
+   "motor": 71
+  },
+  "searches": {
+   "takeoff": {
+    "n": 303,
+    "found": 261
+   },
+   "retry": {
+    "n": 39,
+    "found": 7
+   }
+  },
+  "plans_played": 268,
+  "plans_landed_as_planned": 268,
+  "pick_at_takeoff": {
+   "ahead": 2,
+   "neo_target": 302,
+   "not_reached": 16
+  },
+  "ends": {
+   "completed past the neo": 3,
+   "completed, neo done": 238,
+   "failed at the neo: no landing found": 35,
+   "failed elsewhere": 44
+  }
+ },
+ {
+  "name": "single40-wall-A-s2",
+  "set": "single",
+  "family": 40,
+  "courses": 320,
+  "completed": 242,
+  "completed_neo_done": 238,
+  "config": {
+   "enabled": true,
+   "samples": 1024,
+   "iterations": 25,
+   "keep": 1,
+   "horizon": 32,
+   "retry_horizon": 48,
+   "approach": 0,
+   "jumps": "neo",
+   "prior": 0.0,
+   "retries": 1,
+   "retry_every": 10,
+   "brake": 14,
+   "batch": 1,
+   "seed": 2,
+   "restarts": 3
+  },
+  "tag": "Rule 1 (wall trigger): candidate A, search seed 2 (margin at seed 0 under 10)",
+  "failure_modes": {
+   "success": 242,
+   "wrong_platform": 7,
+   "nothing_in_view": 1,
+   "motor": 70
+  },
+  "searches": {
+   "takeoff": {
+    "n": 303,
+    "found": 259
+   },
+   "retry": {
+    "n": 41,
+    "found": 4
+   }
+  },
+  "plans_played": 262,
+  "plans_landed_as_planned": 262,
+  "pick_at_takeoff": {
+   "ahead": 2,
+   "neo_target": 302,
+   "not_reached": 16
+  },
+  "ends": {
+   "completed past the neo": 4,
+   "completed, neo done": 238,
+   "failed at the neo: no landing found": 40,
+   "failed elsewhere": 38
+  }
+ },
+ {
+  "name": "single40-wall-B-s0",
+  "set": "single",
+  "family": 40,
+  "courses": 320,
+  "completed": 247,
+  "completed_neo_done": 243,
+  "config": {
+   "enabled": true,
+   "samples": 1024,
+   "iterations": 25,
+   "keep": 1,
+   "horizon": 32,
+   "retry_horizon": 48,
+   "approach": 0,
+   "jumps": "neo",
+   "prior": 0.0,
+   "retries": 1,
+   "retry_every": 10,
+   "brake": 14,
+   "batch": 1,
+   "seed": 0,
+   "restarts": 3,
+   "neo_samples": 4096,
+   "neo_iterations": 40
+  },
+  "tag": "Rule 1 (wall trigger): candidate B (A plus a bigger neo search), search seed 0",
+  "failure_modes": {
+   "success": 247,
+   "wrong_platform": 6,
+   "nothing_in_view": 1,
+   "motor": 66
+  },
+  "searches": {
+   "takeoff": {
+    "n": 303,
+    "found": 264
+   },
+   "retry": {
+    "n": 36,
+    "found": 3
+   }
+  },
+  "plans_played": 266,
+  "plans_landed_as_planned": 266,
+  "pick_at_takeoff": {
+   "ahead": 2,
+   "neo_target": 302,
+   "not_reached": 16
+  },
+  "ends": {
+   "completed past the neo": 4,
+   "completed, neo done": 243,
+   "failed at the neo: no landing found": 36,
+   "failed elsewhere": 37
+  }
+ },
+ {
+  "name": "single40-wall-B-s1",
+  "set": "single",
+  "family": 40,
+  "courses": 320,
+  "completed": 247,
+  "completed_neo_done": 243,
+  "config": {
+   "enabled": true,
+   "samples": 1024,
+   "iterations": 25,
+   "keep": 1,
+   "horizon": 32,
+   "retry_horizon": 48,
+   "approach": 0,
+   "jumps": "neo",
+   "prior": 0.0,
+   "retries": 1,
+   "retry_every": 10,
+   "brake": 14,
+   "batch": 1,
+   "seed": 1,
+   "restarts": 3,
+   "neo_samples": 4096,
+   "neo_iterations": 40
+  },
+  "tag": "Rule 1 (wall trigger): candidate B, search seed 1 (margin at seed 0 under 10)",
+  "failure_modes": {
+   "success": 247,
+   "wrong_platform": 8,
+   "nothing_in_view": 1,
+   "motor": 64
+  },
+  "searches": {
+   "takeoff": {
+    "n": 303,
+    "found": 265
+   },
+   "retry": {
+    "n": 35,
+    "found": 7
+   }
+  },
+  "plans_played": 271,
+  "plans_landed_as_planned": 271,
+  "pick_at_takeoff": {
+   "ahead": 2,
+   "neo_target": 302,
+   "not_reached": 16
+  },
+  "ends": {
+   "completed past the neo": 4,
+   "completed, neo done": 243,
+   "failed at the neo: no landing found": 31,
+   "failed elsewhere": 42
+  }
+ },
+ {
+  "name": "single40-wall-B-s2",
+  "set": "single",
+  "family": 40,
+  "courses": 320,
+  "completed": 243,
+  "completed_neo_done": 240,
+  "config": {
+   "enabled": true,
+   "samples": 1024,
+   "iterations": 25,
+   "keep": 1,
+   "horizon": 32,
+   "retry_horizon": 48,
+   "approach": 0,
+   "jumps": "neo",
+   "prior": 0.0,
+   "retries": 1,
+   "retry_every": 10,
+   "brake": 14,
+   "batch": 1,
+   "seed": 2,
+   "restarts": 3,
+   "neo_samples": 4096,
+   "neo_iterations": 40
+  },
+  "tag": "Rule 1 (wall trigger): candidate B, search seed 2 (margin at seed 0 under 10)",
+  "failure_modes": {
+   "success": 243,
+   "wrong_platform": 6,
+   "nothing_in_view": 1,
+   "motor": 70
+  },
+  "searches": {
+   "takeoff": {
+    "n": 303,
+    "found": 265
+   },
+   "retry": {
+    "n": 35,
+    "found": 2
+   }
+  },
+  "plans_played": 267,
+  "plans_landed_as_planned": 267,
+  "pick_at_takeoff": {
+   "ahead": 2,
+   "neo_target": 302,
+   "not_reached": 16
+  },
+  "ends": {
+   "completed past the neo": 3,
+   "completed, neo done": 240,
+   "failed at the neo: no landing found": 36,
+   "failed elsewhere": 41
+  }
+ },
+ {
+  "name": "single40-wall-C-s0",
+  "set": "single",
+  "family": 40,
+  "courses": 320,
+  "completed": 259,
+  "completed_neo_done": 255,
+  "config": {
+   "enabled": true,
+   "samples": 1024,
+   "iterations": 25,
+   "keep": 1,
+   "horizon": 32,
+   "retry_horizon": 48,
+   "approach": 0,
+   "jumps": "neo",
+   "prior": 0.0,
+   "retries": 1,
+   "retry_every": 10,
+   "brake": 14,
+   "batch": 1,
+   "seed": 0,
+   "restarts": 3,
+   "plan_on": 1
+  },
+  "tag": "Rule 3: lever C (plan_on) on rule 1's choice A, search seed 0",
+  "failure_modes": {
+   "success": 259,
+   "wrong_platform": 6,
+   "nothing_in_view": 3,
+   "motor": 52
+  },
+  "searches": {
+   "takeoff": {
+    "n": 1450,
+    "found": 1392
+   },
+   "retry": {
+    "n": 55,
+    "found": 7
+   }
+  },
+  "plans_played": 1396,
+  "plans_landed_as_planned": 1396,
+  "pick_at_takeoff": {
+   "ahead": 2,
+   "neo_target": 302,
+   "not_reached": 16
+  },
+  "ends": {
+   "completed past the neo": 4,
+   "completed, neo done": 255,
+   "failed at the neo: no landing found": 36,
+   "failed elsewhere": 25
+  }
+ },
+ {
+  "name": "single40-wall-C-s1",
+  "set": "single",
+  "family": 40,
+  "courses": 320,
+  "completed": 260,
+  "completed_neo_done": 257,
+  "config": {
+   "enabled": true,
+   "samples": 1024,
+   "iterations": 25,
+   "keep": 1,
+   "horizon": 32,
+   "retry_horizon": 48,
+   "approach": 0,
+   "jumps": "neo",
+   "prior": 0.0,
+   "retries": 1,
+   "retry_every": 10,
+   "brake": 14,
+   "batch": 1,
+   "seed": 1,
+   "restarts": 3,
+   "plan_on": 1
+  },
+  "tag": "Rule 3: lever C (plan_on) on rule 1's choice A, search seed 1",
+  "failure_modes": {
+   "success": 260,
+   "wrong_platform": 6,
+   "nothing_in_view": 3,
+   "motor": 51
+  },
+  "searches": {
+   "takeoff": {
+    "n": 1444,
+    "found": 1384
+   },
+   "retry": {
+    "n": 56,
+    "found": 9
+   }
+  },
+  "plans_played": 1391,
+  "plans_landed_as_planned": 1391,
+  "pick_at_takeoff": {
+   "ahead": 2,
+   "neo_target": 302,
+   "not_reached": 16
+  },
+  "ends": {
+   "completed past the neo": 3,
+   "completed, neo done": 257,
+   "failed at the neo: no landing found": 35,
+   "failed elsewhere": 25
+  }
+ },
+ {
+  "name": "single40-wall-C-s2",
+  "set": "single",
+  "family": 40,
+  "courses": 320,
+  "completed": 255,
+  "completed_neo_done": 251,
+  "config": {
+   "enabled": true,
+   "samples": 1024,
+   "iterations": 25,
+   "keep": 1,
+   "horizon": 32,
+   "retry_horizon": 48,
+   "approach": 0,
+   "jumps": "neo",
+   "prior": 0.0,
+   "retries": 1,
+   "retry_every": 10,
+   "brake": 14,
+   "batch": 1,
+   "seed": 2,
+   "restarts": 3,
+   "plan_on": 1
+  },
+  "tag": "Rule 3: lever C (plan_on) on rule 1's choice A, search seed 2",
+  "failure_modes": {
+   "success": 255,
+   "wrong_platform": 6,
+   "nothing_in_view": 3,
+   "motor": 56
+  },
+  "searches": {
+   "takeoff": {
+    "n": 1417,
+    "found": 1353
+   },
+   "retry": {
+    "n": 60,
+    "found": 6
+   }
+  },
+  "plans_played": 1356,
+  "plans_landed_as_planned": 1356,
+  "pick_at_takeoff": {
+   "ahead": 2,
+   "neo_target": 302,
+   "not_reached": 16
+  },
+  "ends": {
+   "completed past the neo": 4,
+   "completed, neo done": 251,
+   "failed at the neo: no landing found": 40,
+   "failed elsewhere": 25
+  }
+ },
+ {
+  "name": "single40-A-s0",
+  "set": "single",
+  "family": 40,
+  "courses": 320,
+  "completed": 245,
+  "completed_neo_done": 241,
+  "config": {
+   "enabled": true,
+   "samples": 1024,
+   "iterations": 25,
+   "keep": 1,
+   "horizon": 32,
+   "retry_horizon": 48,
+   "approach": 0,
+   "jumps": "neo",
+   "prior": 0.0,
+   "retries": 1,
+   "retry_every": 10,
+   "brake": 14,
+   "batch": 1,
+   "seed": 0,
+   "restarts": 3
+  },
+  "tag": "Rule 1: candidate A (the course-list planner's levers), search seed 0",
+  "failure_modes": {
+   "success": 245,
+   "wrong_platform": 7,
+   "nothing_in_view": 1,
+   "motor": 67
+  },
+  "searches": {
+   "takeoff": {
+    "n": 304,
+    "found": 262
+   },
+   "retry": {
+    "n": 39,
+    "found": 5
+   }
+  },
+  "plans_played": 266,
+  "plans_landed_as_planned": 266,
+  "pick_at_takeoff": {
+   "ahead": 2,
+   "neo_target": 302,
+   "not_reached": 16
+  },
+  "ends": {
+   "completed past the neo": 4,
+   "completed, neo done": 241,
+   "failed at the neo: no landing found": 36,
+   "failed elsewhere": 39
+  }
+ }
+]

@@ -159,11 +159,77 @@ Same set, protocol and files.
 
 C's mean is 15.3 above A's, more than the rule's 4, so `plan_on` is kept. Rule 2's setting is `{"samples": 1024,
 "iterations": 25, "horizon": 32, "retry_horizon": 48, "retries": 1, "brake": 14, "restarts": 3, "plan_on": 1}`.
-Up to the neo's landing C plays as A: the same neo jumps passed (267, 268, 263) and the same courses lost at the
-neo (36, 35, 40). After the landing it loses fewer: 25, 25 and 25 courses at ordinary jumps, against 39, 44 and 38
-for A (`failed_at`). It makes 4.7 to 4.8 times as many takeoff searches (1,417 to 1,450 per run, against 303) in
+Up to the neo's landing C plays as A, course for course at each seed:
+- the same 15 courses lost before the neo (in all six runs);
+- the same neo jumps passed (267, 268, 263);
+- the same courses lost at the neo (36, 35, 40).
+
+Of the courses that passed the neo, C loses 10, 10 and 10 later, against 24, 29 and 23 for A (per course in the
+details files; the course-list planner's V3b lost 6 there, the 4 and 2 in rule 3's "Why"). The rows' `failed_at`
+"basic" (25 for C, 38 to 44 for A) also counts the 15 courses lost before the neo. It makes 4.7 to 4.8 times as many takeoff searches (1,417 to 1,450 per run, against 303) in
 about 1.6 times A's search time (7,649 to 7,982 s per run), and every plan played landed as planned (1,396, 1,391,
 1,356).
+
+### Where the family-40 courses are lost
+
+Per course, from the details files. `scripts/neo_routing_summary.py` writes `results/neo_routing/breakdown.json`,
+which has the router's first choice at the neo's takeoff and how each course ended.
+
+| Search seeds 0, 1, 2 | A | B | C |
+| --- | --- | --- | --- |
+| Lost before the neo's takeoff | 15, 15, 15 | 15, 15, 15 | 15, 15, 15 |
+| Lost at the neo (no landing found) | 36, 35, 40 | 36, 31, 36 | 36, 35, 40 |
+| Lost after passing the neo | 24, 29, 23 | 22, 27, 26 | 10, 10, 10 |
+| Completed, neo done as a neo | 241, 238, 238 | 243, 243, 240 | 255, 257, 251 |
+| Completed, neo not done as a neo | 4, 3, 4 | 4, 4, 3 | 4, 3, 4 |
+
+- **The router finds the neo.** At the neo's takeoff it first chooses the neo's landing on 302 of the 304 courses
+  where it decides there, in every run; on the other 2 it chooses a platform further on. The remaining 16 courses
+  never decide on the takeoff.
+- **Every course lost at the neo is a search that found no landing**, at the takeoff and on its retry. No plan
+  failed: every plan played landed as searched.
+- **Against the course-list planner** (V3b, seed 0: 4 lost before the neo, 24 at it, 6 after it, 286 completed;
+  rule 3's "Why"), C has almost closed the gap after the neo (10 against 6). The rest of the gap is in two places:
+  - before the neo, 15 against 4: those jumps are the jumper's, while V3b plans every jump;
+  - at the neo, 36 against 24: the bot reaches the takeoff from the jumper's own landing, not from a planned one.
+
+### Test, family 41 (run once, after the choices)
+
+Rule 3's setting (C), search seed 0, same protocol: **252 of 320** completed with the neo done as a neo (254
+completed). The row is `neo_routing/single41-wall-C-s0` in `results/neo_routing/test.jsonl`, the courses are in
+`details/single41-wall-C-s0.json.gz`.
+
+- **Course-list planner on the same set:** 276 (277 completed), `assist_parts/single41-test-planner` in
+  `results/neo/assist_test.jsonl`.
+- **The same setting on validation:** 255, 257 and 251.
+- **Where the courses were lost:** 19 before the neo, 39 at it (no landing found), 8 after passing it.
+- **Searches:** 1,404 at takeoffs (1,332 found) and 70 retries (13 found). All 1,344 plans played landed as
+  planned.
+
+### The router's ordinary validation sets (families 2 and 5)
+
+Rule 3's setting (C), search seed 0. Simulator: episodes on the GPU, as the shipped numbers were measured, and
+searches on the CPU. Rows `route2-wall-C-s0` and `route5-wall-C-s0` are in `validation.jsonl`. The course-by-course
+comparison is in `results/neo_routing/ordinary.json` (`scripts/neo_routing_ordinary.py`), against two references:
+
+- **Shipped router:** `results/routing/router_validation_route-full-f_it29_standard.json` and `..._obstacles.json`,
+  fall rule local.
+- **Filter off, flags kept:** the 30 Oct what-if, variant `keephead` in the main checkout's
+  `runs/neo-route-check-rulecost.json`.
+
+| Family (1,800 courses) | Shipped router | Filter off, flags kept | This mode (C) | Courses searched | Searches |
+| --- | --- | --- | --- | --- | --- |
+| 2 (standard) | 1,762 | 1,762 | **1,762** | 0 | 0 |
+| 5 (obstacles) | 1,720 | 1,720 | **1,728** | 10 | 66 |
+
+- **Family 2** has no walls, so nothing is planned and the run equals the filter-off what-if on all 1,800 courses.
+  It differs from the shipped router on 2: course 524 is lost and 1712 is won, both because of the filter.
+- **Family 5:** on the 1,790 courses never searched, the run equals the what-if course for course. All 10 searched
+  courses are completed (66 searches, every one found and landed as planned); the shipped router completes 3 of
+  them. Against the shipped router, the run wins 9 courses and loses 1:
+  - lost: 246 (the filter's);
+  - won by the filter: 690 and 1661;
+  - won by the plans: 1027, 1095, 1105, 1164, 1360, 1438 and 1757.
 
 ## Reproduce
 

@@ -1,0 +1,122 @@
+{
+ "standard": {
+  "run": "route2-wall-C-s0",
+  "family": 2,
+  "courses": 1800,
+  "shipped": 1762,
+  "run_completed": 1762,
+  "keep": 1762,
+  "courses_searched": 0,
+  "searches": 0,
+  "searched_and_completed": 0,
+  "searched_and_shipped_completed": 0,
+  "differ": 2,
+  "only_run": 1,
+  "only_shipped": 1,
+  "rows": [
+   {
+    "course": 524,
+    "shipped": true,
+    "run": false,
+    "keep": false,
+    "searched": false
+   },
+   {
+    "course": 1712,
+    "shipped": false,
+    "run": true,
+    "keep": true,
+    "searched": false
+   }
+  ],
+  "unsearched_differ_from_keep": []
+ },
+ "obstacles": {
+  "run": "route5-wall-C-s0",
+  "family": 5,
+  "courses": 1800,
+  "shipped": 1720,
+  "run_completed": 1728,
+  "keep": 1720,
+  "courses_searched": 10,
+  "searches": 66,
+  "searched_and_completed": 10,
+  "searched_and_shipped_completed": 3,
+  "differ": 10,
+  "only_run": 9,
+  "only_shipped": 1,
+  "rows": [
+   {
+    "course": 246,
+    "shipped": true,
+    "run": false,
+    "keep": false,
+    "searched": false
+   },
+   {
+    "course": 690,
+    "shipped": false,
+    "run": true,
+    "keep": true,
+    "searched": false
+   },
+   {
+    "course": 1027,
+    "shipped": false,
+    "run": true,
+    "keep": false,
+    "searched": true
+   },
+   {
+    "course": 1095,
+    "shipped": false,
+    "run": true,
+    "keep": false,
+    "searched": true
+   },
+   {
+    "course": 1105,
+    "shipped": false,
+    "run": true,
+    "keep": false,
+    "searched": true
+   },
+   {
+    "course": 1164,
+    "shipped": false,
+    "run": true,
+    "keep": false,
+    "searched": true
+   },
+   {
+    "course": 1360,
+    "shipped": false,
+    "run": true,
+    "keep": false,
+    "searched": true
+   },
+   {
+    "course": 1438,
+    "shipped": false,
+    "run": true,
+    "keep": false,
+    "searched": true
+   },
+   {
+    "course": 1661,
+    "shipped": false,
+    "run": true,
+    "keep": true,
+    "searched": false
+   },
+   {
+    "course": 1757,
+    "shipped": false,
+    "run": true,
+    "keep": false,
+    "searched": true
+   }
+  ],
+  "unsearched_differ_from_keep": []
+ }
+}

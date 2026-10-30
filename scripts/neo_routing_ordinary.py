@@ -7,7 +7,8 @@ A measurement, no choice. For each set: the shipped router's outcome on every co
 results/neo_routing/details/), the courses where they differ, and whether the run searched a blocked-path choice
 on each of them. With --keep, the 30 Oct "filter off, head-hitter flags kept" what-if (no planner;
 neo-route-check-rulecost.json, variant "keephead") is a third column, so a difference can be told apart as the
-filter's (the router's choices change when blocked platforms are selectable) or the planner's.
+filter's (the router's choices change when blocked platforms are selectable) or the planner's; the courses the run
+never searched where it differs from that what-if are listed too (unsearched_differ_from_keep).
 """
 import argparse
 import gzip
@@ -53,6 +54,9 @@ def main(argv=None):
                      "searched_and_shipped_completed": sum(ship[i] for i in searched),
                      "differ": len(diff), "only_run": sum(r["run"] for r in rows),
                      "only_shipped": sum(r["shipped"] for r in rows), "rows": rows}
+        if name in keep:  # where nothing was planned, the run should be the filter-off what-if
+            out[name]["unsearched_differ_from_keep"] = [i for i in range(len(mine))
+                                                        if i not in searched and mine[i] != keep[name][i]]
         print(json.dumps({k: v for k, v in out[name].items() if k != "rows"}))
         for r in rows:
             print("  ", json.dumps(r))
