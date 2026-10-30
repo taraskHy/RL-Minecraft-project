@@ -972,7 +972,13 @@ Concrete work, most important first. Nothing here needs new research.
    pausing `parkour.neo_dagger` and `parkour.neo_assist` (not the bots'
    planner service), and `run.cmd report` also refreshing this file's
    snapshot and writing the new tables in `results/README.md`.
-2. **Confirm the retuned planner in real Minecraft** (PC; section 4,
+2. **Done (checked 30 Oct, 22:04):** both games ran in real Minecraft,
+   `v2-tuned-planner-live` 51/60 and `v2-tuned-planner-live-obstacles` 56/60,
+   every outcome the simulator's and 0 server corrections (their
+   `summary.json` in `results/games/`); `cost: distance, align 2.0` is the
+   default in `parkour/planner.py` and `bridge/planner.js`; the report gives
+   it in 7.9. The original item: **Confirm the retuned planner in real
+   Minecraft** (PC; section 4,
    item 4): `run.cmd live --checkpoint results\final_policy.pt --planner
    --planner-config "{\"cost\": \"distance\", \"align\": 2.0}"
    --courses-file results\games\v2-planner-live\courses.json --out
@@ -981,21 +987,29 @@ Concrete work, most important first. Nothing here needs new research.
    `parkour/planner.py` (`PlannerConfig`) and `bridge/planner.js`
    (`DEFAULTS`), keep `tests/test_planner.py` passing, and update report
    7.11 and 9, `README.md` and `TEAM_STATUS.md`.
-3. **Report** (`docs/report_draft.md`, for the course): section 7 is
-   complete (7.3-7.9 report the final policy with the first one in
-   brackets; 7.10 has the imitation + DAgger results; 7.11-7.12 give both
-   policies' planner numbers); sections 8 (discussion) and 9 (conclusion)
-   are written; figures 1-4 are embedded (from `results/figures/`).
-   `scripts/report_docx.py --pdf` writes `results/report_draft.docx` / `.pdf`
-   in the submission format (needs pandoc, python-docx, LibreOffice; not on
-   the PC by default): **20 pages before the references in the cloud export** (the merged source needs a fresh export and page-count check), so any addition needs a cut (figure 3 of the main run's
-   training curves was already cut for space). Rules for it: every number
-   comes from `results/` or the run files; Arial 12, 1.5 spacing,
-   one-inch margins, 8 to 20 pages without the references. Still to do: a
-   read-through by the team. Not in it yet (checked 30 Oct, 17:50): the
-   results since 29 Oct (the single-neo goal, the skill gate, the learned
-   router, the bots' first-jump and wall-corner fixes, the level-5 finding);
-   adding them needs cuts.
+3. **Report** (`docs/report_draft.md`, for the course): rewritten on 30 Oct
+   (Ethan: "Yes, update it") with every result through 30 Oct, cut to fit.
+   Sections 1-6; section 5 now states the MDP (state, observation, actions,
+   dynamics, initial state, discount, and the reward terms with the episode
+   ends; the block offered on 29 Oct). Results 7.1-7.10: main run;
+   ablation; hyperparameters and the final policy; jump types; obstacles
+   with the level-5 finding; the bots; learned neos; the neo planner and
+   the single-neo goal; greedy planner, learned router and `noroute-v2`;
+   the one network and the gate. Then 8 (discussion and limitations), 9
+   (conclusion), 18 references, figures 1-4 from `results/figures/`. Three
+   independent checks of its numbers and claims against `results/` and the
+   run files found 45, 16 and 2 problems, all fixed. Length: pandoc,
+   python-docx and LibreOffice are not on the PC, so
+   `scripts/report_pages.py` estimates it with headless Chrome, calibrated
+   on `568763d` (20 pages before the references in the cloud export): the
+   draft is about 19 pages at the calibrated spacing and 20 at the two
+   looser ones, one page below `568763d` at each. The exact count needs
+   `scripts/report_docx.py --pdf` on a machine with those tools;
+   `results/report_draft.docx` / `.pdf` are stale (last exported in
+   `12c736a`, 28 Oct). Rules for it: every number comes from `results/` or
+   the run files; Arial 12, 1.5 spacing, one-inch margins, 8 to 20 pages
+   without the references, so any addition needs a cut. Still to do: the
+   exact page count and a read-through by the team.
 4. **Completed on PC:** `results/neo_policy.pt` / `.json` and provenance are shipped; final policy files retained. Original request: **ship the neo policy in Git** (it is nearly a one-policy candidate,
    section 4, item 2): it exists
    only as `runs/neo-dagger3/checkpoints/best.pt` on the PC. Export it next
@@ -1098,7 +1112,7 @@ Concrete work, most important first. Nothing here needs new research.
    from.)
 4. **Planner shortcuts:** most planner failures take a shortcut to a later
    platform that is in reach, and that jump is harder
-   (`results/planner/`, report 7.11). With the final policy 98 of the 109
+   (`results/planner/`, report 7.9). With the final policy 98 of the 109
    failed standard courses are route failures (jump failures fell from 21
    to 11, route failures only from 104 to 98), so the planner, not the
    policy, is what limits the "no course list" score. Note that leaving
@@ -1406,7 +1420,9 @@ before restarting; held part locks prevent duplicate evaluation.
   setting; `validation_tuning.jsonl`: every variant tried on validation)
   and the `planner-*`, `v2-planner-*`, `v2-tuned-planner-*` games.
 - Report in the submission format: `results/report_draft.docx` / `.pdf`,
-  written by `scripts/report_docx.py --pdf` from `docs/report_draft.md`.
+  written by `scripts/report_docx.py --pdf` from `docs/report_draft.md`
+  (stale since the 30 Oct rewrite: last exported in `12c736a`). Page
+  estimate without pandoc or LibreOffice: `scripts/report_pages.py`.
 - Failure analysis of the final policy by jump type: `results/jump_failures.json`
   (`scripts/jump_failures.py`).
 - Claim audit: `results/audit_claims.json` (829 claims checked against the
@@ -1426,18 +1442,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `0c6c786` (2026-10-30 10:28, branch `main`): Handoff: exact rule times and the level-5 selection caveat
+Generated on top of commit `f286d5f` (2026-10-30 19:14, branch `main`): Keep the final policy; report the level-5 fine-tune as a finding
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 28 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 29 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `1a16df0` 2026-10-29 14:14 | 44 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 212 |
-| `docs/report_draft.md` | `408de3d` 2026-10-28 22:10 | 195 |
-| `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | `af631d3` 2026-10-30 09:03 | 4 |
+| `README.md` | `1a16df0` 2026-10-29 14:14 | 45 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 213 |
+| `docs/report_draft.md` | updated together with this snapshot | 0 |
+| `results/README.md` | `f286d5f` 2026-10-30 19:14 | 0 |
+| `results/DATA.md` | `af631d3` 2026-10-30 09:03 | 5 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -1656,6 +1672,7 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **30 Oct 2026, 22:05, Claude (Claude Code, training PC):** the course report brought up to date (Ethan: "Yes, update it"). `docs/report_draft.md` is rewritten with every result through 30 Oct (the single-neo goal, the skill gate, the learned router, the bots' first-jump and wall-corner fixes, the level-5 finding) and states the MDP in section 5 (the block offered on 29 Oct); cut from about 24 estimated pages to about 19 before the references. The count is an estimate: pandoc and LibreOffice are not on the PC, so the new `scripts/report_pages.py` renders the draft with headless Chrome, calibrated on `568763d` (20 pages in the cloud export), and the new draft is one page below it at all three spacings tried (section 3, item 3). Three independent checks of its numbers and claims against `results/` and the run files found 45, 16 and 2 problems, all fixed; the last: the learned router is the best of 14 checkpoints, not 13 (corrected in `results/routing/README.md` too, whose table holds two checkpoints in one row). Section 3 item 2 (the retuned planner in real Minecraft) marked done; old report section numbers updated here and in `TEAM_STATUS.md`. Next: the exact page count (`scripts/report_docx.py --pdf` on a machine with pandoc, python-docx and LibreOffice), the team's read-through, and the neo-routing pull request from the side session when it arrives.
 - **30 Oct 2026, 18:57, Claude (Claude Code, training PC):** Ethan's decision (17:39): the final policy stays and the level-5 recipe is reported as a finding; nothing exported or shipped. New generated section in `results/README.md` (final policy section; `parkour/report.py`, `level5_recipe`): every level-5 run with its validation, families 46 and 47, both tests, and each recipe's mean. That table showed a wording error: on the obstacle test set's level 5 each change alone also rose about as much as the pair (82.8% and 84.2% against 83.8%; final policy 81.0%), so "it takes both" rests on family 46 alone; corrected in section 3 (the older time-stamped text kept, with marked notes), in section 4 problem 3 (rewritten) and in `TEAM_STATUS.md`. The results page gets its first paragraph on these fine-tunes, already qualified, and the learned router's result in place of its "next" line. The 05:16 rule text moved back under its own bullet (later edits had left it as the last sentences of the 09:09 one). Three independent checks (numbers against the run files, wording and times against the rules and the session transcript) found 7, 4 and 4 problems in successive drafts, all fixed. Among them: the fine-tunes used the training queue's settings, not those of the final policy's own fine-tune (8,192 games and rollout 64 against 16,384 and 32); "three times as many level-5 courses" is level 5 in 3 of every 8 training games instead of 1 of 6 (2.25 times the share); and four overnight labels had been written ahead of the clock, now set to the transcript's times (06:39:26, 06:40:44 and 07:26:51 for 06:40, 06:45 and 07:27, and 06:14:17 for the header's 06:15), with every rule still before its runs. Next: the course report has nothing since 29 Oct (section 3, item 3; additions need cuts).
 - **30 Oct 2026, 10:26, Claude (Claude Code, training PC), end of the night:** the planner's seed noise measured (three seeds each on validation: one run's standard deviation is about 9 of 320 courses, so the start fix's gap and the 29 Oct lever margins are inside it); level 5 with obstacles: obstacles on half the jumps plus three times as many level-5 courses gains 2.7 points on 2,000 validation courses (three seeds) and 2.8 on test on average, while each change alone gains nothing (ablation, two seeds; 17:51 note: on family 46 only, on test each alone also rose, entry above); nothing shipped. Next: Ethan's calls (whether to ship a level-5 candidate, which would need a choice rule fixed now that the tests are seen; the report).
 - **30 Oct 2026, 09:03, Claude (Claude Code, training PC), overnight (Ethan, via the side session: use the CPU and GPU as much as possible while asleep):** (1) Wall corners, problem 9: the game's collision order as an opt-in physics flag (default path bit-identical) and the planner's `corner_limit`, kept on validation (292, the same courses as without it); the server's rule measured on all 40 recorded real-Minecraft runs (`results/corner_scan.json`); on the 64 single-neo test courses with both fixes 55 offline and 55 in real Minecraft, equal to the simulator, 0 corrections, no warnings. (2) The planner's search seed moves a 320-course count by about 10 (A 265 and 285, C 292 and 280): the start fix's gap was mostly chance; caveats added here, in TEAM_STATUS and on the results page. (3) The one network on the final policy's 120 bot courses: 59/60 and 59/60, offline and real Minecraft, equal to the simulator. (4) Level 5 with obstacles (problem 3): two fine-tunes beat the final policy on validation, and on 2,000 level-5 obstacle validation courses by 2.3 and 2.7 points; their tests are mixed; two more seeds of each are running under a rule fixed at 06:45 [18:33: written at 06:40:44, section 3]; nothing shipped. (5) The results page's test-once and bot-difference wording fixed; this file's rule times corrected (05:16:42 and 05:19:49, both before their runs). Next: the seeds' comparison, then Ethan's calls (a level-5 candidate, the report).

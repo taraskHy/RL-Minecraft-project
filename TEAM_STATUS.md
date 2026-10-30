@@ -10,7 +10,7 @@ the data: training runs, policies, the route planner and neo files, the game
 folders (including the v2, planner, noroute, neo and film games) and the
 videos.
 
-**Last updated:** 30 Oct 2026, 18:34, training PC (Claude): Ethan kept the final policy; the level-5 fine-tune is reported as a finding (`results/README.md`, final policy section, and the results page). With obstacles on half the jumps and level 5 in 3 of every 8 training games (instead of 1 of 6), level 5 with obstacles gains 2.7 points on 2,000 validation courses (three seeds, all up) and 2.8 on test on average (81.0 to 83.8), standard courses level; on those validation courses each change alone gains under half a point (-0.03 and +0.38), but on test each alone rose about as much (82.8 and 84.2), so the test does not confirm that both are needed. Earlier, overnight (09:03 to 10:26): the bots plan their first jump and avoid the wall-corner moves a server rejects; on the 64 single-neo test courses 55 offline and 55 in real Minecraft, equal to the simulator, 0 corrections. A planner run's count has a standard deviation of about 9 of 320 from its search seed (three seeds), so the start fix's 292-against-265 was mostly chance. The one network plays the final policy's 120 bot courses at 59/60 and 59/60. Earlier, 30 Oct 05:00: the bots now plan their first jump too. Earlier: single neos meet the 85% goal on the test set (86.25% with the planner, narrowly) and the bots reproduced it in real Minecraft (58/64); the gate is built: 86.80% on test against the one network's 86.45%, a match; follow-up rounds not kept; replays of every new skill and block type on the results page; CPU capped at 85%.
+**Last updated:** 30 Oct 2026, 22:05, training PC (Claude): the course report (`docs/report_draft.md`) now has every result through 30 Oct and states the MDP (section 5); it was cut to about 19 pages before the references (an estimate from `scripts/report_pages.py`; the limit is 20, and the exact count needs a fresh export). Earlier, 18:34: Ethan kept the final policy; the level-5 fine-tune is reported as a finding (`results/README.md`, final policy section, and the results page). With obstacles on half the jumps and level 5 in 3 of every 8 training games (instead of 1 of 6), level 5 with obstacles gains 2.7 points on 2,000 validation courses (three seeds, all up) and 2.8 on test on average (81.0 to 83.8), standard courses level; on those validation courses each change alone gains under half a point (-0.03 and +0.38), but on test each alone rose about as much (82.8 and 84.2), so the test does not confirm that both are needed. Earlier, overnight (09:03 to 10:26): the bots plan their first jump and avoid the wall-corner moves a server rejects; on the 64 single-neo test courses 55 offline and 55 in real Minecraft, equal to the simulator, 0 corrections. A planner run's count has a standard deviation of about 9 of 320 from its search seed (three seeds), so the start fix's 292-against-265 was mostly chance. The one network plays the final policy's 120 bot courses at 59/60 and 59/60. Earlier, 30 Oct 05:00: the bots now plan their first jump too. Earlier: single neos meet the 85% goal on the test set (86.25% with the planner, narrowly) and the bots reproduced it in real Minecraft (58/64); the gate is built: 86.80% on test against the one network's 86.45%, a match; follow-up rounds not kept; replays of every new skill and block type on the results page; CPU capped at 85%.
 
 ## Team split / what we want next (29 Oct 2026)
 
@@ -352,7 +352,7 @@ retuned planner makes 94.7% and 92.4% in the simulator
 91.4%). With the first policy it also
 completed the three hand-designed courses without a neo (tour, stairs,
 sprint) in real Minecraft, 0 server corrections; it was not run on the neo
-course. Most failures (first policy, simulator, report 7.11: 104 of 125
+course. Most failures (first policy, simulator: 104 of 125
 standard, 116 of 165 obstacles) come after a shortcut: the planner skips
 ahead to a later platform in reach. Some of those jumps are harder, and 40
 of the 125 standard failures come from the fall rule: it calls a fall while
@@ -369,7 +369,7 @@ in the simulator; in real Minecraft 55/60 and 37/60, matching the simulator,
 planner on every large test set. Obstacles fool it: 10 of its 23 falls on the
 60 obstacle courses in real Minecraft end on top of one (6 on a beam, 4 on a
 decoy pillar). So the planner is the model for new maps; the learned one is
-the research comparison (report 7.12). Video: `replay_295_learned_*` (level 5,
+the research comparison (report 7.9). Video: `replay_295_learned_*` (level 5,
 a course the planner failed).
 
 **Retuned on 28 Oct** (chosen on the
@@ -378,7 +378,7 @@ the goal gives **92.3%** standard and **90.5%** obstacle courses in the
 simulator (from 90.9% and 88.1%), and 51/60 and 56/60 with the offline bot;
 real Minecraft still to be run on the PC. Videos: `real_minecraft_showcase_no_course_list.mp4`
 (first person) and `replay_233_*` / `replay_240_*` (the plan drawn as
-numbered cyan platforms). Report section 7.11.
+numbered cyan platforms). Report section 7.9.
 
 The retuned planner is confirmed in real Minecraft: 51/60 standard and 56/60 obstacles, all outcomes identical to the simulator, zero server corrections. It is now the default in Python and JavaScript (`cost=distance`, `align=2.0`). Evidence: `results/games/v2-tuned-planner-live*`.
 
@@ -546,7 +546,7 @@ The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
 3. New blocks are in the physics and in course pieces (shapes, slime,
    ladders); the policy has not been trained on them yet (PC queue).
 4. Hand-built maps: extract the platform chain from a region of a real map.
-5. The report discussion and conclusion are drafted. The cloud DOCX/PDF exports predate this merged source; rebuild and check pagination before submission.
+5. The report (`docs/report_draft.md`) has every result through 30 Oct and states the MDP; by the calibrated estimate it is about 19 pages before the references (`scripts/report_pages.py`). The DOCX/PDF exports (`results/report_draft.*`, 28 Oct) predate it: rebuild them with `scripts/report_docx.py --pdf` (needs pandoc, python-docx and LibreOffice) and check the page count before submission; then a read-through by the team.
 
 ## Update log
 

@@ -143,8 +143,9 @@ noted; mean of the two sets):
 The freeze rule takes **`route-full-f` iteration 29** (no other checkpoint within 0.1 points). It is
 shipped as `router_policy.pt` (weights, network sizes, training config), `router_policy.json` (the
 bot's copy) and `router_policy_provenance.json` (source and hashes). Its slots 2 and 3 are filled by
-the router itself (`fill: policy`). Being the maximum of 13 checkpoints, its validation score is
-slightly optimistic; the test below is the unbiased number.
+the router itself (`fill: policy`). Being the maximum of 14 checkpoints (the table's 13 rows, with
+`route-imit-d` it 89 and 119 in one; "13" until 30 Oct, corrected by the main session), its
+validation score is slightly optimistic; the test below is the unbiased number.
 
 Its paired validation against the greedy planner (`router_validation_route-full-f_it29_*.json`,
 local rule): standard +5.1 points [+3.9, +6.3] (107 courses only the router completes, 15 only
