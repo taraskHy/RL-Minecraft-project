@@ -268,6 +268,7 @@ class LearnedRouter {
     this.decTick = 0
     this.decisions = 0
     this.walledChoice = false // the last decision's first choice is blocked by a wall (cfg.blocked "plan": a neo)
+    this.walledAhead = false // a later slot of its route is (RouteRunner.decide's walled_chain; plan_ahead)
   }
 
   start (pos, s) {
@@ -320,17 +321,21 @@ class LearnedRouter {
     let prev = ok.some(v => v) ? this.net.argmax(feats, ok) : -1
     if (prev >= 0) picks.push(prev)
     this.walledChoice = prev >= 0 && opts[prev].walled
+    this.walledAhead = false
     for (let depth = 1; depth <= 2 && prev >= 0 && !isGoal[prev]; depth++) {
       chain[prev] = true
       const ex = excluded.map((v, i) => v || chain[i])
-      let nxt
+      let nxt, o
       if (this.fill === 'policy') {
         const t = tokens(T, prev, here, ex, visited, chain, depth, this.progress, this.goal, isGoal, edge, cfg, this.isSolid, null, timing)
         nxt = t.ok.some(v => v) ? this.net.argmax(t.feats, t.ok) : -1
+        o = t.opts
       } else {
-        nxt = greedyPick(options(T, prev, ex, this.goal, cfg, this.isSolid))
+        o = options(T, prev, ex, this.goal, cfg, this.isSolid)
+        nxt = greedyPick(o)
       }
       if (nxt < 0) break
+      if (o[nxt].walled) this.walledAhead = true
       picks.push(nxt)
       prev = nxt
     }

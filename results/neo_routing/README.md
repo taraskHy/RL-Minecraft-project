@@ -1,10 +1,12 @@
 # Neo routing: the neo planner without the course list
 
-Branch `neo-routing`, a pull request into `main` for the main session to review and merge. Opt-in code:
+Branch `neo-routing` (pull request #3, merged into `main` on 31 Oct), then `neo-routing-2` (rule 4's `plan_ahead`,
+pull request #4), for the main session to review and merge. Opt-in code:
 `RouteConfig.blocked` (`parkour/route_env.py`), `parkour/route_neo.py`, `parkour.live --router R --assist JSON`,
 `bridge/router.js` (`cfg.blocked`), `RouteAssist` in `bridge/assist.js`, the planner service's router requests
-(`neo_assist.serve`); tests `tests/test_route_neo.py` and `tests/test_route.py`. The defaults and everything in
-HANDOFF section 5 are unchanged. Times are Israel time, read from `date` (Git Bash labels it JST).
+(`neo_assist.serve`), `AssistConfig.plan_on` and `plan_ahead`; tests `tests/test_route_neo.py` and
+`tests/test_route.py`. The defaults and everything in HANDOFF section 5 are unchanged. Times are Israel time, read
+from `date` (Git Bash labels it JST).
 
 ## Headline
 
@@ -62,6 +64,9 @@ JSON`):
    amendment under the rules.)
 3. With `plan_on` (an opt-in `AssistConfig` field, router mode only; kept by rule 3), a decision made on a plan's
    landing is planned too, whatever the router chose there, and so on while plans land.
+4. With `plan_ahead` (the same kind of field; kept by rule 4), a decision whose route (the router's three slots)
+   crosses a wall in a later slot is planned too, so the one or two jumps that lead to a neo are the planner's. On
+   a course with no wall it plans nothing.
 
 Every jump the mode plans is searched as a neo request (`route_neo.route_arrival` and the service's router requests
 set `neo`). So the neo levers (`restarts`, `neo_samples`, `neo_iterations`) also act on the ordinary jumps that
@@ -271,17 +276,18 @@ D's three-seed total is 833 against C's 763, a mean 23.3 above C's, more than th
 Per course, from the details files. `scripts/neo_routing_summary.py` writes `results/neo_routing/breakdown.json`,
 which has the router's first choice at the neo's takeoff and how each course ended.
 
-| Search seeds 0, 1, 2 | A | B | C |
-| --- | --- | --- | --- |
-| Lost before the neo's takeoff | 15, 15, 15 | 15, 15, 15 | 15, 15, 15 |
-| Lost at the neo (no landing found) | 36, 35, 40 | 36, 31, 36 | 36, 35, 40 |
-| Lost after passing the neo | 24, 29, 23 | 22, 27, 26 | 10, 10, 10 |
-| Completed, neo done as a neo | 241, 238, 238 | 243, 243, 240 | 255, 257, 251 |
-| Completed, neo not done as a neo | 4, 3, 4 | 4, 4, 3 | 4, 3, 4 |
+| Search seeds 0, 1, 2 | A | B | C | D (rule 4) |
+| --- | --- | --- | --- | --- |
+| Lost before the neo's takeoff | 15, 15, 15 | 15, 15, 15 | 15, 15, 15 | 7, 6, 6 |
+| Lost at the neo (no landing found) | 36, 35, 40 | 36, 31, 36 | 36, 35, 40 | 23, 23, 29 |
+| Lost after passing the neo | 24, 29, 23 | 22, 27, 26 | 10, 10, 10 | 10, 7, 10 |
+| Completed, neo done as a neo | 241, 238, 238 | 243, 243, 240 | 255, 257, 251 | 278, 282, 273 |
+| Completed, neo not done as a neo | 4, 3, 4 | 4, 4, 3 | 4, 3, 4 | 2, 2, 2 |
 
 - **The router finds the neo.** At the neo's takeoff it first chooses the neo's landing on 302 of the 304 courses
-  where it decides there, in every run; on the other 2 it chooses a platform further on. The remaining 16 courses
-  never decide on the takeoff.
+  where it decides there, in every run of A, B and C; on the other 2 it chooses a platform further on. The remaining
+  16 courses never decide on the takeoff. D decides there on 311, 313 and 312 courses and first chooses the neo's
+  landing on 310, 312 and 312 (`breakdown.json`).
 - **Every course lost at the neo is a search that found no landing at the takeoff.** A retry, which also found
   none, followed on 33 of the 36 at seed 0, 32 of 35 at seed 1 and 37 of 40 at seed 2. On courses 105, 169 and 301
   no retry ran in any family-40 run: no brake was found, and the bot fell before a retry. In the settle-10 run the
@@ -404,7 +410,8 @@ Both `route*-A-s0` runs used A, with episodes on the GPU and searches on the CPU
 
 The runs used these commands (each run's own command line is the first line of its log, `runs/NAME.log`). C's JSON
 is `{"samples": 1024, "iterations": 25, "horizon": 32, "retry_horizon": 48, "retries": 1, "brake": 14, "restarts": 3,
-"plan_on": 1, "seed": S}`; the bots add `"plan_start": 1, "corner_limit": 0.25`.
+"plan_on": 1, "seed": S}`; D's adds `"plan_ahead": 1`; the bots add `"plan_start": 1, "corner_limit": 0.25`. Rule 4's
+runs on families 2 and 5 add `--device cpu` (episodes on the CPU).
 
 ```text
 set CUDA_VISIBLE_DEVICES=-1        CPU runs: the single-neo sets and the bots

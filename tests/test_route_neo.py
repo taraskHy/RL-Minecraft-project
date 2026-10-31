@@ -41,6 +41,21 @@ def standard_courses(idx):
     return [cs[i] for i in idx]
 
 
+SCRATCH_SINGLE, SCRATCH_STANDARD = 90, 91  # scratch families, used nowhere else: smoke checks of new levers run here
+
+
+def scratch_neo_courses(idx):
+    """Single-neo courses of a scratch family: course i has type i mod 32 (22 to 31: level 7), as in families 40, 41."""
+    cs = single_neo_courses(SCRATCH_SINGLE, n=max(idx) + 1)
+    return [cs[i] for i in idx]
+
+
+def scratch_standard_courses(per_level=1):
+    """Standard courses (no obstacle blocks, so no walls) of a scratch family, levels 0 to 5."""
+    from parkour.train import held_out_courses
+    return held_out_courses(C.load_levels(), per_level, 10, family=SCRATCH_STANDARD)
+
+
 class Shared(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -84,7 +99,7 @@ class RouteNeoSimulator(Shared):
         self.assertNotEqual(outcomes["drop"][:3], outcomes["keep"][:3])  # the neos' landings are chosen now
 
     def test_keep_makes_the_neos_landing_selectable_and_blocked(self):
-        cs = neo_courses(range(12))
+        cs = neo_courses(range(32))  # every single-neo type once (22 to 31: level 7)
         pool = CoursePool(cs, "cpu", C.GRID)
         tables = RouteTables(pool)
         ks = [neo_takeoffs(c)[0] for c in cs]
@@ -158,23 +173,24 @@ class RouteNeoSimulator(Shared):
             evaluate_assisted(self.model, CoursePool(cs[:1], "cpu", C.GRID), "cpu", AssistConfig(plan_on=1))
 
     def test_plan_ahead_plans_the_jumps_that_lead_to_a_wall(self):
-        cs = neo_courses([2, 3, 5, 13])  # the neo's takeoff is platform 2, 3, 5, 3: there are jumps before it
+        cs = scratch_neo_courses([2, 3, 13, 24])  # the neo's takeoff is platform 2, 3, 3, 4 (24: a level-7 type)
         cfg = dict(samples=256, iterations=8, restarts=1)
         res = self.routed(cs, "plan", AssistConfig(**cfg, plan_ahead=1))
+        onto = 0
         for i, c in enumerate(cs):
             k = neo_takeoffs(c)[0]
             ev = [e for e in res["events"] if e["course"] == i]
-            self.assertIn((k, k + 1), [(e["takeoff"], e["target"]) for e in ev])  # the neo, as without plan_ahead
             before = [e for e in ev if e["takeoff"] < k]
-            self.assertGreater(len(before), 0)  # the router's route crossed the wall two slots or one slot ahead
             self.assertTrue(all(k - 2 <= e["takeoff"] and e["target"] <= k for e in before))  # only the approach
-            self.assertIn((k - 1, k), [(e["takeoff"], e["target"]) for e in before])  # the jump onto the neo's takeoff
+            onto += (k - 1, k) in [(e["takeoff"], e["target"]) for e in before]  # the jump onto the neo's takeoff
+            if res["per_course"][i]["neos_reached"]:
+                self.assertIn((k, k + 1), [(e["takeoff"], e["target"]) for e in ev])  # the neo, as without plan_ahead
+        self.assertGreaterEqual(onto, 3)  # the router's route crossed the wall one or two slots ahead
         self.assertEqual(res["plans"]["landed_as_planned"], res["plans"]["played"])
         without = self.routed(cs, "plan", AssistConfig(**cfg))
-        self.assertEqual(sorted((e["course"], e["takeoff"]) for e in without["events"]),
-                         [(i, neo_takeoffs(c)[0]) for i, c in enumerate(cs)])
-        # A course with no wall plans nothing (family 2: paths blocked only by other platforms).
-        flat = standard_courses([311, 818, 1346])
+        self.assertTrue(all(e["takeoff"] == neo_takeoffs(cs[e["course"]])[0] for e in without["events"]))
+        # Courses with no wall plan nothing.
+        flat = scratch_standard_courses()
         keep = self.routed(flat, "keep")
         plan = self.routed(flat, "plan", AssistConfig(samples=64, iterations=3, plan_on=1, plan_ahead=1))
         self.assertEqual(plan["events"], [])
@@ -182,13 +198,16 @@ class RouteNeoSimulator(Shared):
         from parkour.neo_assist import evaluate_assisted
         with self.assertRaises(ValueError):  # the course-list planner plans every jump with jumps "all" instead
             evaluate_assisted(self.model, CoursePool(cs[:1], "cpu", C.GRID), "cpu", AssistConfig(plan_ahead=1))
+
+    def test_the_bots_refuse_blocked_choices_without_the_path_check(self):
         from parkour import live
-        with tempfile.TemporaryDirectory() as tmp:  # not in the bots yet: refused before anything is written
-            out = os.path.join(tmp, "run")
-            with self.assertRaises(SystemExit):
-                live.main(["--offline", "--checkpoint", str(ROOT / "results" / "final_policy.pt"), "--router", str(ROUTER),
-                           "--assist", json.dumps({"plan_ahead": 1}), "--out", out])
-            self.assertFalse(os.path.exists(out))
+        with tempfile.TemporaryDirectory() as tmp:  # refused before any course is played or anything is written
+            for extra in (["--router-blocked", "keep"], ["--assist", "{}"]):
+                out = os.path.join(tmp, "run")
+                with self.assertRaises(SystemExit):
+                    live.main(["--offline", "--checkpoint", str(ROOT / "results" / "final_policy.pt"), "--router",
+                               str(ROUTER), "--planner-config", json.dumps({"clear_path": False}), "--out", out] + extra)
+                self.assertFalse(os.path.exists(out))
 
     def test_failed_searches_brake_and_retry(self):
         cs = neo_courses([0, 1, 2, 3, 4, 5])
@@ -273,6 +292,41 @@ class RouteNeoSimulator(Shared):
         self.assertEqual([g["brake"] is not None for g in got], braked)
         self.assertTrue(any(braked))
 
+    def test_the_service_plans_skipping_and_backward_targets_as_the_simulator(self):
+        # The router's choice can be any course platform: one further on (a skip) or one behind, each with its own
+        # fall line, the lower top of the two. The service plans such requests as plan_once does.
+        import parkour.route_neo as RN
+        cs = courses_from_file([c.to_json() for c in scratch_neo_courses([4, 5, 6])])
+        cfg = AssistConfig(samples=64, iterations=3, restarts=1, seed=7)
+        seen, real = [], RN.plan_once
+
+        def spy(model, pool, rules, arr, kind, attempt, c, horizon, device, stats=None):
+            seen.append((pool, rules, dict(arr), kind, attempt, horizon))
+            return real(model, pool, rules, arr, kind, attempt, c, horizon, device, stats)
+        with mock.patch.object(RN, "plan_once", spy):
+            self.routed(cs, "plan", cfg)
+        top = CoursePool(cs, "cpu", C.GRID).top
+        reqs, plans, floors = [], [], []
+        for pool, rules, arr, kind, attempt, horizon in seen:
+            i, cp = arr["course"], arr["cp"]
+            for target in (cp + 2, cp - 1):
+                if not 0 <= target < len(cs[i].platforms):
+                    continue
+                a = dict(arr, target=target, floor=float(min(top[i, cp], top[i, target])))
+                seq = real(self.model, pool, rules, a, kind, attempt, cfg, horizon, "cpu")[0]
+                plans.append(None if seq is None else seq.tolist())
+                floors.append((a["floor"], float(top[i, cp])))
+                reqs.append(json.dumps({"index": i, "cp": cp, "target": target, "kind": kind, "attempt": attempt,
+                                        "lastAction": a["last_action"], "route": True, "floor": a["floor"],
+                                        "state": {"pos": a["pos"], "vel": a["vel"], "yaw": a["yaw"], "onGround": a["on_ground"],
+                                                  "jumpTicks": a["jump_ticks"], "collidedH": a["collided_h"]}}) + "\n")
+        out = io.StringIO()
+        serve(self.model, cs, cfg, "cpu", io.StringIO("".join(reqs)), out)
+        self.assertEqual([json.loads(line)["plan"] for line in out.getvalue().splitlines()], plans)
+        self.assertGreaterEqual(len(plans), 4)
+        self.assertTrue(any(p is not None for p in plans))
+        self.assertTrue(any(f < t for f, t in floors))  # a target lower than the platform stood on sets the fall line
+
 
 @unittest.skipUnless(NODE.exists(), "portable Node runtime not installed (run setup.cmd)")
 class RouteNeoBotParity(Shared):
@@ -306,6 +360,17 @@ class RouteNeoBotParity(Shared):
         self.assertTrue(any(e["takeoff"] > neo[e["course"]] for e in res["events"]))  # planned past the neo
         self.assertGreater(res["plans"]["brakes"], 0)
 
+    def test_same_with_plan_ahead(self):
+        # The jumps that lead to each neo are planned too (the router's route crosses the wall one or two slots
+        # ahead), then the jumps after planned landings; a level-7 type among them, and courses with no wall.
+        cfg = AssistConfig(samples=64, iterations=3, restarts=1, retries=1, brake=14, retry_horizon=48, plan_on=1,
+                           plan_ahead=1)
+        cs = scratch_neo_courses([2, 3, 24]) + scratch_standard_courses()[:2]
+        res, bot = self.check(cfg, cs)
+        neo = [neo_takeoffs(c)[0] for c in cs[:3]]
+        self.assertTrue(any(e["course"] == i and e["takeoff"] < k for i, k in enumerate(neo) for e in res["events"]))
+        self.assertFalse(any(e["course"] >= 3 for e in res["events"]))
+
     def check(self, cfg, cs, played=True):
         from parkour.live import SETTLE_TICKS
         cs = courses_from_file([c.to_json() for c in cs])  # as parkour.live reads a course file
@@ -328,8 +393,10 @@ class RouteNeoBotParity(Shared):
         self.assertEqual([e["plans"] for e in js], res["decisions"])  # the router's decisions, tick by tick
         bot = [x for e in js for x in e["assist"]]
         by_course = sorted(res["events"], key=lambda e: e["course"])  # the bot's log: course by course
-        self.assertEqual([(x["kind"], x["cp"], x["tick"], x["found"], x["braked"]) for x in bot],
-                         [(e["kind"], e["takeoff"], e["tick"], e["found"], e["braked"]) for e in by_course])
+        top = CoursePool(cs, "cpu", C.GRID).top
+        self.assertEqual([(x["kind"], x["cp"], x["target"], x["floor"], x["tick"], x["found"], x["braked"]) for x in bot],
+                         [(e["kind"], e["takeoff"], e["target"], float(min(top[e["course"], e["takeoff"]], top[e["course"], e["target"]])),
+                           e["tick"], e["found"], e["braked"]) for e in by_course])
         self.assertTrue(all(x["verified"] == x["found"] for x in bot))  # prismarine-physics agrees with every plan
         if played:
             self.assertGreater(sum(x["played"] for x in bot), 0)

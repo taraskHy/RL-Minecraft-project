@@ -31,7 +31,6 @@ on a course with no wall it plans nothing.
 
 The bots do the same (``parkour.live --router R --assist JSON``: bridge/router.js, ``RouteAssist`` in
 bridge/assist.js, the planner service); tests/test_route_neo.py checks the offline bot against this module.
-``plan_ahead`` is not in the bots yet (``parkour.live`` refuses it).
 
 Runs append one JSON row to ``results/neo_routing/validation.jsonl`` (families 40 single-neo, 2 standard,
 5 obstacles) or ``test.jsonl`` (41, 1, 4) with ``neo_assist.summarize``'s counts; the details (every course,
