@@ -210,6 +210,9 @@ families (90 and 91), used nowhere else.
 - **If not kept:** it is reported, and no test runs.
 - **Compute:** CPU only (`CUDA_VISIBLE_DEVICES=-1`), BelowNormal, mask 0xC03C0F, at most 6 search jobs at once.
 
+*After the outcome:* the bots' port (`bridge/router.js`, `RouteAssist`) was committed at 04:44:56 (015776f), after its
+parity tests passed, so "the bots refuse it" above no longer holds.
+
 ## Results
 
 ### Rule 1: candidate A (outcome written 23:09:59, before any run of rule 3)
@@ -281,8 +284,16 @@ D's three-seed total is 833 against C's 763, a mean 23.3 above C's, more than th
   none of those. (This list, as committed with the outcome, counted them with the losses after the neo, as 10, 7
   and 10; the table below has them in a row of their own.)
 - **Searches:** D makes 2,036 to 2,064 takeoff searches per run, against C's 1,417 to 1,450. Its search time is about
-  C's (7,505 to 7,921 s per run, against 7,706 to 8,040 s), because fewer searches fail: 3.6 to 3.7 s per search,
-  against 5.1 to 5.4 s. Every plan played landed as planned (2,023, 2,013, 1,992).
+  C's (the rows' `search_seconds`: 7,447 to 7,860 s per run, against 7,649 to 7,982 s), because fewer searches fail:
+  3.55 to 3.71 s per search, against 5.08 to 5.40 s. Every plan played landed as planned (2,023, 2,013, 1,992).
+- **The runs after the outcome overlapped.** The rule lists them in order (family 41, then families 2 and 5, then
+  the bots), but they ran side by side, and nothing was chosen on any of them:
+  - family 41 from 04:34:47 to 05:10:21;
+  - family 5 from 04:35:25 to 04:44:29, and family 2 from 04:44:38 to 04:46:21;
+  - the offline bot from 04:45:03 to 05:35:54, then real Minecraft from 05:36:10;
+  - the bots' setting from the bots' start (a measurement not in the rule's list) from 05:15:06.
+
+  The bots' results with D are additional to C's 52 of 64, which PR #3 reported.
 - **Against the course-list planner** (V3b: 286 at seed 0, 276 at seed 1), D's seed 0 has 278, and its seed 1 has 282.
   At seed 0, V3b loses 4 before the neo, 24 at it and 6 after it; D loses 7, 23 and 8, and 2 after going past the
   neo without doing it.
@@ -290,7 +301,8 @@ D's three-seed total is 833 against C's 763, a mean 23.3 above C's, more than th
 ### Where the family-40 courses are lost
 
 Per course, from the details files. `scripts/neo_routing_summary.py` writes `results/neo_routing/breakdown.json`,
-which has the router's first choice at the neo's takeoff and how each course ended.
+which has the router's first choice at the neo's takeoff and how each course ended, for every family-40 run, the
+settle-10 runs and both family-41 runs.
 
 | Search seeds 0, 1, 2 | A | B | C | D (rule 4) |
 | --- | --- | --- | --- | --- |
@@ -305,16 +317,20 @@ which has the router's first choice at the neo's takeoff and how each course end
   where it decides there, in every run of A, B and C; on the other 2 it chooses a platform further on. The remaining
   16 courses never decide on the takeoff. D decides there on 311, 313 and 312 courses and first chooses the neo's
   landing on 310, 312 and 312 (`breakdown.json`).
-- **Every course lost at the neo is a search that found no landing at the takeoff.** A retry, which also found
-  none, followed on 33 of the 36 at seed 0, 32 of 35 at seed 1 and 37 of 40 at seed 2. On courses 105, 169 and 301
-  no retry ran in any family-40 run: no brake was found, and the bot fell before a retry. In the settle-10 run the
-  course without a retry is 141. No plan failed: every plan played landed as searched.
+- **Every course lost at the neo is a search that found no landing at the takeoff.**
+  - A and C: a retry, which also found none, followed on 33 of the 36 at seed 0, 32 of 35 at seed 1 and 37 of 40 at
+    seed 2 (B: 33 of 36, 28 of 31 and 33 of 36). On courses 105, 169 and 301 no retry ran in any run of A, B or C:
+    no brake was found, and the bot fell before a retry.
+  - D: a retry followed on 22 of 23, 23 of 23 and 29 of 29. The course without one is 188 at seed 0. Courses 169
+    (seed 0) and 105 (seed 2) were braked and retried there.
+  - In C's settle-10 run the course without a retry is 141.
+  - No plan failed: every plan played landed as searched.
 - **Against the course-list planner** (V3b, seed 0: 4 lost before the neo, 24 at it, 6 after it, 286 completed;
   rule 3's "Why"), C has almost closed the gap after the neo (10 against 6). The rest of the gap is in two places:
   - before the neo, 15 against 4: those jumps are the jumper's, while V3b plans every jump;
   - at the neo, 36 against 24: the bot reaches the takeoff from the jumper's own landing, not from a planned one.
 
-### Test, family 41 (run once, after the choices)
+### Test, family 41 (C once after rules 1 to 3; D once more after rule 4, as an additional test)
 
 Rule 3's setting (C), search seed 0, same protocol: **252 of 320** completed with the neo done as a neo (254
 completed). The row is `neo_routing/single41-wall-C-s0` in `results/neo_routing/test.jsonl`, the courses are in
@@ -456,8 +472,8 @@ Both `route*-A-s0` runs used A, with episodes on the GPU and searches on the CPU
    against the course-list planner's 4; a lever planning the router's decisions would be the router's version of
    the course-list `jumps: "all"`, with its own rule on family 40.)
 2. **The searches at the neo** (not run). With D, 23, 23 and 29 courses are lost there, against the course list's 24
-   at seed 0 (C: 36, 35 and 40). Each is a search with no landing found, and B's bigger neo search did not help C
-   (3-seed mean +3.0). A plan for the approach to the router's walled choice, one decision earlier, would mirror
+   at seed 0 (C: 36, 35 and 40). Each is a search with no landing found. B's bigger neo search did not help A (+3.0
+   over A, under rule 1's 4); it was not tried with C or D. A plan for the approach to the router's walled choice, one decision earlier, would mirror
    the course list's `approach`, which is refused here because it needs the course list.
 3. **The jumps further from the neo** (not run). D at seed 0 loses 7 courses before the neo and 8 after it, against
    the course list's 4 and 6, and 2 more after going past the neo without doing it. Of those before it, 2, 1 and 1
@@ -474,7 +490,7 @@ runs on families 2 and 5 add `--device cpu` (episodes on the CPU).
 ```text
 set CUDA_VISIBLE_DEVICES=-1        CPU runs: the single-neo sets and the bots
 python -m parkour.route_neo --set single --family 40 --device cpu --name NAME --tag TAG --parts 16 --jobs 4 --assist JSON
-python -m parkour.route_neo --set single --family 41 --device cpu ...          the test set (run once)
+python -m parkour.route_neo --set single --family 41 --device cpu ...          the test set: C once after rules 1 to 3, D once more after rule 4 (additional)
 python -m parkour.route_neo --set single --family 40 --device cpu --settle 10 ...   from the bots' start
 python -m parkour.route_neo --set standard --family 2 --threads 1 --name NAME --tag TAG --assist JSON   (and --set obstacles --family 5; episodes on the GPU)
 python -m parkour.live --offline --checkpoint results/final_policy.pt --router results/routing/router_policy.pt --assist JSON --courses-file results/games/single41-first64-courses.json --out runs/NAME

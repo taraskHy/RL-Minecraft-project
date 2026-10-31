@@ -146,6 +146,10 @@ def main(argv=None):
         assist_cfg = AssistConfig(**{"batch": 1, **json.loads(a.assist)})
         if assist_cfg.batch != 1:
             raise SystemExit("the bots reproduce only searches with batch 1")
+        if not a.router and (assist_cfg.plan_on or assist_cfg.plan_ahead):
+            # neo_assist.evaluate_assisted refuses them too, but only in the simulator re-run, after the bots have played
+            raise SystemExit("plan_on and plan_ahead are the learned router's (--router); with the course list use "
+                             "jumps 'all'")
         if a.router:
             from .route_env import RouteConfig
             from .route_neo import check_config
