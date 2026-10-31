@@ -65,12 +65,14 @@ from .planner import PlannerConfig
 from .route_env import RouteConfig, RouteRunner, RouteTables
 from .train import (OBSTACLE_TEST_FAMILY, OBSTACLE_VALIDATION_FAMILY, TEST_SEED_FAMILY, VALIDATION_FAMILY,
                     held_out_courses)
-from .neo_assist import SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2, SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY
+from .neo_assist import (SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2, SINGLE_FRESH_TEST_FAMILY_3, SINGLE_TEST_FAMILY,
+                         SINGLE_VALIDATION_FAMILY)
 
 K = C.MAX_PLATFORMS
 OUT_DIR = ROOT / "results" / "neo_routing"
-# (test, validation[, further test sets]); the single-neo sets' fresh test families 49 and 50 are the neo skill's (31 Oct)
-SETS = {"single": (SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2),
+# (test, validation[, further test sets]); the single-neo sets' fresh test families 49, 50 and 51 are the neo skill's (31 Oct)
+SETS = {"single": (SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2,
+                   SINGLE_FRESH_TEST_FAMILY_3),
         "standard": (TEST_SEED_FAMILY, VALIDATION_FAMILY), "obstacles": (OBSTACLE_TEST_FAMILY, OBSTACLE_VALIDATION_FAMILY)}
 
 

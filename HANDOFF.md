@@ -569,7 +569,22 @@ fixed at 09:24:49, before any run of it:**
   reference on family 50 (as fixed at 12:47; `assist_parts/single50-test-planner`):
   284 of 320 (88.75%), failures 23 at the neo and 12 at ordinary jumps;
   over the three test sets the planner makes 848 of 960 (88.3%), the skill
-  825 (85.9%). **Real Minecraft,
+  825 (85.9%). [**A third DAgger round (Ethan: "Yes, run it"), fixed at
+  13:49:41 before any run of it:** `neo-skill-d3`, from the chosen skill
+  (`neo-skill-d2` updates 400), with d2's settings; its pairs are d1's and
+  d2's plus new ones from d2 updates 400's own states (on the takeoff at
+  first contact and 10 and 20 ticks later, every 3rd tick of the first 12 of
+  its first flight, its first contact on the target), searched and
+  simplified as before, on 2,000 bank courses of types 16-19 not used by d2
+  (the 1,501st to 3,500th of those types) and on the first 2,000 bank courses
+  of the other 28 types (on validation half of d2's block failures are now
+  outside 16-19). 500 updates, a snapshot every 50, each scored on family 40.
+  Choice as before (the most strict of every candidate; ties to the earlier).
+  If a d3 snapshot is above 287 it is tested once on a new fresh family 51
+  (pinned and checked against the bank before any run) in both modes, with
+  41, 49 and 50 reported as additional; the planner's setting plays 51 once
+  as the reference; and the bots replay the first 64 courses of family 41.]
+  **Real Minecraft,
   course list: 59 of 64, the same courses and ticks as the re-run on all 64,
   0 server corrections and no "moved wrongly" in the server log** (largest
   replay difference 2.1e-14 blocks; `runs/single41-live-skill-d2`); course 53,

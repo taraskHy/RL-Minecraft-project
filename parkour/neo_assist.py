@@ -126,8 +126,9 @@ SINGLE_VALIDATION_FAMILY = 40  # the single-neo sets (families 18-39 are the rou
 SINGLE_TEST_FAMILY = 41
 SINGLE_FRESH_TEST_FAMILY = 49  # a second single-neo test set, for the neo skill (HANDOFF.md section 3, 31 Oct)
 SINGLE_FRESH_TEST_FAMILY_2 = 50  # a third, for a later version of the neo skill (31 Oct, 11:43)
+SINGLE_FRESH_TEST_FAMILY_3 = 51  # a fourth, for the third DAgger round's version (31 Oct, 13:49)
 TEST_FAMILIES = (TEST_SEED_FAMILY, RANDOM_TEST_FAMILY, MIXED_TEST_FAMILY, SINGLE_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY,
-                 SINGLE_FRESH_TEST_FAMILY_2)
+                 SINGLE_FRESH_TEST_FAMILY_2, SINGLE_FRESH_TEST_FAMILY_3)
 HEADS = ("move", "strafe", "jump", "sprint", "yaw")
 
 
@@ -503,7 +504,7 @@ def single_neo_hashes() -> set:
     """``train.course_hash`` of every course of the single-neo sets (320 each: validation, test and the fresh
     test sets): no training course may equal one."""
     return {course_hash(c) for f in (SINGLE_VALIDATION_FAMILY, SINGLE_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY,
-                                     SINGLE_FRESH_TEST_FAMILY_2) for c in single_neo_courses(f)}
+                                     SINGLE_FRESH_TEST_FAMILY_2, SINGLE_FRESH_TEST_FAMILY_3) for c in single_neo_courses(f)}
 
 
 def skill_cps(course: C.Course) -> list[int]:
@@ -1173,7 +1174,8 @@ def main(argv=None):
         torch.set_num_threads(a.threads)
     valid = {"official": (TEST_SEED_FAMILY, VALIDATION_FAMILY), "random": (RANDOM_TEST_FAMILY, RANDOM_VALIDATION_FAMILY),
              "mixed": (MIXED_TEST_FAMILY, MIXED_VALIDATION_FAMILY),
-             "single": (SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2)}
+             "single": (SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2,
+                        SINGLE_FRESH_TEST_FAMILY_3)}
     if a.family not in valid[a.set]:
         raise SystemExit(f"--set {a.set} has families {valid[a.set]} (test, validation{', fresh test' if a.set == 'single' else ''})")
     if a.skill and (not a.off or a.part or a.parts or a.serve):

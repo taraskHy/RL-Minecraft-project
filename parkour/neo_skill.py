@@ -48,7 +48,8 @@ from . import physics
 from .env import (FALL_MARGIN, MAX_PLATFORMS, CoursePool, EnvConfig, LevelSampler, ParkourEnv, action_to_controls,
                   on_obstacle)
 from .live import load_model
-from .neo_assist import (SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2, SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY,
+from .neo_assist import (SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2, SINGLE_FRESH_TEST_FAMILY_3,
+                         SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY,
                          single_neo_courses, single_neo_hashes, single_neo_types, skill_cps)
 from .neo_dagger import neo_takeoffs
 from .paths import ROOT
@@ -84,7 +85,8 @@ def training_courses(families=TRAIN_FAMILIES, per_family: int = 6400) -> tuple[l
     n_types = len(single_neo_types())
     out, types = [], []
     for f in families:
-        if f in (SINGLE_VALIDATION_FAMILY, SINGLE_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2):
+        if f in (SINGLE_VALIDATION_FAMILY, SINGLE_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2,
+                 SINGLE_FRESH_TEST_FAMILY_3):
             raise ValueError(f"family {f} is a held-out single-neo set")
         for i, c in enumerate(single_neo_courses(f, per_family)):
             if course_hash(c) in exclude:
@@ -401,7 +403,7 @@ def takeoff_states(skill, bank: SegmentBank, idx: list[int], device, waits=(0, 1
 
 def dagger_pairs(skill_path: Path, bank_path: Path, out: Path, types=(16, 17, 18, 19), courses: int = 6000,
                  device="cuda", batch: int = 256, prior: float = 0.95, seed: int = 0, air_every: int = 0,
-                 exits: bool = False) -> dict:
+                 exits: bool = False, skip: int = 0) -> dict:
     """(observation, action) pairs from the neo planner's landings, simplified, at the skill's own takeoff states
     (``takeoff_states``) on the bank's courses of ``types`` (HANDOFF.md, 31 Oct, 11:46): ``train.py --bc-pairs``."""
     from . import neo_assist as NA
@@ -409,7 +411,7 @@ def dagger_pairs(skill_path: Path, bank_path: Path, out: Path, types=(16, 17, 18
     t0 = time.time()
     skill = load_model(skill_path, device)
     bank = SegmentBank(bank_path, "cpu")
-    idx = [i for i, c in enumerate(bank.courses) if c.level in types][:courses]
+    idx = [i for i, c in enumerate(bank.courses) if c.level in types][skip:skip + courses]
     bank.device = device
     pool, arrivals = takeoff_states(skill, bank, idx, device, air_every=air_every, exits=exits)
     rules = NA.Rules(pool)
@@ -424,7 +426,8 @@ def dagger_pairs(skill_path: Path, bank_path: Path, out: Path, types=(16, 17, 18
     simple = simplify(skill, pool, arrivals, found, device)
     obs, act = pairs(pool, arrivals, simple, device)
     meta = {"skill": str(skill_path), "skill_sha1": hashlib.sha1(Path(skill_path).read_bytes()).hexdigest()[:12],
-            "bank": str(bank_path), "types": list(types), "courses": len(idx), "air_every": air_every, "exits": exits,
+            "bank": str(bank_path), "types": list(types), "skip": skip, "courses": len(idx), "air_every": air_every,
+            "exits": exits,
             "arrivals": len(arrivals),
             "kinds": {kd: [sum(1 for x in arrivals if x["kind"] == kd),
                            sum(1 for x, f in zip(arrivals, found) if x["kind"] == kd and f)] for kd in ("takeoff", "air", "exit")},
@@ -450,6 +453,7 @@ def main(argv=None):
     d.add_argument("--air-every", type=int, default=0, help="also the skill's states every N ticks in the air after the takeoff")
     d.add_argument("--exits", action="store_true", help="also its first ground contact on the target (to the next platform)")
     d.add_argument("--seed", type=int, default=0)
+    d.add_argument("--skip", type=int, default=0, help="leave out the first N bank courses of those types (used before)")
     b = sub.add_parser("bank", help="the training bank of block starts")
     b.add_argument("--checkpoint", default=str(ROOT / "results" / "final_policy.pt"))
     b.add_argument("--out", default=str(ROOT / "runs" / "neo_skill_bank.pt"))
@@ -462,7 +466,7 @@ def main(argv=None):
         if Path(a.out).exists():
             raise SystemExit(f"{a.out} exists; choose a new name")
         dagger_pairs(Path(a.skill), Path(a.bank), Path(a.out), tuple(int(t) for t in a.types.split(",")), a.courses,
-                     a.device, a.batch, seed=a.seed, air_every=a.air_every, exits=a.exits)
+                     a.device, a.batch, seed=a.seed, air_every=a.air_every, exits=a.exits, skip=a.skip)
         return
     if a.cmd == "bank":
         lo, _, hi = a.families.partition("-")
