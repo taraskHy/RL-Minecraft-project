@@ -818,6 +818,68 @@
   "failed_on_the_jump_onto_the_takeoff": 17
  },
  {
+  "name": "single40-wall-D-settle10-bots",
+  "set": "single",
+  "family": 40,
+  "courses": 320,
+  "completed": 284,
+  "completed_neo_done": 282,
+  "config": {
+   "enabled": true,
+   "samples": 1024,
+   "iterations": 25,
+   "keep": 1,
+   "horizon": 32,
+   "retry_horizon": 48,
+   "approach": 0,
+   "jumps": "neo",
+   "prior": 0.0,
+   "retries": 1,
+   "retry_every": 10,
+   "brake": 14,
+   "batch": 1,
+   "seed": 0,
+   "restarts": 3,
+   "plan_start": 1,
+   "corner_limit": 0.25,
+   "plan_on": 1,
+   "plan_ahead": 1
+  },
+  "tag": "Rule 4: the bots' setting (D + plan_start 1 + corner_limit 0.25) from the bots' start (settle 10), search seed 0; a measurement, no choice (not in rule 4's list)",
+  "failure_modes": {
+   "success": 284,
+   "wrong_platform": 6,
+   "nothing_in_view": 2,
+   "motor": 28
+  },
+  "searches": {
+   "takeoff": {
+    "n": 2088,
+    "found": 2045
+   },
+   "retry": {
+    "n": 42,
+    "found": 10
+   }
+  },
+  "plans_played": 2053,
+  "plans_landed_as_planned": 2053,
+  "pick_at_takeoff": {
+   "ahead": 1,
+   "neo_target": 310,
+   "not_reached": 9
+  },
+  "ends": {
+   "completed past the neo": 2,
+   "completed, neo done": 282,
+   "failed after passing the neo": 7,
+   "failed at the neo: no landing found": 20,
+   "failed before the neo's takeoff": 8,
+   "failed past the neo's takeoff without doing the neo": 1
+  },
+  "failed_on_the_jump_onto_the_takeoff": 3
+ },
+ {
   "name": "single41-wall-C-s0",
   "set": "single",
   "family": 41,

@@ -291,7 +291,7 @@ D's three-seed total is 833 against C's 763, a mean 23.3 above C's, more than th
   - family 41 from 04:34:47 to 05:10:21;
   - family 5 from 04:35:25 to 04:44:29, and family 2 from 04:44:38 to 04:46:21;
   - the offline bot from 04:45:03 to 05:35:54, then real Minecraft from 05:36:10;
-  - the bots' setting from the bots' start (a measurement not in the rule's list) from 05:15:06.
+  - the bots' setting from the bots' start (a measurement not in the rule's list) from 05:15:06 to 06:11:36.
 
   The bots' results with D are additional to C's 52 of 64, which PR #3 reported.
 - **Against the course-list planner** (V3b: 286 at seed 0, 276 at seed 1), D's seed 0 has 278, and its seed 1 has 282.
@@ -418,6 +418,24 @@ simulator, CPU: **248 of 320** (250 completed). The row is `single40-wall-C-sett
 
 The run was first started at 00:12 and stopped at 00:13 to keep the CPU under its limit, before any part had
 finished. It started again at 01:05 on 3 jobs, so its log has both start lines.
+
+**Rule 4's bots' setting** (D + `plan_start` 1 + `corner_limit` 0.25, seed 0) from the bots' start: **282 of 320**
+(284 completed); simulator, CPU. It is a measurement not in rule 4's list, from 05:15:06 to 06:11:36 on 2 jobs, and
+nothing is chosen on it. The row is `single40-wall-D-settle10-bots` in `validation.jsonl`.
+
+- **Where the courses were lost** (`breakdown.json`):
+  - 8 before the neo's takeoff, 3 of them on the jump onto it (C's bots' setting: 22 and 17);
+  - 20 at the neo (C's: 40);
+  - 7 after passing it (C's: 8);
+  - 1 after going past the neo's takeoff without doing the neo.
+- **Corner limit:** it dropped 10 landings, in 7 searches.
+- **Searches:** 2,088 at takeoffs (2,045 found) and 42 retries (10 found). 92 searches were from the start state
+  (`plan_start`), against C's 32: from the start, D's route crosses the neo's wall a slot or two ahead. All 2,053
+  plans played landed as planned.
+- **Compared with:**
+  - D from the simulator's own start (settle 0), seed 0: 278;
+  - C's bots' setting from the bots' start: 248;
+  - the course-list planner's bot setting from the bots' start: 292.
 
 ### The bots: the 64 test courses of `results/games/single41-first64-courses.json`
 
