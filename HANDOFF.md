@@ -543,7 +543,23 @@ fixed at 09:24:49, before any run of it:**
   types 16-19: its states every 3rd tick of the first 12 in the air after
   it first leaves the takeoff (while not below the takeoff; searched to the
   target) and its first ground contact on the target (searched to the
-  platform after it). Chosen and tested as d1.
+  platform after it). Chosen and tested as d1. **d2 so far (updates
+  50-300):** 271, 275, 275, 284, 286, 283; the neo failures fall to 14-18.
+  Fixed at 12:47:28, before any test of it: if d2's best on family 40 is
+  above 283, the planner's chosen setting also plays family 50 once (CPU,
+  `--parts 8`), as on family 49, so its test there has the search beside it.
+- **The bots, first 64 test courses, from the bots' start, the chosen skill
+  (kept as `results/neo_skill.pt`, the same bytes, sha1 `2802accced61`, and
+  `results/neo_skill.json`):** course list: offline 51 of 64, the same as
+  `parkour.live`'s simulator re-run on every course (replay difference
+  7.1e-15 blocks; the scored test on these 64: 54); real Minecraft 50 of 64,
+  63 courses as the re-run and one server correction: course 53, where the
+  server logged "moved wrongly" at tick 44 next to the neo wall's corner and
+  the bot fell (the re-run completes it). The corner-order gap of problem 9:
+  the planner has its corner check, the skill has none (`runs/single41-offline-skill`,
+  `runs/single41-live-skill`). Router mode: offline 52 of 64, the same as
+  the re-run on every course, the skill acting at the simulator's checkpoints
+  on 64 of 64 (replay difference 3.6e-15 blocks; `runs/single41-offline-skill-router`).
 - **Router mode with the same skill (no course list, no search;
   `results/neo_routing/skill_*.jsonl`):** validation family 40, 277; test
   family 49, played once, 278 of 320 (86.9%); family 41, additional, 271
