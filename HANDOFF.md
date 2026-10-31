@@ -496,6 +496,18 @@ fixed at 09:24:49, before any run of it:**
   those on types 16-19, 9 (9) on the jump off the 1x1 target, 4 (3) onto the
   takeoff, 6 (6) after the block. Types 16-19: 18 and 19 of 40 (the planner
   on 41: 28).
+- **A later version: the skill's jump readout, fixed at 11:43:48 before any
+  run of it.** The chosen network unchanged (`neo-skill-a2` updates 1000, no
+  new training); only how its jump head is read: "jump" when its
+  probability is above a threshold t instead of above 0.5 (the other heads
+  stay argmax; t 0.5 is today's skill). Why (families 40, 41, 49): the
+  strict failures at the neo are mostly stops on the takeoff of types 16-19,
+  where in training the jump comes at a random tick. t from {0.5, 0.4, 0.3,
+  0.2}, chosen on family 40 (the most strict completions, ties to the larger
+  t). If t below 0.5 is chosen it is tested once on a new fresh set, family
+  50 (built now, pinned and checked against the bank before any run), and
+  reported on families 41 and 49 as additional tests; course list and router
+  mode alike. The bots get the same readout before they play it.
 - **Router mode with the same skill (no course list, no search;
   `results/neo_routing/skill_*.jsonl`):** validation family 40, 277; test
   family 49, played once, 278 of 320 (86.9%); family 41, additional, 271
