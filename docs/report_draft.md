@@ -459,9 +459,7 @@ draw and its 4-course margin lies within that noise.
 
 **The bots.** Before any fix, the offline bot and real Minecraft each
 completed 58 of the first 64 test courses, as did the policy check (section
-6); the simulator test, which starts without the 10 idle ticks, completes 57
-of them (56 strict). Two changes followed, prompted by these runs and kept on
-validation. With the first-jump fix, which also plans from the start state,
+6). Two changes followed, prompted by these runs and kept on validation. With the first-jump fix, which also plans from the start state,
 the server corrected the bot twice and one course failed (54/64; 55
 offline). Both came at a neo wall's corner: the game resolves horizontal
 movement along its larger component first, prismarine-physics along x then
@@ -472,6 +470,16 @@ every warning and send-back in 40 recorded real-game runs
 0.25 blocks in the game's order, at no cost on validation. After both, the
 bots made 55/64 offline and in real Minecraft, the simulator's courses and
 ticks, with 0 corrections; 58 against 55 is within the search's seed noise.
+
+**Without the course list.** With the learned router (section 7.9) choosing
+platforms, a choice whose path a wall blocks is searched as a neo, and with
+`plan_on` so is every later decision while plans land. Chosen on validation
+(255, 257 and 251 of 320 over three search seeds) by rules fixed before the
+runs, it completes 252 of the 320 test courses (78.75%, played once) against
+276 with the course list, and 52 of the first 64 in the offline bot and in
+real Minecraft, the simulator's courses, with 0 corrections (course list:
+55). Most of the gap is before the neo, where the jumps are the policy's
+own, and at it (`results/neo_routing/`).
 
 ### 7.9 Without the course list: greedy planner, learned router, learned route model
 
@@ -564,8 +572,8 @@ It runs in the simulator only.
 ## 8. Discussion and limitations
 
 **Why the transfer is exact.** The simulator reproduces the bot's own physics
-engine (section 3). In 1,394 real-game episodes
-over 43 runs (`results/games/`) and 120 router episodes
+engine (section 3). In 1,458 real-game episodes
+over 44 runs (`results/games/`) and 120 router episodes
 (`results/routing/`), every outcome but one equals the simulator's. That
 one and the only 2 server corrections came from one run before the corner
 check, next to neo-wall corners, where the game orders collisions
@@ -613,8 +621,6 @@ cannot rank policies a few points apart.
 
 - The final policy trained on stone only; the other blocks are opt-in
   (section 3), and water is not modelled.
-- The greedy planner and the learned router were built and tested on
-  courses without neos.
 - The feasibility study uses scripted strategies from rest, so it
   underestimates what is possible (section 7.4) and what chained jumps allow.
 - Courses are built and reset with server commands (section 6); a carpet
@@ -661,8 +667,8 @@ as well as that group's best specialist (test mean 86.45%, simulator): a
 match, not a win. It completes 86.4% of the test courses with new jump
 kinds and blocks (the final policy alone: 19.7%).
 
-Next steps are neo courses without the course list, more blocks, water
-first, and real hand-built maps.
+Next steps are planning the jumps before a neo without the course list,
+more blocks, water first, and real hand-built maps.
 
 ## References
 

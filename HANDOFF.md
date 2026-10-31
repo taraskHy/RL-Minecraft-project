@@ -54,6 +54,30 @@ anyone.
   0 server corrections. Details: `results/routing/README.md`. Its changes
   outside `results/routing/` are opt-in (`parkour.live --router`,
   `bridge/router.js`, `parkour/route_*.py`, `tests/test_route.py`).
+- **Neo routing (pull request #3, built on this PC in the worktree
+  `wt-neo-routing`; merged into `main` on GitHub on 31 Oct at 02:45 by
+  `taraskHy`, `dc0df81`):** the neo planner in the learned router's
+  no-course-list mode (`RouteConfig(blocked="plan")`, `parkour/route_neo.py`,
+  `parkour.live --router R --assist JSON`), opt-in; the defaults and
+  section 5 are unchanged. Setting C (candidate A plus `plan_on`), chosen on
+  validation by rules written before the runs they govern. Single-neo
+  courses, completed with the neo done as a neo, simulator, CPU: validation
+  (family 40) 255, 257 and 251 for search seeds 0 to 2, against the
+  course-list planner's 286 and 276 (seeds 0 and 1); test (family 41,
+  played once) **252 of 320** (78.75%) against 276. The router's own
+  validation sets (episodes GPU, searches CPU): family 2 1,762 (the shipped
+  number), family 5 1,728 against 1,720. Bots on the 64 courses of
+  `single41-first64`: 52 offline and 52 in real Minecraft, each equal to its
+  simulator re-run on every course, 0 server corrections (course-list
+  planner: 55). Most of the remaining gap is before the neo (the jumper's own
+  jumps) and at it (no landing found). Details:
+  `results/neo_routing/README.md`. Reviewed after the merge (31 Oct, four
+  reviewers and a skeptic per finding): every number recomputed from the
+  per-course files and matching, the defaults and section 5 unchanged, the
+  test played once; 17 smaller findings (README wording, a late refusal in
+  `parkour/live.py`, test gaps) went to the neo-routing session for its next
+  pull request. Full suite on merged `main`: 183 passed, 44 subtests
+  (`runs/full-tests-main-dc0df81-b.txt`).
 
 **How we coordinate.**
 
@@ -965,13 +989,15 @@ neo policy) into one student next to PPO, on courses that mix every skill;
 the design, its evidence and the steps are in
 [docs/combine_policies.md](docs/combine_policies.md). The user's local
 session on the PC implements it and starts the training; the cloud session
-starts none.
+starts none. [Done: `combined-distill`, shipped on 29 Oct as
+`results/combined_policy.*`; the gate `gate-r1` followed.]
 
 **PC completion update, 28 Oct 21:38:** cloud merged through `21188a6`; neo files shipped; retuned planner verified on both real-Minecraft sets (51/60 and 56/60, zero corrections) and adopted in Python/JS. Items 1, 2, 4 and 5 below describe the completed integration steps and ongoing merge/watchdog procedure. The latest user request (29 Oct) permits 100% GPU use, with the temperature rule retained.
 
 Concrete work, most important first. Nothing here needs new research.
 
-1. **Merge `claude/pensive-knuth-biwj11` into `main`** (PC session; the
+1. **Done (checked 31 Oct: the branch has no commit outside `main`).**
+   The original item: **Merge `claude/pensive-knuth-biwj11` into `main`** (PC session; the
    cloud session's work: docs, the handoff tools, planner options, analyses,
    new files in `results/`). `git fetch origin && git merge
    origin/claude/pensive-knuth-biwj11`, no rebase. If `main` has moved:
@@ -1033,6 +1059,14 @@ Concrete work, most important first. Nothing here needs new research.
    of the cuts kept the 1.0-billion-tick drop in 7.1 and the detector
    file's round numbering. The export now has 19 pages before the
    References page, the body ending about three quarters down page 20.
+   **Neo routing added (31 Oct, 03:22, after pull request #3):** a
+   paragraph at the end of 7.8 ("Without the course list": 252 of 320 on
+   test, 52/64 in both bots), the conclusion's next steps updated, the
+   limitation "the greedy planner and the learned router were built and
+   tested on courses without neos" removed (no longer true), and in 7.8's
+   bots paragraph the sentence on the simulator test's start cut. The export
+   (`results/report_draft.pdf`) has 20 pages before the References page,
+   the body ending on the last line of page 20: no room is left.
    The script now reports the page on which the body
    ends. The Chrome estimate (`scripts/report_pages.py`) had said about 19:
    it was a page optimistic, because its calibration version also ran
@@ -1047,12 +1081,19 @@ Concrete work, most important first. Nothing here needs new research.
    only as `runs/neo-dagger3/checkpoints/best.pt` on the PC. Export it next
    to the final policy (for example `results/neo_policy.pt` / `.json`)
    without replacing `results/final_policy.*`.
-5. **Restart the GPU watchdog on the PC** after merging this branch: it
+5. **Done (29 Oct, and again from the merged code at 22:52).** The
+   original item: **Restart the GPU watchdog on the PC** after merging this branch: it
    now also pauses `parkour.neo_dagger`, but the copy already running uses
    the old job list.
 6. Keep `TEAM_STATUS.md` and this file in step with each new result.
 7. **More parkour abilities** (cloud session, in progress since 28 Oct
    evening): neo assist, head hitters, ice jumps, slime, block shapes.
+   [31 Oct: the cloud work is merged; the new kinds and the neo levels were
+   trained on the 0.995 policy as `g995-extra` and `g995-adv`, and the neo
+   planner ran in real Minecraft on the single-neo test courses
+   (`results/games/single41-live-*`). Never run: `configs/neo_live_courses.json`
+   in real Minecraft and `scripts/neo_pipeline.py`; the cloud tests stay on
+   hold.]
    `docs/abilities_plan.md` lists the stages, their status and the design
    constraints found in the code. The current two-slot queue and full-GPU
    instruction in section 6 govern PC training. Commands below are recipe
@@ -1480,17 +1521,17 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `e1d1e2f` (2026-10-30 22:34, branch `main`): Handoff: this PC's report export runs about half a page longer than the cloud's
+Generated on top of commit `ccdf153` (2026-10-31 03:17, branch `main`): Level-5 control: neither change, three seeds; rule fixed before the runs
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 32 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 44 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `1a16df0` 2026-10-29 14:14 | 48 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 216 |
+| `README.md` | `1a16df0` 2026-10-29 14:14 | 60 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 228 |
 | `docs/report_draft.md` | updated together with this snapshot | 0 |
-| `results/README.md` | `f286d5f` 2026-10-30 19:14 | 3 |
+| `results/README.md` | `f286d5f` 2026-10-30 19:14 | 15 |
 | `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
@@ -1556,6 +1597,8 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `hp-kl0.02` | 999 | 0.52 | 899 | 92.7 | 92.2 | 91.8 | - |
 | `hp-net-large` | 999 | 0.52 | 649 | 94.5 | 95.3 | 95.4 | - |
 | `hp-net-small` | 999 | 0.52 | 999 | 92.5 | 91.3 | 91.3 | - |
+| `l5-ctrl` | 49 | 0.03 | 49 | 96.7 | - | - | - |
+| `l5-ctrl-s1` | 49 | 0.03 | 49 | 95.3 | - | - | - |
 | `l5-obs05` | 999 | 0.52 | 999 | 97.9 | 98.2 | - | - |
 | `l5-obs05-s1` | 999 | 0.52 | 49 | 97.0 | 98.1 | - | - |
 | `l5-obs05-s2` | 999 | 0.52 | 99 | 97.6 | 97.8 | - | - |
@@ -1661,10 +1704,12 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `single41-live-planner` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 58/64 | 90.6 | 100.0 |
 | `single41-live-planstart` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 54/64 | 85.9 | 98.4 |
 | `single41-live-policy` | live (Minecraft 1.21.4 server) | `runs/neo-dagger4/checkpoints/updates_00250.pt` | 26/64 | 40.6 | 100.0 |
+| `single41-live-routeneo` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 52/64 | 81.2 | 100.0 |
 | `single41-offline-corner` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 55/64 | 85.9 | 100.0 |
 | `single41-offline-planner` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 58/64 | 90.6 | 100.0 |
 | `single41-offline-planstart` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 55/64 | 85.9 | 100.0 |
 | `single41-offline-policy` | offline (prismarine-physics, no server) | `runs/neo-dagger4/checkpoints/updates_00250.pt` | 26/64 | 40.6 | 100.0 |
+| `single41-offline-routeneo` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 52/64 | 81.2 | 100.0 |
 | `skill-replays-live-65` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 59/65 | 90.8 | 100.0 |
 | `skill-replays-neo-network-live` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 7/16 | 43.8 | 100.0 |
 | `skill-replays-neo-network-offline` | offline (prismarine-physics, no server) | `results/combined_policy.pt` | 7/16 | 43.8 | 100.0 |
@@ -1692,7 +1737,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 
 ### In `results/` but not yet in `results/DATA.md`
 
-Nothing: the data index names everything.
+`games/single41-live-routeneo/`, `games/single41-offline-routeneo/`
 
 <!-- END AUTO-SNAPSHOT -->
 
@@ -1710,6 +1755,7 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **31 Oct 2026, 03:24, Claude (Claude Code, training PC, main session):** pull request #3 (neo routing, built on this PC) was merged on GitHub at 02:45 by `taraskHy`. Reviewed after the merge (four reviewers and a skeptic per finding): every number recomputed from the per-course files and matching, the defaults and section 5 unchanged, the test played once; 17 smaller findings (README wording, a late refusal in `parkour/live.py`, test gaps) went to the neo-routing session for its next pull request; its worktree-only logs are copied into `runs/`. Full suite on merged `main`: 183 passed, 44 subtests. Recorded in the team split here and in `TEAM_STATUS.md`. The report gets a 7.8 paragraph on it (252 of 320 on test without the course list, 52/64 in both bots), new next steps, one limitation removed and the real-game totals updated (1,458 episodes in 44 runs, now that `parkour.report` archives the neo-routing bot runs in `results/games/`); its export ends on the last line of page 20. Stale to-do items marked done (section 3 items 1, 5 and 7, the one network; `TEAM_STATUS.md`'s open problems 1-3 rewritten). Ethan (about 02:50, away until 08:30): use the GPU and CPU for major work now, and ask him nothing. Started: the level-5 control (`l5-ctrl`, `-s1`, `-s2`; rule at 03:17, section 3) through the training queue, with the GPU watchdog (65/58), keep-awake and a CPU-cap enforcer that re-applies mask 0xC03C0F every 10 s (`enforce_cpu_cap.ps1`, this session's scratchpad); the neo-routing session runs its follow-up 1 (plan every router decision) under its own rule, for pull request #4. New `scripts/level5_sets.py` measures families 46 and 47 (it reproduces 1,704 and 1,831). Next: the control's families 46 and 47, pull request #4's review, the results page.
 - **30 Oct 2026, 22:47, Claude (Claude Code, training PC, the forked session):** the report trimmed by about 160 words net (Ethan: "Yes, trim it"): section 3's speed paragraph and repeats in 7.1, 7.3, 7.7, 8 and 9, checked independently (two cuts partly restored). Export: 22 pages, 19 before the References page, the body ending about three quarters down page 20, so it fits 20 pages strictly. `results/report_draft.docx` / `.pdf` are this export. Next: the team's read-through; export again after any change.
 - **30 Oct 2026, 22:31, Claude (Claude Code, training PC, a session forked from the main one):** the report export tools installed with Ethan's approval ("Yes, install them"): pandoc 3.12.1 and LibreOffice 26.2.6 unpacked under `%LOCALAPPDATA%\Programs`, python-docx in `.venv` (section 6). `scripts/report_docx.py --pdf` on `25eced6`: 22 pages, 20 before the References page, but the body ends two lines into page 21, so it needs a trim of about 150 words to fit 20 pages strictly (section 3, item 3). The exports in `results/` are current; `report_docx.py` now prints where the body ends, and `report_pages.py`'s defaults are recalibrated (its 19 was a page optimistic). Next: the trim, then a fresh export.
 - **30 Oct 2026, 22:05, Claude (Claude Code, training PC):** the course report brought up to date (Ethan: "Yes, update it"). `docs/report_draft.md` is rewritten with every result through 30 Oct (the single-neo goal, the skill gate, the learned router, the bots' first-jump and wall-corner fixes, the level-5 finding) and states the MDP in section 5 (the block offered on 29 Oct); cut from about 24 estimated pages to about 19 before the references. The count is an estimate: pandoc and LibreOffice are not on the PC, so the new `scripts/report_pages.py` renders the draft with headless Chrome, calibrated on `568763d` (20 pages in the cloud export), and the new draft is one page below it at all three spacings tried (section 3, item 3). Three independent checks of its numbers and claims against `results/` and the run files found 45, 16 and 2 problems, all fixed; the last: the learned router is the best of 14 checkpoints, not 13 (corrected in `results/routing/README.md` too, whose table holds two checkpoints in one row). Section 3 item 2 (the retuned planner in real Minecraft) marked done; old report section numbers updated here and in `TEAM_STATUS.md`. Next: the exact page count (`scripts/report_docx.py --pdf` on a machine with pandoc, python-docx and LibreOffice), the team's read-through, and the neo-routing pull request from the side session when it arrives.
