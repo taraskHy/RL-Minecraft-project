@@ -537,6 +537,14 @@ fixed at 09:24:49, before any run of it:**
   --brake 14 --retry-horizon 48 --restarts 3`, the final policy, seed 0,
   CPU, `--parts 8`) played once on family 49, so the neo skill's test there
   has the search beside it. A measurement only; nothing is chosen on it.
+  **Result (11:56; `results/neo/assist_test.jsonl`, run_id
+  `assist_parts/single49-test-planner`):** 288 of 320 (90.0%; 289 plain);
+  failures 26 at the neo and 5 at ordinary jumps, against the neo skill's 18
+  and 26 on the same courses: the skill now loses fewer neos than the search
+  but more ordinary jumps, most of them the final policy's own (before the
+  block 8, after it 6) and the jump off the 1x1 target (9). The planner
+  plans every jump; the skill mode leaves about seven per course to the
+  final policy.
 - **Progress (simulator unless named; validation family 40):**
   - Code: commits `f8a870f` (the bank, `SegmentEnv`, `TypeSampler`,
     `train.py --segments` and `--segment-base`, `neo_assist --skill` with
