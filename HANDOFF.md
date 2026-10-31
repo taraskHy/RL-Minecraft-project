@@ -384,6 +384,57 @@ More facts that hold now:
 
 ## 3. What is left to do
 
+**Single neos at 85% by a network, without the search (Ethan, 31 Oct, about
+08:30: "i need our network/gate will have 85% on neo"; his suggestion: when
+the router sees a neo it hands over to the neo skill, like a gate). Rules
+fixed at 09:24:49, before any run of it:**
+- **The mode, "neo skill":** the final policy plays every jump but the
+  neo's block, which a second network, the neo skill, plays: from the first
+  ground contact on the platform before the neo's takeoff (k-1; from the
+  start when k is 0 or 1) to the first ground contact on the platform after
+  the neo's target (k+2, or the goal). The switch is fixed, a hand-made
+  gate: the course list's neo detector (`neo_dagger.neo_takeoffs`); in the
+  router mode later, the router's walled choice. Both networks see the
+  standard 255-number observation and act deterministically; no search runs.
+  Why the block starts one jump early (family 40 only, validation): the
+  network alone fails the jump onto the neo's 1x1 takeoff and the jump off
+  its 1x1 target far more often than other jumps, and with the same search
+  the neo passes more often after the planner's own arrival than after the
+  final policy's (router runs, `results/neo_routing/details`).
+- **Training (GPU, through the queue, two trainers at most):** PPO with
+  episodes that are the block alone (`parkour.train --segments`): each
+  starts in the exact state in which the final policy, deterministic, first
+  stands on k-1 of a training single-neo course (the held-out sets'
+  generator, `courses.generate_single_neo`, fresh families 60-69, every
+  course hash-excluded from families 40, 41 and 49), played from the
+  simulator's start or after 10 settle ticks (the bots' start). An episode
+  succeeds when the bot stands on k, then on k+1, then reaches k+2 (or the
+  goal); skipping k or k+1 is a failure; otherwise the standard reward,
+  fall and stall rules, with `--reward-stall 5` (as every neo run). Types
+  that fail more are drawn more often. First two runs side by side:
+  `neo-skill-a1` from `neo-dagger4` updates 250 (entropy 0.005) and
+  `neo-skill-a2` from `combined-distill` (entropy 0.01); a snapshot every
+  100 updates.
+- **Choice, validation only:** each snapshot's strict count (completed with
+  the neo done) on family 40 in the neo-skill mode (simulator, CPU,
+  `python -m parkour.neo_assist --off --set single --family 40 --skill
+  SNAPSHOT`); the most wins, ties to the earlier snapshot. Later runs, if
+  any, are compared the same way, and every candidate measured is listed.
+- **Test, once, for the chosen network:** family 41 (the goal's test set,
+  never played in this mode; comparable with the planner's 276 and the
+  network alone's 137) and family 49, a fresh set of the same generator
+  never built before (its hashes pinned and excluded from training before
+  any run), because family 41's per-course results were read in the
+  analysis that led here. The goal counts as met by a network if family 41
+  gives at least 272 strict (85%); family 49 is reported next to it. The
+  test is played when a validation count reaches 285 (89%, as the planner's
+  levers), or otherwise once at the end with the best on validation.
+  Nothing is tuned after it.
+- **Then:** the offline bot and real Minecraft on the first 64 test courses
+  (`results/games/single41-first64-courses.json`), checked against
+  `parkour.live`'s simulator re-run as before; and the router mode (the
+  router's walled choice as the switch), validation family 40 first.
+
 **Top priority since 29 Oct, about 17:00 (Ethan, via the side chat): single
 neos at 85% or more.** Courses with exactly one neo, held-out, with their
 own seeds (validation family 40, test family 41; families 18-39 are the
