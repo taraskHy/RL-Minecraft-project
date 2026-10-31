@@ -152,6 +152,62 @@ Checkpoint chosen on the validation courses: iteration 2849 (validation 83.2).
 | noroute-live | live (Minecraft 1.21.4 server) | 55/60 | 91.7 | 100.0 | 0 | 2.1e-14 |
 | noroute-live-obstacles | live (Minecraft 1.21.4 server) | 37/60 | 61.7 | 100.0 | 0 | 2.1e-14 |
 
+## Without the course list: learned router (pull request #2, the teammate's PC)
+
+A route policy trained with PPO plus imitation of the course's next platform (a training signal, never an input)
+picks each platform among the greedy planner's candidates; the final policy jumps, unchanged
+(`results/routing/router_policy.pt`, run `route-full-f` iteration 29, frozen by a rule on validation). Simulator,
+fall rule `local`; the training runs and the rule are in `results/routing/README.md`.
+
+| Set | Courses | Course list given | Greedy planner | Learned router | Router minus planner [95% CI] | McNemar p |
+| --- | --- | --- | --- | --- | --- | --- |
+| validation, standard, family 2 | 1,800 | 97.9 | 92.8 | 97.9 | +5.1 [+3.9, +6.3] | 3e-18 |
+| validation, obstacles, family 5 | 1,800 | 95.6 | 89.0 | 95.6 | +6.6 [+5.2, +7.9] | 3e-21 |
+| test, played once, standard, family 1 | 1,200 | 98.4 | 92.3 | 97.8 | +5.5 [+4.0, +7.0] | 1e-12 |
+| test, played once, obstacles, family 4 | 1,200 | 95.2 | 90.5 | 95.0 | +4.5 [+2.9, +6.1] | 4e-08 |
+
+The bots with the router, on the 60 + 60 test courses of the final policy's bot runs:
+
+| Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |
+| --- | --- | --- | --- | --- | --- | --- |
+| router, 60 standard test courses | offline (prismarine-physics, no server) | 57/60 | 95.0 | 100.0 | - | 7.1e-15 |
+| router, 60 obstacle test courses | offline (prismarine-physics, no server) | 56/60 | 93.3 | 100.0 | - | 7.1e-15 |
+| router, 60 standard test courses | live (Minecraft 1.21.4 server) | 57/60 | 95.0 | 100.0 | 0 | 2.1e-14 |
+| router, 60 obstacle test courses | live (Minecraft 1.21.4 server) | 56/60 | 93.3 | 100.0 | 0 | 2.1e-14 |
+
+## Neo courses without the course list: the neo planner with the learned router (pull request #3)
+
+With `RouteConfig(blocked="plan")` a platform the router picks behind a wall is a neo: the neo planner searches the
+jump from the bot's exact state to that platform; lever C (`plan_on`) also plans every later decision while plans
+land. Candidates and lever chosen on validation by rules written before their runs; simulator, CPU. Counts are
+courses completed with the neo done as a neo (plain completions in brackets), of 320 single-neo courses;
+the details, the rules and where the courses are lost are in `results/neo_routing/README.md`.
+
+| Setting | Validation, search seed 0 | Seed 1 | Seed 2 | Mean |
+| --- | --- | --- | --- | --- |
+| A: the course-list planner's levers | 241 (245) | 238 (241) | 238 (242) | 239.0 |
+| B: A with a bigger neo search | 243 (247) | 243 (247) | 240 (243) | 242.0 |
+| C: A plus `plan_on` (chosen) | 255 (259) | 257 (260) | 251 (255) | 254.3 |
+| with the course list (V3b, `results/neo/assist_validation.jsonl`) | 286 (286) | 276 (277) | | |
+
+Test (family 41, played once): C completes 252 (254) of 320; with the course list, 276 (277).
+
+The router's own validation sets with C (plain completions of 1,800; episodes on the GPU, searches on the CPU):
+
+| Set | Shipped router | With C | Courses searched |
+| --- | --- | --- | --- |
+| standard, family 2 | 1,762 | 1,762 | 0 |
+| obstacles, family 5 | 1,720 | 1,728 | 10 |
+
+The bots on the first 64 single-neo test courses, from the bots' start:
+
+| Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |
+| --- | --- | --- | --- | --- | --- | --- |
+| single41-offline-routeneo (router + neo planner) | offline (prismarine-physics, no server) | 52/64 | 81.2 | 100.0 | - | 7.1e-15 |
+| single41-live-routeneo (router + neo planner) | live (Minecraft 1.21.4 server) | 52/64 | 81.2 | 100.0 | 0 | 2.1e-14 |
+| single41-offline-corner (course list + neo planner) | offline (prismarine-physics, no server) | 55/64 | 85.9 | 100.0 | - | 7.1e-15 |
+| single41-live-corner (course list + neo planner) | live (Minecraft 1.21.4 server) | 55/64 | 85.9 | 100.0 | 0 | 2.1e-14 |
+
 ## Final policy: discount 0.995
 
 The hyperparameter study's only setting that beat the defaults by more than 3 points on validation
@@ -344,6 +400,24 @@ Family 1 (test, `course_preview_family1.json`):
 | block shapes | 300 | 60000 | 7.1e-15 | 0 | 216/300 |
 | slime | 300 | 60000 | 1.4e-14 | 0 | 297/300 |
 | ladders and vines | 300 | 60000 | 7.1e-15 | 0 | 48/300 |
+
+## One network for every skill, and a gate (simulator, test played once)
+
+Success per skill group on the test courses (basic: levels 0-5; ice: the same with ice on 30% of the platforms;
+advanced: neo, momentum and wide jumps; extra: the new kinds and blocks; standard and obstacle sets pooled except
+on ice), each policy at its validation-chosen checkpoint; mean: the unweighted mean of the four groups
+(`results/skills/combined_test_comparison.json`; the gate: `results/runs/gate-r1/summary.json`).
+
+| Policy | Basic | Ice | Advanced | Extra | Mean |
+| --- | --- | --- | --- | --- | --- |
+| final policy | 96.8 | 97.8 | 23.8 | 19.7 | 59.5 |
+| `g995-ice` | 96.0 | 97.6 | 19.5 | 19.3 | 58.1 |
+| `g995-adv` | 96.0 | 96.4 | 49.6 | 15.5 | 64.4 |
+| neo policy | 94.5 | 94.5 | 63.9 | 14.4 | 66.8 |
+| `g995-extra` | 95.2 | 96.0 | 18.7 | 85.3 | 73.8 |
+| one network, PPO + distillation (`combined-distill`, shipped) | 95.8 | 96.8 | 66.8 | 86.4 | 86.4 |
+| one network, PPO alone (`combined-union`) | 94.6 | 96.7 | 57.2 | 86.3 | 83.7 |
+| gate over seven experts (`gate-r1`) | 95.5 | 96.3 | 67.7 | 87.7 | 86.8 |
 
 ## Offline check
 

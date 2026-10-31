@@ -264,8 +264,8 @@ def archive(out: Path) -> None:
                     shutil.copyfileobj(src, gz)
 
 
-def game_row(out: Path, name: str, label: str | None = None) -> str | None:
-    sp = out / "games" / name / "summary.json"
+def game_row(out: Path, name: str, label: str | None = None, summary: Path | None = None) -> str | None:
+    sp = summary or out / "games" / name / "summary.json"
     if not sp.exists():
         return None
     s = json.loads(sp.read_text())
@@ -443,6 +443,115 @@ def new_abilities(out: Path) -> list:
                   "| Blocks | Random fields | Ticks | Largest position error (blocks) | Ticks with a flag mismatch | "
                   "Trajectories the blocks change |", "| --- | --- | --- | --- | --- | --- |"] + rows + [""]
     return lines
+
+
+def learned_router(out: Path) -> list:
+    """The learned router of pull request #2 (the teammate's PC), from results/routing/."""
+    r = out / "routing"
+    sets = [("validation", "standard, family 2", r / "router_validation_route-full-f_it29_standard.json"),
+            ("validation", "obstacles, family 5", r / "router_validation_route-full-f_it29_obstacles.json"),
+            ("test, played once", "standard, family 1", r / "router_test_standard.json"),
+            ("test, played once", "obstacles, family 4", r / "router_test_obstacles.json")]
+    paired = {"validation": r / "router_validation_route-full-f_it29_paired.json", "test, played once": r / "router_test_paired.json"}
+    if not all(f.exists() for _, _, f in sets) or not all(f.exists() for f in paired.values()):
+        return []
+    lines = ["## Without the course list: learned router (pull request #2, the teammate's PC)", "",
+             "A route policy trained with PPO plus imitation of the course's next platform (a training signal, never an input)",
+             "picks each platform among the greedy planner's candidates; the final policy jumps, unchanged",
+             "(`results/routing/router_policy.pt`, run `route-full-f` iteration 29, frozen by a rule on validation). Simulator,",
+             "fall rule `local`; the training runs and the rule are in `results/routing/README.md`.", "",
+             "| Set | Courses | Course list given | Greedy planner | Learned router | Router minus planner [95% CI] | McNemar p |",
+             "| --- | --- | --- | --- | --- | --- | --- |"]
+    for split, label, f in sets:
+        d = json.loads(f.read_text())
+        loc = d["local"]
+        p = json.loads(paired[split].read_text())["local"]["obstacles" if d["obstacles"] else "standard"]
+        lines.append(f"| {split}, {label} | {d['courses']:,} | {pct(loc['given_route']['success'])} | "
+                     f"{pct(loc['planner_route']['success'])} | {pct(loc['router_route']['success'])} | "
+                     f"{p['difference'] * 100:+.1f} [{p['ci95'][0] * 100:+.1f}, {p['ci95'][1] * 100:+.1f}] | "
+                     f"{p['mcnemar_exact_p']:.0e} |")
+    lines.append("")
+    rows = [game_row(out, "", label, r / f"route_{f}_summary.json") for f, label in (
+        ("offline", "router, 60 standard test courses"), ("offline_obstacles", "router, 60 obstacle test courses"),
+        ("live", "router, 60 standard test courses"), ("live_obstacles", "router, 60 obstacle test courses"))
+        if (r / f"route_{f}_summary.json").exists()]
+    if rows:
+        lines += ["The bots with the router, on the 60 + 60 test courses of the final policy's bot runs:", ""] + GAME_HEADER + rows + [""]
+    return lines
+
+
+def neo_routing(out: Path) -> list:
+    """The neo planner in the learned router's no-course-list mode (pull request #3), from results/neo_routing/."""
+    d = out / "neo_routing"
+    vf, tf, of = d / "validation.jsonl", d / "test.jsonl", d / "ordinary.json"
+    av, at = out / "neo" / "assist_validation.jsonl", out / "neo" / "assist_test.jsonl"
+    if not all(f.exists() for f in (vf, tf, of, av, at)):
+        return []
+    rows = lambda f: {r["run_id"]: r for r in map(json.loads, open(f, encoding="utf-8")) if r.get("run_id")}
+    val, test, aval, atest = rows(vf), rows(tf), rows(av), rows(at)
+    runs = {k: [val.get(f"neo_routing/single40-wall-{k}-s{s}") for s in range(3)] for k in "ABC"}
+    ref = [aval.get(f"assist_parts/{n}") for n in ("single40-v3b-final-restarts3", "single40-v3b-seed1")]
+    t, tref = test.get("neo_routing/single41-wall-C-s0"), atest.get("assist_parts/single41-test-planner")
+    if not all(all(rs) for rs in runs.values()) or not all(ref) or not t or not tref:
+        return []
+    count = lambda r: f"{r['completed_neo_done']} ({r['completed']})"
+    lines = ["## Neo courses without the course list: the neo planner with the learned router (pull request #3)", "",
+             "With `RouteConfig(blocked=\"plan\")` a platform the router picks behind a wall is a neo: the neo planner searches the",
+             "jump from the bot's exact state to that platform; lever C (`plan_on`) also plans every later decision while plans",
+             "land. Candidates and lever chosen on validation by rules written before their runs; simulator, CPU. Counts are",
+             "courses completed with the neo done as a neo (plain completions in brackets), of 320 single-neo courses;",
+             "the details, the rules and where the courses are lost are in `results/neo_routing/README.md`.", "",
+             "| Setting | Validation, search seed 0 | Seed 1 | Seed 2 | Mean |", "| --- | --- | --- | --- | --- |"]
+    for k, label in (("A", "A: the course-list planner's levers"), ("B", "B: A with a bigger neo search"),
+                     ("C", "C: A plus `plan_on` (chosen)")):
+        rs = runs[k]
+        lines.append(f"| {label} | " + " | ".join(count(r) for r in rs)
+                     + f" | {sum(r['completed_neo_done'] for r in rs) / 3:.1f} |")
+    lines += [f"| with the course list (V3b, `results/neo/assist_validation.jsonl`) | {count(ref[0])} | {count(ref[1])} | | |", "",
+              f"Test (family 41, played once): C completes {count(t)} of {t['courses']}; with the course list, {count(tref)}.", ""]
+    o = json.loads(of.read_text())
+    lines += ["The router's own validation sets with C (plain completions of 1,800; episodes on the GPU, searches on the CPU):", "",
+              "| Set | Shipped router | With C | Courses searched |", "| --- | --- | --- | --- |"]
+    for k in ("standard", "obstacles"):
+        e = o[k]
+        lines.append(f"| {k}, family {e['family']} | {e['shipped']:,} | {e['run_completed']:,} | {e['courses_searched']} |")
+    lines.append("")
+    games = [r for r in (game_row(out, n, n + label) for n, label in (
+        ("single41-offline-routeneo", " (router + neo planner)"), ("single41-live-routeneo", " (router + neo planner)"),
+        ("single41-offline-corner", " (course list + neo planner)"), ("single41-live-corner", " (course list + neo planner)")))
+        if r]
+    if games:
+        lines += ["The bots on the first 64 single-neo test courses, from the bots' start:", ""] + GAME_HEADER + games + [""]
+    return lines
+
+
+def one_network(out: Path) -> list:
+    """The one network and the gate on test, per skill group, from results/skills/ and results/runs/gate-r1/."""
+    f = out / "skills" / "combined_test_comparison.json"
+    if not f.exists():
+        return []
+    c = json.loads(f.read_text())["candidates"]
+    groups = ("basic", "ice", "advanced", "extra")
+    lines = ["## One network for every skill, and a gate (simulator, test played once)", "",
+             "Success per skill group on the test courses (basic: levels 0-5; ice: the same with ice on 30% of the platforms;",
+             "advanced: neo, momentum and wide jumps; extra: the new kinds and blocks; standard and obstacle sets pooled except",
+             "on ice), each policy at its validation-chosen checkpoint; mean: the unweighted mean of the four groups",
+             "(`results/skills/combined_test_comparison.json`; the gate: `results/runs/gate-r1/summary.json`).", "",
+             "| Policy | Basic | Ice | Advanced | Extra | Mean |", "| --- | --- | --- | --- | --- | --- |"]
+    for name, label in (("final", "final policy"), ("g995-ice", "`g995-ice`"), ("g995-adv", "`g995-adv`"),
+                        ("neo", "neo policy"), ("g995-extra", "`g995-extra`"),
+                        ("combined-distill", "one network, PPO + distillation (`combined-distill`, shipped)"),
+                        ("combined-union", "one network, PPO alone (`combined-union`)")):
+        if name in c:
+            e = c[name]
+            lines.append(f"| {label} | " + " | ".join(pct(e["groups"][g]["all"]) for g in groups) + f" | {pct(e['macro'])} |")
+    gate = out / "runs" / "gate-r1" / "summary.json"
+    if gate.exists():
+        te = json.loads(gate.read_text()).get("test_eval")
+        if te:
+            lines.append("| gate over seven experts (`gate-r1`) | " + " | ".join(pct(te["groups"][g]) for g in groups)
+                         + f" | {pct(te['success'])} |")
+    return lines + [""]
 
 
 def main(argv=None):
@@ -665,6 +774,8 @@ def main(argv=None):
         if rows:
             lines += GAME_HEADER + rows + [""]
 
+    lines += learned_router(out) + neo_routing(out)
+
     # The final policy since 28 October: discount 0.995 (section "Hyperparameters").
     v2 = RUNS / "obstacles-g995" / "summary.json"
     v1 = RUNS / "obstacles-ft" / "summary.json"
@@ -734,6 +845,7 @@ def main(argv=None):
             lines.append("")
 
     lines += new_abilities(out)
+    lines += one_network(out)
 
     for name in ("offline", "live", "offline_v1", "live_v1"):
         p = out / f"{name}_summary.md"
