@@ -583,7 +583,16 @@ fixed at 09:24:49, before any run of it:**
   If a d3 snapshot is above 287 it is tested once on a new fresh family 51
   (pinned and checked against the bank before any run) in both modes, with
   41, 49 and 50 reported as additional; the planner's setting plays 51 once
-  as the reference; and the bots replay the first 64 courses of family 41.]
+  as the reference; and the bots replay the first 64 courses of family 41.
+  **d3 (14:05-14:30):** pairs 61,620 + 40,796 + 101,699 (types 16-19, 8,700
+  states) + 96,613 (the other types, 9,296 states); snapshots 50-500: 283,
+  278, 275, 274, 265, 275, 274, 278, 275, 275: none above 287, so no test;
+  d2 updates 400 stays the skill. In training the other 28 types fell from
+  0.95 (d2) to 0.93 and the imitation loss stayed higher (0.64 against 0.43
+  at update 300): labels where the skill already succeeds pulled it off
+  its own way. **A corrected round, fixed at 14:30:07 before it starts:**
+  `neo-skill-d4`, d3 without the other types' pairs (d1's, d2's and d3's
+  types-16-19 pairs only), otherwise as d3; chosen and tested by d3's rule.]
   **Real Minecraft,
   course list: 59 of 64, the same courses and ticks as the re-run on all 64,
   0 server corrections and no "moved wrongly" in the server log** (largest
