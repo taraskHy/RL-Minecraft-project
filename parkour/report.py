@@ -289,6 +289,24 @@ def pct(v):
 
 L5_RUNS = ("obstacles-g995", "l5-obs05", "l5-obs05-s1", "l5-obs05-s2", "l5-obs05-w3", "l5-obs05-w3-s1", "l5-obs05-w3-s2",
            "l5-w3", "l5-w3-s1")
+L5_CONTROL = ("l5-ctrl", "l5-ctrl-s1", "l5-ctrl-s2")  # neither change (rule of 31 Oct, 03:17, HANDOFF section 3)
+CONTROL = "adaptive, neither change"
+
+
+def control_reading(cm: list, base: list, both: list, obs: list, lw: list, gain) -> str:
+    """The level-5 control against the rule fixed on 31 Oct at 03:17 (HANDOFF section 3), on family 46's means."""
+    if cm[0] - base[0] >= 40:  # 2 points of 2,000 courses
+        reading = "the shared fine-tuning alone gains as much, so the pair's gain is not evidence for the recipe"
+    elif both[0] - cm[0] >= 40:
+        reading = "the pair's gain is beyond the shared fine-tuning"
+    else:
+        reading = "inconclusive"
+    test = (", as high as one of the recipes there, so on the test the rise may be the extra training itself"
+            if cm[5] >= min(both[5], obs[5], lw[5]) else ", below every recipe there")
+    return (f". The control with neither change (three seeds, rule fixed on 31 Oct at 03:17; `results/level5_control.json`) "
+            f"averages {gain(cm, 0)} on family 46 and {gain(cm, 1)} on family 47 against the final policy, and {pct(cm[5])} "
+            f"on the obstacle test's level 5{test}; the pair is {(both[0] - cm[0]) / 20:+.2f} above it on family 46. "
+            f"By that rule's reading, on family 46: {reading}.")
 
 
 def level5_recipe(out: Path) -> list:
@@ -298,20 +316,27 @@ def level5_recipe(out: Path) -> list:
         return []
     d = json.loads(f.read_text())
     sets = {**d["seeds"]["completed_of_2000"], **d["ablation"]["runs"], "obstacles-g995": d["seeds"]["final_policy"]}
+    cf = out / "level5_control.json"
+    ctrl = cf.exists() and all((RUNS / n / "summary.json").exists() for n in L5_CONTROL)
+    if ctrl:
+        c = json.loads(cf.read_text())["runs"]
+        ctrl = all(n in c for n in L5_CONTROL)
+        sets.update({n: {k: c[n][k] for k in ("46", "47")} for n in L5_CONTROL if n in c})
     groups, cfgs = {}, {}
-    for name in L5_RUNS:
+    for name in L5_RUNS + (L5_CONTROL if ctrl else ()):
         run = RUNS / name
         cfgs[name] = cfg = json.loads((run / "config.json").read_text())
         it = json.loads((run / "summary.json").read_text())["best"]
         t = {int(r["iteration"]): r for r in csv.DictReader(open(run / "eval_log.csv"))}[it["iteration"]]
         o = {int(r["iteration"]): r for r in csv.DictReader(open(run / "eval_obstacles_log.csv"))}[it["iteration"]]
-        groups.setdefault((cfg["obstacle_prob"], cfg.get("level_weights") or "adaptive"), []).append(
+        key = (cfg["obstacle_prob"], CONTROL if name in L5_CONTROL else cfg.get("level_weights") or "adaptive")
+        groups.setdefault(key, []).append(
             (name, it["iteration"], it["validation_success"], sets[name]["46"], sets[name]["47"],
              *(float(x) for x in (t["success"], t["success_L5"], o["success"], o["success_L5"]))))
     setting = lambda c: (f"{c['num_envs']:,} games, rollout {c['rollout']}, {c['pool_size']:,} courses in the pool, "
                          f"{c['minibatches']} minibatches")
     fp, ft = cfgs["obstacles-g995"], cfgs["l5-obs05"]
-    same = all(setting(cfgs[n]) == setting(ft) and cfgs[n]["iterations"] == ft["iterations"] for n in L5_RUNS[1:])
+    same = all(setting(cfgs[n]) == setting(ft) and cfgs[n]["iterations"] == ft["iterations"] for n in cfgs if n != "obstacles-g995")
     ticks = {c["num_envs"] * c["rollout"] for c in (fp, ft)}
     lines = ["### Level 5 with obstacles: a fine-tune recipe (reported, not shipped)", "",
              f"The final policy (first row) against fine-tunes of it. The fine-tunes run {ft['iterations']:,} iterations at "
@@ -324,7 +349,9 @@ def level5_recipe(out: Path) -> list:
              "They change the share of jumps with obstacles (`--obstacle-prob`; the final policy trained with 0.3, the",
              "obstacle test sets have 0.5), the mix of levels (`--level-weights 1,1,1,1,1,3`: level 5 weighted 3 against 1",
              "for each other level, so 3 of every 8 training games, where the adaptive curriculum gives each level 1 of 6",
-             "once it reaches level 5), or both; none has neither change. Families 46 and 47 are new validation-only sets",
+             "once it reaches level 5), or both; "
+             + ("three runs (`l5-ctrl*`, a control added on 31 Oct by a rule fixed before them) have neither change. "
+                if ctrl else "none has neither change. ") + "Families 46 and 47 are new validation-only sets",
              "of 2,000 level-5 courses each, with obstacles on half the jumps and without",
              "(`results/level5_closer_look.json`, deterministic first episode).", "",
              "| Obstacles | Levels | Run | Iteration | Validation | Family 46 | Family 47 | Test, standard | L5 | "
@@ -342,14 +369,15 @@ def level5_recipe(out: Path) -> list:
     gain = lambda m, i: f"{(m[i] - base[i]) / 20:+.2f}"
     above = all(r[3] > base[0] for r in groups[0.5, "1,1,1,1,1,3"])
     lines += ["", "Family 46 was fixed at 06:39:26 (HANDOFF section 3), after the first two runs (`l5-obs05`, `l5-obs05-w3`) were",
-              "tested and before any run was played on it; the other six runs came after it. One run's bar was 2 points",
+              "tested and before any run was played on it; the other six runs of 30 Oct came after it. One run's bar was 2 points",
               "above the final policy; the seeds compared the recipes' means (with a family-47 guard), and the level",
               f"weights alone had to be 2 points above on their mean. Mean of the seeds on family 46: both changes {gain(both, 0)}"
               + (" (every seed above the final policy)" if above else "") + f", obstacles alone {gain(obs, 0)}, the level "
               f"weights alone {gain(lw, 0)}; on family 47 {gain(both, 1)}, {gain(obs, 1)} and {gain(lw, 1)}. On the obstacle "
               f"test set's level 5 (200 courses per run, played once) the means are {pct(both[5])}, {pct(obs[5])} and "
-              f"{pct(lw[5])} against {pct(base[5])}: the test does not confirm that both changes are needed, and with no "
-              "fine-tune that has neither change it cannot separate them from the extra training they share.",
+              f"{pct(lw[5])} against {pct(base[5])}: the test does not confirm that both changes are needed"
+              + (control_reading(mean[0.3, CONTROL], base, both, obs, lw, gain) if ctrl else
+                 ", and with no fine-tune that has neither change it cannot separate them from the extra training they share."),
               "Reported, not shipped: the final policy stays `results/final_policy.pt` (decided 30 Oct). The planner, the",
               "neo planner, the router and the final policy's bot runs were all measured with it.", ""]
     return lines

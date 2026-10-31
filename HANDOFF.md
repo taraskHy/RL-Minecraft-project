@@ -752,6 +752,20 @@ governs):
   the pair's mean (87.87%) is at least 2 points above the control's, the
   pair's gain is beyond the shared fine-tuning; otherwise it is
   inconclusive. Family 47 and the tests are reported next to it.
+  **Result (05:18; `results/level5_control.json`, `scripts/level5_sets.py`
+  on each run's validation pick):** family 46: 1,661, 1,687 and 1,703 of
+  2,000 (picks at 249, 299 and 249; mean 84.18%, -1.02 against the final
+  policy); family 47: 1,788, 1,806 and 1,821 (90.25%, -1.30). By the rule:
+  the control is not 2 points above the final policy, and the pair's mean
+  (87.87%) is 3.68 points above the control's, so **on family 46 the pair's
+  gain is beyond the shared fine-tuning** (against the control, obstacles
+  alone +0.98 and the level weights alone +1.39). Tests, played once
+  (simulator): standard 97.83%, 98.00% and 97.92% (level 5: 89.5%, 92.0%,
+  90.5%); obstacles 94.67%, 94.75% and 96.17% (level 5: 80.5%, 82.5%,
+  85.5%, mean 82.8%). On the obstacle test's level 5 the control rose as
+  much as obstacles alone (82.8%) and near the pair (83.8%), from the final
+  policy's 81.0%: on 200 courses per run the test's rise may be the extra
+  training itself. Nothing is chosen or shipped; the final policy stays.
 - **The one network on ordinary courses in the bots (CPU):**
   `results/combined_policy.pt` has played only skill, ice and neo courses
   in the bots. The offline bot, then real Minecraft, on the 60 standard and
@@ -1506,7 +1520,7 @@ before restarting; held part locks prevent duplicate evaluation.
 - Report in the submission format: `results/report_draft.docx` / `.pdf`,
   written by `scripts/report_docx.py --pdf` from `docs/report_draft.md`
   (exported on 30 Oct, 22:47, after the trim) [31 Oct: exported again at
-  03:58, with the neo-routing result]. Page estimate without pandoc
+  05:18, with the neo-routing result and the level-5 control]. Page estimate without pandoc
   or LibreOffice: `scripts/report_pages.py` (can be a page off).
 - Failure analysis of the final policy by jump type: `results/jump_failures.json`
   (`scripts/jump_failures.py`).
@@ -1527,17 +1541,17 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `a1b1a1a` (2026-10-31 03:41, branch `main`): Results README: generated sections for the router, neo routing, one network and gate
+Generated on top of commit `86c14cc` (2026-10-31 04:00, branch `main`): Tonight's records checked: corrections, simulator labels, the slide draft
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 49 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 50 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `bc6b2e0` 2026-10-31 03:28 | 2 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 233 |
+| `README.md` | `bc6b2e0` 2026-10-31 03:28 | 3 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 234 |
 | `docs/report_draft.md` | updated together with this snapshot | 0 |
-| `results/README.md` | `a1b1a1a` 2026-10-31 03:41 | 0 |
+| `results/README.md` | updated together with this snapshot | 0 |
 | `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
@@ -1603,8 +1617,9 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `hp-kl0.02` | 999 | 0.52 | 899 | 92.7 | 92.2 | 91.8 | - |
 | `hp-net-large` | 999 | 0.52 | 649 | 94.5 | 95.3 | 95.4 | - |
 | `hp-net-small` | 999 | 0.52 | 999 | 92.5 | 91.3 | 91.3 | - |
-| `l5-ctrl` | 299 | 0.16 | 249 | 97.3 | - | - | - |
-| `l5-ctrl-s1` | 349 | 0.18 | 299 | 97.6 | - | - | - |
+| `l5-ctrl` | 999 | 0.52 | 249 | 97.3 | 97.8 | - | - |
+| `l5-ctrl-s1` | 999 | 0.52 | 299 | 97.6 | 98.0 | - | - |
+| `l5-ctrl-s2` | 999 | 0.52 | 249 | 97.3 | 97.9 | - | - |
 | `l5-obs05` | 999 | 0.52 | 999 | 97.9 | 98.2 | - | - |
 | `l5-obs05-s1` | 999 | 0.52 | 49 | 97.0 | 98.1 | - | - |
 | `l5-obs05-s2` | 999 | 0.52 | 99 | 97.6 | 97.8 | - | - |
@@ -1747,7 +1762,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 
 ### In `results/` but not yet in `results/DATA.md`
 
-`games/single41-live-routeneo/`, `games/single41-offline-routeneo/`
+`games/single41-live-routeneo/`, `games/single41-offline-routeneo/`, `level5_control.json`
 
 <!-- END AUTO-SNAPSHOT -->
 
@@ -1765,6 +1780,7 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **31 Oct 2026, 05:18, Claude (Claude Code, training PC, main session):** the level-5 control finished (training queue, two at a time, GPU watchdog 65/58, no heat hold): `l5-ctrl`, `-s1` and `-s2`, the queue's recipe with neither change. On family 46 they average 84.18% (-1.02 against the final policy) and the pair 87.87%, so by the rule fixed at 03:17 the pair's gain on family 46 is beyond the shared fine-tuning. On the obstacle test's level 5 (200 courses per run) the control rose as much as obstacles alone (82.8%), so the test's rise may be the extra training. Section 3, `results/level5_control.json`, the generated table in `results/README.md` (`level5_recipe` now shows the control and the rule's reading) and the report's 7.5 say so. Nothing chosen or shipped.
 - **31 Oct 2026, 04:00, Claude (Claude Code, training PC, main session):** an independent check of tonight's records (two checkers and a skeptic per finding; 15 confirmed, none touching a headline number) and fixes:
   - tonight's neo-routing run is rule 4's lever D (`plan_ahead`: also the one or two jumps leading to a walled jump, then every jump while plans land), not "every router decision";
   - the item-7 note: the neo policy did play `configs/neo_live_courses.json` in real Minecraft (11/31), only the neo assist did not;

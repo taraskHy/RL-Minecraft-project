@@ -239,7 +239,7 @@ The final policy (first row) against fine-tunes of it. The fine-tunes run 1,000 
 They change the share of jumps with obstacles (`--obstacle-prob`; the final policy trained with 0.3, the
 obstacle test sets have 0.5), the mix of levels (`--level-weights 1,1,1,1,1,3`: level 5 weighted 3 against 1
 for each other level, so 3 of every 8 training games, where the adaptive curriculum gives each level 1 of 6
-once it reaches level 5), or both; none has neither change. Families 46 and 47 are new validation-only sets
+once it reaches level 5), or both; three runs (`l5-ctrl*`, a control added on 31 Oct by a rule fixed before them) have neither change. Families 46 and 47 are new validation-only sets
 of 2,000 level-5 courses each, with obstacles on half the jumps and without
 (`results/level5_closer_look.json`, deterministic first episode).
 
@@ -257,11 +257,15 @@ of 2,000 level-5 courses each, with obstacles on half the jumps and without
 | 0.3 | 1,1,1,1,1,3 | `l5-w3` | 699 | 97.3 | 1,729 (86.45) | 1,799 (89.95) | 96.6 | 85.0 | 95.2 | 83.0 |
 | 0.3 | 1,1,1,1,1,3 | `l5-w3-s1` | 199 | 97.8 | 1,694 (84.70) | 1,809 (90.45) | 98.2 | 92.5 | 95.4 | 85.5 |
 | 0.3 | 1,1,1,1,1,3 | mean of 2 | | | 85.58 | 90.20 | 97.4 | 88.8 | 95.3 | 84.2 |
+| 0.3 | adaptive, neither change | `l5-ctrl` | 249 | 97.3 | 1,661 (83.05) | 1,788 (89.40) | 97.8 | 89.5 | 94.7 | 80.5 |
+| 0.3 | adaptive, neither change | `l5-ctrl-s1` | 299 | 97.6 | 1,687 (84.35) | 1,806 (90.30) | 98.0 | 92.0 | 94.8 | 82.5 |
+| 0.3 | adaptive, neither change | `l5-ctrl-s2` | 249 | 97.3 | 1,703 (85.15) | 1,821 (91.05) | 97.9 | 90.5 | 96.2 | 85.5 |
+| 0.3 | adaptive, neither change | mean of 3 | | | 84.18 | 90.25 | 97.9 | 90.7 | 95.2 | 82.8 |
 
 Family 46 was fixed at 06:39:26 (HANDOFF section 3), after the first two runs (`l5-obs05`, `l5-obs05-w3`) were
-tested and before any run was played on it; the other six runs came after it. One run's bar was 2 points
+tested and before any run was played on it; the other six runs of 30 Oct came after it. One run's bar was 2 points
 above the final policy; the seeds compared the recipes' means (with a family-47 guard), and the level
-weights alone had to be 2 points above on their mean. Mean of the seeds on family 46: both changes +2.67 (every seed above the final policy), obstacles alone -0.03, the level weights alone +0.38; on family 47 +0.07, -0.30 and -1.35. On the obstacle test set's level 5 (200 courses per run, played once) the means are 83.8, 82.8 and 84.2 against 81.0: the test does not confirm that both changes are needed, and with no fine-tune that has neither change it cannot separate them from the extra training they share.
+weights alone had to be 2 points above on their mean. Mean of the seeds on family 46: both changes +2.67 (every seed above the final policy), obstacles alone -0.03, the level weights alone +0.38; on family 47 +0.07, -0.30 and -1.35. On the obstacle test set's level 5 (200 courses per run, played once) the means are 83.8, 82.8 and 84.2 against 81.0: the test does not confirm that both changes are needed. The control with neither change (three seeds, rule fixed on 31 Oct at 03:17; `results/level5_control.json`) averages -1.02 on family 46 and -1.30 on family 47 against the final policy, and 82.8 on the obstacle test's level 5, as high as one of the recipes there, so on the test the rise may be the extra training itself; the pair is +3.68 above it on family 46. By that rule's reading, on family 46: the pair's gain is beyond the shared fine-tuning.
 Reported, not shipped: the final policy stays `results/final_policy.pt` (decided 30 Oct). The planner, the
 neo planner, the router and the final policy's bot runs were all measured with it.
 

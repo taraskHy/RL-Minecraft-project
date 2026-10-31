@@ -312,9 +312,8 @@ Before obstacle training, the main run's policy completed 46.8% of new courses
 with head-hitter beams and decoy pillars on half the jumps (stress test, 100
 per level), against 96.7% of standard ones. The obstacle fine-tune trains for
 1,000 iterations with an obstacle on 30% of jumps; after it, the same run
-completes 95.3% of such courses, and the final policy (the same fine-tune of
-`main-g995`, section 7.3) 96.3%. On the obstacle test set, level 5 (81.0%)
-is its weakest part.
+completes 95.3% of such courses, and the final policy 96.3%. On the obstacle
+test set, level 5 (81.0%) is its weakest part.
 
 Over three seeds, fine-tuning the final policy with obstacles on half the
 jumps and level 5 weighted 3 to 1 gains 2.67 points on family 46 (2,000
@@ -323,9 +322,10 @@ recipe and of the obstacles-only one had been tested; every seed gains) and
 lifts the obstacle test set's level 5 from 81.0% to 83.8%, with standard
 courses unchanged. Each change alone stays within half a point on family 46
 but rises about as much on test (82.8% and 84.2%), so the test does not
-confirm that both are needed; with no fine-tune that has neither change, the
-test's rise may also come from the extra training itself. We report it but
-keep the final policy, which the planners, the router and the bots use.
+confirm that both are needed. A control with neither change (three seeds)
+loses 1.0 point on family 46 but also rises on test (82.8%): the family-46
+gain is not the extra training, the test's rise may be. We report it but
+keep the final policy, which the planners, router and bots use.
 
 ### 7.6 The bot, offline and in real Minecraft
 
