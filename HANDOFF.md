@@ -527,7 +527,15 @@ fixed at 09:24:49, before any run of it:**
   for every run (family 40, the most strict). If a d1 snapshot beats 283 it
   is tested once on family 50 in both modes (course list and router) and
   reported on 41 and 49 as additional; otherwise d1 is reported on
-  validation only.
+  validation only. **d1 so far (updates 50-300):** 274, 274, 279, 272, 265,
+  273: the stops at the neo fall from 18 to 3-5, but the jumps that replace
+  them mostly fall.
+- **Weight averages, fixed at 12:15:22 before any run of them:** two more
+  candidates, no training: the uniform average of every weight and
+  normaliser statistic of `neo-skill-a2` updates 700, 800, 900 and 1000, and
+  of `neo-skill-a5` updates 100 to 600. Chosen with every other candidate on
+  family 40 (the most strict); a candidate above 283 is tested once on
+  family 50 in both modes and on 41 and 49 as additional.
 - **Router mode with the same skill (no course list, no search;
   `results/neo_routing/skill_*.jsonl`):** validation family 40, 277; test
   family 49, played once, 278 of 320 (86.9%); family 41, additional, 271
