@@ -472,14 +472,15 @@ bots made 55/64 offline and in real Minecraft, the simulator's courses and
 ticks, with 0 corrections; 58 against 55 is within the search's seed noise.
 
 **Without the course list.** With the learned router (section 7.9) choosing
-platforms, a choice whose path a wall blocks is searched as a neo, and with
-`plan_on` so is every later decision while plans land. Chosen on validation
+among platforms, walled ones included, a choice whose path a wall blocks is
+searched as a neo, and with `plan_on` so is every later decision while plans
+land. Chosen on validation
 (255, 257 and 251 of 320 over three search seeds) by rules fixed before the
 runs, it completes 252 of the 320 test courses (78.75%, played once) against
 276 with the course list, and 52 of the first 64 in the offline bot and in
 real Minecraft, the simulator's courses, with 0 corrections (course list:
 55). Most of the gap is before the neo, where the jumps are the policy's
-own, and at it (`results/neo_routing/`).
+own, and at it.
 
 ### 7.9 Without the course list: greedy planner, learned router, learned route model
 

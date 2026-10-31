@@ -744,7 +744,8 @@ governs):
   the final policy, 1,000 iterations, each chosen at its validation best
   and tested once (`--test-once`). Each best is measured on families 46
   and 47 by `scripts/level5_sets.py` (it reproduces the final policy's
-  1,704 and 1,831 exactly). Reading, fixed now, on the mean of the three
+  1,704 and 1,831 exactly) [03:57: that check's output is
+  `runs/level5-sets-final-check.json`]. Reading, fixed now, on the mean of the three
   runs on family 46: if it is at least 2 points above the final policy's
   85.20% (the 06:39 rule's margin), the shared fine-tuning alone gains as
   much, and the pair's +2.67 is not evidence for the recipe; otherwise, if
@@ -989,7 +990,7 @@ neo policy) into one student next to PPO, on courses that mix every skill;
 the design, its evidence and the steps are in
 [docs/combine_policies.md](docs/combine_policies.md). The user's local
 session on the PC implements it and starts the training; the cloud session
-starts none. [Done: `combined-distill`, shipped on 29 Oct as
+starts none. [31 Oct: done: `combined-distill`, shipped on 29 Oct as
 `results/combined_policy.*`; the gate `gate-r1` followed.]
 
 **PC completion update, 28 Oct 21:38:** cloud merged through `21188a6`; neo files shipped; retuned planner verified on both real-Minecraft sets (51/60 and 56/60, zero corrections) and adopted in Python/JS. Items 1, 2, 4 and 5 below describe the completed integration steps and ongoing merge/watchdog procedure. The latest user request (29 Oct) permits 100% GPU use, with the temperature rule retained.
@@ -1063,7 +1064,9 @@ Concrete work, most important first. Nothing here needs new research.
    paragraph at the end of 7.8 ("Without the course list": 252 of 320 on
    test, 52/64 in both bots), the conclusion's next steps updated, the
    limitation "the greedy planner and the learned router were built and
-   tested on courses without neos" removed (no longer true), and in 7.8's
+   tested on courses without neos" removed (no longer true as written: the
+   router has now played neo courses, though both were built without neos)
+   [03:57: wording corrected], and in 7.8's
    bots paragraph the sentence on the simulator test's start cut. The export
    (`results/report_draft.pdf`) has 20 pages before the References page,
    the body ending on the last line of page 20: no room is left.
@@ -1091,9 +1094,11 @@ Concrete work, most important first. Nothing here needs new research.
    [31 Oct: the cloud work is merged; the new kinds and the neo levels were
    trained on the 0.995 policy as `g995-extra` and `g995-adv`, and the neo
    planner ran in real Minecraft on the single-neo test courses
-   (`results/games/single41-live-*`). Never run: `configs/neo_live_courses.json`
-   in real Minecraft and `scripts/neo_pipeline.py`; the cloud tests stay on
-   hold.]
+   (`results/games/single41-live-*`). Never run: the neo assist on
+   `configs/neo_live_courses.json` in real Minecraft (the neo policy alone
+   played it there, `neo-live-final`, 11/31) and `scripts/neo_pipeline.py`;
+   the cloud tests stay on hold. 03:57: corrected; it first said the course
+   set itself never ran in real Minecraft.]
    `docs/abilities_plan.md` lists the stages, their status and the design
    constraints found in the code. The current two-slot queue and full-GPU
    instruction in section 6 govern PC training. Commands below are recipe
@@ -1500,7 +1505,8 @@ before restarting; held part locks prevent duplicate evaluation.
   and the `planner-*`, `v2-planner-*`, `v2-tuned-planner-*` games.
 - Report in the submission format: `results/report_draft.docx` / `.pdf`,
   written by `scripts/report_docx.py --pdf` from `docs/report_draft.md`
-  (exported on 30 Oct, 22:47, after the trim). Page estimate without pandoc
+  (exported on 30 Oct, 22:47, after the trim) [31 Oct: exported again at
+  03:58, with the neo-routing result]. Page estimate without pandoc
   or LibreOffice: `scripts/report_pages.py` (can be a page off).
 - Failure analysis of the final policy by jump type: `results/jump_failures.json`
   (`scripts/jump_failures.py`).
@@ -1521,18 +1527,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `e4322c0` (2026-10-31 03:38, branch `main`): Router videos in real Minecraft: three hand-designed courses and a level-7 neo
+Generated on top of commit `a1b1a1a` (2026-10-31 03:41, branch `main`): Results README: generated sections for the router, neo routing, one network and gate
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 48 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 49 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `e4322c0` 2026-10-31 03:38 | 0 |
-| `README.md` | `bc6b2e0` 2026-10-31 03:28 | 1 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 232 |
-| `docs/report_draft.md` | `e4322c0` 2026-10-31 03:38 | 0 |
-| `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | `e4322c0` 2026-10-31 03:38 | 0 |
+| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
+| `README.md` | `bc6b2e0` 2026-10-31 03:28 | 2 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 233 |
+| `docs/report_draft.md` | updated together with this snapshot | 0 |
+| `results/README.md` | `a1b1a1a` 2026-10-31 03:41 | 0 |
+| `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -1759,9 +1765,17 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **31 Oct 2026, 04:00, Claude (Claude Code, training PC, main session):** an independent check of tonight's records (two checkers and a skeptic per finding; 15 confirmed, none touching a headline number) and fixes:
+  - tonight's neo-routing run is rule 4's lever D (`plan_ahead`: also the one or two jumps leading to a walled jump, then every jump while plans land), not "every router decision";
+  - the item-7 note: the neo policy did play `configs/neo_live_courses.json` in real Minecraft (11/31), only the neo assist did not;
+  - TEAM_STATUS open problem 5 now reflects the new export; the gate claim is more precise (level with the one network, ahead of the specialists on the advanced group and the new kinds);
+  - simulator labels added; dates added to the new bracketed notes; the level-5 script's check saved as `runs/level5-sets-final-check.json`;
+  - the report's 7.8 paragraph now says walled platforms stay the router's candidates (export at 03:58, body still ends on page 20).
+
+  A first draft of the presentation, 15 slides from the verified numbers with placeholders for names and the course, is a private artifact for Ethan to adapt and share: https://claude.ai/artifact/QzMX4EmHNPwkaoh5bEaPQj (a separate fact-check of its numbers found 19 wording and label problems, all fixed). Results page version 26.
 - **31 Oct 2026, 03:41, Claude (Claude Code, training PC, main session):** `results/README.md` gets three generated sections (`parkour/report.py`: `learned_router`, `neo_routing`, `one_network`), each built from its own files when they exist. They cover the learned router's validation and test against the greedy planner with paired differences and its four bot runs (`results/routing/`), neo routing's settings A, B and C over three seeds, its test, the router's own sets and the bots against the course-list planner (`results/neo_routing/`, `results/neo/assist_*.jsonl`), and the one network, the specialists and the gate per skill group on test (`results/skills/combined_test_comparison.json`, `results/runs/gate-r1/summary.json`). `game_row` takes an optional summary path. Report tests pass. Results page version 25.
 - **31 Oct 2026, 03:38, Claude (Claude Code, training PC, main session):** first-person videos in real Minecraft with the final policy and no course list. `scripts/film_pov.py` gets `--router` and `--assist`, passed through to `parkour.live`; its files end in `_router`, so no earlier video is replaced. The learned router completes the three hand-designed courses (147, 121 and 114 ticks; `real_minecraft_showcase_router.mp4`), and with the neo planner in pull request #3's bot setting a level-7 one-neo test course (course 60, 140 ticks; `real_minecraft_one_neo_level7_router.mp4`). Each has 0 server corrections and the simulator's outcome. The capture's Chrome ran on the 10-core mask; the server and bot stayed off it, as the rule allows. `parkour.report` archives the four games in `results/games/`, so the report's real-game totals become 1,462 episodes in 48 runs (still 1 outcome unlike the simulator's and 2 server corrections); the export still ends on page 20. Results page version 24 (the new videos; "What is left").
-- **31 Oct 2026, 03:24, Claude (Claude Code, training PC, main session):** pull request #3 (neo routing, built on this PC) was merged on GitHub at 02:45 by `taraskHy`. Reviewed after the merge (four reviewers and a skeptic per finding): every number recomputed from the per-course files and matching, the defaults and section 5 unchanged, the test played once; 17 smaller findings (README wording, a late refusal in `parkour/live.py`, test gaps) went to the neo-routing session for its next pull request; its worktree-only logs are copied into `runs/`. Full suite on merged `main`: 183 passed, 44 subtests. Recorded in the team split here and in `TEAM_STATUS.md`. The report gets a 7.8 paragraph on it (252 of 320 on test without the course list, 52/64 in both bots), new next steps, one limitation removed and the real-game totals updated (1,458 episodes in 44 runs, now that `parkour.report` archives the neo-routing bot runs in `results/games/`); its export ends on the last line of page 20. Stale to-do items marked done (section 3 items 1, 5 and 7, the one network; `TEAM_STATUS.md`'s open problems 1-3 rewritten). Ethan (about 02:50, away until 08:30): use the GPU and CPU for major work now, and ask him nothing. Started: the level-5 control (`l5-ctrl`, `-s1`, `-s2`; rule at 03:17, section 3) through the training queue, with the GPU watchdog (65/58), keep-awake and a CPU-cap enforcer that re-applies mask 0xC03C0F every 10 s (`enforce_cpu_cap.ps1`, this session's scratchpad); the neo-routing session runs its follow-up 1 (plan every router decision) under its own rule, for pull request #4. New `scripts/level5_sets.py` measures families 46 and 47 (it reproduces 1,704 and 1,831). Next: the control's families 46 and 47, pull request #4's review, the results page.
+- **31 Oct 2026, 03:24, Claude (Claude Code, training PC, main session):** pull request #3 (neo routing, built on this PC) was merged on GitHub at 02:45 by `taraskHy`. Reviewed after the merge (four reviewers and a skeptic per finding): every number recomputed from the per-course files and matching, the defaults and section 5 unchanged, the test played once; 17 smaller findings (README wording, a late refusal in `parkour/live.py`, test gaps) went to the neo-routing session for its next pull request; its worktree-only logs are copied into `runs/`. Full suite on merged `main`: 183 passed, 44 subtests. Recorded in the team split here and in `TEAM_STATUS.md`. The report gets a 7.8 paragraph on it (252 of 320 on test without the course list, 52/64 in both bots), new next steps, one limitation removed and the real-game totals updated (1,458 episodes in 44 runs, now that `parkour.report` archives the neo-routing bot runs in `results/games/`); its export ends on the last line of page 20. Stale to-do items marked done (section 3 items 1, 5 and 7, the one network; `TEAM_STATUS.md`'s open problems 1-3 rewritten). Ethan (about 02:50, away until 08:30): use the GPU and CPU for major work now, and ask him nothing. Started: the level-5 control (`l5-ctrl`, `-s1`, `-s2`; rule at 03:17, section 3) through the training queue, with the GPU watchdog (65/58), keep-awake and a CPU-cap enforcer that re-applies mask 0xC03C0F every 10 s (`enforce_cpu_cap.ps1`, this session's scratchpad); the neo-routing session runs its follow-up 1 (plan every router decision) under its own rule, for pull request #4 [03:57: its rule 4 runs lever D, `plan_ahead`: it also plans the one or two jumps leading to a walled jump and keeps planning while plans land, not every decision]. New `scripts/level5_sets.py` measures families 46 and 47 (it reproduces 1,704 and 1,831). Next: the control's families 46 and 47, pull request #4's review, the results page.
 - **30 Oct 2026, 22:47, Claude (Claude Code, training PC, the forked session):** the report trimmed by about 160 words net (Ethan: "Yes, trim it"): section 3's speed paragraph and repeats in 7.1, 7.3, 7.7, 8 and 9, checked independently (two cuts partly restored). Export: 22 pages, 19 before the References page, the body ending about three quarters down page 20, so it fits 20 pages strictly. `results/report_draft.docx` / `.pdf` are this export. Next: the team's read-through; export again after any change.
 - **30 Oct 2026, 22:31, Claude (Claude Code, training PC, a session forked from the main one):** the report export tools installed with Ethan's approval ("Yes, install them"): pandoc 3.12.1 and LibreOffice 26.2.6 unpacked under `%LOCALAPPDATA%\Programs`, python-docx in `.venv` (section 6). `scripts/report_docx.py --pdf` on `25eced6`: 22 pages, 20 before the References page, but the body ends two lines into page 21, so it needs a trim of about 150 words to fit 20 pages strictly (section 3, item 3). The exports in `results/` are current; `report_docx.py` now prints where the body ends, and `report_pages.py`'s defaults are recalibrated (its 19 was a page optimistic). Next: the trim, then a fresh export.
 - **30 Oct 2026, 22:05, Claude (Claude Code, training PC):** the course report brought up to date (Ethan: "Yes, update it"). `docs/report_draft.md` is rewritten with every result through 30 Oct (the single-neo goal, the skill gate, the learned router, the bots' first-jump and wall-corner fixes, the level-5 finding) and states the MDP in section 5 (the block offered on 29 Oct); cut from about 24 estimated pages to about 19 before the references. The count is an estimate: pandoc and LibreOffice are not on the PC, so the new `scripts/report_pages.py` renders the draft with headless Chrome, calibrated on `568763d` (20 pages in the cloud export), and the new draft is one page below it at all three spacings tried (section 3, item 3). Three independent checks of its numbers and claims against `results/` and the run files found 45, 16 and 2 problems, all fixed; the last: the learned router is the best of 14 checkpoints, not 13 (corrected in `results/routing/README.md` too, whose table holds two checkpoints in one row). Section 3 item 2 (the retuned planner in real Minecraft) marked done; old report section numbers updated here and in `TEAM_STATUS.md`. Next: the exact page count (`scripts/report_docx.py --pdf` on a machine with pandoc, python-docx and LibreOffice), the team's read-through, and the neo-routing pull request from the side session when it arrives.

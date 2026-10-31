@@ -358,7 +358,7 @@ a { color: var(--sky); }
         </table></div>
         <p class="muted">The planner's settings were tuned on validation courses. Most of its failures are route choices, not jumps: it skips ahead to a platform that is in reach but harder to land. The learned column is a model trained to find platforms itself from a wide block scan and a memory of its last landings; decoy pillars fool it.</p>
         <p><span class="tag ok">done</span> A route policy trained by RL on a teammate's PC picks the next platform instead of the planner, with the same final policy jumping: 97.8% of the standard and 95.0% of the obstacle test courses (simulator, played once), and 57/60 and 56/60 in real Minecraft with 0 server corrections (<span class="path">results/routing/README.md</span>).</p>
-        <p><span class="tag ok">done</span> Neo jumps without the course list: when the platform the router picks sits behind a wall, the search plans that jump from the bot's exact state, and keeps planning while its plans land. Chosen on validation (255, 257 and 251 of 320 one-neo courses over three search seeds), it completes 252 of the 320 one-neo test courses (simulator, played once), against 276 with the course list, and 52 of the first 64 offline and in real Minecraft, the simulator's courses, with 0 server corrections (with the course list: 55). The router's own validation courses do not get worse (1,762 and 1,728 of 1,800; before, 1,762 and 1,720). It loses more courses before the neo, where the jumps are the policy's own, and at it (<span class="path">results/neo_routing/README.md</span>).</p>
+        <p><span class="tag ok">done</span> Neo jumps without the course list: when the platform the router picks sits behind a wall, the search plans that jump from the bot's exact state, and keeps planning while its plans land. Chosen on validation (simulator: 255, 257 and 251 of 320 one-neo courses over three search seeds), it completes 252 of the 320 one-neo test courses (simulator, played once), against 276 with the course list, and 52 of the first 64 offline and in real Minecraft, the simulator's courses, with 0 server corrections (with the course list: 55). The router's own validation courses do not get worse (simulator: 1,762 and 1,728 of 1,800; before, 1,762 and 1,720). It loses more courses before the neo, where the jumps are the policy's own, and at it (<span class="path">results/neo_routing/README.md</span>).</p>
       </div>
     </div>
     <div class="three">
@@ -421,17 +421,18 @@ a { color: var(--sky); }
   <section>
     <div class="eyebrow">Status, 31 October</div>
     <h2>What is left</h2>
+    <p class="muted">The numbers in this section are simulator results.</p>
     <div class="two">
       <div class="panel">
         <h3>Running overnight</h3>
         <ul class="todo">
           <li><span class="tag run">running</span>The missing control for the level-5 fine-tune: three runs with neither change, so its 2.7-point gain can be told apart from the extra training itself. Its reading was fixed before the runs; nothing is shipped from it.</li>
-          <li><span class="tag run">running</span>The next step for neo jumps without the course list: planning every jump the router picks, not only the walled ones, to close the gap to the course list (252 against 276 on test). It is kept only if it adds at least 4 courses on validation.</li>
+          <li><span class="tag run">running</span>The next step for neo jumps without the course list: also planning the one or two jumps that lead to a walled jump, then every jump while the plans land, to close the gap to the course list (252 against 276 on test). It is kept only if it adds at least 4 courses on validation.</li>
         </ul>
         <h3>To finish the course</h3>
         <ul class="todo">
           <li>The report has every result through 31 October and is at the 20-page limit. Left: the team's read-through, names on the title page if the course wants them, and a new export after any change.</li>
-          <li>The presentation: no slides yet. This page, the videos and the replay viewers are the material; first-person videos of the learned router and of a neo jump without the course list were added on 31 October (section “No course list”).</li>        </ul>
+          <li>The presentation: a first draft of 15 slides exists (in Ethan's artifacts, private until shared), to adapt. This page, the videos and the replay viewers are the material; first-person videos of the learned router and of a neo jump without the course list were added on 31 October (section “No course list”).</li>        </ul>
       </div>
       <div class="panel">
         <h3>Open problems</h3>

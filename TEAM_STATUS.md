@@ -10,7 +10,7 @@ the data: training runs, policies, the route planner and neo files, the game
 folders (including the v2, planner, noroute, neo and film games) and the
 videos.
 
-**Last updated:** 31 Oct 2026, 03:22, training PC (Claude): neo routing (pull request #3) merged and reviewed: without the course list the neo planner completes 252 of 320 single-neo test courses (with it 276) and 52 of 64 in real Minecraft; the report now says so (its body still ends on page 20). Running overnight: the level-5 control on the GPU (three fine-tunes with neither change) and, in the neo-routing session, planning every router decision. Earlier, 30 Oct 22:47: the report fits: trimmed by about 160 words, its real export (pandoc and LibreOffice now installed on the PC) has 19 pages before the References page, the body ending about three quarters down page 20; `results/report_draft.docx` / `.pdf` are current. Earlier, 22:31: the first export ran two lines onto page 21. Earlier, 22:05: the course report (`docs/report_draft.md`) now has every result through 30 Oct and states the MDP (section 5). Earlier, 18:34: Ethan kept the final policy; the level-5 fine-tune is reported as a finding (`results/README.md`, final policy section, and the results page). With obstacles on half the jumps and level 5 in 3 of every 8 training games (instead of 1 of 6), level 5 with obstacles gains 2.7 points on 2,000 validation courses (three seeds, all up) and 2.8 on test on average (81.0 to 83.8), standard courses level; on those validation courses each change alone gains under half a point (-0.03 and +0.38), but on test each alone rose about as much (82.8 and 84.2), so the test does not confirm that both are needed. Earlier, overnight (09:03 to 10:26): the bots plan their first jump and avoid the wall-corner moves a server rejects; on the 64 single-neo test courses 55 offline and 55 in real Minecraft, equal to the simulator, 0 corrections. A planner run's count has a standard deviation of about 9 of 320 from its search seed (three seeds), so the start fix's 292-against-265 was mostly chance. The one network plays the final policy's 120 bot courses at 59/60 and 59/60. Earlier, 30 Oct 05:00: the bots now plan their first jump too. Earlier: single neos meet the 85% goal on the test set (86.25% with the planner, narrowly) and the bots reproduced it in real Minecraft (58/64); the gate is built: 86.80% on test against the one network's 86.45%, a match; follow-up rounds not kept; replays of every new skill and block type on the results page; CPU capped at 85%.
+**Last updated:** 31 Oct 2026, 03:22, training PC (Claude): neo routing (pull request #3) merged and reviewed: without the course list the neo planner completes 252 of 320 single-neo test courses (simulator, played once; with it 276) and 52 of 64 in real Minecraft; the report now says so (its body still ends on page 20). Running overnight: the level-5 control on the GPU (three fine-tunes with neither change) and, in the neo-routing session, its rule 4: lever D (`plan_ahead`), which also plans the one or two jumps leading to a walled jump and keeps planning while plans land [03:57: corrected from "planning every router decision"]. Earlier, 30 Oct 22:47: the report fits: trimmed by about 160 words, its real export (pandoc and LibreOffice now installed on the PC) has 19 pages before the References page, the body ending about three quarters down page 20; `results/report_draft.docx` / `.pdf` are current. Earlier, 22:31: the first export ran two lines onto page 21. Earlier, 22:05: the course report (`docs/report_draft.md`) now has every result through 30 Oct and states the MDP (section 5). Earlier, 18:34: Ethan kept the final policy; the level-5 fine-tune is reported as a finding (`results/README.md`, final policy section, and the results page). With obstacles on half the jumps and level 5 in 3 of every 8 training games (instead of 1 of 6), level 5 with obstacles gains 2.7 points on 2,000 validation courses (three seeds, all up) and 2.8 on test on average (81.0 to 83.8), standard courses level; on those validation courses each change alone gains under half a point (-0.03 and +0.38), but on test each alone rose about as much (82.8 and 84.2), so the test does not confirm that both are needed. Earlier, overnight (09:03 to 10:26): the bots plan their first jump and avoid the wall-corner moves a server rejects; on the 64 single-neo test courses 55 offline and 55 in real Minecraft, equal to the simulator, 0 corrections. A planner run's count has a standard deviation of about 9 of 320 from its search seed (three seeds), so the start fix's 292-against-265 was mostly chance. The one network plays the final policy's 120 bot courses at 59/60 and 59/60. Earlier, 30 Oct 05:00: the bots now plan their first jump too. Earlier: single neos meet the 85% goal on the test set (86.25% with the planner, narrowly) and the bots reproduced it in real Minecraft (58/64); the gate is built: 86.80% on test against the one network's 86.45%, a match; follow-up rounds not kept; replays of every new skill and block type on the results page; CPU capped at 85%.
 
 ## Team split / what we want next (29 Oct 2026)
 
@@ -47,8 +47,8 @@ that does everything, and then a clear conclusion and presentation.
   the 320 single-neo test courses (simulator, played once; with the course
   list 276) and 52 of the first 64 offline and in real Minecraft, the
   simulator's courses, with 0 server corrections (course list: 55). The
-  router's own validation sets do not get worse (1,762 and 1,728 of 1,800,
-  shipped 1,762 and 1,720). Details: `results/neo_routing/README.md`.
+  router's own validation sets do not get worse (simulator: 1,762 and 1,728
+  of 1,800, shipped 1,762 and 1,720). Details: `results/neo_routing/README.md`.
 
 **How we coordinate.** Only the main session on Ethan's PC edits `main`. The
 friend's agent pushes only its own branch `routing/<name>` and opens a pull
@@ -293,7 +293,8 @@ and ticks as the simulator, 0 server corrections (the final policy: 59 and
 57).
 
 **Three follow-up rounds, none kept (simulator, rules fixed before each
-result).**
+result).** [31 Oct: none replaced the one network; the third, `neo-dagger4`,
+was later kept by its own single-neo rule, below.]
 - **Head hitters and slime** (`skills-hh-ft`, from `combined-distill`, 500
   updates, 16:40-17:50): validation mean over the four groups 86.4%
   (iteration 399), below `combined-distill`'s 87.0%, so it does not replace
@@ -312,10 +313,10 @@ result).**
   landing, 18:11-19:05): validation 85.2% on levels 0-8 (iterations 199 and
   249) against `neo-dagger3`'s 85.7%. Its snapshots are judged on the
   single-neo validation set (family 40, policy alone); it is kept only if it
-  beats the neo policy there. Result: its pick (updates 250) completes 146
-  against the neo policy's 133, so the round is kept by that rule; the ten
-  snapshots average 134.5, so most of the margin may be selection (HANDOFF
-  section 3).
+  beats the neo policy there. [31 Oct: result: its pick (updates 250)
+  completes 146 against the neo policy's 133, so the round is kept by that
+  rule; the ten snapshots average 134.5, so most of the margin may be
+  selection (HANDOFF section 3).]
 
 **Could a gate that picks an expert per jump do better? Measured first**
 (`results/skills/gate_headroom.json`, simulator, validation, 3,600 courses
@@ -565,14 +566,16 @@ The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
    the single-neo test courses with the course list (276 of 320) and 78.75%
    without it, with the learned router (252 of 320; simulator, each played
    once). Training the policy itself to do neos is still open.
-2. One policy for everything: the one network (`results/combined_policy.*`)
-   and the gate match the specialists on test (86.45% and 86.80% over the
-   four skill groups) but beat none of them clearly.
+2. One policy for everything (simulator, test played once): the one network
+   (`results/combined_policy.*`) matches the specialists (86.45% over the
+   four skill groups) and beats none of them clearly. The gate is level with
+   it (86.80%): behind the final policy on basic and ice courses, ahead of
+   the specialists on the advanced group and the new kinds.
 3. New blocks: shapes, slime, ladders and ice are in the physics and are
    trained (`g995-extra`, `g995-ice`, the one network); water and an
    observation of the block's type are still open.
 4. Hand-built maps: extract the platform chain from a region of a real map.
-5. The report (`docs/report_draft.md`) has every result through 30 Oct and states the MDP. Its real export (`results/report_draft.*`, 30 Oct 22:47, `scripts/report_docx.py --pdf`, after a trim of about 160 words) has 19 pages before the References page, the body ending on page 20. Next: a read-through by the team; export again after any change.
+5. The report (`docs/report_draft.md`) has every result through 31 Oct (neo routing included) and states the MDP. Its real export (`results/report_draft.*`, 31 Oct 03:58, `scripts/report_docx.py --pdf`) has 20 pages before the References page, the body ending on the last line of page 20, so any addition needs a cut. Next: a read-through by the team; export again after any change.
 
 ## Update log
 
