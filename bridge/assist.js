@@ -6,6 +6,8 @@
 // own world, and plays it; then the policy plays on. Assist mirrors the trigger rules of
 // evaluate_assisted (tests/test_neo_assist.py checks the offline bot against the simulator); the
 // rules run after every tick, and with "plan_start": 1 also on the start state, before the first action.
+// RouteAssist does the same without the course list, for the learned router's blocked-path choices
+// (parkour/route_neo.py; tests/test_route_neo.py).
 
 const { spawn } = require('child_process')
 const readline = require('readline')
@@ -17,7 +19,7 @@ const YAW_STEPS_DEG = [-20.0, -6.0, -1.5, 0.0, 1.5, 6.0, 20.0]
 
 // AssistConfig's defaults (parkour/neo_assist.py) for the fields the trigger rules read, so a partial
 // --assist JSON behaves as in Python (tests/test_neo_assist.py checks they agree).
-const DEFAULTS = { horizon: 32, retry_horizon: 0, retries: 0, retry_every: 10, approach: 0, brake: 0, plan_start: 0 }
+const DEFAULTS = { horizon: 32, retry_horizon: 0, retries: 0, retry_every: 10, approach: 0, brake: 0, plan_start: 0, plan_on: 0 }
 
 // When to plan, per episode: AssistConfig fields (snake_case, as parkour/neo_assist.py writes them).
 // targets[i]: the platform a plan from takeoffs[i] ends on (neo_assist.plan_target; default the next one);
@@ -64,6 +66,67 @@ class Assist {
       this.lastTry = ticks
     }
     return { kind, cp, target, attempt, takeoff: kind === 'approach' ? cp + 1 : cp }
+  }
+}
+
+// The neo planner in router mode (parkour/route_neo.py): when the episode's LearnedRouter (bridge/router.js,
+// cfg.blocked "plan") chose a platform whose straight path is blocked by a wall (a block that is no part of a
+// platform in view: walledChoice), that jump is planned. The course list
+// (platforms; q: their standing areas and tops, as policy.js platformGeometry) only names the platform stood
+// on (the request's cp) and the chosen one (its target), as route_neo.route_arrival does; a choice that is no
+// course platform is not planned. Per platform planned from: one takeoff request, then up to cfg.retries
+// retries every retry_every ticks while the bot stands on it (at once after a brake), each only if it can end
+// before the stall limit. With cfg.plan_on, a decision made on a plan's landing is planned whatever it chose.
+// The same request interface as Assist (Episode._ask; Episode.resume tells it of every plan it plays).
+class RouteAssist {
+  constructor (cfg, router, platforms, geom = null) {
+    cfg = { ...DEFAULTS, ...cfg }
+    this.cfg = cfg
+    this.router = router
+    this.platforms = platforms
+    this.q = geom || platforms.map(p => [p[0], p[1] + 1, p[2], p[3] + 1, p[4] + 1])
+    this.tries = new Map()
+    this.lastTry = -1e9
+    this.retryHorizon = cfg.retry_horizon || cfg.horizon
+    this.braked = false // a brake plan is playing: the first request after it may retry at once
+    this.planEnd = -1 // the tick a played plan lands at (its last action played), and its target
+    this.planTarget = -1
+    this.followAt = -1 // plan_on: the router's decision made on that landing (its count, router.decisions)
+  }
+
+  // The course index of a perceived platform's rect (-1: no course platform).
+  index (rect) { return this.platforms.findIndex(p => p.every((v, i) => v === rect[i])) }
+
+  // Episode.resume: a plan for request req, of n actions, plays from now on.
+  played (req, n) {
+    this.planEnd = req.tick + n
+    this.planTarget = req.target
+  }
+
+  request (s, cp, stall, ticks, stallLimit) {
+    const braked = this.braked
+    this.braked = false
+    const r = this.router
+    if (this.cfg.plan_on && ticks === this.planEnd && r.decTick === ticks && standsOn(s, this.q[this.planTarget])) {
+      this.followAt = r.decisions // the router decided on the plan's landing, this tick
+    }
+    const follow = this.cfg.plan_on && this.followAt === r.decisions
+    if (!s.onGround || r.current === null || !(r.walledChoice || follow) || !r.chain.length) return null
+    const frm = this.index(r.current.rect())
+    const want = this.index(r.chain[0].rect())
+    if (frm < 0 || want < 0 || !standsOn(s, this.q[frm])) return null
+    const n = this.tries.get(frm) || 0
+    if (n === 0) return this._take('takeoff', frm, want, 0, ticks)
+    if (n <= this.cfg.retries && (ticks - this.lastTry >= this.cfg.retry_every || braked) && stall + this.retryHorizon < stallLimit) {
+      return this._take('retry', frm, want, n, ticks)
+    }
+    return null
+  }
+
+  _take (kind, frm, want, attempt, ticks) {
+    this.tries.set(frm, (this.tries.get(frm) || 0) + 1)
+    this.lastTry = ticks
+    return { kind, cp: frm, target: want, attempt, takeoff: frm, route: true, floor: Math.min(this.q[frm][4], this.q[want][4]) }
   }
 }
 
@@ -136,10 +199,12 @@ function wrapYaw (yaw) {
 // onGround, jumpTicks, collidedH}); geom: the Episode's platform geometry on shaped courses (tops
 // and standing areas of the shapes, as CoursePool.top / .foot), else full blocks. still: a brake
 // plan (target = cp), which must also end with the bot standing still (horizontal speed < 0.001).
-function verifyPlan (physics, world, e, plan, platforms, cp, target, extra, geom = null, still = false) {
+// floor: the router's requests (RouteAssist) give their own fall line, as the search had it.
+function verifyPlan (physics, world, e, plan, platforms, cp, target, extra, geom = null, still = false, floor = null) {
   const q = geom || platforms.map(p => [p[0], p[1] + 1, p[2], p[3] + 1, p[4] + 1])
   let lo = Infinity
-  for (let j = cp; j <= target; j++) lo = Math.min(lo, q[j][4])
+  if (floor !== null && floor !== undefined) lo = floor
+  else for (let j = cp; j <= target; j++) lo = Math.min(lo, q[j][4])
   const c = {
     pos: new Vec3(e.pos[0], e.pos[1], e.pos[2]), vel: new Vec3(e.vel[0], e.vel[1], e.vel[2]), onGround: e.onGround,
     isInWater: false, isInLava: false, isInWeb: false, isCollidedHorizontally: !!e.collidedH, isCollidedVertically: false,
@@ -158,4 +223,11 @@ function verifyPlan (physics, world, e, plan, platforms, cp, target, extra, geom
     (!still || Math.hypot(c.vel.x, c.vel.z) < 1e-3)
 }
 
-module.exports = { Assist, DEFAULTS, PlannerService, serviceArgs, verifyPlan }
+// The planner service's request for an episode's pending request q (Episode.pending); index: the course's
+// index in the service's course file.
+function serviceRequest (index, q) {
+  return { index, cp: q.cp, target: q.target, kind: q.kind, attempt: q.attempt, state: q.state, lastAction: q.lastAction,
+    ...(q.route ? { route: true, floor: q.floor } : {}) }
+}
+
+module.exports = { Assist, RouteAssist, DEFAULTS, PlannerService, serviceArgs, serviceRequest, verifyPlan }

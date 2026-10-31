@@ -15,21 +15,26 @@ const centre = (p) => [(p.x0 + p.x1 + 1) / 2, p.y + 1, (p.z0 + p.z1 + 1) / 2]
 const airGap = (a, b) => norm(Math.max(0, b.x0 - (a.x1 + 1), a.x0 - (b.x1 + 1)), Math.max(0, b.z0 - (a.z1 + 1), a.z0 - (b.z1 + 1)))
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v))
 
-// planner.path_clear, and whether a block sits 1 or 2 rows above its body-height band (route_env.path_clear).
-function pathInfo (isSolid, a, b) {
+// planner.path_clear, and whether a block sits 1 or 2 rows above its body-height band (route_env.path_clear);
+// with the platforms in view T, also whether a block in the way is no part of one of them (route_env.wall_blocked).
+function pathInfo (isSolid, a, b, T = null) {
   const ac = centre(a); const bc = centre(b)
   const y0 = Math.min(a.y, b.y) + 1; const y1 = Math.max(a.y, b.y) + 2
   const n = Math.max(1, Math.ceil(norm(bc[0] - ac[0], bc[2] - ac[2]) / 0.25))
-  let clear = true; let head = false
+  let clear = true; let head = false; let wall = false
   for (let k = 1; k < n; k++) {
     const t = k / n
     const x = Math.floor(ac[0] + t * (bc[0] - ac[0]))
     const z = Math.floor(ac[2] + t * (bc[2] - ac[2]))
     if ((a.x0 <= x && x <= a.x1 && a.z0 <= z && z <= a.z1) || (b.x0 <= x && x <= b.x1 && b.z0 <= z && z <= b.z1)) continue
-    for (let y = y0; y <= y1; y++) if (isSolid(x, y, z)) clear = false
+    for (let y = y0; y <= y1; y++) {
+      if (!isSolid(x, y, z)) continue
+      clear = false
+      if (T && !T.some(p => p.y === y && p.x0 <= x && x <= p.x1 && p.z0 <= z && z <= p.z1)) wall = true
+    }
     if (isSolid(x, y1 + 1, z) || isSolid(x, y1 + 2, z)) head = true
   }
-  return [clear, head]
+  return [clear, head, wall]
 }
 
 // Exact GELU needs erf: series below 3, continued fraction for erfc above (both to ~1e-15).
@@ -146,8 +151,11 @@ class RouterNet {
 }
 
 // The planner's options from token ``frm`` (route_env.Scene.options): selectable flags and the
-// greedy cost, air gap, height change, cosine and head flag of every token.
+// greedy cost, air gap, height change, cosine and head flag of every token. With cfg.blocked "keep" or
+// "plan" (RouteConfig.blocked) a token whose straight path is blocked stays selectable, flagged ``blocked``,
+// and ``walled`` if a block in the way is no part of a platform in view (Scene.walled: a neo).
 function options (T, frm, excluded, goal, cfg, isSolid) {
+  const keep = cfg.blocked === 'keep' || cfg.blocked === 'plan'
   const f = T[frm]; const fc = centre(f)
   const gx = goal[0] - fc[0]; const gz = goal[2] - fc[2]; const gn = norm(gx, gz)
   return T.map((p, i) => {
@@ -160,12 +168,20 @@ function options (T, frm, excluded, goal, cfg, isSolid) {
     let ok = i !== frm && !excluded[i] && dy >= cfg.dy_min && dy <= cfg.dy_max &&
       d <= (cfg.limits === 'table' ? MAX_GAP[dy] + cfg.slack : cfg.max_gap)
     let head = false
+    let blocked = false
+    let walled = false
     if (ok && cfg.clear_path) {
-      const [clear, h] = pathInfo(isSolid, f, p)
-      ok = clear
-      head = h && clear
+      const [clear, h, w] = pathInfo(isSolid, f, p, keep ? T : null)
+      if (keep) {
+        blocked = !clear
+        walled = w
+        head = h
+      } else {
+        ok = clear
+        head = h && clear
+      }
     }
-    return { ok, cost, d, dy, cos, head }
+    return { ok, cost, d, dy, cos, head, blocked, walled }
   })
 }
 
@@ -251,6 +267,7 @@ class LearnedRouter {
     this.newTick = 0
     this.decTick = 0
     this.decisions = 0
+    this.walledChoice = false // the last decision's first choice is blocked by a wall (cfg.blocked "plan": a neo)
   }
 
   start (pos, s) {
@@ -298,10 +315,11 @@ class LearnedRouter {
     excluded[here] = true
     const chain = T.map(() => false)
     const player = s ? { pos: s.pos, vel: s.vel } : { pos, vel: [0, 0, 0] }
-    const { feats, ok } = tokens(T, here, here, excluded, visited, chain, 0, this.progress, this.goal, isGoal, edge, cfg, this.isSolid, player, timing)
+    const { feats, ok, opts } = tokens(T, here, here, excluded, visited, chain, 0, this.progress, this.goal, isGoal, edge, cfg, this.isSolid, player, timing)
     const picks = []
     let prev = ok.some(v => v) ? this.net.argmax(feats, ok) : -1
     if (prev >= 0) picks.push(prev)
+    this.walledChoice = prev >= 0 && opts[prev].walled
     for (let depth = 1; depth <= 2 && prev >= 0 && !isGoal[prev]; depth++) {
       chain[prev] = true
       const ex = excluded.map((v, i) => v || chain[i])

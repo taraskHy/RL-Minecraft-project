@@ -10,7 +10,7 @@ const { GreedyPlanner } = require('./planner')
 const { LearnedRouter, RouterNet } = require('./router')
 
 const routerNets = new Map() // loaded once per file
-const { Assist } = require('./assist')
+const { Assist, RouteAssist } = require('./assist')
 
 const SCAN_FORWARD = Array.from({ length: 14 }, (_, i) => -1.0 + 0.5 * i)
 const SCAN_LATERAL = Array.from({ length: 7 }, (_, i) => -1.5 + 0.5 * i)
@@ -308,8 +308,6 @@ class Episode {
     this.geom = shapes && Object.keys(shapes).length ? platformGeometry(platforms, shapes) : null
     this.topOf = topOf
     if (this.geom && planner) throw new Error('the route planner does not support shaped platforms')
-    // With an assist ({config, takeoffs, targets, retryHorizons, approach}), planned actions replace the policy's (see PLAN).
-    this.assist = assist ? new Assist(assist.config, assist.takeoffs, assist.targets, assist.retryHorizons, assist.approach) : null
     this.queue = []
     this.pending = null
     this.assistLog = []
@@ -327,6 +325,14 @@ class Episode {
       } else {
         this.planner = new GreedyPlanner(inGrid, goal, planner)
       }
+    }
+    // With an assist ({config, takeoffs, targets, retryHorizons, approach}), planned actions replace the policy's (see
+    // PLAN); with the learned router and "blocked": "plan", its blocked-path choices are planned (RouteAssist).
+    this.assist = null
+    if (assist && planner && planner.router && planner.blocked === 'plan') {
+      this.assist = new RouteAssist(assist.config, this.planner, platforms, this.geom)
+    } else if (assist) {
+      this.assist = new Assist(assist.config, assist.takeoffs, assist.targets, assist.retryHorizons, assist.approach)
     }
     this.policy = policy
     this.platforms = platforms
@@ -388,8 +394,10 @@ class Episode {
     const req = this.pending
     this.pending = null
     this.assistLog.push({ kind: req.kind, cp: req.cp, takeoff: req.takeoff, tick: req.tick, ...info, played: !!plan, braked: !plan && !!brake })
-    if (plan) this.queue = plan.map(a => a.slice())
-    else if (brake) {
+    if (plan) {
+      this.queue = plan.map(a => a.slice())
+      if (this.assist.played) this.assist.played(req, plan.length) // RouteAssist: plan_on follows the landing
+    } else if (brake) {
       this.queue = brake.map(a => a.slice())
       this.assist.braked = true
     } else if (req.kind === 'approach') {
