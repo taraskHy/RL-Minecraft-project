@@ -23,7 +23,8 @@ from parkour import physics
 from parkour import train as T
 from parkour.env import CoursePool, on_obstacle
 from parkour.live import load_model
-from parkour.neo_assist import (NEO_LEVERS, OPTIONAL, SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, TEST_FAMILIES, AssistConfig,
+from parkour.neo_assist import (NEO_LEVERS, OPTIONAL, SINGLE_FRESH_TEST_FAMILY, SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY,
+                                 TEST_FAMILIES, AssistConfig,
                                  Rules, approach_platforms, assist_fields, brake_plan, config_meta, courses_from_file,
                                  evaluate_assisted, jump_kind, merge_results, mixed_courses, neo_level,
                                  official_neo_courses, part_bounds, plan_once, plan_target, planned_takeoffs,
@@ -430,8 +431,10 @@ class SingleNeoSets(unittest.TestCase):
 
     def test_kept_out_of_training(self):
         hashes = single_neo_hashes()
-        self.assertEqual(hashes, {course_hash(c) for cs in self.sets.values() for c in cs})
-        self.assertEqual(len(hashes), 640)
+        fresh = single_neo_courses(SINGLE_FRESH_TEST_FAMILY)  # the fresh test set (the neo skill's) too
+        self.assertEqual(hashes, {course_hash(c) for cs in list(self.sets.values()) + [fresh] for c in cs})
+        self.assertEqual(len(hashes), 960)
+        self.assertIn(SINGLE_FRESH_TEST_FAMILY, TEST_FAMILIES)
         original = T.held_out_courses
         tiny = lambda levels, per_level, n_jumps, obstacle_prob=0.0, family=1, ice_prob=0.0: original(  # noqa: E731
             levels, 1, 2, obstacle_prob=obstacle_prob, family=family, ice_prob=ice_prob)

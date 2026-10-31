@@ -42,6 +42,7 @@ ASSIST_SETS = {  # (parkour.neo_assist --set, family) -> sha1 prefix
     # every course's level set to 6 they are the reference prototype's 262f50a8c817f3f6 and 2aa66562a8eeff99.
     ("single", 40): "0f92d172cb152161",
     ("single", 41): "6f47778f3c3d0f71",
+    ("single", 49): "d694d370d7c55ca1",  # the fresh single-neo test set (the neo skill's; pinned on 5e33002, before any run)
 }
 EXTRA_PREVIEW_SETS = {  # scripts/extra_preview.py: levels 0-5 plus one extra level, 200 courses, (level, family) -> sha1
     ("head hitter", 1): "507e74e214ef759c", ("head hitter", 2): "f3030cea3b9a0c02",

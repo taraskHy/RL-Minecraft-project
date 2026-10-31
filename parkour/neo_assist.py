@@ -124,7 +124,8 @@ MIXED_TEST_FAMILY = 14
 MIXED_VALIDATION_FAMILY = 15
 SINGLE_VALIDATION_FAMILY = 40  # the single-neo sets (families 18-39 are the routing work's)
 SINGLE_TEST_FAMILY = 41
-TEST_FAMILIES = (TEST_SEED_FAMILY, RANDOM_TEST_FAMILY, MIXED_TEST_FAMILY, SINGLE_TEST_FAMILY)
+SINGLE_FRESH_TEST_FAMILY = 49  # a second single-neo test set, for the neo skill (HANDOFF.md section 3, 31 Oct)
+TEST_FAMILIES = (TEST_SEED_FAMILY, RANDOM_TEST_FAMILY, MIXED_TEST_FAMILY, SINGLE_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY)
 HEADS = ("move", "strafe", "jump", "sprint", "yaw")
 
 
@@ -497,8 +498,21 @@ def single_neo_courses(family: int, n: int = 320, n_jumps: int = 10) -> list[C.C
 
 
 def single_neo_hashes() -> set:
-    """``train.course_hash`` of every course of both single-neo sets (320 each): no training course may equal one."""
-    return {course_hash(c) for f in (SINGLE_VALIDATION_FAMILY, SINGLE_TEST_FAMILY) for c in single_neo_courses(f)}
+    """``train.course_hash`` of every course of the single-neo sets (320 each: validation, test and the fresh
+    test set): no training course may equal one."""
+    return {course_hash(c) for f in (SINGLE_VALIDATION_FAMILY, SINGLE_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY)
+            for c in single_neo_courses(f)}
+
+
+def skill_cps(course: C.Course) -> list[int]:
+    """The checkpoint values (the furthest platform stood on) at which the neo skill plays (``--skill``,
+    ``parkour.neo_skill``): for each neo takeoff k, k-1 (0 at the start) to k+1, so the skill plays from the first
+    ground contact on the platform before the takeoff until the bot first stands on the platform after the
+    target."""
+    out = set()
+    for k in neo_takeoffs(course):
+        out.update(range(max(k - 1, 0), k + 2))
+    return sorted(out)
 
 
 def course_set(name: str, family: int) -> list[C.Course]:
@@ -688,7 +702,7 @@ def _arrival(env: ParkourEnv, i: int) -> dict:
 
 def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_ticks: int = 200,
                       max_ticks: int = 4000, settle: int = 0, log=None, fall_rule: str = "local",
-                      course_offset: int = 0) -> dict:
+                      course_offset: int = 0, skill=None) -> dict:
     """First episode on every course of ``pool`` with the neo assist (``cfg.enabled``) or without it.
 
     With the assist off this is ``train.evaluate(..., per_course=True)`` course by course. ``course_offset``:
@@ -698,9 +712,12 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
     and then of its target, so the bot stood on the takeoff before on any later platform and then on the target
     before on any later one. ``settle``: ticks without keys on the start block first (the bots' start,
     ``parkour.live.SETTLE_TICKS``); a bot on the ground there is searched from before its first action only with
-    ``cfg.plan_start``.
+    ``cfg.plan_start``. ``skill``: the neo skill (``parkour.neo_skill``) plays instead of ``model`` while the
+    checkpoint is one of ``skill_cps`` (the assist off).
     """
     n = pool.size
+    if skill is not None and (cfg.enabled or skill.obs_dim != model.obs_dim):
+        raise ValueError("the neo skill replaces the search (the assist off) and sees the policy's observation")
     if cfg.enabled and (cfg.plan_on or cfg.plan_ahead):
         raise ValueError("plan_on and plan_ahead are the learned router's (parkour.route_neo); with the course list use "
                          "jumps 'all'")
@@ -725,10 +742,13 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
     neo = torch.zeros(n, C.MAX_PLATFORMS, dtype=torch.bool, device=device)  # neo takeoffs (the statistics)
     plan_at = torch.zeros_like(neo)  # takeoffs where the search runs
     before = torch.zeros_like(neo)  # where an approach plan is tried (approach_platforms)
+    skill_at = torch.zeros_like(neo)  # checkpoints at which the neo skill plays
     for i, ks in enumerate(takeoffs):
         neo[i, ks] = True
         plan_at[i, planned[i]] = True
         before[i, approach_platforms(pool.courses[i], planned[i])] = True
+        if skill is not None:
+            skill_at[i, skill_cps(pool.courses[i])] = True
     hz = horizons(cfg)
     H = max(list(hz.values()) + [BOUNCE_PLAN_HORIZON, LADDER_PLAN_HORIZON, cfg.brake])
     retry_h = torch.full((n, C.MAX_PLATFORMS), hz["retry"], dtype=torch.int64, device=device)  # stall check of a retry
@@ -849,6 +869,10 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
             searches(-1, env.cp, on, none, none)
         for t in range(max_ticks):
             a, _, _ = model.act(obs, deterministic=True)
+            if skill is not None:
+                use = skill_at[rows, env.cp]
+                if bool(use.any()):
+                    a = torch.where(use[:, None], skill.act(obs, deterministic=True)[0], a)
             active = plan_pos < plan_len
             if bool(active.any()):
                 queued = plan[rows, plan_pos.clamp(max=H - 1)]
@@ -1113,6 +1137,8 @@ def main(argv=None):
     ap.add_argument("--set", choices=("official", "random", "mixed", "single"), default="official")
     ap.add_argument("--family", type=int, default=VALIDATION_FAMILY)
     ap.add_argument("--off", action="store_true", help="the policy alone, for comparison")
+    ap.add_argument("--skill", default="", help="with --off: the neo skill's checkpoint (parkour.neo_skill), which plays "
+                                                "each neo's block (skill_cps); rows go to results/neo/skill_*.jsonl")
     ap.add_argument("--courses", type=int, default=0, help="only the first N courses (quick checks)")
     ap.add_argument("--settle", type=int, default=0, help="ticks without keys on the start block first, as the bots "
                                                           "start (parkour.live.SETTLE_TICKS, 10); in the row only when set")
@@ -1143,9 +1169,11 @@ def main(argv=None):
         torch.set_num_threads(a.threads)
     valid = {"official": (TEST_SEED_FAMILY, VALIDATION_FAMILY), "random": (RANDOM_TEST_FAMILY, RANDOM_VALIDATION_FAMILY),
              "mixed": (MIXED_TEST_FAMILY, MIXED_VALIDATION_FAMILY),
-             "single": (SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY)}
+             "single": (SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, SINGLE_FRESH_TEST_FAMILY)}
     if a.family not in valid[a.set]:
-        raise SystemExit(f"--set {a.set} has families {valid[a.set]} (test, validation)")
+        raise SystemExit(f"--set {a.set} has families {valid[a.set]} (test, validation{', fresh test' if a.set == 'single' else ''})")
+    if a.skill and (not a.off or a.part or a.parts or a.serve):
+        raise SystemExit("--skill plays with the assist off (--off), in one run")
     cfg = AssistConfig(enabled=not a.off, **{k: getattr(a, k) for k in asdict(AssistConfig()) if k != "enabled"})
     dev = a.device or ("cuda" if torch.cuda.is_available() else "cpu")
     if a.serve:
@@ -1189,6 +1217,12 @@ def _evaluate_cli(a, cfg, dev):
         meta["first_courses_only"] = a.courses
     if a.settle:
         meta["settle"] = a.settle
+    skill = None
+    if a.skill:  # the neo-skill mode (parkour.neo_skill)
+        sk = Path(a.skill).resolve()
+        meta["skill"] = sk.relative_to(ROOT).as_posix() if sk.is_relative_to(ROOT) else sk.name
+        meta["skill_sha1"] = hashlib.sha1(sk.read_bytes()).hexdigest()[:12]
+        skill = load_model(sk, dev)
     if a.part or a.parts:
         meta['courses_sha256'] = hashlib.sha256(json.dumps([c.to_json() for c in courses], sort_keys=True).encode()).hexdigest()
     if a.parts:
@@ -1223,13 +1257,14 @@ def _evaluate_cli(a, cfg, dev):
         pool = CoursePool(courses[lo:hi], dev, C.GRID)
         t0 = time.time()
         res = evaluate_assisted(model, pool, dev, cfg, settle=a.settle, log=lambda d: print(json.dumps(d), flush=True),
-                                course_offset=lo)
+                                course_offset=lo, skill=skill)
         if a.part:
             part_file.parent.mkdir(parents=True, exist_ok=True)
             write_json_atomic(part_file, {"meta": meta, "courses": [lo, hi], **res, "seconds": round(time.time() - t0, 1)})
             return
         row = {**meta, **summarize(res), "seconds": round(time.time() - t0, 1)}
-    out = Path(a.out) if a.out else ROOT / "results" / "neo" / ("assist_test.jsonl" if test else "assist_validation.jsonl")
+    stem = "skill" if a.skill else "assist"
+    out = Path(a.out) if a.out else ROOT / "results" / "neo" / (f"{stem}_test.jsonl" if test else f"{stem}_validation.jsonl")
     out.parent.mkdir(parents=True, exist_ok=True)
     details = Path(a.details) if a.details else (ROOT / "results" / "neo" / "assist_details" / f"{a.name}.json"
                                                  if a.parts else None)

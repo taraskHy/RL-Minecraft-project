@@ -434,6 +434,18 @@ fixed at 09:24:49, before any run of it:**
   (`results/games/single41-first64-courses.json`), checked against
   `parkour.live`'s simulator re-run as before; and the router mode (the
   router's walled choice as the switch), validation family 40 first.
+- **A third run, fixed at 10:15:39 before it starts:** `neo-skill-a3`, from
+  `neo-skill-a2` updates 600 (the best validation count so far, 272), with
+  a2's settings plus `--segment-base results/final_policy.pt`: inside each
+  episode the final policy plays the jump after the block, and the episode
+  ends one platform later (k+3, or the goal), so the skill's last landing is
+  judged by the final policy's next jump (those ticks stay out of the policy
+  loss). Why (validation only): from a2's update 400 to 500 the failures on
+  the final policy's jumps after the block rose from 5 to 10 while those at
+  the neo fell. `neo-skill-a1`, behind a2 at every snapshot from update 200
+  on (258 against 272 at 600), is stopped at its next snapshot after 10:15 to
+  free the GPU slot (two trainers at most); its snapshots stay candidates.
+  a3's snapshots are chosen by the same rule.
 
 **Top priority since 29 Oct, about 17:00 (Ethan, via the side chat): single
 neos at 85% or more.** Courses with exactly one neo, held-out, with their

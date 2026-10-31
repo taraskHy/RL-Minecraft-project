@@ -252,6 +252,12 @@ class TrainConfig:
     # Comma-separated sampling weight per training level (fixed, replaces --curriculum), e.g. to train the weakest
     # levels more while the others stay in the mix; off by default.
     level_weights: str = ""
+    # The neo skill (parkour.neo_skill), off by default: --segments BANK makes every training episode a neo's block
+    # only, started from the bank's states (python -m parkour.neo_skill bank), with the neo types as the levels.
+    # --segment-base CKPT: the policy the skill hands back to (frozen) plays the jump after the block inside each
+    # episode, which then ends one platform later; its ticks are left out of the policy loss.
+    segments: str = ""
+    segment_base: str = ""
 
 
 def course_hash(c: C.Course) -> str:
@@ -494,8 +500,20 @@ def train(cfg: TrainConfig) -> Path:
     if "advanced" in skills or (not skills and cfg.advanced):  # neos in training: none of the single-neo sets either
         from .neo_assist import single_neo_hashes  # here: neo_assist imports this module
         test_hashes |= single_neo_hashes()
-    factory = CourseFactory(cfg, levels, test_hashes)
-    train_courses = factory.make(cfg.pool_size)
+    bank = factory = None
+    if cfg.segments:  # the neo skill: a neo's block per episode (parkour.neo_skill)
+        if skills or level_weights or cfg.demos:
+            raise ValueError("--segments trains on its bank alone")
+        if not cfg.test_once:  # (its snapshots are chosen outside training, parkour.neo_assist --skill)
+            raise ValueError("--segments needs --test-once")
+        from .neo_skill import SegmentBank  # here: neo_skill imports this module
+        bank = SegmentBank(cfg.segments, dev, exclude=test_hashes)
+        bank_rows = bank.take(cfg.pool_size)
+        train_courses = [bank.courses[i] for i in bank_rows]
+        n_levels = bank.n_types
+    else:
+        factory = CourseFactory(cfg, levels, test_hashes)
+        train_courses = factory.make(cfg.pool_size)
     demos = load_demos(cfg.demos) if cfg.demos else []
     n_demo = min(cfg.demo_courses, len(demos)) if demos else 0
     if n_demo:
@@ -509,7 +527,10 @@ def train(cfg: TrainConfig) -> Path:
     val_pool = None if cfg.eval_batch_size else CoursePool(vals, dev, C.GRID, compact_ice=cfg.compact_ice)
     best_info = old_summary.get("best", {})
 
-    if level_weights:
+    if bank is not None:
+        from .neo_skill import SegmentEnv, TypeSampler
+        sampler = TypeSampler(n_levels)
+    elif level_weights:
         sampler = LevelSampler(n_levels, fixed=level_weights)
     elif cfg.curriculum == "adaptive":
         sampler = LevelSampler(n_levels)
@@ -517,9 +538,15 @@ def train(cfg: TrainConfig) -> Path:
         sampler = LevelSampler(n_levels, fixed=[1.0] * n_levels)
     else:
         raise ValueError(cfg.curriculum)
-    env = ParkourEnv(pool, EnvConfig(num_envs=cfg.num_envs, stall_ticks=cfg.stall_ticks, reward=cfg.reward,
-                                     extended_obs=cfg.extended_obs),
-                     sampler=sampler, seed=cfg.seed)
+    env_cfg = EnvConfig(num_envs=cfg.num_envs, stall_ticks=cfg.stall_ticks, reward=cfg.reward,
+                        extended_obs=cfg.extended_obs)
+    if cfg.segment_base and bank is None:
+        raise ValueError("--segment-base needs --segments")
+    if bank is not None:
+        env = SegmentEnv(pool, env_cfg, sampler=sampler, seed=cfg.seed, slots=bank.rows(bank_rows),
+                         base=load_frozen(cfg.segment_base, dev) if cfg.segment_base else None)
+    else:
+        env = ParkourEnv(pool, env_cfg, sampler=sampler, seed=cfg.seed)
 
     model = ActorCritic(obs_dim=OBS_DIM_EXT if cfg.extended_obs else OBS_DIM, hidden=cfg.hidden,
                         hidden_parts=tuple(p for p in cfg.hide.split(",") if p)).to(dev)
@@ -569,6 +596,7 @@ def train(cfg: TrainConfig) -> Path:
     val_buf = torch.zeros(T, N, device=dev)
     rew_buf = torch.zeros(T, N, device=dev)
     done_buf = torch.zeros(T, N, device=dev)
+    ctrl_buf = torch.ones(T, N, device=dev) if cfg.segment_base else None  # 0: the base played that tick
     teachers = []
     if teacher_paths:
         paths = sorted(set(teacher_paths.values()))  # one frozen network per checkpoint
@@ -630,6 +658,8 @@ def train(cfg: TrainConfig) -> Path:
                 val_buf[t] = value
                 rew_buf[t] = rew
                 done_buf[t] = (term | trunc).float()
+                if ctrl_buf is not None:
+                    ctrl_buf[t] = info["ctrl"].float()
                 obs = nobs
             last_val = model.value(model.norm(obs))
         model.norm.load_state_dict(shadow.state_dict())
@@ -657,6 +687,7 @@ def train(cfg: TrainConfig) -> Path:
         b_ret = ret.view(-1)
         b_val = val_buf.view(-1)
         b_adv = (b_adv - b_adv.mean()) / (b_adv.std() + 1e-8)
+        b_ctrl = ctrl_buf.view(-1) if ctrl_buf is not None else None
         mb = T * N // cfg.minibatches
         stats = {"pi_loss": 0.0, "v_loss": 0.0, "entropy": 0.0, "kl": 0.0, "clipfrac": 0.0, "bc_loss": 0.0}
         bc_w = cfg.bc_coef * ((1 - (it - start_it) / max(1, cfg.iterations - start_it)) if cfg.bc_decay else 1.0)
@@ -685,6 +716,10 @@ def train(cfg: TrainConfig) -> Path:
                 vc = b_val[idx] + (v - b_val[idx]).clamp(-cfg.clip, cfg.clip)
                 vl = 0.5 * torch.max((v - b_ret[idx]).pow(2), (vc - b_ret[idx]).pow(2)).mean()
                 el = ent.mean()
+                if b_ctrl is not None:  # --segment-base: the policy loss only where the policy's action was played
+                    m = b_ctrl[idx]
+                    pl = -(surr * m).sum() / m.sum().clamp(min=1)
+                    el = (ent * m).sum() / m.sum().clamp(min=1)
                 loss = pl + cfg.vf_coef * vl - cfg.ent_coef * el
                 if demo_obs is not None and bc_w > 0:
                     j = torch.randint(demo_obs.shape[0], (cfg.bc_batch,), device=dev)
@@ -758,8 +793,13 @@ def train(cfg: TrainConfig) -> Path:
         if cfg.pool_refresh_every and it % cfg.pool_refresh_every == cfg.pool_refresh_every - 1:
             k = int(pool.size * cfg.pool_refresh_frac)
             idx = n_demo + np.random.default_rng([2026, 2, cfg.seed, it]).choice(pool.size - n_demo, k, replace=False)
-            for i, c in zip(idx, factory.make(k)):
-                pool.replace(int(i), c)
+            if bank is not None:
+                for i, j in zip(idx, bank.take(k)):
+                    pool.replace(int(i), bank.courses[j])
+                    env.set_slot(int(i), bank.rows([j]))
+            else:
+                for i, c in zip(idx, factory.make(k)):
+                    pool.replace(int(i), c)
             env.rebuild_level_table()
             env.set_level_probs(sampler.probs())
             # Players on a replaced course restart. The rollout that just ended

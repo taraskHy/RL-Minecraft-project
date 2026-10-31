@@ -65,12 +65,13 @@ from .planner import PlannerConfig
 from .route_env import RouteConfig, RouteRunner, RouteTables
 from .train import (OBSTACLE_TEST_FAMILY, OBSTACLE_VALIDATION_FAMILY, TEST_SEED_FAMILY, VALIDATION_FAMILY,
                     held_out_courses)
-from .neo_assist import SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY
+from .neo_assist import SINGLE_FRESH_TEST_FAMILY, SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY
 
 K = C.MAX_PLATFORMS
 OUT_DIR = ROOT / "results" / "neo_routing"
-SETS = {"single": (SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY), "standard": (TEST_SEED_FAMILY, VALIDATION_FAMILY),
-        "obstacles": (OBSTACLE_TEST_FAMILY, OBSTACLE_VALIDATION_FAMILY)}
+# (test, validation[, a further test set]); the single-neo sets' fresh test family 49 is the neo skill's (31 Oct)
+SETS = {"single": (SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, SINGLE_FRESH_TEST_FAMILY),
+        "standard": (TEST_SEED_FAMILY, VALIDATION_FAMILY), "obstacles": (OBSTACLE_TEST_FAMILY, OBSTACLE_VALIDATION_FAMILY)}
 
 
 def check_config(rcfg: RouteConfig, acfg: AssistConfig) -> None:
@@ -97,7 +98,7 @@ def evaluate_routed_neo(jumper, pool: CoursePool, tables: RouteTables, choose=No
                         pcfg: PlannerConfig | None = None, rcfg: RouteConfig | None = None,
                         acfg: AssistConfig | None = None, stall_ticks: int = 200, max_ticks: int = 4000,
                         fall_rule: str = "local", record: bool = False, settle: int = 0,
-                        search_pool: CoursePool | None = None, course_offset: int = 0, log=None) -> dict:
+                        search_pool: CoursePool | None = None, course_offset: int = 0, log=None, skill=None) -> dict:
     """First episode on every course, the jumper's slots filled by the router (``route_env.evaluate_routed``), and
     with ``rcfg.blocked == "plan"`` (and ``acfg.enabled``) every first choice blocked by a wall planned by the neo
     planner.
@@ -105,11 +106,20 @@ def evaluate_routed_neo(jumper, pool: CoursePool, tables: RouteTables, choose=No
     ``search_pool``: the same courses on the searches' device (default ``pool``). ``course_offset``: the index of the
     pool's first course in the whole set (search seeds and event numbers, for a run in parts). Returns
     ``neo_assist.evaluate_assisted``'s fields (``per_course`` with ``neo_done``, ``events``: one per search,
-    ``plans``, ``search_seconds``), and with ``record`` the router's decisions as ``evaluate_routed`` records them."""
+    ``plans``, ``search_seconds``), and with ``record`` the router's decisions as ``evaluate_routed`` records them.
+
+    ``skill``: the neo skill (``parkour.neo_skill``) instead of the planner (the assist off, blocked choices kept):
+    a decision whose route's next jump crosses a wall hands the next two jumps to it, one whose second jump does
+    (the router's second slot) the next three, so it plays from the platform before a neo's takeoff until the bot
+    stands on the platform after the neo's target, as ``neo_assist.skill_cps`` does with the course list; each
+    decision counts one down, and a later walled jump extends the count."""
     pcfg = pcfg or PlannerConfig()
     rcfg = rcfg or RouteConfig(blocked="plan")
     acfg = acfg or AssistConfig()
     planning = rcfg.blocked == "plan" and acfg.enabled
+    if skill is not None and (planning or rcfg.blocked == "drop" or skill.obs_dim != jumper.obs_dim):
+        raise ValueError("the neo skill replaces the planner: blocked choices kept, the assist off, the jumper's "
+                         "observation")
     if planning:
         check_config(rcfg, acfg)
     dev = pool.device
@@ -137,6 +147,8 @@ def evaluate_routed_neo(jumper, pool: CoursePool, tables: RouteTables, choose=No
     want = torch.full((n,), -1, dtype=torch.int64, device=dev)  # its first choice blocked by a wall, to plan (-1: none)
     tries = torch.zeros(n, K, dtype=torch.int64, device=dev)  # searches per platform planned from
     last_try = torch.full((n,), -10**9, dtype=torch.int64, device=dev)
+    left = torch.zeros(n, dtype=torch.int64, device=dev)  # decisions the neo skill still plays (``skill``)
+    skill_at = torch.zeros(n, K, dtype=torch.bool, device=dev)  # the checkpoints at which it played (per course)
     H = max(hz["takeoff"], hz["retry"], acfg.brake, 1)
     plan = torch.zeros(n, H, 5, dtype=torch.int64, device=dev)
     plan_len = torch.zeros(n, dtype=torch.int64, device=dev)
@@ -172,6 +184,10 @@ def evaluate_routed_neo(jumper, pool: CoursePool, tables: RouteTables, choose=No
         if acfg.plan_ahead:
             plan_it = plan_it | res["walled_chain"].any(1)
         want[r] = torch.where(plan_it & (hk >= 0) & (tk >= 0), tk, torch.full_like(tk, -1))
+        if skill is not None:
+            wc = res["walled_chain"]
+            need = torch.where(wc[:, 1], 3, torch.where(wc[:, 0], 2, 0))
+            left[r] = torch.maximum(left[r] - 1, need)
         if record:
             rects = res["rect"].tolist()
             for j, i in enumerate(r.tolist()):
@@ -241,6 +257,9 @@ def evaluate_routed_neo(jumper, pool: CoursePool, tables: RouteTables, choose=No
             searches(-1, on, none, none)
         for t in range(max_ticks):
             a, _, _ = jumper.act(obs, deterministic=True)
+            if skill is not None and bool((left > 0).any()):
+                a = torch.where((left > 0)[:, None], skill.act(obs, deterministic=True)[0], a)
+                skill_at[rows, env.cp] |= (left > 0) & ~finished
             active = plan_pos < plan_len
             if bool(active.any()):
                 queued = plan[rows, plan_pos.clamp(max=H - 1)]
@@ -296,6 +315,8 @@ def evaluate_routed_neo(jumper, pool: CoursePool, tables: RouteTables, choose=No
                            "stopped_at": int(cp_final[i]) if not s[i] else None,
                            "stopped_at_neo": bool(not s[i] and int(cp_final[i]) in ks),
                            "stopped_at_kind": None if s[i] else jump_kind(pool.courses[i], int(cp_final[i]), ks)})
+        if skill is not None:  # where the skill played (the course list's skill_cps when the router follows the course)
+            per_course[-1]["skill_at"] = torch.nonzero(skill_at[i]).flatten().tolist()
     out = {"per_course": per_course, "events": events, "plans": plans, "search_seconds": round(search_seconds, 1)}
     if record:
         out["decisions"] = decisions
@@ -306,7 +327,7 @@ def course_set(name: str, family: int, per_level: int = 0) -> list[C.Course]:
     """The single-neo sets (40, 41), or the router's own sets (route_eval.course_sets): standard (2, 1) and
     obstacles (5, 4), 300 courses per level on validation and 200 on test unless ``per_level``."""
     if family not in SETS[name]:
-        raise ValueError(f"--set {name} has families {SETS[name]} (test, validation)")
+        raise ValueError(f"--set {name} has families {SETS[name]} (test, validation, then any further test set)")
     if name == "single":
         return single_neo_courses(family)
     per_level = per_level or (200 if family == SETS[name][0] else 300)
@@ -423,6 +444,9 @@ def main(argv=None):
     ap.add_argument("--fill", default="", choices=("", "greedy", "policy"), help="default: the router's training setting")
     ap.add_argument("--blocked", default="plan", choices=("drop", "keep", "plan"), help="RouteConfig.blocked")
     ap.add_argument("--assist", default="{}", help="JSON overrides of neo_assist.AssistConfig (the neo planner)")
+    ap.add_argument("--skill", default="", help="the neo skill's checkpoint (parkour.neo_skill) instead of the planner: it "
+                                                "plays each walled jump's block (the assist off); rows go to "
+                                                "results/neo_routing/skill_*.jsonl")
     ap.add_argument("--settle", type=int, default=0, help="ticks without keys on the start block first (the bots: 10)")
     ap.add_argument("--fall-rule", default="local", choices=("local", "remaining"))
     ap.add_argument("--device", default="", help="the episodes and the router (default: cuda if available)")
@@ -444,17 +468,22 @@ def main(argv=None):
         torch.set_num_threads(a.threads)
     if a.part and a.parts:
         raise SystemExit("use one of --part and --parts")
-    test = a.family == SETS[a.set][0]
+    test = a.family != SETS[a.set][1]
     courses = course_set(a.set, a.family, a.per_level)
     if a.courses:
         courses = courses[:a.courses]
-    out = Path(a.out) if a.out else OUT_DIR / ("test.jsonl" if test else "validation.jsonl")
+    stem = "skill_" if a.skill else ""
+    out = Path(a.out) if a.out else OUT_DIR / (f"{stem}test.jsonl" if test else f"{stem}validation.jsonl")
     details = Path(a.details) if a.details else OUT_DIR / "details" / f"{a.name}.json.gz"
     folder = Path(a.parts_dir) / a.name
     if details.exists() and not a.part:
         raise SystemExit(f"{details} exists: a run's name is used once")
     dev = a.device or ("cuda" if torch.cuda.is_available() else "cpu")
     acfg = AssistConfig(**{"batch": 1, **json.loads(a.assist)})
+    if a.skill:  # the skill replaces the planner
+        if json.loads(a.assist) or a.blocked == "drop":
+            raise SystemExit("--skill plays the walled jumps itself: no --assist, and blocked choices kept (plan or keep)")
+        acfg = dataclasses.replace(acfg, enabled=False)
     rcfg_fill = a.fill or torch.load(a.router, map_location="cpu", weights_only=False)["config"].get("fill", "greedy")
     rcfg = RouteConfig(fill=rcfg_fill, blocked=a.blocked)
     if rcfg.blocked == "plan" and acfg.enabled:
@@ -473,6 +502,8 @@ def main(argv=None):
         meta["first_courses_only"] = a.courses
     if a.per_level and a.set != "single":
         meta["per_level"] = a.per_level
+    if a.skill:
+        meta["skill"], meta["skill_sha1"] = _rel(Path(a.skill)), _sha1(Path(a.skill))
     if a.parts:
         meta["courses_sha256"] = hashlib.sha256(json.dumps([c.to_json() for c in courses], sort_keys=True).encode()).hexdigest()
         t0 = time.time()
@@ -498,7 +529,8 @@ def main(argv=None):
     t0 = time.time()
     res = evaluate_routed_neo(jumper, pool, RouteTables(pool), choose, fill, pcfg, rcfg, acfg, settle=a.settle,
                               fall_rule=a.fall_rule, record=True, search_pool=spool, course_offset=lo,
-                              log=lambda d: print(json.dumps(d), flush=True))
+                              log=lambda d: print(json.dumps(d), flush=True),
+                              skill=load_model(Path(a.skill), dev) if a.skill else None)
     if a.part:
         part_file.parent.mkdir(parents=True, exist_ok=True)
         tmp = part_file.with_suffix(".tmp")
