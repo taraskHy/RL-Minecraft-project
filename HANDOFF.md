@@ -454,6 +454,53 @@ fixed at 09:24:49, before any run of it:**
   10% of its training episodes end in a stall. `neo-skill-a2` stops at its
   next snapshot after 10:33 to free the GPU slot; its snapshots stay
   candidates, and a4's are chosen by the same rule.
+- **Two clarifications, fixed at 10:47:18, before any test:** "at the end"
+  in the test rule means once a3 and a4 have finished their 2,000 updates
+  with no count of 285; the chosen network is then the snapshot with the
+  most strict completions on family 40 among every run's snapshots (a1 to
+  a4), ties to fewer updates, then to the earlier run; every test row names
+  how many snapshots were measured. The router mode gets the same chosen
+  network, with no choice of its own: measured on family 40 (with
+  `--blocked plan` and the assist off, which choose as `keep`), then tested
+  once on family 49 (no router mode has played it) and on family 41,
+  labelled additional (the router's 252 and 280 are already there). Every
+  test and validation command runs with `--device cpu`.
+- **Progress (simulator unless named; validation family 40):**
+  - Code: commits `f8a870f` (the bank, `SegmentEnv`, `TypeSampler`,
+    `train.py --segments` and `--segment-base`, `neo_assist --skill` with
+    `skill_cps`, `route_neo --skill`, family 49) and `6218cae` (`parkour.live
+    --skill` and both bots; the offline bot equals the simulator move for move
+    on family-40 checks, largest replay difference 7.1e-15 blocks). Family
+    49's pin (`d694d370d7c55ca1`) and exclusion were saved at 09:29-09:30,
+    before the bank (09:33) and the runs (09:38), and committed in `f8a870f`
+    (the test's comment naming `5e33002` is wrong: that commit holds only the
+    rules). Tests: `tests/test_neo_skill.py` (7), `tests/test_neo_skill_bots.py`
+    (5).
+  - Bank `runs/neo_skill_bank_v1.pt` (local only): 64,000 courses of families
+    60-69, 63,777 kept; 63,172 starts from the simulator's start and 63,029
+    after 10 settle ticks; 5.2 minutes on the GPU. Runs read it in order, so
+    about families 60-68 reach training.
+  - Review (three reviewers and a verifier, 10:00-10:28): no defect that
+    changes the episodes or a score. The training starts equal the switch's
+    hand-over states exactly (254 of 254 checked), and the bank holds no
+    course of families 40, 41 or 49. Known and low: a skip of k or k+1 still
+    earns its landings before the fall penalty (17 of about 15,000 training
+    episodes skipped); `bank.next` is not saved for a queue resume; with
+    `--segment-base` the advantage normalisation and the KL also count the
+    base's ticks; in router mode the skill sees the router's slots and
+    progress, but a probe on family 40 (a2 updates 700) that gave it the
+    course list's instead changed 273 to 274, 272 and 273 (progress, slots,
+    both): the inputs are not what the router mode loses.
+  - Strict counts of 320 on family 40, CPU (`results/neo/skill_validation.jsonl`,
+    per course `results/neo/skill_details/`): a1 (updates 100-700) 239, 243,
+    249, 251, 258, 258, 269; a2 (100-1000) 234, 256, 261, 267, 267, 272,
+    282, 271, 277, 283; a3 from 100: 261, 271, 274; a4 from 100: 272. For
+    comparison: the network alone 146 (`neo-dagger4`, best of ten), the
+    planner 286. Where a2's best snapshots fail: 21-23 at the neo, 5-8 on the
+    1x1 jumps into and out of it, 5 on the final policy's jumps before the
+    block and 3-4 after it.
+  - Router mode (`results/neo_routing/skill_validation.jsonl`): a2 updates
+    700 gives 273 of 320 (course list: 282).
 
 **Top priority since 29 Oct, about 17:00 (Ethan, via the side chat): single
 neos at 85% or more.** Courses with exactly one neo, held-out, with their
