@@ -264,6 +264,18 @@ class RouteNeoSimulator(Shared):
         self.assertTrue(all(sum(1 for e in res["events"] if e["course"] == i) <= 2 for i in range(len(cs))))
         self.assertEqual(res["plans"]["landed_as_planned"], res["plans"]["played"])
 
+    def test_retries_from_the_timer_without_a_brake(self):
+        # Without a brake, a failed search is searched again retry_every ticks later if the bot still stands on the
+        # takeoff (the jumper has not jumped yet).
+        res = self.routed(scratch_neo_courses(range(8)), "plan", AssistConfig(samples=16, iterations=1, retries=1, retry_horizon=48))
+        retries = [e for e in res["events"] if e["kind"] == "retry"]
+        self.assertGreaterEqual(len(retries), 3)
+        for r in retries:
+            first = next(e for e in res["events"] if (e["course"], e["kind"], e["takeoff"]) == (r["course"], "takeoff", r["takeoff"]))
+            self.assertTrue(not first["found"] and not first["braked"])
+            self.assertGreaterEqual(r["tick"] - first["tick"], AssistConfig().retry_every)
+        self.assertEqual(res["plans"]["brakes"], 0)
+
     def test_a_run_in_parts_is_the_whole_run(self):
         cs = neo_courses([0, 1, 2, 3, 4, 5])
         cfg = AssistConfig(samples=64, iterations=3, retries=1, brake=14, retry_horizon=48, restarts=1)
