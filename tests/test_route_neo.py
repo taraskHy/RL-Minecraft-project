@@ -460,6 +460,15 @@ class RouteNeoBotParity(Shared):
         self.assertTrue(any(e["course"] == i and e["takeoff"] < k for i, k in enumerate(neo) for e in res["events"]))
         self.assertFalse(any(e["course"] >= 3 for e in res["events"]))
 
+    def test_same_on_obstacle_courses_with_skipping_targets(self):
+        # Scratch obstacle courses whose walled choices skip a platform or step back: the bot checks each plan with
+        # the request's own floor (verifyPlan), the lower top of the two platforms. (None of the plans found here
+        # lands lower than its takeoff, so a floor below the platform stood on is not exercised.)
+        cfg = AssistConfig(samples=64, iterations=3, restarts=1, retries=1, brake=14, retry_horizon=48, plan_on=1,
+                           plan_ahead=1)
+        res, bot = self.check(cfg, scratch_obstacle_courses([392, 545, 743, 888]))
+        self.assertTrue(any(x["found"] and x["target"] != x["cp"] + 1 for x in bot))  # verified, with its own floor
+
     def check(self, cfg, cs, played=True):
         from parkour.live import SETTLE_TICKS
         cs = courses_from_file([c.to_json() for c in cs])  # as parkour.live reads a course file
