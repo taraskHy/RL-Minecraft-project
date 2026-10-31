@@ -37,7 +37,7 @@ def ffmpeg() -> str:
 
 
 def suffix(a) -> str:
-    return "_no_course_list" if a.planner else "_router" if a.router else ""
+    return ("_no_course_list" if a.planner else "_router" if a.router else "") + a.suffix
 
 
 def film(course: dict, a, out_dir: Path) -> Path | None:
@@ -112,6 +112,7 @@ def main():
     ap.add_argument("--planner", action="store_true", help="no course list: the route planner finds the platforms")
     ap.add_argument("--router", default="", help="no course list: this route policy picks the platforms")
     ap.add_argument("--assist", default="", help="with --router: the neo planner's settings (JSON)")
+    ap.add_argument("--suffix", default="", help="added to the video file names, so that earlier videos stay")
     a = ap.parse_args()
     if a.planner and a.router:
         sys.exit("--planner and --router are two ways to find the route: give one")

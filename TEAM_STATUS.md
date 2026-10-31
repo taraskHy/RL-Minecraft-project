@@ -538,6 +538,11 @@ Overwatch was observed running at 22:04, with no trainers active and about 40% c
     separately), all completed with 0 server corrections; and
     `real_minecraft_one_neo_level7_router.mp4` (the router plus the neo
     planner on a level-7 one-neo test course, 140 ticks, 0 corrections).
+    Also new: `real_minecraft_showcase_final.mp4` (the three hand-designed
+    courses with the final policy, which the earlier showcase predates) and
+    `real_minecraft_new_skills_one_network.mp4` (the one network on a head
+    hitter, an ice run-up, a slime bounce and a ladder), all completed with
+    0 server corrections.
 - **Policy files:** `results/final_policy.pt` (final, discount 0.995) and
   `results/final_policy.json` (the exported network the bot loads); the first
   final policy is `results/final_policy_v1.pt` / `.json`. The neo policy is
@@ -575,7 +580,7 @@ The full list, with what not to change, is in [HANDOFF.md](HANDOFF.md)
    trained (`g995-extra`, `g995-ice`, the one network); water and an
    observation of the block's type are still open.
 4. Hand-built maps: extract the platform chain from a region of a real map.
-5. The report (`docs/report_draft.md`) has every result through 31 Oct (neo routing included) and states the MDP. Its real export (`results/report_draft.*`, 31 Oct 05:18, `scripts/report_docx.py --pdf`) has 20 pages before the References page, the body ending on the last line of page 20, so any addition needs a cut. Next: a read-through by the team; export again after any change.
+5. The report (`docs/report_draft.md`) has every result through 31 Oct (neo routing included) and states the MDP. Its real export (`results/report_draft.*`, 31 Oct 05:27, `scripts/report_docx.py --pdf`) has 20 pages before the References page, the body ending on the last line of page 20, so any addition needs a cut. Next: a read-through by the team; export again after any change.
 
 ## Update log
 

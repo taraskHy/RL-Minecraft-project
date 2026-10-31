@@ -1520,7 +1520,7 @@ before restarting; held part locks prevent duplicate evaluation.
 - Report in the submission format: `results/report_draft.docx` / `.pdf`,
   written by `scripts/report_docx.py --pdf` from `docs/report_draft.md`
   (exported on 30 Oct, 22:47, after the trim) [31 Oct: exported again at
-  05:18, with the neo-routing result and the level-5 control]. Page estimate without pandoc
+  05:27, with the neo-routing result and the level-5 control]. Page estimate without pandoc
   or LibreOffice: `scripts/report_pages.py` (can be a page off).
 - Failure analysis of the final policy by jump type: `results/jump_failures.json`
   (`scripts/jump_failures.py`).
@@ -1541,17 +1541,17 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `86c14cc` (2026-10-31 04:00, branch `main`): Tonight's records checked: corrections, simulator labels, the slide draft
+Generated on top of commit `ead5195` (2026-10-31 05:19, branch `main`): Level-5 control: the pair's family-46 gain is beyond the extra training
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 50 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 51 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `bc6b2e0` 2026-10-31 03:28 | 3 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 234 |
+| `README.md` | `bc6b2e0` 2026-10-31 03:28 | 4 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 235 |
 | `docs/report_draft.md` | updated together with this snapshot | 0 |
-| `results/README.md` | updated together with this snapshot | 0 |
+| `results/README.md` | `ead5195` 2026-10-31 05:19 | 0 |
 | `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
@@ -1668,18 +1668,25 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `combined-obstacles-offline` | offline (prismarine-physics, no server) | `results/combined_policy.pt` | 59/60 | 98.3 | 100.0 |
 | `combined-stone-live` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 59/60 | 98.3 | 100.0 |
 | `combined-stone-offline` | offline (prismarine-physics, no server) | `results/combined_policy.pt` | 59/60 | 98.3 | 100.0 |
+| `film-head-hitter-0-1031-052319` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 1/1 | 100.0 | 100.0 |
+| `film-ice-run-up-0-1031-052408` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 1/1 | 100.0 | 100.0 |
+| `film-ladder-2-1031-052455` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 1/1 | 100.0 | 100.0 |
 | `film-neo_level7-1028-112702` | live (Minecraft 1.21.4 server) | `runs/neo-dagger3/checkpoints/best.pt` | 1/1 | 100.0 | 100.0 |
 | `film-one_neo_level7-1031-033439` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
+| `film-slime-0-1031-052528` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 1/1 | 100.0 | 100.0 |
 | `film-sprint-1028-014252` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
 | `film-sprint-1028-024939` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
 | `film-sprint-1031-033315` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
+| `film-sprint-1031-052142` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
 | `film-stairs-1028-014205` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
 | `film-stairs-1028-024852` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
 | `film-stairs-1031-033230` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
+| `film-stairs-1031-052104` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
 | `film-tour-1028-014014` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
 | `film-tour-1028-014119` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
 | `film-tour-1028-024805` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
 | `film-tour-1031-033109` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
+| `film-tour-1031-052024` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
 | `final-offline` | offline (prismarine-physics, no server) | `runs/obstacles-ft/checkpoints/best.pt` | 59/60 | 98.3 | 100.0 |
 | `final-offline-obstacles` | offline (prismarine-physics, no server) | `runs/obstacles-ft/checkpoints/best.pt` | 58/60 | 96.7 | 100.0 |
 | `final-showcase` | offline (prismarine-physics, no server) | `runs/obstacles-ft/checkpoints/best.pt` | 3/3 | 100.0 | 100.0 |
@@ -1780,6 +1787,11 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **31 Oct 2026, 05:27, Claude (Claude Code, training PC, main session):** more first-person videos in real Minecraft, while the Minecraft server was free. `scripts/film_pov.py --suffix` keeps earlier videos:
+  - the final policy (0.995) on the three hand-designed courses (`real_minecraft_showcase_final.mp4`; the results page's lead video showed the first final policy until now);
+  - the one network on a head hitter, an ice run-up, a slime bounce and a ladder, courses of families 42 to 45 (`real_minecraft_new_skills_one_network.mp4`).
+
+  All seven completed with 0 server corrections and the simulator's outcomes. `parkour.report` archives the seven games, so the report's real-game totals become 1,469 episodes in 55 runs (still 1 outcome unlike the simulator's and 2 server corrections); export at 05:27, body still ends on page 20. The slide draft's totals were updated too; results page version 28.
 - **31 Oct 2026, 05:18, Claude (Claude Code, training PC, main session):** the level-5 control finished (training queue, two at a time, GPU watchdog 65/58, no heat hold): `l5-ctrl`, `-s1` and `-s2`, the queue's recipe with neither change. On family 46 they average 84.18% (-1.02 against the final policy) and the pair 87.87%, so by the rule fixed at 03:17 the pair's gain on family 46 is beyond the shared fine-tuning. On the obstacle test's level 5 (200 courses per run) the control rose as much as obstacles alone (82.8%), so the test's rise may be the extra training. Section 3, `results/level5_control.json`, the generated table in `results/README.md` (`level5_recipe` now shows the control and the rule's reading) and the report's 7.5 say so. Nothing chosen or shipped.
 - **31 Oct 2026, 04:00, Claude (Claude Code, training PC, main session):** an independent check of tonight's records (two checkers and a skeptic per finding; 15 confirmed, none touching a headline number) and fixes:
   - tonight's neo-routing run is rule 4's lever D (`plan_ahead`: also the one or two jumps leading to a walled jump, then every jump while plans land), not "every router decision";

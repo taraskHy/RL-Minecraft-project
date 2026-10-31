@@ -102,8 +102,8 @@ a { color: var(--sky); }
 
   <section aria-label="Real Minecraft, first person">
     <figure>
-      <video src="videos/real_minecraft_showcase.mp4" autoplay muted loop playsinline controls></video>
-      <figcaption>The bot's own view on a Minecraft 1.21.4 server, on three hand-designed courses it never trained on. It completed all three, and the server corrected its position 0 times. The video shows the first final policy; the final policy, used for the four numbers below, also completes all three.</figcaption>
+      <video src="videos/real_minecraft_showcase_final.mp4" autoplay muted loop playsinline controls></video>
+      <figcaption>The bot's own view on a Minecraft 1.21.4 server, on three hand-designed courses it never trained on, with the final policy behind the four numbers below. It completes all three, the same as in the simulator, and the server corrected its position 0 times.</figcaption>
     </figure>
     <div class="stats">
       <div class="stat"><span class="where">simulator</span><b>98.4%</b><span>of 1,200 unseen 10-jump courses completed</span></div>
@@ -253,6 +253,10 @@ a { color: var(--sky); }
         <h3>Five new block kinds</h3>
         <p>We added head hitters, ice run-ups, shaped blocks (slabs, posts, carpets and more), slime bounces and ladder climbs to the physics; each matches prismarine-physics to 1.4e-14 blocks or better over 60,000 ticks. Alone, the final policy makes 99.1% of the shaped-block jumps, 68.2% of head hitters, 48.9% of ice run-ups, 39.9% of slime bounces and 37.5% of ladder climbs.</p>
         <p>Trained on them for 1,000 updates, the specialist <code>g995-extra</code> completes 91.2% of 2,400 test courses over all 12 levels and 89.3% with obstacles. On the six new levels' validation courses it makes 86.1%, where the final policy makes 19.8%.</p>
+        <figure>
+          <video src="videos/real_minecraft_new_skills_one_network.mp4" preload="metadata" muted loop playsinline controls></video>
+          <figcaption>Real Minecraft, first person: the one network on a head hitter, an ice run-up, a slime bounce and a ladder climb, on courses it never trained on. It completes all four, the same as in the simulator, with 0 server corrections.</figcaption>
+        </figure>
       </div>
     </div>
     <div class="panel">

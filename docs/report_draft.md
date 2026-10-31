@@ -573,8 +573,8 @@ It runs in the simulator only.
 ## 8. Discussion and limitations
 
 **Why the transfer is exact.** The simulator reproduces the bot's own physics
-engine (section 3). In 1,462 real-game episodes
-over 48 runs (`results/games/`) and 120 router episodes
+engine (section 3). In 1,469 real-game episodes
+over 55 runs (`results/games/`) and 120 router episodes
 (`results/routing/`), every outcome but one equals the simulator's. That
 one and the only 2 server corrections came from one run before the corner
 check, next to neo-wall corners, where the game orders collisions

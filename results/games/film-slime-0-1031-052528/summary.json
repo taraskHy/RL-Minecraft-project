@@ -1,0 +1,34 @@
+{
+ "mode": "live (Minecraft 1.21.4 server)",
+ "checkpoint": "results/combined_policy.pt",
+ "courses": 1,
+ "wall_seconds": 34.5,
+ "success": 1.0,
+ "sim_success_same_courses": 1.0,
+ "outcome_agreement": 1.0,
+ "replay_max_pos_err": 2.1316282072803006e-14,
+ "replay_exact_episodes": 1,
+ "by_level": {
+  "13": {
+   "n": 1,
+   "success": 1.0,
+   "sim_success": 1.0
+  }
+ },
+ "episodes": [
+  {
+   "index": 0,
+   "name": "slime-0",
+   "level": 13,
+   "result": "success",
+   "platform": 15,
+   "n": 16,
+   "ticks": 221,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 221
+  }
+ ]
+}
