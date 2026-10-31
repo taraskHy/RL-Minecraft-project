@@ -66,6 +66,9 @@ ul.facts { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
 ul.facts li { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 14px; align-items: baseline; }
 ul.facts b { font: 700 22px/1.1 var(--display); font-variant-numeric: tabular-nums; }
 @media (max-width: 480px) { ul.facts li { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
+ul.todo { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; }
+ul.todo li { max-width: 65ch; }
+ul.todo .tag { margin-right: 6px; }
 .tag { display: inline-block; font: 500 12px var(--mono); padding: 2px 8px; border-radius: 99px; border: 1px solid currentColor; white-space: nowrap; }
 .tag.ok { color: var(--grass); } .tag.no { color: var(--lava); } .tag.run { color: var(--gold); }
 table { border-collapse: collapse; width: 100%; font-size: 15px; font-variant-numeric: tabular-nums; }
@@ -126,7 +129,8 @@ a { color: var(--sky); }
           <tr><td>Courses with exactly one neo (target 85%)</td><td>86.25% of 320 test courses with every jump planned, played once: the goal is met under the rule fixed before the runs; 42.8% for the best policy alone<span class="where">simulator, test</span>55/64 test courses with the search, the same as the simulator, 0 corrections<span class="where">real Minecraft</span></td><td>final policy + search</td></tr>
           <tr><td>A gate that picks an expert at every landing</td><td>86.8% mean of the four groups (the one network: 86.4%), a match<span class="where">simulator, test</span></td><td>gate over seven experts</td></tr>
           <tr><td>Head hitters, ice run-ups, shaped blocks, slime, ladders</td><td>91.2% of 2,400 courses over 12 levels<span class="where">simulator</span></td><td><code>g995-extra</code></td></tr>
-          <tr><td>No course list: route planner</td><td>92.3% of 1,200 courses<span class="where">simulator</span>51/60<span class="where">real Minecraft</span></td><td>final policy + planner</td></tr>
+          <tr><td>No course list: learned router</td><td>97.8% of 1,200 test courses, played once (the hand-written planner: 92.3%)<span class="where">simulator, test</span>57/60, the same courses as the simulator<span class="where">real Minecraft</span></td><td>final policy + router</td></tr>
+          <tr><td>One-neo courses without the course list</td><td>252 of 320 test courses (78.75%), played once; with the course list, 276<span class="where">simulator, test</span>52/64, the same courses as the simulator, 0 corrections<span class="where">real Minecraft</span></td><td>final policy + router + search</td></tr>
           <tr><td>One network for every skill</td><td>86.4%, the mean of the four groups' test success rates (basic, ice, neo-momentum-wide, new kinds; 7,200 courses), level with the best specialist on the last two<span class="where">simulator</span></td><td>one network, <code>combined-distill</code></td></tr>
         </tbody>
       </table>
@@ -354,6 +358,7 @@ a { color: var(--sky); }
         </table></div>
         <p class="muted">The planner's settings were tuned on validation courses. Most of its failures are route choices, not jumps: it skips ahead to a platform that is in reach but harder to land. The learned column is a model trained to find platforms itself from a wide block scan and a memory of its last landings; decoy pillars fool it.</p>
         <p><span class="tag ok">done</span> A route policy trained by RL on a teammate's PC picks the next platform instead of the planner, with the same final policy jumping: 97.8% of the standard and 95.0% of the obstacle test courses (simulator, played once), and 57/60 and 56/60 in real Minecraft with 0 server corrections (<span class="path">results/routing/README.md</span>).</p>
+        <p><span class="tag ok">done</span> Neo jumps without the course list: when the platform the router picks sits behind a wall, the search plans that jump from the bot's exact state, and keeps planning while its plans land. Chosen on validation (255, 257 and 251 of 320 one-neo courses over three search seeds), it completes 252 of the 320 one-neo test courses (simulator, played once), against 276 with the course list, and 52 of the first 64 offline and in real Minecraft, the simulator's courses, with 0 server corrections (with the course list: 55). The router's own validation courses do not get worse (1,762 and 1,728 of 1,800; before, 1,762 and 1,720). It loses more courses before the neo, where the jumps are the policy's own, and at it (<span class="path">results/neo_routing/README.md</span>).</p>
       </div>
     </div>
     <div class="two">
@@ -379,12 +384,14 @@ a { color: var(--sky); }
           <tr><td>with obstacles</td><td class="num">57/60</td><td class="num">57/60</td><td class="num">57/60</td></tr>
           <tr><td>hand-designed</td><td class="num">3/4</td><td class="num">3/4</td><td class="num">3/4</td></tr>
           <tr><td>route planner, standard and obstacles</td><td class="num">51/60, 56/60</td><td class="num">51/60, 56/60</td><td class="num">51/60, 56/60</td></tr>
+          <tr><td>learned router, standard and obstacles</td><td class="num">57/60, 56/60</td><td class="num">57/60, 56/60</td><td class="num">57/60, 56/60</td></tr>
+          <tr><td>neo search on 64 one-neo test courses: course list, router</td><td class="num">55/64, 52/64</td><td class="num">55/64, 52/64</td><td class="num">55/64, 52/64</td></tr>
           <tr><td>learned no-route model, standard and obstacles</td><td class="num">55/60, 37/60</td><td class="num">55/60, 37/60</td><td class="num">55/60, 37/60</td></tr>
           <tr><td>neo policy, 31 neo courses</td><td class="num">11/31</td><td class="num">11/31</td><td class="num">11/31</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="muted">The first four rows use the final policy. In every one of these runs the outcome matched the simulator on every course, and the server corrected the bot's position 0 times. The hand-designed miss is the neo course, which is outside the final policy's training. Our PyTorch port of prismarine-physics, the engine Mineflayer moves bots with, matches the original to 1.4e-14 blocks over 99,000 ticks. The bot runs the exported network in JavaScript, in step with the server's ticks.</p>
+    <p class="muted">The first six rows use the final policy. In every one of these runs the outcome matched the simulator on every course, and the server corrected the bot's position 0 times. The hand-designed miss is the neo course, which is outside the final policy's training. Our PyTorch port of prismarine-physics, the engine Mineflayer moves bots with, matches the original to 1.4e-14 blocks over 99,000 ticks. The bot runs the exported network in JavaScript, in step with the server's ticks.</p>
   </section>
 
   <section>
@@ -407,8 +414,43 @@ a { color: var(--sky); }
     <p class="muted">Real Minecraft 1.21.4, the bot's own view, first final policy with the course list given.</p>
   </section>
 
+  <section>
+    <div class="eyebrow">Status, 31 October</div>
+    <h2>What is left</h2>
+    <div class="two">
+      <div class="panel">
+        <h3>Running overnight</h3>
+        <ul class="todo">
+          <li><span class="tag run">running</span>The missing control for the level-5 fine-tune: three runs with neither change, so its 2.7-point gain can be told apart from the extra training itself. Its reading was fixed before the runs; nothing is shipped from it.</li>
+          <li><span class="tag run">running</span>The next step for neo jumps without the course list: planning every jump the router picks, not only the walled ones, to close the gap to the course list (252 against 276 on test). It is kept only if it adds at least 4 courses on validation.</li>
+        </ul>
+        <h3>To finish the course</h3>
+        <ul class="todo">
+          <li>The report has every result through 31 October and is at the 20-page limit. Left: the team's read-through, names on the title page if the course wants them, and a new export after any change.</li>
+          <li>The presentation: no slides yet. This page, the videos and the replay viewers are the material. The videos were all made by 28 October, so none yet shows the learned router or the neo search in first person.</li>
+          <li>The generated results tables (<span class="path">results/README.md</span>) have no section yet for the router, neo routing, the one network or the gate.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Open problems</h3>
+        <ul class="todo">
+          <li>Neo jumps by the network alone: 42.8% of the one-neo test courses, against 86.25% with the search.</li>
+          <li>Without the course list, the search at a neo finds no landing on more courses than with it (36 against 24 of the 320 validation courses); planning the approach to the walled jump is the next idea.</li>
+          <li>Water, an observation of each block's type, and hand-built maps taken from real worlds.</li>
+          <li>On hold until Ethan resumes them: the cloud tests of the new abilities.</li>
+        </ul>
+        <h3>Waiting on</h3>
+        <ul class="todo">
+          <li><b>Ethan and the team:</b> the read-through, the presentation's date, format and speakers, and whether to resume the tests on hold.</li>
+          <li><b>The teammate's PC:</b> nothing; the routing brief is delivered and merged.</li>
+          <li><b>Deadlines:</b> none is written down in the project.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
   <footer>
-    <span>The numbers here come from files in the project repository: main tables in <span class="path">results/README.md</span>; training logs and jump tests in <span class="path">results/runs/</span>; recorded games in <span class="path">results/games/</span>; the neo search, demonstrations and DAgger logs in <span class="path">results/neo/</span>; ice in <span class="path">results/ice_preview.json</span>; the new block kinds in <span class="path">results/extra/</span> and <span class="path">results/physics_parity_*.json</span>; the specialists and ice seeds in <span class="path">results/operations/</span>; the one-network matrix in <span class="path">results/skills/validation_matrix.json</span>, its test comparison in <span class="path">results/skills/combined_test_comparison.json</span> and the gate measurement in <span class="path">results/skills/gate_headroom.json</span>; the one-neo courses in <span class="path">results/neo/assist_validation.jsonl</span>; the planner in <span class="path">results/planner/</span>; videos in <span class="path">results/videos/</span>.</span>
+    <span>The numbers here come from files in the project repository: main tables in <span class="path">results/README.md</span>; training logs and jump tests in <span class="path">results/runs/</span>; recorded games in <span class="path">results/games/</span>; the neo search, demonstrations and DAgger logs in <span class="path">results/neo/</span>; ice in <span class="path">results/ice_preview.json</span>; the new block kinds in <span class="path">results/extra/</span> and <span class="path">results/physics_parity_*.json</span>; the specialists and ice seeds in <span class="path">results/operations/</span>; the one-network matrix in <span class="path">results/skills/validation_matrix.json</span>, its test comparison in <span class="path">results/skills/combined_test_comparison.json</span> and the gate measurement in <span class="path">results/skills/gate_headroom.json</span>; the one-neo courses in <span class="path">results/neo/assist_validation.jsonl</span>; the planner in <span class="path">results/planner/</span>; the learned router in <span class="path">results/routing/</span> and neo routing in <span class="path">results/neo_routing/</span>; videos in <span class="path">results/videos/</span>.</span>
   </footer>
 </div>
 
