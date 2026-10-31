@@ -446,6 +446,14 @@ fixed at 09:24:49, before any run of it:**
   on (258 against 272 at 600), is stopped at its next snapshot after 10:15 to
   free the GPU slot (two trainers at most); its snapshots stay candidates.
   a3's snapshots are chosen by the same rule.
+- **A fourth run, fixed at 10:33:54 before it starts:** `neo-skill-a4`, from
+  `neo-skill-a2` updates 700 (282, the best validation count so far), with
+  a3's settings but an entropy weight of 0.002 instead of 0.01. Why: a2's
+  validation counts level off (updates 600 to 900: 272, 282, 271, 277) while
+  its training entropy keeps rising (2.9 to 3.7 of at most 5.5) and about
+  10% of its training episodes end in a stall. `neo-skill-a2` stops at its
+  next snapshot after 10:33 to free the GPU slot; its snapshots stay
+  candidates, and a4's are chosen by the same rule.
 
 **Top priority since 29 Oct, about 17:00 (Ethan, via the side chat): single
 neos at 85% or more.** Courses with exactly one neo, held-out, with their
