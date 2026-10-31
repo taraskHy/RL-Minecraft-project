@@ -47,7 +47,7 @@ The runs:
 | `gate-r1-swap1` | the first expert swap (`configs/gate_experts_swap1.json`: `neo-dagger4` updates 250 in the neo slot), 38 updates from `gate-r1`'s best.pt; best 87.35%, below 87.75%, so not kept |
 | `gate-smoke-1024`, `gate-smoke-8192`, `gate-smoke-fix-8192` | smoke runs of the skill gate (`parkour/gate.py`, a few updates) that measured its speed; not results |
 | `neo-skill-a1` ... `neo-skill-a5` | the neo skill (`parkour/neo_skill.py`, `train.py --segments runs/neo_skill_bank_v1.pt`, HANDOFF section 3, rules of 31 Oct): PPO on a neo's block alone, from the final policy's arrival states on training single-neo courses. a1 from `neo-dagger4` updates 250 (entropy 0.005), a2 from `combined-distill` (0.01), a3 from a2 updates 600 with `--segment-base` (the final policy plays the jump after the block inside the episode), a4 as a3 from a2 updates 700 with entropy 0.002, a5 from a2 updates 1000 with stall penalty 15; each stopped early by a written rule (a1 at 700, a2 at 1000, a3 at 600, a4 at about 880, a5 at about 610); a snapshot every 100 updates, each scored on family 40 (`results/neo/skill_validation.jsonl`). The chosen skill is a2 updates 1000 (283 of 320); the trainer's own `best.pt` and final standard test (families 2 and 1) are not the rule's choice |
-| `neo-skill-d1`, `neo-skill-d2` | DAgger rounds on the chosen skill: PPO on the block plus imitation (weight 0.3) of the neo planner's simplified landings at the skill's own states on the bank's courses of types 16-19 (`python -m parkour.neo_skill dagger`: `runs/neo_skill_dagger_v1.pt`, the takeoff; d2 adds `runs/neo_skill_dagger_v2_air.pt`, the first flight and the jump off the target); 500 updates, a snapshot every 50 |
+| `neo-skill-d1` ... `neo-skill-d4` | DAgger rounds: PPO on the block plus imitation (weight 0.3) of the neo planner's simplified landings at the skill's own states (`python -m parkour.neo_skill dagger`); 500 updates, a snapshot every 50. d1 from a2 updates 1000 with `runs/neo_skill_dagger_v1.pt` (the takeoff, types 16-19); d2 the same plus `runs/neo_skill_dagger_v2_air.pt` (the first flight and the jump off the target); d3 from d2 updates 400 plus `runs/neo_skill_dagger_v3_hard.pt` (types 16-19) and `_v3_rest.pt` (the other 28 types); d4 as d3 without `_v3_rest.pt`. Best snapshots on family 40: d1 279, d2 287, d3 283, d4 289 |
 | `neo-skill-avg` | not a training run: two weight averages (`a2_700-1000.pt`, `a5_100-600.pt`), scored on family 40 (283 and 282) |
 
 Checkpoints (`runs/NAME/checkpoints/best.pt`, `latest.pt`, and
@@ -61,7 +61,8 @@ only*). The final policy is in Git; see the next section.
 | --- | --- |
 | `final_policy.pt`, `final_policy.json` | the final policy since 28 October 10:41: `obstacles-g995` iteration 699, discount 0.995 (weights, and the file the bot loads) |
 | `final_policy_v1.pt`, `final_policy_v1.json` | the first final policy: `obstacles-ft` iteration 999, discount 0.99 |
-| `neo_skill.pt`, `neo_skill.json` | the neo skill since 31 October 13:00: `neo-skill-d2` updates 400, chosen on single-neo validation family 40 (287 of 320, the most of 62 candidates); the second network that plays each neo's block (`parkour.neo_assist --skill`, `parkour.route_neo --skill`, `parkour.live --skill`); sha1 `962b57d218a0` |
+| `neo_skill.pt`, `neo_skill.json` | the neo skill since 31 October 15:05: `neo-skill-d4` updates 400, chosen on single-neo validation family 40 (289 of 320, the most of 82 candidates); the second network that plays each neo's block (`parkour.neo_assist --skill`, `parkour.route_neo --skill`, `parkour.live --skill`); sha1 `fc940af6dbd3` |
+| `neo_skill_v2.pt`, `neo_skill_v2.json` | the neo skill from 13:00 to 15:05: `neo-skill-d2` updates 400 (287 of 320); sha1 `962b57d218a0`. Its bot runs (`games/single41-*-skill-d2*`) loaded it under the name `results/neo_skill.pt` |
 | `neo_skill_v1.pt`, `neo_skill_v1.json` | the first neo skill: `neo-skill-a2` updates 1000 (283 of 320); sha1 `2802accced61`. Its bot runs (`games/single41-offline-skill`, `-live-skill`, `-offline-skill-router`, `-live-skill-router`) loaded it under the name `results/neo_skill.pt` |
 | `jump_eval.json`, `jump_eval_v1.json` | every jump type of levels 0-5 and the 49 impossible types, 16 start angles each, in the simulator: final policy and first final policy (`jump_eval_main.json`: `main-s0`) |
 | `stress.json`, `stress_v1.json` | the standard test course style and six styles that differ from training (long, zigzag, straight, any start yaw, single blocks, obstacles on 50% of jumps), 100 courses per level and condition, in the simulator: final policy and first final policy (`stress_main.json`: `main-s0`) |
@@ -101,7 +102,7 @@ used), `runs/neo_dagger_r1.pt` (the noisy labels of the collapsed run) and
 `runs/neo_dagger_r1b.pt`, `_r2.pt`, `_r3.pt` (the imitation pairs). So are the neo skill's
 bank (`runs/neo_skill_bank_v1.pt`: 63,777 training single-neo courses of families 60-69 with the
 final policy's states on each block's first platform, `python -m parkour.neo_skill bank`) and its
-DAgger pairs (`runs/neo_skill_dagger_v1.pt`, `runs/neo_skill_dagger_v2_air.pt`).
+DAgger pairs (`runs/neo_skill_dagger_v1.pt`, `_v2_air.pt`, `_v3_hard.pt`, `_v3_rest.pt`).
 
 ## Figures (`results/figures/`)
 
@@ -233,7 +234,7 @@ on every course, and the real-Minecraft runs had 0 server corrections.
 | `assist_validation.jsonl`, `assist_test.jsonl` | the neo assist (`parkour.neo_assist`: a search from the bot's exact state at every planned takeoff): one JSON line per run and setting, validation (families 2, 13) and test (families 1, 12) courses, simulator. Rows tagged `code 587c9b1` ran in a git worktree of that commit (their `checkpoint` is that worktree's copy of `results/final_policy.pt`) with the then-default batched search (batch 32) |
 | `*.lock` | lock files that `parkour.neo_assist` takes while it appends a row (one byte; ignored by Git) |
 | `assist_details/*.json` | the same runs course by course (`--details`): the row, every course's outcome (`stopped_at`, `stopped_at_kind`) and every search (takeoff, target, tick, whether it started where a plan landed, found, plan ticks, rounds, braked) |
-| `skill_validation.jsonl`, `skill_test.jsonl` | the neo skill (`parkour.neo_assist --off --skill`: the final policy plus a second network on each neo's block, no search; HANDOFF section 3, 31 Oct): one row per skill checkpoint (its path and sha1 in `skill`, `skill_sha1`; `skill_jump` when the jump readout is not 0.5), single-neo validation family 40 and test families 41 and 49, simulator, CPU |
+| `skill_validation.jsonl`, `skill_test.jsonl` | the neo skill (`parkour.neo_assist --off --skill`: the final policy plus a second network on each neo's block, no search; HANDOFF section 3, 31 Oct): one row per skill checkpoint (its path and sha1 in `skill`, `skill_sha1`; `skill_jump` when the jump readout is not 0.5), single-neo validation family 40 and test families 41, 49, 50 and 51 (each version's own fresh set played once, the others labelled additional in the tag), simulator, CPU |
 | `skill_details/*.json` | the same runs course by course (`single40-RUN-uUPDATES.json`, `single41-*`, `single49-*`) |
 
 ## Pages to show

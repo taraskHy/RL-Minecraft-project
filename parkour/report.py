@@ -601,12 +601,12 @@ def neo_skill(out: Path) -> list:
     tests = read(out / "neo" / "skill_test.jsonl")
     ref = {r.get("family"): r for r in read(out / "neo" / "assist_test.jsonl")
            if r.get("run_id") in ("assist_parts/single41-test-planner", "assist_parts/single49-test-planner",
-                                  "assist_parts/single50-test-planner")}
+                                  "assist_parts/single50-test-planner", "assist_parts/single51-test-planner")}
     if tests:
         lines += ["", f"Tests (strict, plain in brackets), each version played once on its own test set and the others",
-                  "labelled additional (the tag says which); the planner's setting on the same courses beside it. The first",
-                  "version was chosen from 37 snapshots; the second, after two DAgger rounds from the planner on the four",
-                  f"hardest types (`neo-skill-d1`, `-d2`), from all {len(val)} candidates:", "",
+                  "labelled additional (the tag says which); the planner's setting on the same courses beside it. Each version",
+                  "was the most strict on family 40 when it was chosen: a2 of 37 snapshots, d2 (two DAgger rounds) of 62",
+                  f"candidates, d4 (a third, corrected round) of all {len(val)}:", "",
                   "| Skill | Test set | Played as | Neo skill | Final policy + neo planner |", "| --- | --- | --- | --- | --- |"]
         for r in tests:
             p = ref.get(r["family"])
@@ -625,8 +625,10 @@ def neo_skill(out: Path) -> list:
     games = [r for r in (game_row(out, n, n + label) for n, label in (
         ("single41-offline-skill", " (course list + first neo skill)"), ("single41-live-skill", " (course list + first neo skill)"),
         ("single41-offline-skill-router", " (router + first neo skill)"), ("single41-live-skill-router", " (router + first neo skill)"),
-        ("single41-offline-skill-d2", " (course list + neo skill)"), ("single41-live-skill-d2", " (course list + neo skill)"),
-        ("single41-offline-skill-d2-router", " (router + neo skill)"), ("single41-live-skill-d2-router", " (router + neo skill)")))
+        ("single41-offline-skill-d2", " (course list + neo skill, d2)"), ("single41-live-skill-d2", " (course list + neo skill, d2)"),
+        ("single41-offline-skill-d2-router", " (router + neo skill, d2)"), ("single41-live-skill-d2-router", " (router + neo skill, d2)"),
+        ("single41-offline-skill-d4", " (course list + neo skill, d4)"), ("single41-live-skill-d4", " (course list + neo skill, d4)"),
+        ("single41-offline-skill-d4-router", " (router + neo skill, d4)"), ("single41-live-skill-d4-router", " (router + neo skill, d4)")))
         if r]
     if games:
         lines += ["", "The bots on the first 64 single-neo test courses, from the bots' start:", ""] + GAME_HEADER + games

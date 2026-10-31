@@ -230,13 +230,15 @@ snapshot measured:
 | `neo-skill-a5` | 100: 280, 200: 278, 300: 281, 400: 281, 500: 278, 600: 274 | 281 (updates 300) |
 | `neo-skill-d1` | 50: 274, 100: 274, 150: 279, 200: 272, 250: 265, 300: 273, 350: 276, 400: 269, 450: 279, 500: 273 | 279 (updates 150) |
 | `neo-skill-d2` | 50: 271, 100: 275, 150: 275, 200: 284, 250: 286, 300: 283, 350: 283, 400: 287, 450: 284, 500: 287 | 287 (updates 400) |
+| `neo-skill-d3` | 50: 283, 100: 278, 150: 275, 200: 274, 250: 265, 300: 275, 350: 274, 400: 278, 450: 275, 500: 275 | 283 (updates 50) |
+| `neo-skill-d4` | 50: 272, 100: 279, 150: 279, 200: 283, 250: 279, 300: 273, 350: 275, 400: 289, 450: 287, 500: 281 | 289 (updates 400) |
 
 Other candidates on family 40: `runs/neo-skill-a2/checkpoints/updates_01000.pt` with the jump readout 0.4: 275; `runs/neo-skill-a2/checkpoints/updates_01000.pt` with the jump readout 0.3: 275; `runs/neo-skill-a2/checkpoints/updates_01000.pt` with the jump readout 0.2: 276; `runs/neo-skill-avg/a2_700-1000.pt`: 283; `runs/neo-skill-avg/a5_100-600.pt`: 282.
 
 Tests (strict, plain in brackets), each version played once on its own test set and the others
-labelled additional (the tag says which); the planner's setting on the same courses beside it. The first
-version was chosen from 37 snapshots; the second, after two DAgger rounds from the planner on the four
-hardest types (`neo-skill-d1`, `-d2`), from all 62 candidates:
+labelled additional (the tag says which); the planner's setting on the same courses beside it. Each version
+was the most strict on family 40 when it was chosen: a2 of 37 snapshots, d2 (two DAgger rounds) of 62
+candidates, d4 (a third, corrected round) of all 82:
 
 | Skill | Test set | Played as | Neo skill | Final policy + neo planner |
 | --- | --- | --- | --- | --- |
@@ -245,6 +247,11 @@ hardest types (`neo-skill-d1`, `-d2`), from all 62 candidates:
 | `runs/neo-skill-d2/checkpoints/updates_00400.pt` | family 50 | test, once | 277 (277) of 320 | 284 (285) |
 | `runs/neo-skill-d2/checkpoints/updates_00400.pt` | family 41 | additional | 280 (280) of 320 | 276 (277) |
 | `runs/neo-skill-d2/checkpoints/updates_00400.pt` | family 49 | additional | 268 (268) of 320 | 288 (289) |
+| `runs/neo-skill-d4/checkpoints/updates_00400.pt` | family 51 | test, once | 265 (265) of 320 | 284 (286) |
+| `runs/neo-skill-d4/checkpoints/updates_00400.pt` | family 41 | additional | 274 (275) of 320 | 276 (277) |
+| `runs/neo-skill-d4/checkpoints/updates_00400.pt` | family 49 | additional | 274 (274) of 320 | 288 (289) |
+| `runs/neo-skill-d4/checkpoints/updates_00400.pt` | family 50 | additional | 291 (291) of 320 | 284 (285) |
+| `runs/neo-skill-d2/checkpoints/updates_00400.pt` | family 51 | additional | 275 (275) of 320 | 284 (286) |
 
 Without the course list, the learned router hands a walled jump's block to the same skill (`parkour.route_neo
 --skill`: a decision whose next jump crosses a wall hands it the next two jumps, one whose second jump does,
@@ -255,11 +262,17 @@ the next three):
 | family 40 (validation) | `runs/neo-skill-a2/checkpoints/updates_00700.pt` | 273 (275) of 320 |
 | family 40 (validation) | `runs/neo-skill-a2/checkpoints/updates_01000.pt` | 277 (279) of 320 |
 | family 40 (validation) | `runs/neo-skill-d2/checkpoints/updates_00400.pt` | 273 (276) of 320 |
+| family 40 (validation) | `runs/neo-skill-d4/checkpoints/updates_00400.pt` | 272 (275) of 320 |
 | family 49 (test) | `runs/neo-skill-a2/checkpoints/updates_01000.pt` | 278 (280) of 320 |
 | family 41 (additional test) | `runs/neo-skill-a2/checkpoints/updates_01000.pt` | 271 (273) of 320 |
 | family 50 (test) | `runs/neo-skill-d2/checkpoints/updates_00400.pt` | 280 (284) of 320 |
 | family 41 (additional test) | `runs/neo-skill-d2/checkpoints/updates_00400.pt` | 268 (270) of 320 |
 | family 49 (additional test) | `runs/neo-skill-d2/checkpoints/updates_00400.pt` | 274 (276) of 320 |
+| family 51 (test) | `runs/neo-skill-d4/checkpoints/updates_00400.pt` | 267 (267) of 320 |
+| family 41 (additional test) | `runs/neo-skill-d4/checkpoints/updates_00400.pt` | 263 (265) of 320 |
+| family 49 (additional test) | `runs/neo-skill-d4/checkpoints/updates_00400.pt` | 270 (272) of 320 |
+| family 50 (additional test) | `runs/neo-skill-d4/checkpoints/updates_00400.pt` | 277 (280) of 320 |
+| family 51 (additional test) | `runs/neo-skill-d2/checkpoints/updates_00400.pt` | 253 (253) of 320 |
 
 The bots on the first 64 single-neo test courses, from the bots' start:
 
@@ -269,10 +282,14 @@ The bots on the first 64 single-neo test courses, from the bots' start:
 | single41-live-skill (course list + first neo skill) | live (Minecraft 1.21.4 server) | 50/64 | 79.7 | 98.4 | 1 | 2.3e+00 |
 | single41-offline-skill-router (router + first neo skill) | offline (prismarine-physics, no server) | 52/64 | 81.2 | 100.0 | - | 3.6e-15 |
 | single41-live-skill-router (router + first neo skill) | live (Minecraft 1.21.4 server) | 51/64 | 81.2 | 98.4 | 1 | 2.3e+00 |
-| single41-offline-skill-d2 (course list + neo skill) | offline (prismarine-physics, no server) | 59/64 | 92.2 | 100.0 | - | 7.1e-15 |
-| single41-live-skill-d2 (course list + neo skill) | live (Minecraft 1.21.4 server) | 59/64 | 92.2 | 100.0 | 0 | 2.1e-14 |
-| single41-offline-skill-d2-router (router + neo skill) | offline (prismarine-physics, no server) | 55/64 | 85.9 | 100.0 | - | 7.1e-15 |
-| single41-live-skill-d2-router (router + neo skill) | live (Minecraft 1.21.4 server) | 55/64 | 85.9 | 100.0 | 0 | 2.1e-14 |
+| single41-offline-skill-d2 (course list + neo skill, d2) | offline (prismarine-physics, no server) | 59/64 | 92.2 | 100.0 | - | 7.1e-15 |
+| single41-live-skill-d2 (course list + neo skill, d2) | live (Minecraft 1.21.4 server) | 59/64 | 92.2 | 100.0 | 0 | 2.1e-14 |
+| single41-offline-skill-d2-router (router + neo skill, d2) | offline (prismarine-physics, no server) | 55/64 | 85.9 | 100.0 | - | 7.1e-15 |
+| single41-live-skill-d2-router (router + neo skill, d2) | live (Minecraft 1.21.4 server) | 55/64 | 85.9 | 100.0 | 0 | 2.1e-14 |
+| single41-offline-skill-d4 (course list + neo skill, d4) | offline (prismarine-physics, no server) | 55/64 | 85.9 | 100.0 | - | 7.1e-15 |
+| single41-live-skill-d4 (course list + neo skill, d4) | live (Minecraft 1.21.4 server) | 55/64 | 85.9 | 100.0 | 0 | 2.1e-14 |
+| single41-offline-skill-d4-router (router + neo skill, d4) | offline (prismarine-physics, no server) | 55/64 | 85.9 | 100.0 | - | 7.1e-15 |
+| single41-live-skill-d4-router (router + neo skill, d4) | live (Minecraft 1.21.4 server) | 54/64 | 85.9 | 98.4 | 1 | 2.9e+00 |
 
 ## Final policy: discount 0.995
 
@@ -429,6 +446,7 @@ are the chosen settings.
 | test | single (family 41) | `final_policy` | single TEST: final policy + planner (all, retries 1, brake 14, retry horizon 48, restarts 3), chosen on family 40 | all | 277/320 (86.6) | 286/314 | 2917/2917 |
 | test | single (family 49) | `final_policy` | TEST (fresh set 49, a reference for the neo skill): final policy + planner (all, retries 1, brake 14, retry horizon 48, restarts 3), the family-41 test setting | all | 289/320 (90.3) | 291/317 | 3001/3001 |
 | test | single (family 50) | `final_policy` | TEST (fresh set 50, a reference for the neo skill d2): final policy + planner (all, retries 1, brake 14, retry horizon 48, restarts 3), the family-41 test setting | all | 285/320 (89.1) | 296/319 | 3021/3021 |
+| test | single (family 51) | `final_policy` | TEST (fresh set 51, a reference for the neo skill d4): final policy + planner (all, retries 1, brake 14, retry horizon 48, restarts 3), the family-41 test setting | all | 286/320 (89.4) | 290/317 | 2993/2993 |
 
 The assist in the bots, on the neo course set of the neo policy's runs (`configs/neo_live_courses.json`:
 the first 10 held-out test courses with a neo of levels 6, 7 and 8, and the showcase neo course; the

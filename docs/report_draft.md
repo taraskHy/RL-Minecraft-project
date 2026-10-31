@@ -23,8 +23,8 @@ Our contributions:
 5. Neo jumps around a wall's end, which exploration never found: learned
    from search demonstrations and DAgger (section 7.7), planned at play time
    with the exact simulator, narrowly meeting our 85% single-neo goal, and
-   then reached with no search by a learned neo skill on a fresh test
-   set (section 7.8).
+   then reached on average with no search by a learned neo skill
+   (section 7.8).
 6. Routing without being told the platforms: a greedy planner, and a learned
    router that beats it (section 7.9).
 7. One network for every skill, matching the specialists, and a learned
@@ -438,13 +438,12 @@ stopped. Played once, this setting completes 276 of 320 test courses
 (86.25%), against 137 (42.8%) for the best policy alone: the goal is met,
 narrowly, since the search seed alone moves a count by 7 to 11 courses.
 
-| Courses (simulator: strict count; bots: completed) | Final policy + neo planner | Final policy + neo skill: first, after DAgger | Best policy alone (DAgger round 4) |
+| Courses (simulator: strict count; bots: completed) | Final policy + neo planner | Final policy + neo skill (shipped) | Best policy alone (DAgger round 4) |
 | --- | --- | --- | --- |
-| 320 validation (family 40), simulator | 286 (89.4%) | 283; 287 (89.7%), best of 62 | 146 (45.6%), best of 10 |
-| 320 test (family 41), simulator, played once | 276 (86.25%) | 264 (82.5%); 280 additional | 137 (42.8%) |
-| 320 fresh test (family 49), played once | 288 (90.0%) | 276 (86.25%); 268 additional | - |
-| 320 fresh test (family 50), played once | 284 (88.75%) | 277 (86.6%) | - |
-| first 64 test courses, offline bot and real Minecraft | 58/64, 58/64; 55/64, 55/64 after both fixes | 59/64, 59/64 after DAgger | 26/64, 26/64 |
+| 320 validation (family 40), simulator | 286 (89.4%) | 289 (90.3%), best of 82 | 146 (45.6%), best of 10 |
+| 320 test (family 41), simulator, played once | 276 (86.25%) | 274 (85.6%), additional | 137 (42.8%) |
+| three fresh test sets (49-51), 960 courses | 856 (89.2%) | 830 (86.5%); 51, its own: 265 | - |
+| first 64 test courses, offline bot and real Minecraft | 58/64, 58/64; 55/64, 55/64 after both fixes | 55/64, 55/64 | 26/64, 26/64 |
 
 **The bots.** Before any fix, the offline bot and real Minecraft each
 completed 58 of the first 64 test courses, as did the policy check (section
@@ -474,13 +473,13 @@ the neo detector. PPO trains it on that block alone, each episode starting
 in the exact state in which the final policy first stands there, on 63,777
 training courses (`parkour/neo_skill.py`). The first version (best of 37
 snapshots) completes 264 test courses (82.5%), short of the goal: on four
-types with the wall in the first gap cell it stood still. Two DAgger rounds
+types with the wall in the first gap cell it stood still. DAgger rounds
 then imitated the planner's landings from its own states on those types.
-The best of all 62 candidates completes 277 of a fresh test set (86.6%,
-played once; 280 with the router's walled choice as the gate) and 85.9% of
-all 960 test courses. It loses about as many neos as the search but more
-ordinary jumps, which the planner plans and the skill leaves to the final
-policy.
+Each version, chosen on validation, played its own fresh set once (86.6%
+after two rounds, 82.8% after three); one 320-course set moves a count by
+about 4 points, more than the versions differ. Over all 1,280 test courses
+the shipped one makes 86.25% (the router as the gate: 84.1%; the planner:
+88.4%); it loses ordinary jumps the planner plans.
 
 ### 7.9 Without the course list: greedy planner, learned router, learned route model
 
@@ -604,8 +603,8 @@ decides which jumps it tries.
 courses, and imitation plus DAgger gave 42.8% of the single-neo test courses
 against the planner's 86.25% (section 7.8). PPO closed most of the gap once
 its episodes were only the neo's block, started where the final policy
-really arrives, plus DAgger from the planner on the hardest types: 86.6% of
-a fresh test set with no search. What changed is where episodes start, not
+really arrives, plus DAgger from the planner on the hardest types: 86.25% of
+1,280 test courses with no search. What changed is where episodes start, not
 the algorithm.
 
 **Statistics.** Many results rest on one training run: most hyperparameter
@@ -654,7 +653,7 @@ courses (86.25%, strict, simulator, played once) against 42.8% for the best
 policy alone; in real Minecraft the bot made the simulator's courses on the
 first 64 of them (58, then 55 after two later fixes; section 7.8), with 0
 corrections. With no search, a neo skill trained by PPO on the neo's block
-alone, then DAgger, completes 86.6% of a fresh test set (85.9% of 960).
+alone, then DAgger, completes 86.25% of 1,280 test courses.
 
 Without the course list, a learned router trained with PPO plus an
 imitation term towards the course's next platform picks each platform from
