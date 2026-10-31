@@ -361,6 +361,32 @@
         "--segment-base",
         "results/final_policy.pt"
       ]
+    },
+    {
+      "name": "neo-skill-a5",
+      "init": "runs/neo-skill-a2/checkpoints/updates_01000.pt",
+      "flags": [
+        "--segments",
+        "runs/neo_skill_bank_v1.pt",
+        "--gamma",
+        "0.99",
+        "--obstacle-prob",
+        "0",
+        "--iterations",
+        "2000",
+        "--reward-stall",
+        "15",
+        "--lr-max",
+        "3e-4",
+        "--pool-size",
+        "4096",
+        "--eval-every",
+        "500",
+        "--save-at",
+        "100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000",
+        "--ent-coef",
+        "0.01"
+      ]
     }
   ]
 }

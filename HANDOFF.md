@@ -465,6 +465,18 @@ fixed at 09:24:49, before any run of it:**
   once on family 49 (no router mode has played it) and on family 41,
   labelled additional (the router's 252 and 280 are already there). Every
   test and validation command runs with `--device cpu`.
+- **A fifth run, fixed at 10:56:00 before it starts:** `neo-skill-a5`, from
+  `neo-skill-a2` updates 1000 (283, the best validation count so far), with
+  a2's settings (no `--segment-base`, entropy 0.01) but a stall penalty of 15
+  instead of 5. Why (family 40 only): the strict failures of a2's and a3's
+  snapshots at the four hardest types (16-19: a wall in the first gap cell,
+  gap 2 rising 1 or gap 3 level) are almost all stops on the takeoff (17 of
+  20 for a2 updates 1000), about 12% of their training episodes end in a
+  stall, and a stall (penalty 5 plus 2 of time) costs about what a fall
+  costs, so trying is not preferred. `neo-skill-a3` (275 at update 400, no
+  gain over a2 so far) stops at its next snapshot after 10:56 to free the
+  GPU slot; its snapshots stay candidates, a5's are chosen by the same rule,
+  and "at the end" then means once a4 and a5 have finished.
 - **Progress (simulator unless named; validation family 40):**
   - Code: commits `f8a870f` (the bank, `SegmentEnv`, `TypeSampler`,
     `train.py --segments` and `--segment-base`, `neo_assist --skill` with
