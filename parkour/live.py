@@ -138,16 +138,9 @@ def main(argv=None):
         # route_env.Scene refuses it too, but only in the simulator re-run, after the bots have played every course
         raise SystemExit("--router-blocked keep or plan needs the planner's straight-path check (clear_path)")
 
-    out = Path(a.out).resolve()
-    out.mkdir(parents=True, exist_ok=False)
     from .neo_assist import AssistConfig, assist_fields, courses_from_file
-    if a.courses_file:  # with their jump specs (Course.from_json leaves them out), which the assist plans by
-        courses = courses_from_file(json.loads(Path(a.courses_file).read_text())["courses"])
-    else:
-        courses = pick_courses(a.per_level, obstacles=a.obstacles)
-    course_json = [c.to_json() for c in courses]
     assist_cfg = None
-    if a.assist:
+    if a.assist:  # refused before anything is written
         if a.planner and not a.router:
             raise SystemExit("--assist needs the course list or the learned router (not the greedy --planner)")
         assist_cfg = AssistConfig(**{"batch": 1, **json.loads(a.assist)})
@@ -161,6 +154,14 @@ def main(argv=None):
             if a.router:
                 raise SystemExit('--router with an assist that is not enabled: use --router-blocked keep instead')
             assist_cfg = None
+
+    out = Path(a.out).resolve()
+    out.mkdir(parents=True, exist_ok=False)
+    if a.courses_file:  # with their jump specs (Course.from_json leaves them out), which the assist plans by
+        courses = courses_from_file(json.loads(Path(a.courses_file).read_text())["courses"])
+    else:
+        courses = pick_courses(a.per_level, obstacles=a.obstacles)
+    course_json = [c.to_json() for c in courses]
     if assist_cfg is not None and not a.router:
         for c, d in zip(courses, course_json):
             d.update(assist_fields(c, assist_cfg))  # takeoffs, targets (past a slime pad: its exit), retry horizons

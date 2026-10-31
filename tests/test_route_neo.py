@@ -145,6 +145,10 @@ class RouteNeoSimulator(Shared):
         self.assertEqual((ok[course, target].tolist(), sc.blocked[course, target].tolist(), sc.walled[course, target].tolist()),
                          ([True] * 3, [True] * 3, [False] * 3))
         keep = self.routed(cs, "keep")
+        for i, (c, k) in enumerate(zip(cs, ks)):  # from k the router picks k + 1, past the platform in the way
+            plats = [tuple(int(v) for v in r) for r in c.platforms]
+            chain = next(ch for _, here, ch in keep["events"][i] if tuple(here) == plats[k])
+            self.assertEqual(tuple(chain[0]), plats[k + 1])
         plan = self.routed(cs, "plan", AssistConfig(samples=64, iterations=3))
         self.assertEqual(plan["events"], [])
         self.assertEqual([c["success"] for c in plan["per_course"]], keep["per_course"]["success"])
@@ -161,17 +165,32 @@ class RouteNeoSimulator(Shared):
         self.assertGreaterEqual(sum(c["success"] for c in res["per_course"]), 4)
 
     def test_plan_on_plans_the_jumps_after_a_planned_landing(self):
+        import parkour.route_neo as RN
         cs = neo_courses([1, 2, 3, 11])
-        res = self.routed(cs, "plan", AssistConfig(samples=256, iterations=8, restarts=1, plan_on=1))
+        seen, real = [], RN.plan_once
+
+        def spy(model, pool, rules, arr, *rest):
+            seen.append(dict(arr))
+            return real(model, pool, rules, arr, *rest)
+        with mock.patch.object(RN, "plan_once", spy):
+            res = self.routed(cs, "plan", AssistConfig(samples=256, iterations=8, restarts=1, plan_on=1))
+        longest = 0
         for i, c in enumerate(cs):
             k = neo_takeoffs(c)[0]
             ev = [e for e in res["events"] if e["course"] == i]
             self.assertEqual((ev[0]["takeoff"], ev[0]["target"]), (k, k + 1))  # the neo first, as without plan_on
+            run = 1
             for a, b in zip(ev, ev[1:]):  # then each landing's next choice: a chain of planned jumps
                 if a["found"] and b["kind"] == "takeoff":
                     self.assertEqual(b["takeoff"], a["target"])
+                run = run + 1 if a["found"] and b["kind"] == "takeoff" else 1
+                longest = max(longest, run)
             self.assertGreater(len(ev), 1)
+        self.assertGreaterEqual(longest, 3)  # "and so on while plans land": three planned jumps in a row
         self.assertEqual(res["plans"]["landed_as_planned"], res["plans"]["played"])
+        # Each planned jump is searched as a neo (the neo levers, here restarts, apply), the neo's and those after it.
+        self.assertTrue(all(arr["neo"] for arr in seen))
+        self.assertTrue(any(arr["cp"] != neo_takeoffs(cs[arr["course"]])[0] for arr in seen))
         without = self.routed(cs, "plan", AssistConfig(samples=256, iterations=8, restarts=1))
         self.assertEqual(sorted((e["course"], e["takeoff"]) for e in without["events"]),
                          [(i, neo_takeoffs(c)[0]) for i, c in enumerate(cs)])
@@ -283,6 +302,23 @@ class RouteNeoSimulator(Shared):
             with self.assertRaises(ValueError, msg=str(bad)):
                 check_config(RouteConfig(blocked="plan"), AssistConfig(**bad))
         check_config(RouteConfig(blocked="plan"), AssistConfig(restarts=3, retries=1, brake=14, plan_start=1, corner_limit=0.25))
+        # The same through each entry point, before anything runs or is written.
+        from parkour import live
+        from parkour.route_neo import main
+        with self.assertRaises(ValueError):
+            self.routed(scratch_neo_courses([0]), "plan", AssistConfig(prior=0.5))
+        with tempfile.TemporaryDirectory() as d:
+            with self.assertRaises(ValueError):
+                main(["--set", "single", "--family", str(SINGLE_VALIDATION_FAMILY), "--courses", "1", "--device", "cpu",
+                      "--assist", json.dumps({"approach": 48}), "--out", os.path.join(d, "rows.jsonl"), "--parts-dir", d,
+                      "--name", "refused", "--details", os.path.join(d, "refused.json.gz"), "--tag", "t"])
+            self.assertEqual(os.listdir(d), [])
+            for bad in ({"jumps": "all"}, {"batch": 2}):
+                out = os.path.join(d, "run")
+                with self.assertRaises((ValueError, SystemExit), msg=str(bad)):
+                    live.main(["--offline", "--checkpoint", str(ROOT / "results" / "final_policy.pt"), "--router",
+                               str(ROUTER), "--assist", json.dumps(bad), "--out", out])
+                self.assertFalse(os.path.exists(out))
 
     def test_the_service_plans_a_router_request_as_the_simulator(self):
         # Every request of a run (with failures: brakes and retries), sent to the bots' planner service as the bots
