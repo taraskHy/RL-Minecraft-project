@@ -535,7 +535,15 @@ fixed at 09:24:49, before any run of it:**
   normaliser statistic of `neo-skill-a2` updates 700, 800, 900 and 1000, and
   of `neo-skill-a5` updates 100 to 600. Chosen with every other candidate on
   family 40 (the most strict); a candidate above 283 is tested once on
-  family 50 in both modes and on 41 and 49 as additional.
+  family 50 in both modes and on 41 and 49 as additional. **Result (12:17):**
+  283 and 282, so neither is tested (283 is not above 283).
+- **A second DAgger round, fixed at 12:16:23 before any run of it:**
+  `neo-skill-d2`, from `neo-skill-a2` updates 1000, as d1 but its pairs are
+  d1's plus new ones from the same skill on the first 1,500 bank courses of
+  types 16-19: its states every 3rd tick of the first 12 in the air after
+  it first leaves the takeoff (while not below the takeoff; searched to the
+  target) and its first ground contact on the target (searched to the
+  platform after it). Chosen and tested as d1.
 - **Router mode with the same skill (no course list, no search;
   `results/neo_routing/skill_*.jsonl`):** validation family 40, 277; test
   family 49, played once, 278 of 320 (86.9%); family 41, additional, 271

@@ -354,18 +354,24 @@ class SegmentEnv(ParkourEnv):
         return obs, reward.to(torch.float32), terminal, truncated & ~stalled, final_obs, info
 
 
-def takeoff_states(skill, bank: SegmentBank, idx: list[int], device, waits=(0, 10, 20), max_ticks: int = 600):
-    """The skill's own states on the takeoff of bank rows ``idx`` (its deterministic block from a bank start): at its
-    first ground contact there and ``waits`` ticks later while it still stands on it. Returns the pool and the
-    arrival dicts (``neo_assist._arrival``; the target is the neo's, k+1) for the neo planner's search."""
+def takeoff_states(skill, bank: SegmentBank, idx: list[int], device, waits=(0, 10, 20), max_ticks: int = 600,
+                   air_every: int = 0, exits: bool = False, air_max: int = 12):
+    """The skill's own states in the blocks of bank rows ``idx`` (its deterministic block from a bank start): on the
+    takeoff at its first ground contact and ``waits`` ticks later while it still stands there; with ``air_every``,
+    also every that many ticks in the air between the takeoff and the target (searched to the target); with
+    ``exits``, its first ground contact on the target (searched to the platform after it). Returns the pool and the
+    arrival dicts (``neo_assist._arrival``: the target is the next platform) for the neo planner's search."""
     from .neo_assist import _arrival
     pool = CoursePool([bank.courses[i] for i in idx], device, C.GRID)
     n = len(idx)
     env = SegmentEnv(pool, EnvConfig(num_envs=n, stall_ticks=200, max_ticks=max_ticks), slots=bank.rows(idx))
     obs = env.reset_all(torch.arange(n, device=device))
     k = env.slot["k"]
+    end = env.slot["end"]
     rows = torch.arange(n, device=device)
     first = torch.full((n,), -1, dtype=torch.int64, device=device)
+    left = torch.full((n,), -1, dtype=torch.int64, device=device)  # the tick it left the takeoff
+    exited = torch.zeros(n, dtype=torch.bool, device=device)
     finished = torch.zeros(n, dtype=torch.bool, device=device)
     out = []
     with torch.no_grad():
@@ -375,15 +381,27 @@ def takeoff_states(skill, bank: SegmentBank, idx: list[int], device, waits=(0, 1
             finished |= info["done"]
             on = ~finished & (env.cp == k) & env.standing_on(env.state, env.course)[rows, k]
             first = torch.where(on & (first < 0), torch.full_like(first, t), first)
-            take = on & (first >= 0) & torch.isin(t - first, torch.tensor(waits, device=device))
-            out += [_arrival(env, i) for i in torch.nonzero(take).flatten().tolist()]
-            if bool((finished | ((first >= 0) & (t - first > max(waits)))).all()):
+            kinds = {"takeoff": on & (first >= 0) & torch.isin(t - first, torch.tensor(waits, device=device))}
+            if air_every:  # the first ``air_max`` ticks of its first flight off the takeoff, while not below it
+                air = ~finished & (env.cp == k) & (first >= 0) & ~env.state.on_ground
+                left = torch.where(air & (left < 0), torch.full_like(left, t), left)
+                high = env.state.pos[:, 1] > env.pool.top[env.course, k] - 0.5
+                kinds["air"] = (air & high & (left >= 0) & ((t - left) % air_every == 0) & (t - left <= air_max)
+                                & (t > left))
+            if exits:
+                kinds["exit"] = ~finished & ~exited & (env.cp == k + 1) & (k + 1 < end)
+                exited |= kinds["exit"]
+            for kind, take in kinds.items():
+                out += [dict(_arrival(env, i), kind=kind) for i in torch.nonzero(take).flatten().tolist()]
+            if bool(finished.all()) or (not air_every and not exits
+                                        and bool((finished | ((first >= 0) & (t - first > max(waits)))).all())):
                 break
     return pool, out
 
 
 def dagger_pairs(skill_path: Path, bank_path: Path, out: Path, types=(16, 17, 18, 19), courses: int = 6000,
-                 device="cuda", batch: int = 256, prior: float = 0.95, seed: int = 0) -> dict:
+                 device="cuda", batch: int = 256, prior: float = 0.95, seed: int = 0, air_every: int = 0,
+                 exits: bool = False) -> dict:
     """(observation, action) pairs from the neo planner's landings, simplified, at the skill's own takeoff states
     (``takeoff_states``) on the bank's courses of ``types`` (HANDOFF.md, 31 Oct, 11:46): ``train.py --bc-pairs``."""
     from . import neo_assist as NA
@@ -393,7 +411,7 @@ def dagger_pairs(skill_path: Path, bank_path: Path, out: Path, types=(16, 17, 18
     bank = SegmentBank(bank_path, "cpu")
     idx = [i for i, c in enumerate(bank.courses) if c.level in types][:courses]
     bank.device = device
-    pool, arrivals = takeoff_states(skill, bank, idx, device)
+    pool, arrivals = takeoff_states(skill, bank, idx, device, air_every=air_every, exits=exits)
     rules = NA.Rules(pool)
     cfg = NA.AssistConfig(keep=1, prior=prior)
     found = []
@@ -406,7 +424,10 @@ def dagger_pairs(skill_path: Path, bank_path: Path, out: Path, types=(16, 17, 18
     simple = simplify(skill, pool, arrivals, found, device)
     obs, act = pairs(pool, arrivals, simple, device)
     meta = {"skill": str(skill_path), "skill_sha1": hashlib.sha1(Path(skill_path).read_bytes()).hexdigest()[:12],
-            "bank": str(bank_path), "types": list(types), "courses": len(idx), "arrivals": len(arrivals),
+            "bank": str(bank_path), "types": list(types), "courses": len(idx), "air_every": air_every, "exits": exits,
+            "arrivals": len(arrivals),
+            "kinds": {kd: [sum(1 for x in arrivals if x["kind"] == kd),
+                           sum(1 for x, f in zip(arrivals, found) if x["kind"] == kd and f)] for kd in ("takeoff", "air", "exit")},
             "with_landing": sum(bool(f) for f in found), "simplified": sum(len(f) for f in simple),
             "pairs": int(obs.shape[0]), "prior": prior, "device": str(device), "seconds": round(time.time() - t0, 1)}
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -426,6 +447,9 @@ def main(argv=None):
     d.add_argument("--courses", type=int, default=6000)
     d.add_argument("--batch", type=int, default=256)
     d.add_argument("--device", default="cuda")
+    d.add_argument("--air-every", type=int, default=0, help="also the skill's states every N ticks in the air after the takeoff")
+    d.add_argument("--exits", action="store_true", help="also its first ground contact on the target (to the next platform)")
+    d.add_argument("--seed", type=int, default=0)
     b = sub.add_parser("bank", help="the training bank of block starts")
     b.add_argument("--checkpoint", default=str(ROOT / "results" / "final_policy.pt"))
     b.add_argument("--out", default=str(ROOT / "runs" / "neo_skill_bank.pt"))
@@ -438,7 +462,7 @@ def main(argv=None):
         if Path(a.out).exists():
             raise SystemExit(f"{a.out} exists; choose a new name")
         dagger_pairs(Path(a.skill), Path(a.bank), Path(a.out), tuple(int(t) for t in a.types.split(",")), a.courses,
-                     a.device, a.batch)
+                     a.device, a.batch, seed=a.seed, air_every=a.air_every, exits=a.exits)
         return
     if a.cmd == "bank":
         lo, _, hi = a.families.partition("-")
