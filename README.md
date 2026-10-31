@@ -14,7 +14,9 @@ real Minecraft server, on new courses.
 **Status:** see [TEAM_STATUS.md](TEAM_STATUS.md) (updated by hand, so it can lag behind [results/README.md](results/README.md), which is generated from the run files).
 **Design and method:** [docs/design.md](docs/design.md).
 **For AI agents and new contributors:** [AGENTS.md](AGENTS.md) (rules) and [HANDOFF.md](HANDOFF.md) (current state, what is left, what not to touch, open problems; kept up to date every session).
-**Routing by RL (the teammate's PC):** [docs/MISSION_ROUTING.md](docs/MISSION_ROUTING.md), a self-contained brief: beat the greedy route planner with a learned router.
+**Routing by RL (the teammate's PC, done):** a learned router beats the greedy route planner ([results/routing/README.md](results/routing/README.md); the brief was [docs/MISSION_ROUTING.md](docs/MISSION_ROUTING.md)); with the neo planner it also routes courses with a neo ([results/neo_routing/README.md](results/neo_routing/README.md)).
+**The course report:** [docs/report_draft.md](docs/report_draft.md), exported in the submission format as `results/report_draft.pdf`.
+**Results page:** `results/showcase.html` (open it in a browser).
 
 ## Results so far
 
@@ -29,7 +31,10 @@ Final policy: `obstacles-g995` (discount 0.995), chosen on the validation course
 | Physics port against the real library | 1.4e-14 blocks over 99,000 ticks (`results/physics_parity.json`) | Node + prismarine-physics |
 | **Real Minecraft 1.21.4 server** | **59/60 standard, 57/60 obstacle, 3/4 hand-designed; identical to the simulator, 0 server corrections** | real game, Mineflayer bot |
 | Route planner instead of the course list (only the goal position given) | 92.3% standard, 90.5% obstacle (1,200 each); 51/60 and 56/60 in real Minecraft (validation-retuned planner, now default), identical to the simulator | simulator; real game |
+| Learned router instead of the course list (PPO, the teammate's PC; the final policy jumps) | 97.8% standard, 95.0% obstacle (1,200 each, test played once); 57/60 and 56/60 in real Minecraft, identical to the simulator, 0 server corrections | simulator; real game |
 | Neo jumps learned from demonstrations (a separate neo policy) | 29.0% of 210 held-out level 6-8 courses with a neo (0% before); 11/31 neo courses in real Minecraft, identical to the simulator | simulator; real game |
+| Courses with exactly one neo, final policy plus a neo planner that searches each takeoff (320 test courses, played once) | 86.25% (276) with the course list; 78.75% (252) without it, with the learned router; best policy alone 42.8%. On the first 64 in real Minecraft: 55 and 52, identical to the simulator, 0 server corrections | simulator; real game |
+| One network for every skill (PPO plus distillation from the specialists) | 86.4% mean over four skill groups on test, a match for the best specialist of each group; 59/60 and 59/60 on the final policy's bot courses in real Minecraft | simulator; real game |
 
 The one hand-designed course the final policy misses is the neo course. Neo jumps are not in
 its training. The neo policy (`runs/neo-dagger3`) does not finish it either: it passes the first
