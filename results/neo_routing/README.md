@@ -10,25 +10,37 @@ from `date` (Git Bash labels it JST).
 
 ## Headline
 
-The chosen setting is A + `plan_on`. On the single-neo sets (320 courses), counts are completions with the neo done
-as a neo. The files for every number are in the sections below.
+The setting is now D: rule 3's choice C (A + `plan_on`) plus `plan_ahead`, which rule 4 kept (branch
+`neo-routing-2`). On the single-neo sets (320 courses), counts are completions with the neo done as a neo. The files
+for every number are in the sections below.
 
-- **Validation** (family 40, 320 single-neo courses, simulator, CPU): **255, 257 and 251** for search seeds 0, 1 and
-  2 (mean 254.3). As shipped, the router does the neo as a neo on 0 to 2 courses, and on 0 with the final policy
-  jumping. Its plain completions are 8 to 13, and 9 with the final policy (simulator, GPU, 30 Oct). The course-list
-  planner gets 286 at seed 0 and 276 at seed 1.
-- **Test** (family 41, run once; simulator, CPU): **252** of 320. The course-list planner gets 276.
-- **The router's own validation sets** (1,800 courses each; simulator, episodes on the GPU, searches on the CPU):
-  - Family 2: **1,762**, the shipped number. Nothing is planned there (no walls), and the run equals the 30 Oct
-    filter-off what-if on every course.
-  - Family 5: **1,728** against the shipped 1,720 (9 courses won, 1 lost; 7 of the wins are planned jumps).
-- **Bots** on the 64 test courses of `single41-first64`: **52 of 64 offline and 52 of 64 in real Minecraft**. Each
-  matches its simulator re-run on every course (outcome and ticks), with 0 server corrections, and the two bots match
-  each other. The course-list planner gets 55 in both.
-- **Choices**, by rules written before each run (simulator, CPU): rule 1 kept A over B, which led by 3.0 (under the
-  rule's 4); rule 3 added `plan_on`, which led A by 15.3.
-- **Where the router loses courses against the course list** (seed 0; simulator, CPU): 15 against 4 before the neo,
-  and 36 against 24 at the neo. After the neo it loses 10 against 6.
+- **Validation** (family 40, 320 single-neo courses, simulator, CPU), search seeds 0, 1 and 2:
+  - D: **278, 282 and 273** (mean 277.7).
+  - C: 255, 257 and 251 (mean 254.3).
+  - The course-list planner: 286 at seed 0 and 276 at seed 1.
+  - As shipped, the router does the neo as a neo on 0 to 2 courses, and on 0 with the final policy jumping. Its
+    plain completions are 8 to 13, and 9 with the final policy (simulator, GPU, 30 Oct).
+- **Test** (family 41, simulator, CPU), each setting run once:
+  - C, the setting chosen when the test first ran: **252** of 320. This stays the test number.
+  - D, an additional, later test after rule 4: **280** of 320.
+  - The course-list planner: 276.
+- **The router's own validation sets** (1,800 courses each; simulator; searches on the CPU, episodes on the GPU for
+  C and on the CPU for D):
+  - Family 2: **1,762** for C and D, the shipped number. Nothing is planned there (no walls), and both runs equal
+    the 30 Oct filter-off what-if on every course.
+  - Family 5: **1,728** for C and D, against the shipped 1,720. Each wins 9 courses and loses 1; 7 of C's wins and
+    8 of D's are planned jumps.
+- **Bots** on the 64 test courses of `single41-first64`:
+  - C: **52 of 64 offline and 52 of 64 in real Minecraft**. Each matches its simulator re-run on every course
+    (outcome and ticks), with 0 server corrections, and the two bots match each other.
+  - The course-list planner gets 55 in both.
+- **Choices**, by rules written before each run (simulator, CPU):
+  - rule 1 kept A over B, which led by 3.0 (under the rule's 4);
+  - rule 3 added `plan_on`, which led A by 15.3;
+  - rule 4 added `plan_ahead`, which led C by 23.3.
+- **Where the router loses courses against the course list** (seed 0; simulator, CPU): D loses 7 before the neo
+  against the course list's 4, 23 at the neo against 24, and 8 after it against 6. 2 more are lost after going past
+  the neo without doing it. C lost 15, 36 and 10 there.
 
 ## Why (measured on 30 Oct before this branch; simulator, GPU; files in the main checkout's `runs/`)
 
@@ -437,15 +449,20 @@ These runs used the first trigger, which planned every blocked choice. Rows are 
 
 Both `route*-A-s0` runs used A, with episodes on the GPU and searches on the CPU.
 
-### Follow-ups (not run)
+### Follow-ups
 
-1. **Plan the jumps before the neo too.** 15 courses are lost there, against the course-list planner's 4, and those
-   jumps are the jumper's. A lever that plans every router decision from the start while the plans land would be
-   the router's version of the course-list `jumps: "all"`. It needs its own rule on family 40.
-2. **The searches at the neo.** 36 courses are lost there against the course list's 24, every one with no landing
-   found, and B's bigger neo search did not help (3-seed mean +3.0). A plan for the approach to the router's walled
-   choice, one decision earlier, would mirror the course list's `approach`, which is refused here because it needs
-   the course list.
+1. **Plan the jumps before the neo too:** done as rule 4 (`plan_ahead`, kept). It plans the jumps whose route
+   crosses a wall, not every jump, so nothing is planned on family 2. (PR #3's text: 15 courses were lost there,
+   against the course-list planner's 4; a lever planning the router's decisions would be the router's version of
+   the course-list `jumps: "all"`, with its own rule on family 40.)
+2. **The searches at the neo** (not run). With D, 23, 23 and 29 courses are lost there, against the course list's 24
+   at seed 0 (C: 36, 35 and 40). Each is a search with no landing found, and B's bigger neo search did not help C
+   (3-seed mean +3.0). A plan for the approach to the router's walled choice, one decision earlier, would mirror
+   the course list's `approach`, which is refused here because it needs the course list.
+3. **The jumps further from the neo** (not run). D at seed 0 loses 7 courses before the neo and 8 after it, against
+   the course list's 4 and 6, and 2 more after going past the neo without doing it. Of those before it, 2, 1 and 1
+   (at the three seeds) are on the jump onto the takeoff; the rest are earlier jumps, which `plan_ahead` (two slots
+   ahead) does not plan.
 
 ## Reproduce
 
