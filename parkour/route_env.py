@@ -582,12 +582,14 @@ class RouteRunner:
             act, out = choose(feats, ok, sc.inview)
             act = torch.where(any_ok, act, torch.full_like(act, -1))
         picks = [act]
+        walled_chain = [walled[ar, act.clamp(min=0)] & (act >= 0)]  # per slot: its jump is blocked by a wall
         prev = act
         for depth in (1, 2):
             live = (prev >= 0) & ~sc.is_goal[ar, prev.clamp(min=0)]
             if not bool(live.any()):
                 prev = torch.full_like(act, -1)
                 picks.append(prev)
+                walled_chain.append(torch.zeros_like(live))
                 continue
             chain[ar[prev >= 0], prev[prev >= 0]] = True
             ex = excluded | chain
@@ -608,6 +610,7 @@ class RouteRunner:
                     self.fill_log.append({"feats": fd[keep], "ok": okd[keep], "inview": sc.inview[keep], "label": lab[keep]})
             prev = torch.where(live, nxt, torch.full_like(nxt, -1))
             picks.append(prev)
+            walled_chain.append(sc.walled[ar, prev.clamp(min=0)] & (prev >= 0))  # sc.walled: from this slot's frm
         picks = torch.stack(picks, 1)  # (M, LOOK) tokens, -1 = none
         pv = picks >= 0
         pc = picks.clamp(min=0)
@@ -622,7 +625,8 @@ class RouteRunner:
         self.G[rows, 1:] = sc.is_goal[ar[:, None], pc] & pv
         return {"rows": rows, "feats": feats, "ok": ok, "inview": sc.inview, "action": act, "any_ok": any_ok,
                 "out": out, "cidx": sc.cidx, "here": here, "picks": picks, "rect": sc.rect,
-                "blocked": blocked[ar, act.clamp(min=0)] & (act >= 0), "walled": walled[ar, act.clamp(min=0)] & (act >= 0)}
+                "blocked": blocked[ar, act.clamp(min=0)] & (act >= 0), "walled": walled_chain[0],
+                "walled_chain": torch.stack(walled_chain, 1)}
 
     def observe(self) -> torch.Tensor:
         env = self.env

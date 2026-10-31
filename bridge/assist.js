@@ -19,7 +19,7 @@ const YAW_STEPS_DEG = [-20.0, -6.0, -1.5, 0.0, 1.5, 6.0, 20.0]
 
 // AssistConfig's defaults (parkour/neo_assist.py) for the fields the trigger rules read, so a partial
 // --assist JSON behaves as in Python (tests/test_neo_assist.py checks they agree).
-const DEFAULTS = { horizon: 32, retry_horizon: 0, retries: 0, retry_every: 10, approach: 0, brake: 0, plan_start: 0, plan_on: 0 }
+const DEFAULTS = { horizon: 32, retry_horizon: 0, retries: 0, retry_every: 10, approach: 0, brake: 0, plan_start: 0, plan_on: 0, plan_ahead: 0 }
 
 // When to plan, per episode: AssistConfig fields (snake_case, as parkour/neo_assist.py writes them).
 // targets[i]: the platform a plan from takeoffs[i] ends on (neo_assist.plan_target; default the next one);
@@ -76,7 +76,8 @@ class Assist {
 // on (the request's cp) and the chosen one (its target), as route_neo.route_arrival does; a choice that is no
 // course platform is not planned. Per platform planned from: one takeoff request, then up to cfg.retries
 // retries every retry_every ticks while the bot stands on it (at once after a brake), each only if it can end
-// before the stall limit. With cfg.plan_on, a decision made on a plan's landing is planned whatever it chose.
+// before the stall limit. With cfg.plan_on, a decision made on a plan's landing is planned whatever it chose;
+// with cfg.plan_ahead, so is one whose route crosses a wall in a later slot (walledAhead).
 // The same request interface as Assist (Episode._ask; Episode.resume tells it of every plan it plays).
 class RouteAssist {
   constructor (cfg, router, platforms, geom = null) {
@@ -111,7 +112,8 @@ class RouteAssist {
       this.followAt = r.decisions // the router decided on the plan's landing, this tick
     }
     const follow = this.cfg.plan_on && this.followAt === r.decisions
-    if (!s.onGround || r.current === null || !(r.walledChoice || follow) || !r.chain.length) return null
+    const ahead = this.cfg.plan_ahead && r.walledAhead
+    if (!s.onGround || r.current === null || !(r.walledChoice || follow || ahead) || !r.chain.length) return null
     const frm = this.index(r.current.rect())
     const want = this.index(r.chain[0].rect())
     if (frm < 0 || want < 0 || !standsOn(s, this.q[frm])) return null

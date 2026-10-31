@@ -6,8 +6,9 @@
 For the single-neo sets, per course: whether the bot reached the neo's takeoff, what the router chose there
 first (the neo's landing, a platform further on or back, off the course, nothing), whether that choice was
 searched and found, and how the course ended (completed with the neo, completed past it, failed at the neo,
-failed at an ordinary jump or on the wrong platform). Wrong platforms and failures are the planner's
-``failure_modes`` on the router's decisions.
+failed before the neo's takeoff, after passing the neo, or past the takeoff without doing the neo; and how many
+failed on the jump onto the takeoff). Wrong platforms and failures are the planner's ``failure_modes`` on the
+router's decisions.
 """
 from __future__ import annotations
 
@@ -63,7 +64,7 @@ def breakdown(name: str) -> dict:
     out["searches"] = row.get("searches", {})
     out["plans_played"], out["plans_landed_as_planned"] = row.get("plans_played", 0), row.get("plans_landed_as_planned", 0)
     if row["set"] == "single":
-        picks, ends = {}, {}
+        picks, ends, onto = {}, {}, 0
         for i, c in enumerate(courses):
             plats = [tuple(int(v) for v in r) for r in c.platforms]
             t = neo_takeoffs(c)[0]
@@ -75,11 +76,17 @@ def breakdown(name: str) -> dict:
             elif pc[i]["stopped_at_neo"]:
                 end = ("failed at the neo: no landing found" if mine and not any(e["found"] for e in mine) else
                        "failed at the neo: not searched" if not mine else "failed at the neo after a landing")
-            else:
-                end = "failed elsewhere"
+            elif pc[i]["neos_passed"]:
+                end = "failed after passing the neo"
+            elif pc[i]["stopped_at"] < t:
+                end = "failed before the neo's takeoff"
+                onto += pc[i]["stopped_at"] == t - 1  # on the jump onto the takeoff
+            else:  # it went past the takeoff without doing the neo (the router took another way)
+                end = "failed past the neo's takeoff without doing the neo"
             ends[end] = ends.get(end, 0) + 1
         out["pick_at_takeoff"] = dict(sorted(picks.items()))
         out["ends"] = dict(sorted(ends.items()))
+        out["failed_on_the_jump_onto_the_takeoff"] = onto
     return out
 
 
