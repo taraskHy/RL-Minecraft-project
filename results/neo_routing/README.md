@@ -12,20 +12,21 @@ The chosen setting is A + `plan_on`. On the single-neo sets (320 courses), count
 as a neo. The files for every number are in the sections below.
 
 - **Validation** (family 40, 320 single-neo courses, simulator, CPU): **255, 257 and 251** for search seeds 0, 1 and
-  2 (mean 254.3). As shipped, the router completes 8 to 13. The course-list planner gets 286 at seed 0 and 276 at
-  seed 1.
-- **Test** (family 41, run once): **252** of 320. The course-list planner gets 276.
-- **The router's own validation sets** (1,800 courses each):
+  2 (mean 254.3). As shipped, the router does the neo as a neo on 0 to 2 courses, and on 0 with the final policy
+  jumping. Its plain completions are 8 to 13, and 9 with the final policy (simulator, GPU, 30 Oct). The course-list
+  planner gets 286 at seed 0 and 276 at seed 1.
+- **Test** (family 41, run once; simulator, CPU): **252** of 320. The course-list planner gets 276.
+- **The router's own validation sets** (1,800 courses each; simulator, episodes on the GPU, searches on the CPU):
   - Family 2: **1,762**, the shipped number. Nothing is planned there (no walls), and the run equals the 30 Oct
     filter-off what-if on every course.
   - Family 5: **1,728** against the shipped 1,720 (9 courses won, 1 lost; 7 of the wins are planned jumps).
 - **Bots** on the 64 test courses of `single41-first64`: **52 of 64 offline and 52 of 64 in real Minecraft**. Each
   matches its simulator re-run on every course (outcome and ticks), with 0 server corrections, and the two bots match
   each other. The course-list planner gets 55 in both.
-- **Choices**, by rules written before each run: rule 1 kept A over B, which led by 3.0 (under the rule's 4); rule 3
-  added `plan_on`, which led A by 15.3.
-- **Where the router loses courses against the course list** (seed 0): 15 against 4 before the neo, and 36 against 24
-  at the neo. After the neo it loses 10 against 6.
+- **Choices**, by rules written before each run (simulator, CPU): rule 1 kept A over B, which led by 3.0 (under the
+  rule's 4); rule 3 added `plan_on`, which led A by 15.3.
+- **Where the router loses courses against the course list** (seed 0; simulator, CPU): 15 against 4 before the neo,
+  and 36 against 24 at the neo. After the neo it loses 10 against 6.
 
 ## Why (measured on 30 Oct before this branch; simulator, GPU; files in the main checkout's `runs/`)
 
@@ -62,6 +63,11 @@ JSON`):
 3. With `plan_on` (an opt-in `AssistConfig` field, router mode only; kept by rule 3), a decision made on a plan's
    landing is planned too, whatever the router chose there, and so on while plans land.
 
+Every jump the mode plans is searched as a neo request (`route_neo.route_arrival` and the service's router requests
+set `neo`). So the neo levers (`restarts`, `neo_samples`, `neo_iterations`) also act on the ordinary jumps that
+`plan_on` (and rule 4's `plan_ahead`) plan, not only on walled ones. In the course-list planner they act only at the
+course's neo takeoffs.
+
 The course list only names the two platforms for the search: the platform stood on is the request's `cp`, the
 chosen one its `target` (the router's perception equals the course platforms, `tests/test_route.py`), so the
 search lands on the chosen platform, its fall line is the lower top of the two, and a choice that is no course
@@ -70,7 +76,11 @@ course list and are refused; the blocked-path rule decides which jumps are plann
 
 ## Rules (each written before its run)
 
-### Rule 1 (written 19:15:44, before any run of the mode on a validation or test course): the setting, chosen on family 40 only
+### Rule 1 (written 19:15:44, before any evaluation run of the mode): the setting, chosen on family 40 only
+
+*Correction (31 Oct, after the review of PR #3):* this heading first said "before any run of the mode on a validation
+or test course". Unit tests and development checks with small searches had already run the mode on family-40
+courses 0 to 5 and 41, between 19:04 and 19:12.
 
 - **Fixed parts:** the shipped router (`results/routing/router_policy.pt`, its own fill `policy`); the final
   policy jumping (`results/final_policy.pt`, the router's own jumper, so that its ordinary sets can stay
@@ -130,7 +140,10 @@ course list and are refused; the blocked-path rule decides which jumps are plann
   first trigger are kept and reported (`single40-A-s0`, `route2-A-s0`, `route5-A-s0`), but nothing is chosen on
   them. Rule 2 is unchanged and uses the new trigger (`route2-wall-*`, `route5-wall-*`).
 
-### Rule 3 (written 19:56:40, before any run with `plan_on`): one more lever, `plan_on`, on rule 1's choice
+### Rule 3 (written 19:56:40, before any evaluation run with `plan_on`): one more lever, `plan_on`, on rule 1's choice
+
+*Correction (31 Oct, after the review of PR #3):* this heading first said "before any run with `plan_on`". Its two
+unit tests had already run `plan_on` with small searches on family-40 courses 1, 2, 3 and 11, at 19:55 to 19:56.
 
 - **Why.** A's first run (first trigger, seed 0, 241 of 320; nothing is chosen on it) failed 15 courses before
   the neo, 36 at it (no landing found), 17 on the jump right after it, from the plan's landing state, and 7
@@ -145,9 +158,14 @@ course list and are refused; the blocked-path rule decides which jumps are plann
   those three seeds too). C is kept only if its mean over the three seeds is at least 4 courses above the chosen
   setting's mean (the 29 Oct lever rule). The setting for rule 2 is rule 1's choice, with `plan_on` if kept.
 
-### Rule 4 (written 03:21:45 on 31 Oct, before any run of `plan_ahead`; branch `neo-routing-2`): the router's jumps "all", near walls
+### Rule 4 (written 03:21:45 on 31 Oct, before any evaluation run of `plan_ahead`; branch `neo-routing-2`): the router's jumps "all", near walls
 
 Asked for by the main session, for Ethan, after PR #3 was merged.
+
+*Correction (after the review of PR #3, which found the same in rules 1 and 3):* this heading first said "before any
+run of `plan_ahead`". Its unit test had already run it with small searches (256 samples, 8 iterations), at 03:19 to
+03:20, on family-40 courses 2, 3, 5 and 13 and on family-2 courses 311, 818 and 1346. Its tests now use scratch
+families (90 and 91), used nowhere else.
 
 - **Why.** C (rule 3's choice) loses 15 courses before the neo's takeoff at every seed, and 10 of them on the jump
   onto the takeoff: the platform the course ends on is the one before the takeoff (per course, in C's details
@@ -195,7 +213,7 @@ At seed 0 the margin was 2, under 10, so both ran seeds 1 and 2. B's mean is 3.0
 the choice is **A**. B searched about 4 times as long (19,750 to 20,995 s of searching per run, against 4,728 to
 4,878 s for A).
 
-### Rule 3: lever C kept (outcome written 00:11:03 on 31 Oct, before any run of rule 2)
+### Rule 3: lever C kept (outcome written 00:11:03 on 31 Oct, before any run of rule 2 with the chosen setting)
 
 Same set, protocol and files.
 
@@ -220,6 +238,34 @@ details files; the course-list planner's V3b lost 6 there, the 4 and 2 in rule 3
 C makes 4.7 to 4.8 times as many takeoff searches (1,417 to 1,450 per run, against 303) in about 1.6 times A's search
 time (7,649 to 7,982 s per run), and every plan played landed as planned (1,396, 1,391, 1,356).
 
+### Rule 4: lever D kept (outcome written 04:34:18 on 31 Oct, before any run of D on family 41)
+
+Same set, protocol and files; branch `neo-routing-2` at bab211c, which added `plan_ahead`. The three runs ran at once,
+2 jobs each, from 03:22 to 04:32.
+
+| Search seed | C | D = C + `plan_ahead` (`single40-wall-D-sS`) |
+| --- | --- | --- |
+| 0 | 255 (259) | 278 (280) |
+| 1 | 257 (260) | 282 (284) |
+| 2 | 251 (255) | 273 (275) |
+| Mean | 254.3 | 277.7 |
+
+D's three-seed total is 833 against C's 763, a mean 23.3 above C's, more than the rule's 4 (the bar was a total of
+775). So `plan_ahead` is kept. The setting is `{"samples": 1024, "iterations": 25, "horizon": 32, "retry_horizon":
+48, "retries": 1, "brake": 14, "restarts": 3, "plan_on": 1, "plan_ahead": 1}`.
+
+- **Before the neo,** D loses 7, 6 and 6 courses, against C's 15 at every seed. On the jump onto the takeoff it loses 2,
+  1 and 1, against C's 10.
+- **At the neo** (no landing found), D loses 23, 23 and 29, against C's 36, 35 and 40. D reaches the takeoff from a
+  planned landing. Per course the sets differ both ways: at seed 0, 27 courses are lost there only by C and 14 only by
+  D.
+- **After passing the neo,** D loses 10, 7 and 10, against C's 10 at every seed.
+- **Searches:** D makes 2,036 to 2,064 takeoff searches per run, against C's 1,417 to 1,450. Its search time is about
+  C's (7,505 to 7,921 s per run, against 7,706 to 8,040 s), because fewer searches fail: 3.6 to 3.7 s per search,
+  against 5.1 to 5.4 s. Every plan played landed as planned (2,023, 2,013, 1,992).
+- **Against the course-list planner** (V3b: 286 at seed 0, 276 at seed 1), D's seed 0 has 278, and its seed 1 has 282.
+  At seed 0, V3b loses 4 before the neo, 24 at it and 6 after it; D loses 7, 23 and 10.
+
 ### Where the family-40 courses are lost
 
 Per course, from the details files. `scripts/neo_routing_summary.py` writes `results/neo_routing/breakdown.json`,
@@ -236,8 +282,10 @@ which has the router's first choice at the neo's takeoff and how each course end
 - **The router finds the neo.** At the neo's takeoff it first chooses the neo's landing on 302 of the 304 courses
   where it decides there, in every run; on the other 2 it chooses a platform further on. The remaining 16 courses
   never decide on the takeoff.
-- **Every course lost at the neo is a search that found no landing**, at the takeoff and on its retry. No plan
-  failed: every plan played landed as searched.
+- **Every course lost at the neo is a search that found no landing at the takeoff.** A retry, which also found
+  none, followed on 33 of the 36 at seed 0, 32 of 35 at seed 1 and 37 of 40 at seed 2. On courses 105, 169 and 301
+  no retry ran in any family-40 run: no brake was found, and the bot fell before a retry. In the settle-10 run the
+  course without a retry is 141. No plan failed: every plan played landed as searched.
 - **Against the course-list planner** (V3b, seed 0: 4 lost before the neo, 24 at it, 6 after it, 286 completed;
   rule 3's "Why"), C has almost closed the gap after the neo (10 against 6). The rest of the gap is in two places:
   - before the neo, 15 against 4: those jumps are the jumper's, while V3b plans every jump;
@@ -318,7 +366,8 @@ Real Minecraft ran only after the offline bot had matched its re-run on every co
 | Replaying the recorded actions in the simulator | max 7.1e-15 blocks; 64 of 64 within 1e-6 on every tick | max 2.1e-14 blocks; 64 of 64 within 1e-6 on every tick |
 | Planner requests: found, verified, played | 290, 290, 290 of 306; 8 brakes; 0 errors | 290, 290, 290 of 306; 8 brakes; 0 errors |
 | Server corrections | (no server) | 0, and no "moved wrongly" in the server's log |
-| Wall time | 1,006 s | 1,646 s |
+| The bot's play (real Minecraft: with the server's start) | 1,006 s | 1,646 s |
+| The whole run, with the replay and the simulator re-run (the logs' start and exit) | 2,012 s | 2,634 s |
 
 The two bots play the same courses with the same ticks on all 64 (from 00:12 to 00:46 and from 00:46 to 01:30 on 31
 Oct). The course-list planner on the same 64 courses completes 55 in both bots (`results/games/single41-offline-corner`,
@@ -335,6 +384,9 @@ These runs used the first trigger, which planned every blocked choice. Rows are 
   which the wall trigger leaves to the jumper.
 - **`route2-A-s0`**: 1,759 of 1,800. The 4 lost courses are listed in the amendment.
 - **`route5-A-s0`**: 1,726 of 1,800.
+- **A timing run** on scratch family 90 (single-neo courses, used nowhere else), from 19:19 to 19:28: candidate A on
+  24 courses with one thread, to time the searches. It completed 17, with 29 searches at about 17 s each
+  (`runs/timing-1thread.log`). It has no row.
 
 Both `route*-A-s0` runs used A, with episodes on the GPU and searches on the CPU.
 
