@@ -78,6 +78,23 @@ anyone.
   `parkour/live.py`, test gaps) went to the neo-routing session for its next
   pull request. Full suite on merged `main`: 183 passed, 44 subtests
   (`runs/full-tests-main-dc0df81-b.txt`).
+- **Neo routing 2 (pull request #4, branch `neo-routing-2`, built on this
+  PC overnight at the main session's request; merged into `main` on 31 Oct
+  as `655a09b`):** lever D, `plan_ahead` (opt-in, router mode): a router
+  decision is also planned when a later slot of its route crosses a wall, so
+  the one or two jumps that lead to a walled jump are planned too, on top of
+  C. Kept by rule 4 (written before its runs) on family 40: 278, 282 and 273
+  (mean 277.7 against C's 254.3; the bar was 4 more). Played once more on
+  family 41 as an additional, later test (C's 252 stays the test): **280 of
+  320** (simulator, CPU), against the course-list planner's 276. The
+  router's own validation sets: 1,762 and 1,728, as C. Bots on
+  `single41-first64` (additional to C's 52/64): 59/64 offline and 59/64 in
+  real Minecraft, each equal to its simulator re-run on every course and to
+  each other, 0 server corrections (course list: 55). From the bots' start
+  (family 40, settle 10, a measurement): 282, against C's 248 and the course
+  list's 292. Reviewed before and after the pull request (reviewers plus a
+  skeptic per finding; 16 smaller findings fixed in the branch). Details:
+  `results/neo_routing/README.md`.
 
 **How we coordinate.**
 
@@ -1520,7 +1537,7 @@ before restarting; held part locks prevent duplicate evaluation.
 - Report in the submission format: `results/report_draft.docx` / `.pdf`,
   written by `scripts/report_docx.py --pdf` from `docs/report_draft.md`
   (exported on 30 Oct, 22:47, after the trim) [31 Oct: exported again at
-  05:27, with the neo-routing result and the level-5 control]. Page estimate without pandoc
+  07:02, with neo routing (pull requests #3 and #4) and the level-5 control]. Page estimate without pandoc
   or LibreOffice: `scripts/report_pages.py` (can be a page off).
 - Failure analysis of the final policy by jump type: `results/jump_failures.json`
   (`scripts/jump_failures.py`).
@@ -1541,17 +1558,17 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `ead5195` (2026-10-31 05:19, branch `main`): Level-5 control: the pair's family-46 gain is beyond the extra training
+Generated on top of commit `655a09b` (2026-10-31 06:34, branch `main`): Merge pull request #4 from taraskHy/neo-routing-2
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 51 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 65 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `bc6b2e0` 2026-10-31 03:28 | 4 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 235 |
+| `README.md` | updated together with this snapshot | 0 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 249 |
 | `docs/report_draft.md` | updated together with this snapshot | 0 |
-| `results/README.md` | `ead5195` 2026-10-31 05:19 | 0 |
+| `results/README.md` | updated together with this snapshot | 0 |
 | `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
@@ -1737,11 +1754,13 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `single41-live-planstart` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 54/64 | 85.9 | 98.4 |
 | `single41-live-policy` | live (Minecraft 1.21.4 server) | `runs/neo-dagger4/checkpoints/updates_00250.pt` | 26/64 | 40.6 | 100.0 |
 | `single41-live-routeneo` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 52/64 | 81.2 | 100.0 |
+| `single41-live-routeneo-D` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 59/64 | 92.2 | 100.0 |
 | `single41-offline-corner` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 55/64 | 85.9 | 100.0 |
 | `single41-offline-planner` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 58/64 | 90.6 | 100.0 |
 | `single41-offline-planstart` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 55/64 | 85.9 | 100.0 |
 | `single41-offline-policy` | offline (prismarine-physics, no server) | `runs/neo-dagger4/checkpoints/updates_00250.pt` | 26/64 | 40.6 | 100.0 |
 | `single41-offline-routeneo` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 52/64 | 81.2 | 100.0 |
+| `single41-offline-routeneo-D` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 59/64 | 92.2 | 100.0 |
 | `skill-replays-live-65` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 59/65 | 90.8 | 100.0 |
 | `skill-replays-neo-network-live` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 7/16 | 43.8 | 100.0 |
 | `skill-replays-neo-network-offline` | offline (prismarine-physics, no server) | `results/combined_policy.pt` | 7/16 | 43.8 | 100.0 |
@@ -1769,7 +1788,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 
 ### In `results/` but not yet in `results/DATA.md`
 
-`games/single41-live-routeneo/`, `games/single41-offline-routeneo/`, `level5_control.json`
+`games/single41-live-routeneo/`, `games/single41-live-routeneo-D/`, `games/single41-offline-routeneo/`, `games/single41-offline-routeneo-D/`, `level5_control.json`
 
 <!-- END AUTO-SNAPSHOT -->
 
@@ -1787,6 +1806,13 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **31 Oct 2026, 07:02, Claude (Claude Code, training PC, main session):** pull request #4 (neo routing 2, built overnight by the neo-routing session at this session's request) reviewed and merged (`655a09b`; GitHub shows it merged at 07:01).
+  - The result: lever D (`plan_ahead`) kept by rule 4 on family 40 (278, 282, 273 against C's 255, 257, 251); one additional family-41 test, 280 of 320 (C's 252 stays the test; course list 276); bots 59/64 offline and in real Minecraft, each equal to its re-run, 0 corrections; from the bots' start (a measurement) 282.
+  - The review: a pre-review of the branch to 9e95999 (16 smaller findings, fixed in the branch's b9b0a81), then a review of the 8 later commits (6 low findings). Four of those are README wording, fixed here in `results/neo_routing/README.md`. Two are test assertions that cannot fail (the obstacle bot parity does not catch `verifyPlan` ignoring the request's floor; the plan_on test's "searched as a neo" is true by construction): open, low.
+  - Full suite on the merged `main`: 191 passed, 44 subtests (`runs/full-tests-main-655a09b.txt`).
+  - Recorded in the team split, TEAM_STATUS, the report's 7.8 and the generated `results/README.md` (`neo_routing` now shows D). `parkour.report` archives D's bot runs in `results/games/`, so the report's real-game totals are 1,533 episodes in 56 runs (export 07:02, body still ends on page 20).
+  - Results page version 29; the slide draft and the front page say so too.
+  - CPU: the neo-routing session reports brief peaks of 85 to 87% as its jobs started (single 3-second samples), otherwise 50 to 80%.
 - **31 Oct 2026, 05:27, Claude (Claude Code, training PC, main session):** more first-person videos in real Minecraft, while the Minecraft server was free. `scripts/film_pov.py --suffix` keeps earlier videos:
   - the final policy (0.995) on the three hand-designed courses (`real_minecraft_showcase_final.mp4`; the results page's lead video showed the first final policy until now);
   - the one network on a head hitter, an ice run-up, a slime bounce and a ladder, courses of families 42 to 45 (`real_minecraft_new_skills_one_network.mp4`).

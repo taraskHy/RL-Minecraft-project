@@ -175,11 +175,11 @@ The bots with the router, on the 60 + 60 test courses of the final policy's bot 
 | router, 60 standard test courses | live (Minecraft 1.21.4 server) | 57/60 | 95.0 | 100.0 | 0 | 2.1e-14 |
 | router, 60 obstacle test courses | live (Minecraft 1.21.4 server) | 56/60 | 93.3 | 100.0 | 0 | 2.1e-14 |
 
-## Neo courses without the course list: the neo planner with the learned router (pull request #3)
+## Neo courses without the course list: the neo planner with the learned router (pull requests #3 and #4)
 
 With `RouteConfig(blocked="plan")` a platform the router picks behind a wall is a neo: the neo planner searches the
 jump from the bot's exact state to that platform; lever C (`plan_on`) also plans every later decision while plans
-land. Candidates and lever chosen on validation by rules written before their runs; simulator, CPU. Counts are
+land; lever D (`plan_ahead`) also plans a decision whose later route slots cross a wall, the one or two jumps that lead to it. Candidates and levers chosen on validation by rules written before their runs; simulator, CPU. Counts are
 courses completed with the neo done as a neo (plain completions in brackets), of 320 single-neo courses;
 the details, the rules and where the courses are lost are in `results/neo_routing/README.md`.
 
@@ -187,24 +187,27 @@ the details, the rules and where the courses are lost are in `results/neo_routin
 | --- | --- | --- | --- | --- |
 | A: the course-list planner's levers | 241 (245) | 238 (241) | 238 (242) | 239.0 |
 | B: A with a bigger neo search | 243 (247) | 243 (247) | 240 (243) | 242.0 |
-| C: A plus `plan_on` (chosen) | 255 (259) | 257 (260) | 251 (255) | 254.3 |
+| C: A plus `plan_on` (rule 3's choice) | 255 (259) | 257 (260) | 251 (255) | 254.3 |
+| D: C plus `plan_ahead`, the jumps that lead to a walled one (rule 4's choice) | 278 (280) | 282 (284) | 273 (275) | 277.7 |
 | with the course list (V3b, `results/neo/assist_validation.jsonl`) | 286 (286) | 276 (277) | | |
 
-Test (family 41, played once): C completes 252 (254) of 320; with the course list, 276 (277).
+Test (family 41, played once): C completes 252 (254) of 320; with the course list, 276 (277). D, played once after rule 4 as an additional, later test (C's stays the test): 280 (282).
 
-The router's own validation sets with C (plain completions of 1,800; episodes on the GPU, searches on the CPU):
+The router's own validation sets (plain completions of 1,800; searches on the CPU; C's episodes on the GPU, D's on the CPU):
 
-| Set | Shipped router | With C | Courses searched |
-| --- | --- | --- | --- |
-| standard, family 2 | 1,762 | 1,762 | 0 |
-| obstacles, family 5 | 1,720 | 1,728 | 10 |
+| Set | Shipped router | With C | Courses searched | With D | Courses searched |
+| --- | --- | --- | --- | --- | --- |
+| standard, family 2 | 1,762 | 1,762 | 0 | 1,762 | 0 |
+| obstacles, family 5 | 1,720 | 1,728 | 10 | 1,728 | 19 |
 
 The bots on the first 64 single-neo test courses, from the bots' start:
 
 | Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |
 | --- | --- | --- | --- | --- | --- | --- |
-| single41-offline-routeneo (router + neo planner) | offline (prismarine-physics, no server) | 52/64 | 81.2 | 100.0 | - | 7.1e-15 |
-| single41-live-routeneo (router + neo planner) | live (Minecraft 1.21.4 server) | 52/64 | 81.2 | 100.0 | 0 | 2.1e-14 |
+| single41-offline-routeneo (router + neo planner, C) | offline (prismarine-physics, no server) | 52/64 | 81.2 | 100.0 | - | 7.1e-15 |
+| single41-live-routeneo (router + neo planner, C) | live (Minecraft 1.21.4 server) | 52/64 | 81.2 | 100.0 | 0 | 2.1e-14 |
+| single41-offline-routeneo-D (router + neo planner, D; additional) | offline (prismarine-physics, no server) | 59/64 | 92.2 | 100.0 | - | 7.1e-15 |
+| single41-live-routeneo-D (router + neo planner, D; additional) | live (Minecraft 1.21.4 server) | 59/64 | 92.2 | 100.0 | 0 | 2.1e-14 |
 | single41-offline-corner (course list + neo planner) | offline (prismarine-physics, no server) | 55/64 | 85.9 | 100.0 | - | 7.1e-15 |
 | single41-live-corner (course list + neo planner) | live (Minecraft 1.21.4 server) | 55/64 | 85.9 | 100.0 | 0 | 2.1e-14 |
 

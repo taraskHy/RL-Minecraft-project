@@ -517,35 +517,50 @@ def neo_routing(out: Path) -> list:
         return []
     rows = lambda f: {r["run_id"]: r for r in map(json.loads, open(f, encoding="utf-8")) if r.get("run_id")}
     val, test, aval, atest = rows(vf), rows(tf), rows(av), rows(at)
-    runs = {k: [val.get(f"neo_routing/single40-wall-{k}-s{s}") for s in range(3)] for k in "ABC"}
+    runs = {k: [val.get(f"neo_routing/single40-wall-{k}-s{s}") for s in range(3)] for k in "ABCD"}
     ref = [aval.get(f"assist_parts/{n}") for n in ("single40-v3b-final-restarts3", "single40-v3b-seed1")]
     t, tref = test.get("neo_routing/single41-wall-C-s0"), atest.get("assist_parts/single41-test-planner")
-    if not all(all(rs) for rs in runs.values()) or not all(ref) or not t or not tref:
+    td = test.get("neo_routing/single41-wall-D-s0")
+    if not all(all(runs[k]) for k in "ABC") or not all(ref) or not t or not tref:
         return []
+    if not all(runs["D"]):
+        del runs["D"]
     count = lambda r: f"{r['completed_neo_done']} ({r['completed']})"
-    lines = ["## Neo courses without the course list: the neo planner with the learned router (pull request #3)", "",
+    lines = ["## Neo courses without the course list: the neo planner with the learned router (pull requests #3 and #4)", "",
              "With `RouteConfig(blocked=\"plan\")` a platform the router picks behind a wall is a neo: the neo planner searches the",
              "jump from the bot's exact state to that platform; lever C (`plan_on`) also plans every later decision while plans",
-             "land. Candidates and lever chosen on validation by rules written before their runs; simulator, CPU. Counts are",
+             "land" + ("; lever D (`plan_ahead`) also plans a decision whose later route slots cross a wall, the one or two jumps"
+                       " that lead to it" if "D" in runs else "")
+             + ". Candidates and levers chosen on validation by rules written before their runs; simulator, CPU. Counts are",
              "courses completed with the neo done as a neo (plain completions in brackets), of 320 single-neo courses;",
              "the details, the rules and where the courses are lost are in `results/neo_routing/README.md`.", "",
              "| Setting | Validation, search seed 0 | Seed 1 | Seed 2 | Mean |", "| --- | --- | --- | --- | --- |"]
     for k, label in (("A", "A: the course-list planner's levers"), ("B", "B: A with a bigger neo search"),
-                     ("C", "C: A plus `plan_on` (chosen)")):
+                     ("C", "C: A plus `plan_on` (rule 3's choice)"),
+                     ("D", "D: C plus `plan_ahead`, the jumps that lead to a walled one (rule 4's choice)")):
+        if k not in runs:
+            continue
         rs = runs[k]
         lines.append(f"| {label} | " + " | ".join(count(r) for r in rs)
                      + f" | {sum(r['completed_neo_done'] for r in rs) / 3:.1f} |")
     lines += [f"| with the course list (V3b, `results/neo/assist_validation.jsonl`) | {count(ref[0])} | {count(ref[1])} | | |", "",
-              f"Test (family 41, played once): C completes {count(t)} of {t['courses']}; with the course list, {count(tref)}.", ""]
+              f"Test (family 41, played once): C completes {count(t)} of {t['courses']}; with the course list, {count(tref)}."
+              + (f" D, played once after rule 4 as an additional, later test (C's stays the test): {count(td)}." if td and "D" in runs else ""), ""]
     o = json.loads(of.read_text())
-    lines += ["The router's own validation sets with C (plain completions of 1,800; episodes on the GPU, searches on the CPU):", "",
-              "| Set | Shipped router | With C | Courses searched |", "| --- | --- | --- | --- |"]
+    od = json.loads((d / "ordinary-D.json").read_text()) if (d / "ordinary-D.json").exists() and "D" in runs else None
+    lines += ["The router's own validation sets (plain completions of 1,800; searches on the CPU; C's episodes on the GPU"
+              + (", D's on the CPU" if od else "") + "):", "",
+              "| Set | Shipped router | With C | Courses searched |" + (" With D | Courses searched |" if od else ""),
+              "| --- | --- | --- | --- |" + (" --- | --- |" if od else "")]
     for k in ("standard", "obstacles"):
         e = o[k]
-        lines.append(f"| {k}, family {e['family']} | {e['shipped']:,} | {e['run_completed']:,} | {e['courses_searched']} |")
+        lines.append(f"| {k}, family {e['family']} | {e['shipped']:,} | {e['run_completed']:,} | {e['courses_searched']} |"
+                     + (f" {od[k]['run_completed']:,} | {od[k]['courses_searched']} |" if od else ""))
     lines.append("")
     games = [r for r in (game_row(out, n, n + label) for n, label in (
-        ("single41-offline-routeneo", " (router + neo planner)"), ("single41-live-routeneo", " (router + neo planner)"),
+        ("single41-offline-routeneo", " (router + neo planner, C)"), ("single41-live-routeneo", " (router + neo planner, C)"),
+        ("single41-offline-routeneo-D", " (router + neo planner, D; additional)"),
+        ("single41-live-routeneo-D", " (router + neo planner, D; additional)"),
         ("single41-offline-corner", " (course list + neo planner)"), ("single41-live-corner", " (course list + neo planner)")))
         if r]
     if games:

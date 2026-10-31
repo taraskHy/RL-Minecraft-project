@@ -478,9 +478,9 @@ land. Chosen on validation
 (255, 257 and 251 of 320 over three search seeds) by rules fixed before the
 runs, it completes 252 of the 320 test courses (78.75%, played once) against
 276 with the course list, and 52 of the first 64 in the offline bot and in
-real Minecraft, the simulator's courses, with 0 corrections (course list:
-55). Most of the gap is before the neo, where the jumps are the policy's
-own, and at it.
+real Minecraft, with 0 corrections (course list: 55). Planning also the
+jumps that lead to a walled choice, kept by a later rule (278, 282 and 273 on
+validation), gives 280 in an additional test and 59 of 64 in both bots.
 
 ### 7.9 Without the course list: greedy planner, learned router, learned route model
 
@@ -573,8 +573,8 @@ It runs in the simulator only.
 ## 8. Discussion and limitations
 
 **Why the transfer is exact.** The simulator reproduces the bot's own physics
-engine (section 3). In 1,469 real-game episodes
-over 55 runs (`results/games/`) and 120 router episodes
+engine (section 3). In 1,533 real-game episodes
+over 56 runs (`results/games/`) and 120 router episodes
 (`results/routing/`), every outcome but one equals the simulator's. That
 one and the only 2 server corrections came from one run before the corner
 check, next to neo-wall corners, where the game orders collisions
@@ -668,8 +668,7 @@ as well as that group's best specialist (test mean 86.45%, simulator): a
 match, not a win. It completes 86.4% of the test courses with new jump
 kinds and blocks (the final policy alone: 19.7%).
 
-Next steps are planning the jumps before a neo without the course list,
-more blocks, water first, and real hand-built maps.
+Next steps are more blocks, water first, and real hand-built maps.
 
 ## References
 

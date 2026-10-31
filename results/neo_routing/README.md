@@ -186,7 +186,8 @@ Asked for by the main session, for Ethan, after PR #3 was merged.
 *Correction (after the review of PR #3, which found the same in rules 1 and 3):* this heading first said "before any
 run of `plan_ahead`". Its unit test had already run it with small searches (256 samples, 8 iterations), at 03:19 to
 03:20, on family-40 courses 2, 3, 5 and 13 and on family-2 courses 311, 818 and 1346. Its tests now use scratch
-families (90 and 91), used nowhere else.
+families 90, 91 and 92, used nowhere else, and family 2's courses 311, 818 and 1346, where nothing is searched
+(31 Oct, main session: corrected from "scratch families (90 and 91)").
 
 - **Why.** C (rule 3's choice) loses 15 courses before the neo's takeoff at every seed, and 10 of them on the jump
   onto the takeoff: the platform the course ends on is the one before the takeoff (per course, in C's details
@@ -323,11 +324,12 @@ settle-10 runs and both family-41 runs.
   landing on 310, 312 and 312 (`breakdown.json`).
 - **Every course lost at the neo is a search that found no landing at the takeoff.**
   - A and C: a retry, which also found none, followed on 33 of the 36 at seed 0, 32 of 35 at seed 1 and 37 of 40 at
-    seed 2 (B: 33 of 36, 28 of 31 and 33 of 36). On courses 105, 169 and 301 no retry ran in any run of A, B or C:
-    no brake was found, and the bot fell before a retry.
+    seed 2 (B: 33 of 36, 28 of 31 and 33 of 36). On courses 105, 169 and 301 no retry ran in the seed 0-2 runs (settle 0)
+    of A, B and C: no brake was found, and the bot fell before a retry.
   - D: a retry followed on 22 of 23, 23 of 23 and 29 of 29. The course without one is 188 at seed 0. Courses 169
     (seed 0) and 105 (seed 2) were braked and retried there.
-  - In C's settle-10 run the course without a retry is 141.
+  - In C's settle-10 run the course without a retry is 141 (105, 169 and 301 were retried there); in D's settle-10
+    run a retry followed on 19 of 20, and the course without one is 286.
   - No plan failed: every plan played landed as searched.
 - **Against the course-list planner** (V3b, seed 0: 4 lost before the neo, 24 at it, 6 after it, 286 completed;
   rule 3's "Why"), C has almost closed the gap after the neo (10 against 6). The rest of the gap is in two places:
@@ -474,9 +476,9 @@ with the router.
 **Rule 4's setting (D), additional to C's 52 of 64.** D plus the same bot-start fixes: `{"samples": 1024,
 "iterations": 25, "horizon": 32, "retry_horizon": 48, "retries": 1, "brake": 14, "restarts": 3, "plan_on": 1,
 "plan_ahead": 1, "plan_start": 1, "corner_limit": 0.25}`, on the CPU as above, with the same check: real Minecraft
-ran only after the offline bot had matched its re-run on every course. Other jobs of this branch ran beside both
-runs (the family-41 test, families 2 and 5, and the measurement from the bots' start), so their wall times are not
-comparable with C's.
+ran only after the offline bot had matched its re-run on every course. Other jobs of this branch ran beside them
+(the family-41 test and family 2 beside the offline run, the measurement from the bots' start beside both; family 5
+had ended before), so their wall times are not comparable with C's.
 
 | | Offline bot | Real Minecraft (1.21.4 server) |
 | --- | --- | --- |
@@ -521,11 +523,11 @@ Both `route*-A-s0` runs used A, with episodes on the GPU and searches on the CPU
    crosses a wall, not every jump, so nothing is planned on family 2. (PR #3's text: 15 courses were lost there,
    against the course-list planner's 4; a lever planning the router's decisions would be the router's version of
    the course-list `jumps: "all"`, with its own rule on family 40.)
-2. **The searches at the neo** (not run). With D, 23, 23 and 29 courses are lost there, against the course list's 24
+2. **The searches at the neo** (not run; family 40, simulator, CPU). With D, 23, 23 and 29 courses are lost there, against the course list's 24
    at seed 0 (C: 36, 35 and 40). Each is a search with no landing found. B's bigger neo search did not help A (+3.0
    over A, under rule 1's 4); it was not tried with C or D. A plan for the approach to the router's walled choice, one decision earlier, would mirror
    the course list's `approach`, which is refused here because it needs the course list.
-3. **The jumps further from the neo** (not run). D at seed 0 loses 7 courses before the neo and 8 after it, against
+3. **The jumps further from the neo** (not run; family 40, simulator, CPU). D at seed 0 loses 7 courses before the neo and 8 after it, against
    the course list's 4 and 6, and 2 more after going past the neo without doing it. Of those before it, 2, 1 and 1
    (at the three seeds) are on the jump onto the takeoff; the rest are earlier jumps, which `plan_ahead` (two slots
    ahead) does not plan.

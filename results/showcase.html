@@ -130,7 +130,7 @@ a { color: var(--sky); }
           <tr><td>A gate that picks an expert at every landing</td><td>86.8% mean of the four groups (the one network: 86.4%), a match<span class="where">simulator, test</span></td><td>gate over seven experts</td></tr>
           <tr><td>Head hitters, ice run-ups, shaped blocks, slime, ladders</td><td>91.2% of 2,400 courses over 12 levels<span class="where">simulator</span></td><td><code>g995-extra</code></td></tr>
           <tr><td>No course list: learned router</td><td>97.8% of 1,200 test courses, played once (the hand-written planner: 92.3%)<span class="where">simulator, test</span>57/60, the same courses as the simulator<span class="where">real Minecraft</span></td><td>final policy + router</td></tr>
-          <tr><td>One-neo courses without the course list</td><td>252 of 320 test courses (78.75%), played once; with the course list, 276<span class="where">simulator, test</span>52/64, the same courses as the simulator, 0 corrections<span class="where">real Minecraft</span></td><td>final policy + router + search</td></tr>
+          <tr><td>One-neo courses without the course list</td><td>280 of 320 test courses (87.5%) when the jumps leading to a wall are planned too, an additional test after the first (252); with the course list, 276<span class="where">simulator, test</span>59/64, the same courses as the simulator, 0 corrections<span class="where">real Minecraft</span></td><td>final policy + router + search</td></tr>
           <tr><td>One network for every skill</td><td>86.4%, the mean of the four groups' test success rates (basic, ice, neo-momentum-wide, new kinds; 7,200 courses), level with the best specialist on the last two<span class="where">simulator</span></td><td>one network, <code>combined-distill</code></td></tr>
         </tbody>
       </table>
@@ -363,6 +363,7 @@ a { color: var(--sky); }
         <p class="muted">The planner's settings were tuned on validation courses. Most of its failures are route choices, not jumps: it skips ahead to a platform that is in reach but harder to land. The learned column is a model trained to find platforms itself from a wide block scan and a memory of its last landings; decoy pillars fool it.</p>
         <p><span class="tag ok">done</span> A route policy trained by RL on a teammate's PC picks the next platform instead of the planner, with the same final policy jumping: 97.8% of the standard and 95.0% of the obstacle test courses (simulator, played once), and 57/60 and 56/60 in real Minecraft with 0 server corrections (<span class="path">results/routing/README.md</span>).</p>
         <p><span class="tag ok">done</span> Neo jumps without the course list: when the platform the router picks sits behind a wall, the search plans that jump from the bot's exact state, and keeps planning while its plans land. Chosen on validation (simulator: 255, 257 and 251 of 320 one-neo courses over three search seeds), it completes 252 of the 320 one-neo test courses (simulator, played once), against 276 with the course list, and 52 of the first 64 offline and in real Minecraft, the simulator's courses, with 0 server corrections (with the course list: 55). The router's own validation courses do not get worse (simulator: 1,762 and 1,728 of 1,800; before, 1,762 and 1,720). It loses more courses before the neo, where the jumps are the policy's own, and at it (<span class="path">results/neo_routing/README.md</span>).</p>
+        <p><span class="tag ok">done</span> Planning also the one or two jumps that lead to a walled jump, kept by a later rule on validation (simulator: 278, 282 and 273 of 320), closes that gap: 280 of the 320 one-neo test courses in an additional test (simulator, played once; the first test's 252 stays the reference), against 276 with the course list, and 59 of the first 64 offline and in real Minecraft, the same courses and ticks as the simulator, with 0 server corrections (with the course list: 55).</p>
       </div>
     </div>
     <div class="three">
@@ -393,7 +394,7 @@ a { color: var(--sky); }
           <tr><td>hand-designed</td><td class="num">3/4</td><td class="num">3/4</td><td class="num">3/4</td></tr>
           <tr><td>route planner, standard and obstacles</td><td class="num">51/60, 56/60</td><td class="num">51/60, 56/60</td><td class="num">51/60, 56/60</td></tr>
           <tr><td>learned router, standard and obstacles</td><td class="num">57/60, 56/60</td><td class="num">57/60, 56/60</td><td class="num">57/60, 56/60</td></tr>
-          <tr><td>neo search on 64 one-neo test courses: course list, router</td><td class="num">55/64, 52/64</td><td class="num">55/64, 52/64</td><td class="num">55/64, 52/64</td></tr>
+          <tr><td>neo search on 64 one-neo test courses: course list; router; router planning ahead</td><td class="num">55/64, 52/64, 59/64</td><td class="num">55/64, 52/64, 59/64</td><td class="num">55/64, 52/64, 59/64</td></tr>
           <tr><td>learned no-route model, standard and obstacles</td><td class="num">55/60, 37/60</td><td class="num">55/60, 37/60</td><td class="num">55/60, 37/60</td></tr>
           <tr><td>neo policy, 31 neo courses</td><td class="num">11/31</td><td class="num">11/31</td><td class="num">11/31</td></tr>
         </tbody>
@@ -431,7 +432,7 @@ a { color: var(--sky); }
         <h3>Running overnight</h3>
         <ul class="todo">
           <li><span class="tag ok">done</span>The control for the level-5 fine-tune: three runs with neither change average 84.2% on the level-5 validation courses with obstacles, 1.0 point below the final policy, so the recipe's 2.7-point gain there is beyond the extra training (by a reading fixed before the runs). On the obstacle test's level 5 the control rose too, so that rise may be the extra training. Nothing is shipped.</li>
-          <li><span class="tag run">running</span>The next step for neo jumps without the course list: also planning the one or two jumps that lead to a walled jump, then every jump while the plans land, to close the gap to the course list (252 against 276 on test). It is kept only if it adds at least 4 courses on validation.</li>
+          <li><span class="tag ok">done</span>Neo jumps without the course list: also planning the one or two jumps that lead to a walled jump was kept on validation (a mean of 277.7 against 254.3) and completes 280 of the 320 test courses in an additional test, against 276 with the course list, and 59 of 64 in real Minecraft.</li>
         </ul>
         <h3>To finish the course</h3>
         <ul class="todo">
@@ -442,7 +443,7 @@ a { color: var(--sky); }
         <h3>Open problems</h3>
         <ul class="todo">
           <li>Neo jumps by the network alone: 42.8% of the one-neo test courses, against 86.25% with the search.</li>
-          <li>Without the course list, the search at a neo finds no landing on more courses than with it (36 against 24 of the 320 validation courses); planning the approach to the walled jump is the next idea.</li>
+          <li>Without the course list, an approach plan for the walled jump (the course list's last lever) is still untried; the search still finds no landing at the neo on 23 to 29 of the 320 validation courses (with the course list, 24 at seed 0).</li>
           <li>Water, an observation of each block's type, and hand-built maps taken from real worlds.</li>
           <li>On hold until Ethan resumes them: the cloud tests of the new abilities.</li>
         </ul>
