@@ -477,6 +477,15 @@ fixed at 09:24:49, before any run of it:**
   gain over a2 so far) stops at its next snapshot after 10:56 to free the
   GPU slot; its snapshots stay candidates, a5's are chosen by the same rule,
   and "at the end" then means once a4 and a5 have finished.
+- **The end, fixed at 11:40:07, before any test:** a4 and a5 stop now (about
+  updates 880 and 610) instead of at 2,000. Why: both have levelled off, in
+  validation counts (a4, updates 300-800: 277, 274, 273, 275, 274, 269; a5,
+  100-600: 280, 278, 281, 281, 278, 274) and in training success on the four
+  hardest types (between 0.39 and 0.61 throughout, the other 28 types at
+  0.93-0.95), and 15 snapshots since a2's 283 have not passed it. So "at the
+  end" is now: of the 37 snapshots measured, the most strict completions on
+  family 40 is `neo-skill-a2` updates 1000 (283; next 282 and 281), which
+  is the chosen network, tested once on families 41 and 49 as fixed above.
 - **A reference on the fresh set, fixed at 11:16:01 before it runs:** the
   planner's chosen setting (its family-41 test's: `--jumps all --retries 1
   --brake 14 --retry-horizon 48 --restarts 3`, the final policy, seed 0,
