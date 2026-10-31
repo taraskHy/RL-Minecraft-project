@@ -41,7 +41,7 @@ def standard_courses(idx):
     return [cs[i] for i in idx]
 
 
-SCRATCH_SINGLE, SCRATCH_STANDARD = 90, 91  # scratch families, used nowhere else: smoke checks of new levers run here
+SCRATCH_SINGLE, SCRATCH_STANDARD, SCRATCH_OBSTACLES = 90, 91, 92  # scratch families, used nowhere else: smoke checks of new levers run here
 
 
 def scratch_neo_courses(idx):
@@ -54,6 +54,13 @@ def scratch_standard_courses(per_level=1):
     """Standard courses (no obstacle blocks, so no walls) of a scratch family, levels 0 to 5."""
     from parkour.train import held_out_courses
     return held_out_courses(C.load_levels(), per_level, 10, family=SCRATCH_STANDARD)
+
+
+def scratch_obstacle_courses(idx, per_level=150):
+    """Obstacle courses (a pillar or beam at half the jumps, as families 5 and 4) of a scratch family, levels 0 to 5."""
+    from parkour.train import held_out_courses
+    cs = held_out_courses(C.load_levels(), per_level, 10, obstacle_prob=0.5, family=SCRATCH_OBSTACLES)
+    return [cs[i] for i in idx]
 
 
 class Shared(unittest.TestCase):
@@ -198,6 +205,24 @@ class RouteNeoSimulator(Shared):
         from parkour.neo_assist import evaluate_assisted
         with self.assertRaises(ValueError):  # the course-list planner plans every jump with jumps "all" instead
             evaluate_assisted(self.model, CoursePool(cs[:1], "cpu", C.GRID), "cpu", AssistConfig(plan_ahead=1))
+
+    def test_plan_mode_on_obstacle_courses(self):
+        # Pillars and beams are the walls of the router's obstacle sets. Of 900 scratch obstacle courses, 392, 545, 743
+        # and 888 have a first choice walled, and 546, 695 and 815 a wall only in a later slot of a route. Only those are
+        # planned, from and onto course platforms (here also skips and a step back), and the rest play as "keep".
+        cs = scratch_obstacle_courses([392, 545, 546, 695, 743, 815, 888])
+        keep = self.routed(cs, "keep")
+        cfg = dict(samples=64, iterations=3)
+        for extra, searched in (({}, {0, 1, 4, 6}), (dict(plan_on=1, plan_ahead=1), set(range(7)))):
+            res = self.routed(cs, "plan", AssistConfig(**cfg, **extra))
+            self.assertEqual({e["course"] for e in res["events"]}, searched, extra)
+            n = [len(c.platforms) for c in cs]
+            self.assertTrue(all(0 <= e["takeoff"] < n[e["course"]] and 0 <= e["target"] < n[e["course"]] for e in res["events"]))
+            self.assertEqual(res["plans"]["landed_as_planned"], res["plans"]["played"])
+            for i in set(range(7)) - searched:
+                self.assertEqual((res["per_course"][i]["success"], res["per_course"][i]["ticks"], res["decisions"][i]),
+                                 (keep["per_course"]["success"][i], keep["per_course"]["ticks"][i], keep["events"][i]))
+        self.assertTrue(any(e["target"] != e["takeoff"] + 1 for e in res["events"]))
 
     def test_the_bots_refuse_blocked_choices_without_the_path_check(self):
         from parkour import live

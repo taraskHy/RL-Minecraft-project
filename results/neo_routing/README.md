@@ -264,12 +264,16 @@ D's three-seed total is 833 against C's 763, a mean 23.3 above C's, more than th
 - **At the neo** (no landing found), D loses 23, 23 and 29, against C's 36, 35 and 40. D reaches the takeoff from a
   planned landing. Per course the sets differ both ways: at seed 0, 27 courses are lost there only by C and 14 only by
   D.
-- **After passing the neo,** D loses 10, 7 and 10, against C's 10 at every seed.
+- **After passing the neo,** D loses 8, 6 and 8, against C's 10 at every seed. Courses 136 and 150 (2, 1 and 2 at
+  the three seeds) are lost after going past the neo without doing it, from a platform beyond its landing; C has
+  none of those. (This list, as committed with the outcome, counted them with the losses after the neo, as 10, 7
+  and 10; the table below has them in a row of their own.)
 - **Searches:** D makes 2,036 to 2,064 takeoff searches per run, against C's 1,417 to 1,450. Its search time is about
   C's (7,505 to 7,921 s per run, against 7,706 to 8,040 s), because fewer searches fail: 3.6 to 3.7 s per search,
   against 5.1 to 5.4 s. Every plan played landed as planned (2,023, 2,013, 1,992).
 - **Against the course-list planner** (V3b: 286 at seed 0, 276 at seed 1), D's seed 0 has 278, and its seed 1 has 282.
-  At seed 0, V3b loses 4 before the neo, 24 at it and 6 after it; D loses 7, 23 and 10.
+  At seed 0, V3b loses 4 before the neo, 24 at it and 6 after it; D loses 7, 23 and 8, and 2 after going past the
+  neo without doing it.
 
 ### Where the family-40 courses are lost
 
@@ -280,7 +284,8 @@ which has the router's first choice at the neo's takeoff and how each course end
 | --- | --- | --- | --- | --- |
 | Lost before the neo's takeoff | 15, 15, 15 | 15, 15, 15 | 15, 15, 15 | 7, 6, 6 |
 | Lost at the neo (no landing found) | 36, 35, 40 | 36, 31, 36 | 36, 35, 40 | 23, 23, 29 |
-| Lost after passing the neo | 24, 29, 23 | 22, 27, 26 | 10, 10, 10 | 10, 7, 10 |
+| Lost after passing the neo | 24, 29, 23 | 22, 27, 26 | 10, 10, 10 | 8, 6, 8 |
+| Lost after going past the neo without doing it | 0, 0, 0 | 0, 0, 0 | 0, 0, 0 | 2, 1, 2 |
 | Completed, neo done as a neo | 241, 238, 238 | 243, 243, 240 | 255, 257, 251 | 278, 282, 273 |
 | Completed, neo not done as a neo | 4, 3, 4 | 4, 4, 3 | 4, 3, 4 | 2, 2, 2 |
 
@@ -306,9 +311,24 @@ completed). The row is `neo_routing/single41-wall-C-s0` in `results/neo_routing/
 - **Course-list planner on the same set:** 276 (277 completed), `assist_parts/single41-test-planner` in
   `results/neo/assist_test.jsonl`.
 - **The same setting on validation:** 255, 257 and 251.
-- **Where the courses were lost:** 19 before the neo, 39 at it (no landing found), 8 after passing it.
+- **Where the courses were lost:** 17 before the neo's takeoff, 39 at the neo (no landing found), 8 after passing it,
+  and 2 (courses 33 and 251) after going past the neo's takeoff without doing the neo. (PR #3 gave 19 before the neo:
+  it counted those 2 there.)
 - **Searches:** 1,404 at takeoffs (1,332 found) and 70 retries (13 found). All 1,344 plans played landed as
   planned.
+
+**An additional, later test: rule 4's setting (D), once, search seed 0** (from 04:34 to 05:10 on 31 Oct, after rule
+4's outcome was committed; nothing is chosen on it, and C's 252 stays the test of the setting chosen by rules 1 to
+3): **280 of 320** completed with the neo done as a neo (282 completed). The row is `neo_routing/single41-wall-D-s0`
+in `test.jsonl`, the courses are in `details/single41-wall-D-s0.json.gz`.
+
+- **Against C on the same set:** 252. Against the course-list planner: 276.
+- **D on validation:** 278, 282 and 273.
+- **Where the courses were lost:** 6 before the neo's takeoff (none on the jump onto it, against C's 9), 23 at the neo
+  (no landing found), 7 after passing it, and the same 2 courses as C (33 and 251) after going past the neo's takeoff
+  without doing the neo.
+- **Searches:** 2,007 at takeoffs (1,949 found) and 55 retries (10 found), 3.6 s per search. All 1,957 plans played
+  landed as planned. The run took 2,131 s on 4 jobs.
 
 ### The router's ordinary validation sets (families 2 and 5)
 
@@ -334,6 +354,27 @@ comparison is in `results/neo_routing/ordinary.json` (`scripts/neo_routing_ordin
   - lost: 246 (the filter's);
   - won by the filter: 690 and 1661;
   - won by the plans: 1027, 1095, 1105, 1164, 1360, 1438 and 1757.
+
+**Rule 4's setting (D), a measurement** (rows `route2-wall-D-s0` and `route5-wall-D-s0` in `validation.jsonl`; the
+comparison is in `results/neo_routing/ordinary-D.json`). Its episodes ran on the CPU, since the GPU was the main
+session's that night, so the runs also compare the two devices where nothing else changes.
+
+| Family (1,800 courses) | Shipped router | C (episodes on the GPU) | D (episodes on the CPU) | Courses searched (C; D) | Searches (C; D) |
+| --- | --- | --- | --- | --- | --- |
+| 2 (standard) | 1,762 | 1,762 | **1,762** | 0; 0 | 0; 0 |
+| 5 (obstacles) | 1,720 | 1,728 | **1,728** | 10; 19 | 66; 132 |
+
+- **Family 2:** nothing is planned (no walls), and D equals C on every course: outcome, ticks and the router's
+  decisions.
+- **Family 5, unsearched:** on the 1,781 courses that neither run searched, D equals C in outcome and ticks.
+- **Family 5, searched:** D searches 19 courses, 9 more than C (128 takeoff searches, 124 found; 4 retries, 1 found).
+  All 125 plans played landed as planned. D completes 18 of the 19, where the shipped router completes 10.
+- **Family 5 against the shipped router:** D wins 9 courses and loses 1, as C does:
+  - lost: 246 (the filter's);
+  - won by the filter: 690;
+  - won by the plans: 1027, 1095, 1105, 1164, 1360, 1431, 1438 and 1757.
+- **Family 5 against C:** D wins 1431 and loses 1661. C won 1661 without a search (by the filter); D planned a jump on
+  it and lost it.
 
 ### The bots' setting from the bots' start (a measurement; nothing is chosen on it)
 
