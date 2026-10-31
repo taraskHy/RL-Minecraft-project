@@ -7,8 +7,10 @@ Live mode starts the local void-world server (parkour.server), and the
 Mineflayer bot (bridge/parkour_bot.js) plays every course in real Minecraft.
 Offline mode runs the same JavaScript episode loop on prismarine-physics
 without a server (bridge/offline_bot.js). With --skill (the neo-skill mode,
-parkour.neo_skill; course list only) a second network plays each neo's block
-(neo_assist.skill_cps) in both bots and in the simulator re-run.
+parkour.neo_skill) a second network plays each neo's block in both bots and in
+the simulator re-run: with the course list at the course's skill_cps
+(neo_assist.skill_cps), or with --router and --router-blocked keep where the
+router's decisions hand it over (route_neo.evaluate_routed_neo with skill).
 
 Afterwards, every episode is checked two ways:
 * replay: the recorded actions are re-simulated in the Python simulator from
@@ -131,10 +133,14 @@ def main(argv=None):
     ap.add_argument("--skill", default="",
                     help="the neo skill's checkpoint (parkour.neo_skill): it acts instead of the policy while the "
                          "checkpoint is one of the course's skill_cps (neo_assist.skill_cps: each neo's block), in both "
-                         "bots and in the simulator re-run; course list only (not with --planner, --router or --assist)")
+                         "bots and in the simulator re-run; with --router and --router-blocked keep, from each router "
+                         "decision whose route crosses a wall in its next two jumps (route_neo.evaluate_routed_neo with "
+                         "skill); not with the greedy --planner or --assist")
     a = ap.parse_args(argv)
-    if a.skill and (a.planner or a.router or a.assist):  # refused before anything is written
-        raise SystemExit("--skill plays with the course list alone (not with --planner, --router or --assist)")
+    if a.skill and (a.assist or (a.planner and not a.router) or (a.router and a.router_blocked != "keep")):
+        # refused before anything is written (route_neo.evaluate_routed_neo refuses the rest, but only in the re-run)
+        raise SystemExit("--skill plays with the course list, or with --router and --router-blocked keep (not with "
+                         "the greedy --planner or --assist)")
     if a.router:
         a.planner = True
         a.router_blocked = a.router_blocked or ("plan" if a.assist else "drop")
@@ -181,7 +187,7 @@ def main(argv=None):
     if assist_cfg is not None and not a.router:
         for c, d in zip(courses, course_json):
             d.update(assist_fields(c, assist_cfg))  # takeoffs, targets (past a slime pad: its exit), retry horizons
-    if a.skill:
+    if a.skill and not a.router:  # with --router the router's decisions hand the skill each block (no skill_cps)
         for c, d in zip(courses, course_json):
             d["skill_cps"] = skill_cps(c)  # where the bots' neo skill acts (bridge/policy.js Episode)
     (out / "courses.json").write_text(json.dumps({"courses": course_json}))
@@ -245,6 +251,16 @@ def main(argv=None):
                                  RouteConfig(fill=router_fill, blocked="plan"), assist_cfg, a.stall, settle=SETTLE_TICKS,
                                  fall_rule=a.fall_rule)["per_course"]
         sim = {"success": [c["success"] for c in pc], "ticks": [c["ticks"] for c in pc]}
+    elif a.router and skill_model is not None:  # the neo skill where the router's decisions hand it a neo's block
+        from .route_env import RouteConfig, RouteTables
+        from .route_neo import evaluate_routed_neo
+        from .route_train import router_choosers
+        choose, fill = router_choosers(router, True)
+        pc = evaluate_routed_neo(model, pool, RouteTables(pool), choose, fill, planner_cfg,
+                                 RouteConfig(fill=router_fill, blocked="keep"), AssistConfig(enabled=False), a.stall,
+                                 settle=SETTLE_TICKS, fall_rule=a.fall_rule, skill=skill_model)["per_course"]
+        sim = {"success": [c["success"] for c in pc], "ticks": [c["ticks"] for c in pc],
+               "skill_at": [c["skill_at"] for c in pc]}
     elif a.router:
         from .route_env import RouteConfig, RouteTables, evaluate_routed
         from .route_train import router_choosers
@@ -275,7 +291,9 @@ def main(argv=None):
                      "ticks": ep["ticks"], "server_corrections": ep.get("server_corrections"),
                      "replay_max_pos_err": r["max_pos_err"], "replay_first_divergence": r.get("first_divergence_tick"),
                      "sim_success": bool(sim["success"][i]), "sim_ticks": int(sim["ticks"][i]),
-                     **({"skill_ticks": ep.get("skill_ticks")} if a.skill else {})})
+                     **({"skill_ticks": ep.get("skill_ticks")} if a.skill else {}),
+                     # with the router: the checkpoints at which the skill played, here and in the simulator re-run
+                     **({"skill_at": ep.get("skill_at"), "sim_skill_at": sim["skill_at"][i]} if a.skill and a.router else {})})
     n_levels = max(c.level for c in courses) + 1
     by_level = {}
     for L in range(n_levels):
@@ -314,9 +332,13 @@ def main(argv=None):
              "| Level | Courses | Success here | Success in simulator (same courses) |", "| --- | --- | --- | --- |"]
     if a.skill:  # after the checkpoint's line
         played = sum(r["skill_ticks"] or 0 for r in rows)
-        lines[3:3] = ["", f"Neo skill `{a.skill}`: it acts instead of the policy in each neo's block (from the "
-                          f"platform before the takeoff to the one after the target), here {played} of "
-                          f"{sum(r['ticks'] for r in rows)} ticks."]
+        where = ("in each neo's block (from the platform before the takeoff to the one after the target)" if not a.router
+                 else "from each router decision whose route crosses a wall in its next jump (for two decisions) or in "
+                      "its second (three)")
+        same = (f"; at the simulator's checkpoints on {sum(r['skill_at'] == r['sim_skill_at'] for r in rows)} of "
+                f"{len(rows)} courses" if a.router else "")
+        lines[3:3] = ["", f"Neo skill `{a.skill}`: it acts instead of the policy {where}, here {played} of "
+                          f"{sum(r['ticks'] for r in rows)} ticks{same}."]
     for L, v in by_level.items():
         lines.append(f"| {L} | {v['n']} | {v['success']:.0%} | {v['sim_success']:.0%} |")
     lines += ["", f"Overall: {summary['success']:.0%} here, {summary['sim_success_same_courses']:.0%} in the simulator; "

@@ -12,8 +12,9 @@
 // service plans the bot's neos; every plan is checked with prismarine-physics before it is played.
 // With --assist and a learned router whose --planner JSON has "blocked": "plan", the router's
 // blocked-path choices are planned instead (RouteAssist, parkour/route_neo.py).
-// With --skill (the neo skill, parkour/neo_skill.py; course list only) the courses carry "skill_cps" and
-// the second network acts instead of the policy while the checkpoint is one of them (policy.js Episode).
+// With --skill (the neo skill, parkour/neo_skill.py) a second network acts instead of the policy (policy.js Episode):
+// with the course list while the checkpoint is one of the course's "skill_cps"; with a learned router whose --planner
+// JSON has "blocked": "keep" (no --assist) where the router's decisions hand it a neo (parkour/route_neo.py).
 
 const fs = require('fs')
 const path = require('path')

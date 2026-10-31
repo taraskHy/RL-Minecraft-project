@@ -269,12 +269,14 @@ class LearnedRouter {
     this.decisions = 0
     this.walledChoice = false // the last decision's first choice is blocked by a wall (cfg.blocked "plan": a neo)
     this.walledAhead = false // a later slot of its route is (RouteRunner.decide's walled_chain; plan_ahead)
+    this.walledNext = false // its second jump, first slot to second, is (walled_chain[:, 1]; the neo skill, policy.js)
   }
 
+  // The decision at the start; true if one was made (the start is on a platform in view), as update's result.
   start (pos, s) {
     let cell = supportCells(pos).find(c => this.isSolid(...c))
     if (cell === undefined) cell = [Math.floor(pos[0]), Math.floor(pos[1] + STAND_EPS) - 1, Math.floor(pos[2])]
-    this._replan(cell, pos, 0, s)
+    return this._replan(cell, pos, 0, s)
   }
 
   update (pos, onGround, tick, s) {
@@ -322,6 +324,7 @@ class LearnedRouter {
     if (prev >= 0) picks.push(prev)
     this.walledChoice = prev >= 0 && opts[prev].walled
     this.walledAhead = false
+    this.walledNext = false
     for (let depth = 1; depth <= 2 && prev >= 0 && !isGoal[prev]; depth++) {
       chain[prev] = true
       const ex = excluded.map((v, i) => v || chain[i])
@@ -335,7 +338,10 @@ class LearnedRouter {
         nxt = greedyPick(o)
       }
       if (nxt < 0) break
-      if (o[nxt].walled) this.walledAhead = true
+      if (o[nxt].walled) {
+        this.walledAhead = true
+        if (depth === 1) this.walledNext = true // o: the options from slot 1 (prev), so this is slot 2's jump
+      }
       picks.push(nxt)
       prev = nxt
     }

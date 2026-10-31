@@ -15,8 +15,9 @@
 // its physics on a planned takeoff while the Python planner searches a plan
 // from its exact state (the server sees it stand still), checks the plan with
 // prismarine-physics against the real blocks, and plays it. With --skill (the neo skill,
-// parkour/neo_skill.py; course list only) the courses carry "skill_cps" and the second network acts
-// instead of the policy while the checkpoint is one of them (policy.js Episode).
+// parkour/neo_skill.py) a second network acts instead of the policy (policy.js Episode): with the
+// course list while the checkpoint is one of the course's "skill_cps"; with a learned router whose
+// --planner JSON has "blocked": "keep" (no --assist) where the router's decisions hand it a neo.
 
 const fs = require('fs')
 require('./physics_patch') // vanilla collision tolerance, as in the simulator

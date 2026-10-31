@@ -336,15 +336,24 @@ class Episode {
     }
     this.policy = policy
     // The neo skill (parkour.neo_skill; parkour.live --skill), {policy, cps}: a second network that acts instead of
-    // ``policy`` while the checkpoint (this.cp, the furthest platform stood on) is one of the course's skill_cps
-    // (neo_assist.skill_cps), from the same observation (neo_assist.evaluate_assisted with ``skill``).
+    // ``policy``, from the same observation. With the course list: while the checkpoint (this.cp, the furthest platform
+    // stood on) is one of the course's skill_cps (neo_assist.skill_cps; neo_assist.evaluate_assisted with ``skill``).
+    // With the learned router, its blocked choices kept and no assist (route_neo.evaluate_routed_neo with ``skill``;
+    // cps unused): the router decides, see _skillDecision.
     this.skill = null
     this.skillTicks = 0
     if (skill) {
-      if (!Array.isArray(skill.cps)) throw new Error('the neo skill needs the course\'s skill_cps (parkour.live --skill writes them)')
+      const routed = !!(planner && planner.router) && !assist
+      if (!routed && (planner || assist)) { // checked first: refused with skill_cps or without
+        throw new Error('the neo skill plays with the course list alone or with the learned router (no greedy planner, no assist)')
+      }
+      if (!routed && !Array.isArray(skill.cps)) throw new Error('the neo skill needs the course\'s skill_cps (parkour.live --skill writes them)')
       if (skill.policy.obsDim !== policy.obsDim) throw new Error(`the neo skill sees ${skill.policy.obsDim} observations, the policy ${policy.obsDim}`)
-      if (planner || assist) throw new Error('the neo skill plays with the course list alone (no planner, no assist)')
-      this.skill = { policy: skill.policy, cps: new Set(skill.cps) }
+      if (routed && planner.blocked !== 'keep' && planner.blocked !== 'plan') {
+        throw new Error('the neo skill with the learned router needs its blocked choices kept ("blocked": "keep")')
+      }
+      // routed: left, the router decisions the skill still plays (evaluate_routed_neo's ``left``); at, the checkpoints it played at
+      this.skill = routed ? { policy: skill.policy, cps: null, left: 0, at: new Set() } : { policy: skill.policy, cps: new Set(skill.cps) }
     }
     this.platforms = platforms
     this.isSolid = isSolid
@@ -377,18 +386,33 @@ class Episode {
         this.result = success ? 'success' : fell ? 'fell' : 'truncated'
         return null
       }
-      if (this.planner) this.planner.update(s.pos, s.onGround, this.ticks, s)
+      if (this.planner) {
+        const decided = this.planner.update(s.pos, s.onGround, this.ticks, s)
+        if (decided && this.skill) this._skillDecision() // before this tick's action, as after the simulator's step
+      }
       if (this.memory) this.memory.update(s)
       if (this.assist && this.queue.length === 0 && this._ask(s)) return PLAN
     } else {
       this.started = true
       this.init = s
-      if (this.planner) this.planner.start(s.pos, s)
+      if (this.planner) {
+        const decided = this.planner.start(s.pos, s)
+        if (decided && this.skill) this._skillDecision() // the start's decision, before the first action
+      }
       if (this.extended) this.memory = new LandingMemory(s.pos, s.onGround)
       // plan_start: the start state is searched from too, before the first action (the bot settled on the start block)
       if (this.assist && this.assist.cfg.plan_start && this._ask(s)) return PLAN
     }
     return this._act(s)
+  }
+
+  // The neo skill with the learned router (route_neo.evaluate_routed_neo's ``left``): at each router decision the
+  // decisions it still plays become max(left - 1, 3 if the route's second jump crosses a wall (walledNext), else 2 if
+  // its next jump does (walledChoice), else 0), so it plays from the platform before a neo's takeoff until the bot
+  // stands on the platform after the neo's target; it acts while the count is above 0.
+  _skillDecision () {
+    const r = this.planner
+    this.skill.left = Math.max(this.skill.left - 1, r.walledNext ? 3 : r.walledChoice ? 2 : 0)
   }
 
   // The assist's request for state s, if its rules make one: then this.pending is set and the result is true.
@@ -444,9 +468,13 @@ class Episode {
     const gq = this.geom ? this.geom[n - 1] : null
     const goal = gq ? [(gq[0] + gq[1]) / 2, gq[4], (gq[2] + gq[3]) / 2] : centre(this.platforms[n - 1])
     const obs = observeSlots(s, this.lastAction, slots, goal, progress, this.isSolid, this.memory, this.geom ? this.topOf : null)
-    const useSkill = this.skill !== null && this.skill.cps.has(this.cp) // the checkpoint before this tick's step
-    if (useSkill) this.skillTicks++
-    const a = (useSkill ? this.skill.policy : this.policy).act(obs)
+    const sk = this.skill // the checkpoint (with the router: the count) before this tick's step
+    const useSkill = sk !== null && (sk.cps ? sk.cps.has(this.cp) : sk.left > 0)
+    if (useSkill) {
+      this.skillTicks++
+      if (sk.at) sk.at.add(this.cp)
+    }
+    const a = (useSkill ? sk.policy : this.policy).act(obs)
     this.actions.push(a)
     this.lastAction = a
     return a
@@ -465,7 +493,9 @@ class Episode {
       traj: this.traj,
       ...(this.planner ? { plans: this.planner.events } : {}),
       ...(this.assist ? { assist: this.assistLog } : {}),
-      ...(this.skill ? { skill_ticks: this.skillTicks } : {}) // ticks the neo skill chose the action
+      ...(this.skill ? { skill_ticks: this.skillTicks } : {}), // ticks the neo skill chose the action
+      // with the router: the checkpoints at which it did (evaluate_routed_neo's per-course skill_at)
+      ...(this.skill && this.skill.at ? { skill_at: [...this.skill.at].sort((a, b) => a - b) } : {})
     }
   }
 }
