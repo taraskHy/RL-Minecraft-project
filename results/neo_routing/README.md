@@ -145,6 +145,36 @@ course list and are refused; the blocked-path rule decides which jumps are plann
   those three seeds too). C is kept only if its mean over the three seeds is at least 4 courses above the chosen
   setting's mean (the 29 Oct lever rule). The setting for rule 2 is rule 1's choice, with `plan_on` if kept.
 
+### Rule 4 (written 03:21:45 on 31 Oct, before any run of `plan_ahead`; branch `neo-routing-2`): the router's jumps "all", near walls
+
+Asked for by the main session, for Ethan, after PR #3 was merged.
+
+- **Why.** C (rule 3's choice) loses 15 courses before the neo's takeoff at every seed, and 10 of them on the jump
+  onto the takeoff: the platform the course ends on is the one before the takeoff (per course, in C's details
+  files). It loses 36, 35 and 40 at the neo. The course-list planner's V3b, which plans every jump, loses 4 before
+  the neo and 24 at it. In C every jump before the neo is the jumper's.
+- **Lever D, `plan_ahead`** (opt-in `AssistConfig` field, router mode only): a decision whose route crosses a wall in
+  a later slot is planned too.
+  - The route is the router's three slots, and a slot's jump is blocked by a wall: `RouteRunner.decide`'s
+    `walled_chain`, the same test as step 2 of the mode.
+  - The plan is the decision's first jump, with the chosen platform as the target, so the one or two jumps that
+    lead to a neo become the planner's.
+  - With `plan_on`, planning goes on while plans land.
+  - On a course with no wall it plans nothing, so family 2 is unchanged by construction.
+  - The bots refuse it (not ported).
+- **Runs and choice:** C + `"plan_ahead": 1` on family 40, search seeds 0, 1 and 2, in rule 1's protocol (simulator,
+  CPU episodes and searches, settle 0, stall 200, 4,000 ticks, fall rule local, the strict count). D is kept only if
+  its mean over the three seeds is at least C's mean + 4: at least 258.3, a three-seed total of at least 775 (C:
+  255 + 257 + 251 = 763).
+- **If kept:**
+  - Family 41 once, seed 0, reported as an additional, later test next to C's 252, which stays the headline test
+    (`docs/MISSION_ROUTING.md`: a later tested version is reported as additional). Nothing is chosen on it.
+  - Then families 2 and 5, a measurement, as far as the night allows. Episodes run on the CPU, since the GPU is the
+    main session's tonight; a subsample would be said plainly.
+  - Then the bots, offline first, once the lever is ported.
+- **If not kept:** it is reported, and no test runs.
+- **Compute:** CPU only (`CUDA_VISIBLE_DEVICES=-1`), BelowNormal, mask 0xC03C0F, at most 6 search jobs at once.
+
 ## Results
 
 ### Rule 1: candidate A (outcome written 23:09:59, before any run of rule 3)

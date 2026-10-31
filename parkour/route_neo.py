@@ -24,10 +24,14 @@ standing on it ends the episode) is not planned. Per platform planned from: one 
 its plan can end before the stall limit. ``prior`` and ``approach`` need the course list and are refused;
 ``jumps`` stays "neo" (the blocked-path rule decides which jumps are planned). With ``plan_on`` (opt-in) a
 decision made on a plan's landing is planned too, whatever it chose, and so on while plans land: the jumper
-then never starts from a plan's landing state (the course-list planner's ``jumps`` "all" plans every jump).
+then never starts from a plan's landing state (the course-list planner's ``jumps`` "all" plans every jump). With
+``plan_ahead`` (opt-in) a decision whose route crosses a wall in a later slot (the router's three slots, ``LOOK``:
+``RouteRunner.decide``'s ``walled_chain``) is planned too, so the jumps that lead to a neo are the planner's as well;
+on a course with no wall it plans nothing.
 
 The bots do the same (``parkour.live --router R --assist JSON``: bridge/router.js, ``RouteAssist`` in
 bridge/assist.js, the planner service); tests/test_route_neo.py checks the offline bot against this module.
+``plan_ahead`` is not in the bots yet (``parkour.live`` refuses it).
 
 Runs append one JSON row to ``results/neo_routing/validation.jsonl`` (families 40 single-neo, 2 standard,
 5 obstacles) or ``test.jsonl`` (41, 1, 4) with ``neo_assist.summarize``'s counts; the details (every course,
@@ -155,7 +159,8 @@ def evaluate_routed_neo(jumper, pool: CoursePool, tables: RouteTables, choose=No
 
     def decided(res, t: int, landed: torch.Tensor | None = None) -> None:
         """A decision's platform planned from and, if its first choice is blocked by a wall (or, with ``plan_on``, the
-        decision was made on a plan's landing: ``landed``), the platform to plan."""
+        decision was made on a plan's landing: ``landed``; with ``plan_ahead``, a later slot of its route is), the
+        platform to plan."""
         if res is None:
             return
         r = res["rows"]
@@ -165,6 +170,8 @@ def evaluate_routed_neo(jumper, pool: CoursePool, tables: RouteTables, choose=No
         tk = torch.where(act >= 0, res["cidx"][ar, act.clamp(min=0)], torch.full_like(act, -1))
         frm[r] = hk
         plan_it = res["walled"] | (landed[r] if landed is not None else torch.zeros_like(res["walled"]))
+        if acfg.plan_ahead:
+            plan_it = plan_it | res["walled_chain"].any(1)
         want[r] = torch.where(plan_it & (hk >= 0) & (tk >= 0), tk, torch.full_like(tk, -1))
         if record:
             rects = res["rect"].tolist()

@@ -157,6 +157,39 @@ class RouteNeoSimulator(Shared):
         with self.assertRaises(ValueError):  # the course-list planner plans every jump with jumps "all" instead
             evaluate_assisted(self.model, CoursePool(cs[:1], "cpu", C.GRID), "cpu", AssistConfig(plan_on=1))
 
+    def test_plan_ahead_plans_the_jumps_that_lead_to_a_wall(self):
+        cs = neo_courses([2, 3, 5, 13])  # the neo's takeoff is platform 2, 3, 5, 3: there are jumps before it
+        cfg = dict(samples=256, iterations=8, restarts=1)
+        res = self.routed(cs, "plan", AssistConfig(**cfg, plan_ahead=1))
+        for i, c in enumerate(cs):
+            k = neo_takeoffs(c)[0]
+            ev = [e for e in res["events"] if e["course"] == i]
+            self.assertIn((k, k + 1), [(e["takeoff"], e["target"]) for e in ev])  # the neo, as without plan_ahead
+            before = [e for e in ev if e["takeoff"] < k]
+            self.assertGreater(len(before), 0)  # the router's route crossed the wall two slots or one slot ahead
+            self.assertTrue(all(k - 2 <= e["takeoff"] and e["target"] <= k for e in before))  # only the approach
+            self.assertIn((k - 1, k), [(e["takeoff"], e["target"]) for e in before])  # the jump onto the neo's takeoff
+        self.assertEqual(res["plans"]["landed_as_planned"], res["plans"]["played"])
+        without = self.routed(cs, "plan", AssistConfig(**cfg))
+        self.assertEqual(sorted((e["course"], e["takeoff"]) for e in without["events"]),
+                         [(i, neo_takeoffs(c)[0]) for i, c in enumerate(cs)])
+        # A course with no wall plans nothing (family 2: paths blocked only by other platforms).
+        flat = standard_courses([311, 818, 1346])
+        keep = self.routed(flat, "keep")
+        plan = self.routed(flat, "plan", AssistConfig(samples=64, iterations=3, plan_on=1, plan_ahead=1))
+        self.assertEqual(plan["events"], [])
+        self.assertEqual(plan["decisions"], keep["events"])
+        from parkour.neo_assist import evaluate_assisted
+        with self.assertRaises(ValueError):  # the course-list planner plans every jump with jumps "all" instead
+            evaluate_assisted(self.model, CoursePool(cs[:1], "cpu", C.GRID), "cpu", AssistConfig(plan_ahead=1))
+        from parkour import live
+        with tempfile.TemporaryDirectory() as tmp:  # not in the bots yet: refused before anything is written
+            out = os.path.join(tmp, "run")
+            with self.assertRaises(SystemExit):
+                live.main(["--offline", "--checkpoint", str(ROOT / "results" / "final_policy.pt"), "--router", str(ROUTER),
+                           "--assist", json.dumps({"plan_ahead": 1}), "--out", out])
+            self.assertFalse(os.path.exists(out))
+
     def test_failed_searches_brake_and_retry(self):
         cs = neo_courses([0, 1, 2, 3, 4, 5])
         res = self.routed(cs, "plan", AssistConfig(samples=16, iterations=1, retries=1, brake=14, retry_horizon=48))

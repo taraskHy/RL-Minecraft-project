@@ -134,6 +134,8 @@ def main(argv=None):
             raise SystemExit("--router-blocked plan and --assist go together (the neo planner plans the blocked choices)")
     elif a.router_blocked:
         raise SystemExit("--router-blocked needs --router")
+    if a.assist and json.loads(a.assist).get("plan_ahead"):
+        raise SystemExit("plan_ahead is not in the bots (bridge/assist.js RouteAssist) yet: simulator only")
 
     out = Path(a.out).resolve()
     out.mkdir(parents=True, exist_ok=False)

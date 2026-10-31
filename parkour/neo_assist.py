@@ -155,10 +155,13 @@ class AssistConfig:
     # The learned router's mode only (parkour.route_neo): 1: after a planned landing the router's next choice is planned
     # too (and so on while plans land), so the jumper never starts from a plan's landing state.
     plan_on: int = 0
+    # The learned router's mode only: 1: a decision whose route (the router's three slots) crosses a wall in a later
+    # slot is planned too, so the jumps that lead to a neo are the planner's (the course list's jumps "all", near walls).
+    plan_ahead: int = 0
 
 
 NEO_LEVERS = ("restarts", "neo_samples", "neo_iterations", "approach_touch")
-OPTIONAL = NEO_LEVERS + ("plan_start", "corner_limit", "plan_on")  # the fields a row's config lists only when they are set
+OPTIONAL = NEO_LEVERS + ("plan_start", "corner_limit", "plan_on", "plan_ahead")  # listed in a row's config only when set
 KIND_CODE = {"takeoff": 0, "retry": 1, "approach": 2}
 
 
@@ -698,8 +701,9 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
     ``cfg.plan_start``.
     """
     n = pool.size
-    if cfg.enabled and cfg.plan_on:
-        raise ValueError("plan_on is the learned router's (parkour.route_neo); with the course list use jumps 'all'")
+    if cfg.enabled and (cfg.plan_on or cfg.plan_ahead):
+        raise ValueError("plan_on and plan_ahead are the learned router's (parkour.route_neo); with the course list use "
+                         "jumps 'all'")
     if cfg.enabled and cfg.prior > 0:
         assert model.obs_dim != OBS_DIM_EXT, "the search prior uses the 255-number observation"
     per_request = NEO_LEVERS + ("corner_limit",)
