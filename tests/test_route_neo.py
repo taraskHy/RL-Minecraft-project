@@ -377,6 +377,22 @@ class RouteNeoBotParity(Shared):
                          [(0, "takeoff", 0), (1, "takeoff", 0)])
         self.assertTrue(all("corner_dropped" in e for e in res["events"]))
 
+    def test_same_when_the_corner_limit_drops_a_landing(self):
+        # Scratch course 38 from the bots' start: the corner limit drops the landing its takeoff search finds without
+        # the limit, so the bot brakes and retries (here 217 ticks instead of 181). The bot plays like the simulator
+        # only if it and the planner service apply the limit as plan_once does.
+        from parkour.live import SETTLE_TICKS
+        cfg = AssistConfig(samples=128, iterations=6, retries=1, brake=14, retry_horizon=48, restarts=1, plan_start=1,
+                           corner_limit=0.25)
+        res, bot = self.check(cfg, scratch_neo_courses([38]))
+        first = res["events"][0]
+        self.assertTrue(first["corner_dropped"] > 0 and not first["found"] and first["braked"])
+        free = self.routed(courses_from_file([c.to_json() for c in scratch_neo_courses([38])]), "plan",
+                           dataclasses.replace(cfg, corner_limit=0.0), settle=SETTLE_TICKS)
+        self.assertEqual([(e["kind"], e["takeoff"], e["tick"]) for e in free["events"][:1]],
+                         [(first["kind"], first["takeoff"], first["tick"])])
+        self.assertTrue(free["events"][0]["found"])  # the same search, without the limit, lands
+
     def test_same_with_plan_on(self):
         # The jumps after each planned landing are planned too; a weak search fails some, which brake and retry.
         cfg = AssistConfig(samples=64, iterations=3, restarts=1, retries=1, brake=14, retry_horizon=48, plan_on=1)
