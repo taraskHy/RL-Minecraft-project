@@ -531,6 +531,12 @@ Overwatch was observed running at 22:04, with no trainers active and about 40% c
     saw (`real_minecraft_tour/stairs/sprint.mp4` separately). All completed,
     0 server corrections.
   - No course list: see the section above.
+  - New (31 Oct), first person in real Minecraft with the final policy and
+    no course list: `real_minecraft_showcase_router.mp4` (the learned router
+    on the three hand-designed courses; `real_minecraft_{tour,stairs,sprint}_router.mp4`
+    separately), all completed with 0 server corrections; and
+    `real_minecraft_one_neo_level7_router.mp4` (the router plus the neo
+    planner on a level-7 one-neo test course, 140 ticks, 0 corrections).
 - **Policy files:** `results/final_policy.pt` (final, discount 0.995) and
   `results/final_policy.json` (the exported network the bot loads); the first
   final policy is `results/final_policy_v1.pt` / `.json`. The neo policy is

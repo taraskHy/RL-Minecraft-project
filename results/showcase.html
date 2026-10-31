@@ -341,8 +341,8 @@ a { color: var(--sky); }
     <div class="eyebrow">No course list</div>
     <div class="two">
       <figure>
-        <video src="videos/real_minecraft_showcase_no_course_list.mp4" preload="metadata" muted loop playsinline controls></video>
-        <figcaption>Real Minecraft, first person, with no list of platforms: a route planner finds them in the blocks around the bot. Recorded with the first final policy.</figcaption>
+        <video src="videos/real_minecraft_showcase_router.mp4" preload="metadata" muted loop playsinline controls></video>
+        <figcaption>Real Minecraft, first person, with no list of platforms: the learned router picks each platform from the blocks the bot sees, and the final policy jumps. It completes all three hand-designed courses, the same as in the simulator, with 0 server corrections.</figcaption>
       </figure>
       <div class="stack">
         <h2>The bot finds its own route</h2>
@@ -361,7 +361,11 @@ a { color: var(--sky); }
         <p><span class="tag ok">done</span> Neo jumps without the course list: when the platform the router picks sits behind a wall, the search plans that jump from the bot's exact state, and keeps planning while its plans land. Chosen on validation (255, 257 and 251 of 320 one-neo courses over three search seeds), it completes 252 of the 320 one-neo test courses (simulator, played once), against 276 with the course list, and 52 of the first 64 offline and in real Minecraft, the simulator's courses, with 0 server corrections (with the course list: 55). The router's own validation courses do not get worse (1,762 and 1,728 of 1,800; before, 1,762 and 1,720). It loses more courses before the neo, where the jumps are the policy's own, and at it (<span class="path">results/neo_routing/README.md</span>).</p>
       </div>
     </div>
-    <div class="two">
+    <div class="three">
+      <figure>
+        <video src="videos/real_minecraft_one_neo_level7_router.mp4" preload="metadata" muted loop playsinline controls></video>
+        <figcaption>Real Minecraft, first person, no course list: on a level-7 one-neo test course the router picks the platform behind the wall, and the search plans the jump around it. Completed in 140 ticks, 0 server corrections.</figcaption>
+      </figure>
       <figure>
         <video src="videos/replay_240_no_course_list_level_5_course_6_obstacles.mp4" preload="metadata" muted loop playsinline controls></video>
         <figcaption>A real-Minecraft planner game on a level-5 obstacle course, replayed in 3D with the plan drawn as numbered cyan platforms (first final policy).</figcaption>
@@ -427,7 +431,7 @@ a { color: var(--sky); }
         <h3>To finish the course</h3>
         <ul class="todo">
           <li>The report has every result through 31 October and is at the 20-page limit. Left: the team's read-through, names on the title page if the course wants them, and a new export after any change.</li>
-          <li>The presentation: no slides yet. This page, the videos and the replay viewers are the material. The videos were all made by 28 October, so none yet shows the learned router or the neo search in first person.</li>
+          <li>The presentation: no slides yet. This page, the videos and the replay viewers are the material; first-person videos of the learned router and of a neo jump without the course list were added on 31 October (section “No course list”).</li>
           <li>The generated results tables (<span class="path">results/README.md</span>) have no section yet for the router, neo routing, the one network or the gate.</li>
         </ul>
       </div>

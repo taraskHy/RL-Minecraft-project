@@ -1,0 +1,69 @@
+{
+ "mode": "live (Minecraft 1.21.4 server)",
+ "checkpoint": "results/final_policy.pt",
+ "courses": 1,
+ "wall_seconds": 37.1,
+ "router": "results/routing/router_policy.pt",
+ "router_fill": "policy",
+ "router_blocked": "plan",
+ "success": 1.0,
+ "sim_success_same_courses": 1.0,
+ "outcome_agreement": 1.0,
+ "replay_max_pos_err": 2.1316282072803006e-14,
+ "replay_exact_episodes": 1,
+ "by_level": {
+  "7": {
+   "n": 1,
+   "success": 1.0,
+   "sim_success": 1.0
+  }
+ },
+ "episodes": [
+  {
+   "index": 0,
+   "name": "one_neo_level7",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 140,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 140
+  }
+ ],
+ "assist": {
+  "config": {
+   "enabled": true,
+   "samples": 1024,
+   "iterations": 25,
+   "keep": 1,
+   "horizon": 32,
+   "retry_horizon": 48,
+   "approach": 0,
+   "jumps": "neo",
+   "prior": 0.0,
+   "retries": 1,
+   "retry_every": 10,
+   "brake": 14,
+   "batch": 1,
+   "seed": 0,
+   "restarts": 3,
+   "neo_samples": 0,
+   "neo_iterations": 0,
+   "approach_touch": 0,
+   "plan_start": 1,
+   "corner_limit": 0.25,
+   "plan_on": 1
+  },
+  "requests": 1,
+  "found": 1,
+  "verified": 1,
+  "played": 1,
+  "braked": 0,
+  "planner_errors": 0,
+  "planner_seconds": 6.0
+ }
+}

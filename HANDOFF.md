@@ -1521,17 +1521,17 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `ccdf153` (2026-10-31 03:17, branch `main`): Level-5 control: neither change, three seeds; rule fixed before the runs
+Generated on top of commit `bc6b2e0` (2026-10-31 03:28, branch `main`): Front page: the router, one-neo courses and the one network; report and results page
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 44 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 47 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `1a16df0` 2026-10-29 14:14 | 60 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 228 |
+| `README.md` | `bc6b2e0` 2026-10-31 03:28 | 0 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 231 |
 | `docs/report_draft.md` | updated together with this snapshot | 0 |
-| `results/README.md` | `f286d5f` 2026-10-30 19:14 | 15 |
+| `results/README.md` | `f286d5f` 2026-10-30 19:14 | 18 |
 | `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
@@ -1597,8 +1597,8 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `hp-kl0.02` | 999 | 0.52 | 899 | 92.7 | 92.2 | 91.8 | - |
 | `hp-net-large` | 999 | 0.52 | 649 | 94.5 | 95.3 | 95.4 | - |
 | `hp-net-small` | 999 | 0.52 | 999 | 92.5 | 91.3 | 91.3 | - |
-| `l5-ctrl` | 49 | 0.03 | 49 | 96.7 | - | - | - |
-| `l5-ctrl-s1` | 49 | 0.03 | 49 | 95.3 | - | - | - |
+| `l5-ctrl` | 249 | 0.13 | 249 | 97.3 | - | - | - |
+| `l5-ctrl-s1` | 249 | 0.13 | 199 | 96.6 | - | - | - |
 | `l5-obs05` | 999 | 0.52 | 999 | 97.9 | 98.2 | - | - |
 | `l5-obs05-s1` | 999 | 0.52 | 49 | 97.0 | 98.1 | - | - |
 | `l5-obs05-s2` | 999 | 0.52 | 99 | 97.6 | 97.8 | - | - |
@@ -1648,13 +1648,17 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `combined-stone-live` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 59/60 | 98.3 | 100.0 |
 | `combined-stone-offline` | offline (prismarine-physics, no server) | `results/combined_policy.pt` | 59/60 | 98.3 | 100.0 |
 | `film-neo_level7-1028-112702` | live (Minecraft 1.21.4 server) | `runs/neo-dagger3/checkpoints/best.pt` | 1/1 | 100.0 | 100.0 |
+| `film-one_neo_level7-1031-033439` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
 | `film-sprint-1028-014252` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
 | `film-sprint-1028-024939` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
+| `film-sprint-1031-033315` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
 | `film-stairs-1028-014205` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
 | `film-stairs-1028-024852` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
+| `film-stairs-1031-033230` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
 | `film-tour-1028-014014` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
 | `film-tour-1028-014119` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
 | `film-tour-1028-024805` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
+| `film-tour-1031-033109` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
 | `final-offline` | offline (prismarine-physics, no server) | `runs/obstacles-ft/checkpoints/best.pt` | 59/60 | 98.3 | 100.0 |
 | `final-offline-obstacles` | offline (prismarine-physics, no server) | `runs/obstacles-ft/checkpoints/best.pt` | 58/60 | 96.7 | 100.0 |
 | `final-showcase` | offline (prismarine-physics, no server) | `runs/obstacles-ft/checkpoints/best.pt` | 3/3 | 100.0 | 100.0 |
@@ -1755,6 +1759,7 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **31 Oct 2026, 03:38, Claude (Claude Code, training PC, main session):** first-person videos in real Minecraft with the final policy and no course list. `scripts/film_pov.py` gets `--router` and `--assist`, passed through to `parkour.live`; its files end in `_router`, so no earlier video is replaced. The learned router completes the three hand-designed courses (147, 121 and 114 ticks; `real_minecraft_showcase_router.mp4`), and with the neo planner in pull request #3's bot setting a level-7 one-neo test course (course 60, 140 ticks; `real_minecraft_one_neo_level7_router.mp4`). Each has 0 server corrections and the simulator's outcome. The capture's Chrome ran on the 10-core mask; the server and bot stayed off it, as the rule allows. `parkour.report` archives the four games in `results/games/`, so the report's real-game totals become 1,462 episodes in 48 runs (still 1 outcome unlike the simulator's and 2 server corrections); the export still ends on page 20. Results page version 24 (the new videos; "What is left").
 - **31 Oct 2026, 03:24, Claude (Claude Code, training PC, main session):** pull request #3 (neo routing, built on this PC) was merged on GitHub at 02:45 by `taraskHy`. Reviewed after the merge (four reviewers and a skeptic per finding): every number recomputed from the per-course files and matching, the defaults and section 5 unchanged, the test played once; 17 smaller findings (README wording, a late refusal in `parkour/live.py`, test gaps) went to the neo-routing session for its next pull request; its worktree-only logs are copied into `runs/`. Full suite on merged `main`: 183 passed, 44 subtests. Recorded in the team split here and in `TEAM_STATUS.md`. The report gets a 7.8 paragraph on it (252 of 320 on test without the course list, 52/64 in both bots), new next steps, one limitation removed and the real-game totals updated (1,458 episodes in 44 runs, now that `parkour.report` archives the neo-routing bot runs in `results/games/`); its export ends on the last line of page 20. Stale to-do items marked done (section 3 items 1, 5 and 7, the one network; `TEAM_STATUS.md`'s open problems 1-3 rewritten). Ethan (about 02:50, away until 08:30): use the GPU and CPU for major work now, and ask him nothing. Started: the level-5 control (`l5-ctrl`, `-s1`, `-s2`; rule at 03:17, section 3) through the training queue, with the GPU watchdog (65/58), keep-awake and a CPU-cap enforcer that re-applies mask 0xC03C0F every 10 s (`enforce_cpu_cap.ps1`, this session's scratchpad); the neo-routing session runs its follow-up 1 (plan every router decision) under its own rule, for pull request #4. New `scripts/level5_sets.py` measures families 46 and 47 (it reproduces 1,704 and 1,831). Next: the control's families 46 and 47, pull request #4's review, the results page.
 - **30 Oct 2026, 22:47, Claude (Claude Code, training PC, the forked session):** the report trimmed by about 160 words net (Ethan: "Yes, trim it"): section 3's speed paragraph and repeats in 7.1, 7.3, 7.7, 8 and 9, checked independently (two cuts partly restored). Export: 22 pages, 19 before the References page, the body ending about three quarters down page 20, so it fits 20 pages strictly. `results/report_draft.docx` / `.pdf` are this export. Next: the team's read-through; export again after any change.
 - **30 Oct 2026, 22:31, Claude (Claude Code, training PC, a session forked from the main one):** the report export tools installed with Ethan's approval ("Yes, install them"): pandoc 3.12.1 and LibreOffice 26.2.6 unpacked under `%LOCALAPPDATA%\Programs`, python-docx in `.venv` (section 6). `scripts/report_docx.py --pdf` on `25eced6`: 22 pages, 20 before the References page, but the body ends two lines into page 21, so it needs a trim of about 150 words to fit 20 pages strictly (section 3, item 3). The exports in `results/` are current; `report_docx.py` now prints where the body ends, and `report_pages.py`'s defaults are recalibrated (its 19 was a page optimistic). Next: the trim, then a fresh export.
