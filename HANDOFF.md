@@ -486,6 +486,20 @@ fixed at 09:24:49, before any run of it:**
   end" is now: of the 37 snapshots measured, the most strict completions on
   family 40 is `neo-skill-a2` updates 1000 (283; next 282 and 281), which
   is the chosen network, tested once on families 41 and 49 as fixed above.
+- **Test, played once (11:41-11:43; simulator, CPU; `results/neo/skill_test.jsonl`,
+  per course `results/neo/skill_details/single41-*` and `single49-*`): family
+  41, 264 of 320 (82.5%); fresh family 49, 276 (86.25%). By the rule the
+  goal is not met by a network on family 41 (272 needed).** Where family 41's
+  56 failures are (49's 44 in brackets): 11 (8) on the final policy's jumps
+  before the block (validation: 5; the planner, which plans every jump, 1),
+  26 (18) at the neo, 20 (17) of them stops on the takeoff and 19 (17) of
+  those on types 16-19, 9 (9) on the jump off the 1x1 target, 4 (3) onto the
+  takeoff, 6 (6) after the block. Types 16-19: 18 and 19 of 40 (the planner
+  on 41: 28).
+- **Router mode with the same skill (no course list, no search;
+  `results/neo_routing/skill_*.jsonl`):** validation family 40, 277; test
+  family 49, played once, 278 of 320 (86.9%); family 41, additional, 271
+  (84.7%; router plus planner: C 252, D 280 additional).
 - **A reference on the fresh set, fixed at 11:16:01 before it runs:** the
   planner's chosen setting (its family-41 test's: `--jumps all --retries 1
   --brake 14 --retry-horizon 48 --restarts 3`, the final policy, seed 0,
