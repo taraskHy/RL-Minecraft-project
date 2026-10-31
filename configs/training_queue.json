@@ -447,6 +447,36 @@
         "--bc-pairs",
         "runs/neo_skill_dagger_v1.pt,runs/neo_skill_dagger_v2_air.pt"
       ]
+    },
+    {
+      "name": "neo-skill-d3",
+      "init": "runs/neo-skill-d2/checkpoints/updates_00400.pt",
+      "flags": [
+        "--segments",
+        "runs/neo_skill_bank_v1.pt",
+        "--gamma",
+        "0.99",
+        "--obstacle-prob",
+        "0",
+        "--iterations",
+        "500",
+        "--reward-stall",
+        "5",
+        "--lr-max",
+        "3e-4",
+        "--pool-size",
+        "4096",
+        "--eval-every",
+        "500",
+        "--save-at",
+        "50,100,150,200,250,300,350,400,450,500",
+        "--ent-coef",
+        "0.01",
+        "--bc-coef",
+        "0.3",
+        "--bc-pairs",
+        "runs/neo_skill_dagger_v1.pt,runs/neo_skill_dagger_v2_air.pt,runs/neo_skill_dagger_v3_hard.pt,runs/neo_skill_dagger_v3_rest.pt"
+      ]
     }
   ]
 }
