@@ -21,9 +21,10 @@ Our contributions:
 4. A Mineflayer bridge running the network in real Minecraft, checked tick
    by tick against the simulator (sections 6 and 7.6).
 5. Neo jumps around a wall's end, which exploration never found: learned
-   from search demonstrations and DAgger (section 7.7), and planned at play
-   time with the exact simulator, narrowly meeting our 85% single-neo goal
-   (section 7.8).
+   from search demonstrations and DAgger (section 7.7), planned at play time
+   with the exact simulator, narrowly meeting our 85% single-neo goal, and
+   then reached with no search by a learned neo skill on a fresh test
+   set (section 7.8).
 6. Routing without being told the platforms: a greedy planner, and a learned
    router that beats it (section 7.9).
 7. One network for every skill, matching the specialists, and a learned
@@ -353,10 +354,9 @@ past the platforms' edge) it found no landing in 64 layouts, from rest or a
 run-up; we treat them as impossible, without proof.
 
 **Training.** Levels 6 to 8 add single neos, run-up 4-block jumps and wide
-diagonal jumps. Fine-tuned on levels 0 to 8 for about 1,700 iterations, the
-discount-0.99 policy `obstacles-ft` (section 7.3) stayed at about 70% of the
-level-6 test courses (70.0% before) and rose from 7% to 30% on level 7, then
-stayed flat; both come from courses without a neo.
+diagonal jumps. Fine-tuned on them, `obstacles-ft` (section 7.3) stayed at
+about 70% on level 6 and rose from 7% to 30% on level 7, every success on a
+course without a neo.
 
 **Diagnosis: the agent refuses.** On each jump type alone, from 16 start
 angles, the fine-tuned policy makes none of the 13 single-neo types that
@@ -369,10 +369,8 @@ the fall penalty (-5). The fall penalty that helped most on levels 0 to 5
 
 **A stall penalty does not help.** With the optional stall penalty (section 5)
 a stall ends the episode with -5, but with discount 0.99 a penalty 200 ticks
-away counts only about a seventh. After 1,000 iterations with it (and entropy
-0.01) (`neo-stall`), the policy still makes none of the 13 types. Exploration
-almost never finds the curved run a neo needs, so we gave the agent searched
-landings as demonstrations.
+away counts only a seventh: after 1,000 iterations (`neo-stall`) the policy
+still makes none of the 13 types, so we gave it searched landings.
 
 **Demonstrations.** A second cross-entropy search, over the bot's own 252
 actions (`parkour/neo_demos.py`), found 50,706 landing sequences from
@@ -385,17 +383,11 @@ single-neo types from a standing start, 54.8% of attempts on average.
 plays training courses with neos, and at each neo takeoff it reaches, the
 search looks for a landing from its exact state. Each found sequence gives
 imitation pairs (observation, action); each round adds its pairs to the
-earlier ones and trains for 500 iterations. Two fixes were needed.
-
-- *Label noise.* The first attempt collapsed (from 86.5% to 5% on levels 0
-  to 8): the search filled ticks where the action does not matter with
-  random actions. It now starts from the policy's own action probabilities
-  and puts the policy's choice back wherever the neo still lands. The fixed
-  rounds also cut the imitation weight from 1 to 0.3, a confound, though
-  `neo-bc` did not collapse at 1.
-- *Neo detection.* Round 1 also counted one-block-up jumps as neo takeoffs
-  (`results/neo/detector_check.json`, which calls it round 2); from round 2
-  on, only wall blocks count.
+earlier ones and trains for 500 iterations. A first attempt collapsed (from
+86.5% to 5% on levels 0 to 8): the search filled ticks where the action does
+not matter with random actions. It now starts from the policy's own action
+probabilities and puts the policy's choice back wherever the neo still lands
+(the fixed rounds also cut the imitation weight from 1 to 0.3, a confound).
 
 Results on the 210 test courses of levels 6 to 8 with a neo (337 neo jumps,
 simulator):
@@ -433,54 +425,62 @@ the search runs from its exact state with the exact simulator, and the bot
 plays the found sequence until it lands; if nothing lands, it brakes and
 searches again. The bots check each plan with prismarine-physics. Planning
 every jump, the final policy, which never trained on neos, completes 147 of
-the 218 validation neo courses (67.4%; 145 of them taking every neo; alone,
-0). Also planning the approach to each takeoff gives 157, but 36 of those
-skip a neo's takeoff. Its test is on hold.
+the 218 validation neo courses (67.4%; alone, 0).
 
 **The single-neo goal**, 85% of courses with exactly one neo, came with rules
 fixed before any result: new single-neo sets (section 4), a strict count (the
 bot must stand on the neo's takeoff, then land on its target), planner
 settings tried in a fixed order on validation (each kept only if it added at
 least 4 courses) and one test run. On validation the neo planner made 271
-(84.7%) with the final policy, 267 with the neo policy; up to three search
-restarts lifted the former to 286 (89.4%), past the 89% (85% plus two standard
-errors) at which the trials stopped. Played once, this setting completes 276
-of 320 test courses (86.25%), against 137 (42.8%) for the best policy alone.
-The goal is met, narrowly: the search seed alone gives a 320-course count a
-standard deviation of about 7 to 11 courses (three settings), so 86.25% is one
-draw and its 4-course margin lies within that noise.
+(84.7%) with the final policy; up to three search restarts lifted it to 286
+(89.4%), past the 89% (85% plus two standard errors) at which the trials
+stopped. Played once, this setting completes 276 of 320 test courses
+(86.25%), against 137 (42.8%) for the best policy alone: the goal is met,
+narrowly, since the search seed alone moves a count by 7 to 11 courses.
 
-| Courses (simulator: strict count; bots: completed) | Final policy + neo planner | Best policy alone (DAgger round 4) |
-| --- | --- | --- |
-| 320 validation (family 40), simulator | 286 (89.4%) | 146 (45.6%), best of 10 snapshots |
-| 320 test (family 41), simulator, played once | 276 (86.25%) | 137 (42.8%) |
-| first 64 test courses, offline bot and real Minecraft | 58/64 and 58/64 | 26/64 and 26/64 |
-| the same, with both fixes below | 55/64 and 55/64 | - |
+| Courses (simulator: strict count; bots: completed) | Final policy + neo planner | Final policy + neo skill: first, after DAgger | Best policy alone (DAgger round 4) |
+| --- | --- | --- | --- |
+| 320 validation (family 40), simulator | 286 (89.4%) | 283; 287 (89.7%), best of 62 | 146 (45.6%), best of 10 |
+| 320 test (family 41), simulator, played once | 276 (86.25%) | 264 (82.5%); 280 additional | 137 (42.8%) |
+| 320 fresh test (family 49), played once | 288 (90.0%) | 276 (86.25%); 268 additional | - |
+| 320 fresh test (family 50), played once | 284 (88.75%) | 277 (86.6%) | - |
+| first 64 test courses, offline bot and real Minecraft | 58/64, 58/64; 55/64, 55/64 after both fixes | 59/64, 59/64 after DAgger | 26/64, 26/64 |
 
 **The bots.** Before any fix, the offline bot and real Minecraft each
 completed 58 of the first 64 test courses, as did the policy check (section
-6). Two changes followed, prompted by these runs and kept on validation. With the first-jump fix, which also plans from the start state,
-the server corrected the bot twice and one course failed (54/64; 55
-offline). Both came at a neo wall's corner: the game resolves horizontal
-movement along its larger component first, prismarine-physics along x then
-z, and the server sends the bot back when the two end over 0.25 blocks
-apart and the bot's box started the tick clear of blocks. This rule matches
-every warning and send-back in 40 recorded real-game runs
-(`results/corner_scan.json`). The corner check drops plans drifting over
-0.25 blocks in the game's order, at no cost on validation. After both, the
-bots made 55/64 offline and in real Minecraft, the simulator's courses and
-ticks, with 0 corrections; 58 against 55 is within the search's seed noise.
+6). Two changes followed, kept on validation: the first jump is planned
+too, and plans are dropped that drift over 0.25 blocks past a neo wall's
+corner in the game's collision order (the game resolves horizontal movement
+along its larger component first, prismarine-physics x then z; this rule
+matches every warning and send-back in 40 real-game runs,
+`results/corner_scan.json`; with the first alone the server corrected the
+bot twice, 54/64). With both, the bots made 55/64 offline and in
+real Minecraft, the simulator's courses and ticks, with 0 corrections; 58
+against 55 is within the search's seed noise.
 
 **Without the course list.** With the learned router (section 7.9) choosing
 among platforms, walled ones included, a choice whose path a wall blocks is
 searched as a neo, and with `plan_on` so is every later decision while plans
-land. Chosen on validation
-(255, 257 and 251 of 320 over three search seeds) by rules fixed before the
-runs, it completes 252 of the 320 test courses (78.75%, played once) against
-276 with the course list, and 52 of the first 64 in the offline bot and in
-real Minecraft, with 0 corrections (course list: 55). Planning also the
-jumps that lead to a walled choice, kept by a later rule (278, 282 and 273 on
-validation), gives 280 in an additional test and 59 of 64 in both bots.
+land. Chosen on validation (255, 257 and 251 of 320 over three seeds), it
+completes 252 of the 320 test courses (78.75%, played once), and 52 of the
+first 64 in both bots with 0 corrections. Also planning the jumps that lead
+to a walled choice (278, 282, 273 on validation) gives 280 in an additional
+test and 59 of 64 in both bots.
+
+**Without the search: a learned neo skill.** A second network plays the
+block around each neo, from the first landing on the platform before the
+takeoff to the first landing after the target, handed over by a fixed gate,
+the neo detector. PPO trains it on that block alone, each episode starting
+in the exact state in which the final policy first stands there, on 63,777
+training courses (`parkour/neo_skill.py`). The first version (best of 37
+snapshots) completes 264 test courses (82.5%), short of the goal: on four
+types with the wall in the first gap cell it stood still. Two DAgger rounds
+then imitated the planner's landings from its own states on those types.
+The best of all 62 candidates completes 277 of a fresh test set (86.6%,
+played once; 280 with the router's walled choice as the gate) and 85.9% of
+all 960 test courses. It loses about as many neos as the search but more
+ordinary jumps, which the planner plans and the skill leaves to the final
+policy.
 
 ### 7.9 Without the course list: greedy planner, learned router, learned route model
 
@@ -600,14 +600,13 @@ counts as a failure is part of the reward design, not a detail of the
 environment: a penalty that helps on the jumps an agent can make also
 decides which jumps it tries.
 
-**Search against learning.** PPO never found a neo by exploring. Imitating
-a search expert, then DAgger, taught the jump, but on the single-neo test
-courses the best policy alone completes 42.8%, while the neo planner, the
-same kind of search run at each takeoff during play, completes 86.25%
-(strict, simulator, played once; section 7.8). Both need a simulator exact
-and cheap enough to search from any state. The price is search time at
-every takeoff (2.8 s per search on the CPU in the test), and a skill that is
-planned rather than learned.
+**Search against learning.** PPO never found a neo by exploring whole
+courses, and imitation plus DAgger gave 42.8% of the single-neo test courses
+against the planner's 86.25% (section 7.8). PPO closed most of the gap once
+its episodes were only the neo's block, started where the final policy
+really arrives, plus DAgger from the planner on the hardest types: 86.6% of
+a fresh test set with no search. What changed is where episodes start, not
+the algorithm.
 
 **Statistics.** Many results rest on one training run: most hyperparameter
 settings, each router run, the one network and the gate. The neo planner's
@@ -654,7 +653,8 @@ exact simulator met the 85% single-neo goal, narrowly: 276 of 320 test
 courses (86.25%, strict, simulator, played once) against 42.8% for the best
 policy alone; in real Minecraft the bot made the simulator's courses on the
 first 64 of them (58, then 55 after two later fixes; section 7.8), with 0
-corrections.
+corrections. With no search, a neo skill trained by PPO on the neo's block
+alone, then DAgger, completes 86.6% of a fresh test set (85.9% of 960).
 
 Without the course list, a learned router trained with PPO plus an
 imitation term towards the course's next platform picks each platform from
@@ -666,9 +666,8 @@ real Minecraft.
 One network trained with PPO and distillation plays every skill group about
 as well as that group's best specialist (test mean 86.45%, simulator): a
 match, not a win. It completes 86.4% of the test courses with new jump
-kinds and blocks (the final policy alone: 19.7%).
-
-Next steps are more blocks, water first, and real hand-built maps.
+kinds and blocks (the final policy alone: 19.7%). Next steps are more blocks, water first, and real hand-built
+maps.
 
 ## References
 

@@ -127,6 +127,7 @@ a { color: var(--sky); }
           <tr><td>Neo jumps around a wall</td><td>29.0% of 210 courses with a neo, up from 0%<span class="where">simulator</span>11/31 neo courses<span class="where">real Minecraft</span></td><td>neo policy</td></tr>
           <tr><td>Neo jumps with a planning search</td><td>72.0% of 218 neo courses<span class="where">simulator, validation</span>25/31 neo courses<span class="where">offline bot</span></td><td>final policy + search</td></tr>
           <tr><td>Courses with exactly one neo (target 85%)</td><td>86.25% of 320 test courses with every jump planned, played once: the goal is met under the rule fixed before the runs; 42.8% for the best policy alone<span class="where">simulator, test</span>55/64 test courses with the search, the same as the simulator, 0 corrections<span class="where">real Minecraft</span></td><td>final policy + search</td></tr>
+          <tr><td>Courses with exactly one neo, no search: a learned neo skill</td><td>86.6% of 320 fresh test courses, played once (85.9% of all 960 test courses); 87.5% with the learned router as the switch; the first version made 82.5% on the original test set<span class="where">simulator, test</span>59/64 test courses, the same as the simulator, 0 corrections<span class="where">real Minecraft</span></td><td>final policy + neo skill</td></tr>
           <tr><td>A gate that picks an expert at every landing</td><td>86.8% mean of the four groups (the one network: 86.4%), a match<span class="where">simulator, test</span></td><td>gate over seven experts</td></tr>
           <tr><td>Head hitters, ice run-ups, shaped blocks, slime, ladders</td><td>91.2% of 2,400 courses over 12 levels<span class="where">simulator</span></td><td><code>g995-extra</code></td></tr>
           <tr><td>No course list: learned router</td><td>97.8% of 1,200 test courses, played once (the hand-written planner: 92.3%)<span class="where">simulator, test</span>57/60, the same courses as the simulator<span class="where">real Minecraft</span></td><td>final policy + router</td></tr>
@@ -236,6 +237,34 @@ a { color: var(--sky); }
         <p>On a separate test set of 320 such courses, played once with that setting, it completes 276 (86.25%); the best policy alone completes 137 (42.8%). The goal of 85% is met under the rule fixed before the runs, but narrowly: the margin is 4 courses, and the 95% interval is 82.0 to 89.6%, before counting the search's own chance, which on the validation courses moves a run's count by about 3 points with its random seed. Five of the 276 skipped the search at one ordinary platform (a plan landed further on); counting only courses where every platform was a takeoff gives 271 (84.7%).</p>
         <p>In real Minecraft, on the first 64 test courses, the bot with the search completed 58 and the policy alone 26: the same courses as the offline bot and the simulator from the same start, with 0 server corrections. That start is not the scored test's: the bots stand still on the start block before they move, while the test starts in the air, and on 13 of the 64 courses with the search (19 with the policy alone) the outcome differs from the test's for that reason alone.</p>
         <p>From that standing start the bots' first jump went unplanned; the planner now plans it too. A second fix keeps the planner off moves the game rejects: jumping diagonally past the corner of a neo's wall, the bot's physics engine and the game resolve the move in a different order, and with only the first fix the server corrected the bot twice (54 of 64 in real Minecraft). With both fixes, each kept by a rule fixed before its validation run, the bot completes 55 of the 64 test courses offline and 55 in real Minecraft, the same courses and ticks as the simulator, with 0 server corrections. The search has its own chance: with another seed the count on the 320 validation courses moves by about 10, so differences of a few courses between these runs mean little.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Neo jumps without search</div>
+    <h2>A learned neo skill: 86.6% of a fresh test set, with no search</h2>
+    <div class="two">
+      <div class="stack">
+        <p>Asked on 31 October for 85% from a network, with no search at play time: a second network, the neo skill, plays only the block around each neo, from the first landing on the platform before the takeoff to the first landing after the target. A fixed gate hands it over (the course list's neo detector, or, without the course list, the learned router's walled choice), and the final policy plays every other jump.</p>
+        <p>It trains with PPO on that block alone. Every episode starts in the exact state in which the final policy first stands on the block's first platform, on one of 63,777 training courses, and the neo types that fail more are drawn more often. After 100 updates, six minutes on the GPU, it completed 239 of the 320 validation courses, against 146 for the best network alone before.</p>
+        <p>The first version (283 on validation, the best of 37 snapshots) completed 264 of the 320 test courses (82.5%), short of 85%: on the four types with the wall right after the takeoff it stood still. Two DAgger rounds then imitated the search's landings from the skill's own states on those types, on the takeoff and during its first flight, next to PPO; those types rose to the search's level. That version, the best of all 62 candidates on validation (287), completes 277 of a fresh test set (86.6%, played once), 280 with the router as the gate (87.5%), and 85.9% of all 960 test courses.</p>
+        <p>It loses about as many neos as the search, but more ordinary jumps: the search plans every jump, while the skill leaves about seven per course to the final policy.</p>
+      </div>
+      <div class="panel">
+        <div class="scroll"><table>
+          <thead><tr><th>One-neo courses, strict</th><th class="num">Neo skill, no search</th><th class="num">Search at each takeoff</th><th class="num">Network alone</th></tr></thead>
+          <tbody>
+            <tr><td>Validation (320)</td><td class="num">287, best of 62</td><td class="num">286</td><td class="num">146</td></tr>
+            <tr><td>Fresh test (320), played once</td><td class="num">277</td><td class="num">284</td><td class="num">-</td></tr>
+            <tr><td>The same, no course list</td><td class="num">280</td><td class="num">-</td><td class="num">-</td></tr>
+            <tr><td>All three test sets (960)</td><td class="num">825 (85.9%)</td><td class="num">848 (88.3%)</td><td class="num">-</td></tr>
+            <tr><td>First version, test (320), played once</td><td class="num">264</td><td class="num">276</td><td class="num">137</td></tr>
+            <tr><td>First 64 test courses, offline bot</td><td class="num">59/64</td><td class="num">55/64</td><td class="num">26/64</td></tr>
+            <tr><td>The same, real Minecraft</td><td class="num">59/64, 0 corrections</td><td class="num">55/64</td><td class="num">26/64</td></tr>
+          </tbody>
+        </table></div>
+        <p class="muted">Simulator unless named. A course counts only if the bot stood on the neo's takeoff and then landed on its target. "Search" is the final policy with the neo planner (every jump planned). The two later test sets were built for the skill; on the first, the DAgger version's 280 is an additional test. Bots: the same courses as the simulator's re-run from the bots' start. Files: <span class="path">results/neo/skill_*.jsonl</span>, <span class="path">results/neo_routing/skill_*.jsonl</span>, <span class="path">results/neo/assist_test.jsonl</span>.</p>
       </div>
     </div>
   </section>
@@ -432,6 +461,7 @@ a { color: var(--sky); }
         <h3>Running overnight</h3>
         <ul class="todo">
           <li><span class="tag ok">done</span>The control for the level-5 fine-tune: three runs with neither change average 84.2% on the level-5 validation courses with obstacles, 1.0 point below the final policy, so the recipe's 2.7-point gain there is beyond the extra training (by a reading fixed before the runs). On the obstacle test's level 5 the control rose too, so that rise may be the extra training. Nothing is shipped.</li>
+          <li><span class="tag ok">done</span>Neo jumps with no search, by a learned neo skill (section above): 86.6% of a fresh test set, 87.5% without the course list; its first version made 82.5% on the original test set.</li>
           <li><span class="tag ok">done</span>Neo jumps without the course list: also planning the one or two jumps that lead to a walled jump was kept on validation (a mean of 277.7 against 254.3) and completes 280 of the 320 test courses in an additional test, against 276 with the course list, and 59 of 64 in real Minecraft.</li>
         </ul>
         <h3>To finish the course</h3>
@@ -442,7 +472,7 @@ a { color: var(--sky); }
       <div class="panel">
         <h3>Open problems</h3>
         <ul class="todo">
-          <li>Neo jumps by the network alone: 42.8% of the one-neo test courses, against 86.25% with the search.</li>
+          <li>Neo jumps with no search: the learned neo skill makes 86.6% of a fresh test set, a few points under the search. Left: the final policy's own ordinary jumps on these courses, and a corner check for the skill in real Minecraft (the game resolves a wall corner differently).</li>
           <li>Without the course list, an approach plan for the walled jump (the course list's last lever) is still untried; the search still finds no landing at the neo on 23 to 29 of the 320 validation courses (with the course list, 24 at seed 0).</li>
           <li>Water, an observation of each block's type, and hand-built maps taken from real worlds.</li>
           <li>On hold until Ethan resumes them: the cloud tests of the new abilities.</li>

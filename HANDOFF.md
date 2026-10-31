@@ -548,6 +548,36 @@ fixed at 09:24:49, before any run of it:**
   Fixed at 12:47:28, before any test of it: if d2's best on family 40 is
   above 283, the planner's chosen setting also plays family 50 once (CPU,
   `--parts 8`), as on family 49, so its test there has the search beside it.
+  **d2, all ten snapshots (50-500):** 271, 275, 275, 284, 286, 283, 283, 287,
+  284, 287 (d1's ten: 274, 274, 279, 272, 265, 273, 276, 269, 279, 273).
+  **Chosen: d2 updates 400, 287 of 320 (89.7%), the most of every
+  candidate** (updates 500 ties; the earlier wins), and shipped as
+  `results/neo_skill.pt` / `.json` (sha1 `962b57d218a0`); the first skill
+  (a2 updates 1000) is kept as `results/neo_skill_v1.pt` / `.json` (its bot
+  runs above played it under the name `results/neo_skill.pt`, the same
+  bytes, sha1 `2802accced61`).
+- **d2's test, played once (12:58-13:00; simulator, CPU):** course list,
+  **fresh family 50: 277 of 320 (86.6%)**; additional tests, family 41: 280
+  (87.5%; a2: 264), family 49: 268 (83.75%; a2: 276). Router mode, family
+  40: 273; **fresh family 50: 280 (87.5%)**; additional, 41: 268, 49: 274.
+  Over the three test sets (960 courses) d2 completes 825 (85.9%) with the
+  course list and 822 (85.6%) with the router; a2 made 540 of 640 (84.4%)
+  and 549 of 640 (85.8%). Where family 50's 43 failures are: 23 at the neo
+  and 20 at ordinary jumps. Offline bot, first 64 test courses: course list
+  59 of 64, router 55 of 64, each the same as the simulator re-run on every
+  course (`runs/single41-offline-skill-d2`, `-d2-router`). The planner's
+  reference on family 50 (as fixed at 12:47; `assist_parts/single50-test-planner`):
+  284 of 320 (88.75%), failures 23 at the neo and 12 at ordinary jumps;
+  over the three test sets the planner makes 848 of 960 (88.3%), the skill
+  825 (85.9%). **Real Minecraft,
+  course list: 59 of 64, the same courses and ticks as the re-run on all 64,
+  0 server corrections and no "moved wrongly" in the server log** (largest
+  replay difference 2.1e-14 blocks; `runs/single41-live-skill-d2`); course 53,
+  corrected with the first skill, is now made the same way in both. **Router
+  mode in real Minecraft: 55 of 64, the same as the re-run on all 64, 0
+  corrections** (`runs/single41-live-skill-d2-router`). The first skill's
+  router-mode real-Minecraft run: 51 of 64, one correction, again course 53
+  (`runs/single41-live-skill-router`).
 - **The bots, first 64 test courses, from the bots' start, the chosen skill
   (kept as `results/neo_skill.pt`, the same bytes, sha1 `2802accced61`, and
   `results/neo_skill.json`):** course list: offline 51 of 64, the same as
@@ -1404,6 +1434,13 @@ Concrete work, most important first. Nothing here needs new research.
    Untried directions: more DAgger rounds with more arrival states, a
    separate neo skill the main policy hands over to, a curriculum of neo
    tightness. Keep picking checkpoints on the validation family.
+   [31 Oct, 13:43: the separate neo skill is built (section 3, first
+   block): on courses with one neo it completes 86.6% of a fresh test set
+   with no search (the planner 88.75%), 85.9% of all 960 test courses.
+   Still open: courses with two or more neos (the skill's switch covers each
+   neo's block, but it was trained and tested only on single neos), a third
+   DAgger round, and the final policy's own ordinary jumps on these courses,
+   now about half the failures.]
 2. **One policy for everything:** the neo policy is 1.9 (standard) and 2.7
    (obstacles) points behind the final policy on levels 0-5, mostly at level
    5 (85.5 vs 93.5%, 70.5 vs 81.0%), and far ahead on levels 6-8 (section 2).
@@ -1788,15 +1825,15 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `655a09b` (2026-10-31 06:34, branch `main`): Merge pull request #4 from taraskHy/neo-routing-2
+Generated on top of commit `a7002ae` (2026-10-31 12:47, branch `main`): Neo skill: bots on the first 64 test courses (offline 51 = re-run; real Minecraft 50, one corner correction; router offline 52 = re-run), d2 on validation, the family-50 reference rule
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 65 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 83 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
 | `README.md` | updated together with this snapshot | 0 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 249 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 267 |
 | `docs/report_draft.md` | updated together with this snapshot | 0 |
 | `results/README.md` | updated together with this snapshot | 0 |
 | `results/DATA.md` | updated together with this snapshot | 0 |
@@ -1884,6 +1921,13 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `neo-dagger2` | 499 | 0.26 | 299 | 86.2 | 86.7 | 87.3 | 83.3 |
 | `neo-dagger3` | 499 | 0.26 | 449 | 85.7 | 86.4 | 87.1 | 84.4 |
 | `neo-dagger4` | 499 | 0.26 | 199 | 85.2 | 86.1 | - | - |
+| `neo-skill-a1` | 499 | 0.26 | 499 | 94.2 | - | - | - |
+| `neo-skill-a2` | 499 | 0.26 | 499 | 94.2 | - | - | - |
+| `neo-skill-a3` | 499 | 0.26 | 499 | 92.8 | - | - | - |
+| `neo-skill-a4` | 499 | 0.26 | 499 | 94.5 | - | - | - |
+| `neo-skill-a5` | 499 | 0.26 | 499 | 93.3 | - | - | - |
+| `neo-skill-d1` | 499 | 0.26 | 499 | 89.8 | 91.5 | - | - |
+| `neo-skill-d2` | 499 | 0.26 | 499 | 91.3 | 89.4 | - | - |
 | `neo-stall` | 999 | 0.52 | 749 | 84.7 | 84.7 | 84.8 | 82.3 |
 | `nofall-s0` | 999 | 0.52 | 949 | 93.7 | 91.8 | 91.2 | - |
 | `nofall-s1` | 999 | 0.52 | 649 | 90.5 | 90.8 | 90.9 | - |
@@ -1985,12 +2029,20 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `single41-live-policy` | live (Minecraft 1.21.4 server) | `runs/neo-dagger4/checkpoints/updates_00250.pt` | 26/64 | 40.6 | 100.0 |
 | `single41-live-routeneo` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 52/64 | 81.2 | 100.0 |
 | `single41-live-routeneo-D` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 59/64 | 92.2 | 100.0 |
+| `single41-live-skill` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 50/64 | 79.7 | 98.4 |
+| `single41-live-skill-d2` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 59/64 | 92.2 | 100.0 |
+| `single41-live-skill-d2-router` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 55/64 | 85.9 | 100.0 |
+| `single41-live-skill-router` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 51/64 | 81.2 | 98.4 |
 | `single41-offline-corner` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 55/64 | 85.9 | 100.0 |
 | `single41-offline-planner` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 58/64 | 90.6 | 100.0 |
 | `single41-offline-planstart` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 55/64 | 85.9 | 100.0 |
 | `single41-offline-policy` | offline (prismarine-physics, no server) | `runs/neo-dagger4/checkpoints/updates_00250.pt` | 26/64 | 40.6 | 100.0 |
 | `single41-offline-routeneo` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 52/64 | 81.2 | 100.0 |
 | `single41-offline-routeneo-D` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 59/64 | 92.2 | 100.0 |
+| `single41-offline-skill` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 51/64 | 79.7 | 100.0 |
+| `single41-offline-skill-d2` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 59/64 | 92.2 | 100.0 |
+| `single41-offline-skill-d2-router` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 55/64 | 85.9 | 100.0 |
+| `single41-offline-skill-router` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 52/64 | 81.2 | 100.0 |
 | `skill-replays-live-65` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 59/65 | 90.8 | 100.0 |
 | `skill-replays-neo-network-live` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 7/16 | 43.8 | 100.0 |
 | `skill-replays-neo-network-offline` | offline (prismarine-physics, no server) | `results/combined_policy.pt` | 7/16 | 43.8 | 100.0 |
@@ -2018,7 +2070,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 
 ### In `results/` but not yet in `results/DATA.md`
 
-`games/single41-live-routeneo/`, `games/single41-live-routeneo-D/`, `games/single41-offline-routeneo/`, `games/single41-offline-routeneo-D/`, `level5_control.json`
+Nothing: the data index names everything.
 
 <!-- END AUTO-SNAPSHOT -->
 
@@ -2036,6 +2088,11 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **31 Oct 2026, 13:43, Claude (Claude Code, training PC, main session):** single neos by a network, no search (Ethan, 08:30: "i need our network/gate will have 85% on neo"; his idea: the router hands a neo to a neo skill, like a gate).
+  - Built (`f8a870f` to `a6bf663`): `parkour/neo_skill.py` (a bank of the final policy's arrival states, `SegmentEnv`, `TypeSampler`, DAgger pairs from the planner), `train.py --segments` / `--segment-base`, the switch in `neo_assist --skill`, `route_neo --skill` (the router's walled next or second jump) and both bots (`parkour.live --skill`, with `--router --router-blocked keep`), fresh test families 49 and 50 (pinned, excluded from training), a generated results section (`parkour.report`). Tests: `tests/test_neo_skill.py`, `tests/test_neo_skill_bots.py`; the full suite 209 passed before the report step (the handoff snapshot test then failed as expected).
+  - Rules in section 3, each written before its runs (09:24 to 12:47). Five PPO runs (a1-a5), a jump readout, two weight averages and two DAgger rounds: 62 candidates on family 40. The first chosen skill (a2 updates 1000, 283) tested once: family 41 264 (82.5%, goal not met by a network), fresh 49 276. The second (d2 updates 400, 287, shipped as `results/neo_skill.pt`) tested once on fresh family 50: 277 (86.6%; router 280, 87.5%); 41 and 49 additional (280, 268); 825 of 960 test courses (85.9%) against the planner's 848 (88.3%, its 49 and 50 runs today).
+  - Bots, first 64 test courses: d2 59/64 offline and in real Minecraft (router 55/55), the simulator's courses, 0 corrections; the first skill had one corner correction (course 53) in each mode.
+  - Report, results page, README, TEAM_STATUS and DATA updated; the slide draft's neo slide too (artifact version 11). Next, if wanted: a third DAgger round, the ordinary jumps of the final policy on these courses, courses with two neos.
 - **31 Oct 2026, 07:02, Claude (Claude Code, training PC, main session):** pull request #4 (neo routing 2, built overnight by the neo-routing session at this session's request) reviewed and merged (`655a09b`; GitHub shows it merged at 07:01).
   - The result: lever D (`plan_ahead`) kept by rule 4 on family 40 (278, 282, 273 against C's 255, 257, 251); one additional family-41 test, 280 of 320 (C's 252 stays the test; course list 276); bots 59/64 offline and in real Minecraft, each equal to its re-run, 0 corrections; from the bots' start (a measurement) 282.
   - The review: a pre-review of the branch to 9e95999 (16 smaller findings, fixed in the branch's b9b0a81), then a review of the 8 later commits (6 low findings). Four of those are README wording, fixed here in `results/neo_routing/README.md`. Two are test assertions that cannot fail (the obstacle bot parity does not catch `verifyPlan` ignoring the request's floor; the plan_on test's "searched as a neo" is true by construction): open, low.

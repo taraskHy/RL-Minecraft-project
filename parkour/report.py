@@ -18,6 +18,7 @@ import argparse
 import csv
 import gzip
 import json
+import re
 import shutil
 from pathlib import Path
 
@@ -568,6 +569,70 @@ def neo_routing(out: Path) -> list:
     return lines
 
 
+def neo_skill(out: Path) -> list:
+    """The neo skill (parkour.neo_skill): a second network plays each neo's block, no search; results/neo/skill_*.jsonl."""
+    read = lambda f: [json.loads(x) for x in open(f, encoding="utf-8") if x.strip()] if f.exists() else []  # noqa: E731
+    val = [r for r in read(out / "neo" / "skill_validation.jsonl") if r.get("family") == 40 and not r.get("first_courses_only")]
+    runs = {}
+    for r in val:
+        m = re.match(r"runs/(neo-skill-[\w-]+)/checkpoints/updates_(\d+)\.pt", r["skill"])
+        if m:
+            runs.setdefault(m[1], []).append((int(m[2]), r["completed_neo_done"]))
+    if not runs:
+        return []
+    count = lambda r: f"{r['completed_neo_done']} ({r['completed']})"  # noqa: E731
+    lines = ["## Single neos without the search: the neo skill (simulator; HANDOFF.md section 3, rules of 31 Oct)", "",
+             "A second network, the neo skill, plays each neo's block, from the first landing on the platform before the",
+             "takeoff to the first landing on the platform after the target; the final policy plays every other jump, and the",
+             "course list's neo detector is the switch, a fixed gate (`parkour.neo_assist --off --skill`). No search runs. The",
+             "skill is trained with PPO on the block alone (`train.py --segments`), every episode starting in the exact state",
+             "in which the final policy first stands on the block's first platform of a training single-neo course (families",
+             "60-69). Strict counts (completed with the neo done) of the 320 validation courses (family 40), CPU, for every",
+             "snapshot measured:", "", "| Run | Snapshots (updates: strict count) | Best |", "| --- | --- | --- |"]
+    for name in sorted(runs):
+        pts = sorted(runs[name])
+        best = max(pts, key=lambda p: (p[1], -p[0]))
+        lines.append(f"| `{name}` | " + ", ".join(f"{u}: {c}" for u, c in pts) + f" | {best[1]} (updates {best[0]}) |")
+    others = [r for r in val if not re.match(r"runs/neo-skill-[\w-]+/checkpoints/updates_\d+\.pt$", r["skill"]) or r.get("skill_jump")]
+    if others:  # weight averages and readouts: candidates that are no training snapshot
+        lines += ["", "Other candidates on family 40: " + "; ".join(
+            f"`{r['skill']}`" + (f" with the jump readout {r['skill_jump']}" if r.get("skill_jump") else "") + f": {r['completed_neo_done']}"
+            for r in others) + "."]
+    tests = read(out / "neo" / "skill_test.jsonl")
+    ref = {r.get("family"): r for r in read(out / "neo" / "assist_test.jsonl")
+           if r.get("run_id") in ("assist_parts/single41-test-planner", "assist_parts/single49-test-planner",
+                                  "assist_parts/single50-test-planner")}
+    if tests:
+        lines += ["", f"Tests (strict, plain in brackets), each version played once on its own test set and the others",
+                  "labelled additional (the tag says which); the planner's setting on the same courses beside it. The first",
+                  "version was chosen from 37 snapshots; the second, after two DAgger rounds from the planner on the four",
+                  f"hardest types (`neo-skill-d1`, `-d2`), from all {len(val)} candidates:", "",
+                  "| Skill | Test set | Played as | Neo skill | Final policy + neo planner |", "| --- | --- | --- | --- | --- |"]
+        for r in tests:
+            p = ref.get(r["family"])
+            kind = "additional" if r.get("tag", "").startswith("ADDITIONAL") else "test, once"
+            lines.append(f"| `{r['skill']}` | family {r['family']} | {kind} | {count(r)} of {r['courses']} | "
+                         f"{count(p) if p else '-'} |")
+    rv = [r for r in read(out / "neo_routing" / "skill_validation.jsonl") if not r.get("first_courses_only")]
+    rt = read(out / "neo_routing" / "skill_test.jsonl")
+    if rv or rt:
+        lines += ["", "Without the course list, the learned router hands a walled jump's block to the same skill (`parkour.route_neo",
+                  "--skill`: a decision whose next jump crosses a wall hands it the next two jumps, one whose second jump does,",
+                  "the next three):", "", "| Set | Skill | Strict (plain) |", "| --- | --- | --- |"]
+        for r in rv + rt:
+            split = "additional test" if r.get("tag", "").startswith("ADDITIONAL") else r["split"]
+            lines.append(f"| family {r['family']} ({split}) | `{r['skill']}` | {count(r)} of {r['courses']} |")
+    games = [r for r in (game_row(out, n, n + label) for n, label in (
+        ("single41-offline-skill", " (course list + first neo skill)"), ("single41-live-skill", " (course list + first neo skill)"),
+        ("single41-offline-skill-router", " (router + first neo skill)"), ("single41-live-skill-router", " (router + first neo skill)"),
+        ("single41-offline-skill-d2", " (course list + neo skill)"), ("single41-live-skill-d2", " (course list + neo skill)"),
+        ("single41-offline-skill-d2-router", " (router + neo skill)"), ("single41-live-skill-d2-router", " (router + neo skill)")))
+        if r]
+    if games:
+        lines += ["", "The bots on the first 64 single-neo test courses, from the bots' start:", ""] + GAME_HEADER + games
+    return lines + [""]
+
+
 def one_network(out: Path) -> list:
     """The one network and the gate on test, per skill group, from results/skills/ and results/runs/gate-r1/."""
     f = out / "skills" / "combined_test_comparison.json"
@@ -817,7 +882,7 @@ def main(argv=None):
         if rows:
             lines += GAME_HEADER + rows + [""]
 
-    lines += learned_router(out) + neo_routing(out)
+    lines += learned_router(out) + neo_routing(out) + neo_skill(out)
 
     # The final policy since 28 October: discount 0.995 (section "Hyperparameters").
     v2 = RUNS / "obstacles-g995" / "summary.json"
