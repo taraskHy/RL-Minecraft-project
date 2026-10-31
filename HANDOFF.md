@@ -712,6 +712,21 @@ governs):
   share (the training queue's settings; chosen checkpoints at iterations 49
   to 999). The weight alone does cost on standard courses: family 47
   -1.35, test standard 97.42% (mean of two) against 98.42%.
+- **The control, neither change (rule fixed on 31 Oct at 03:17, before
+  the runs; a measurement, nothing chosen or shipped):** `l5-ctrl`,
+  `l5-ctrl-s1` and `l5-ctrl-s2`, the training queue's recipe with neither
+  change (obstacles 0.3, the adaptive curriculum; the queue's base command
+  plus `--pool-size 1024` and `--seed`, as the other level-5 runs), from
+  the final policy, 1,000 iterations, each chosen at its validation best
+  and tested once (`--test-once`). Each best is measured on families 46
+  and 47 by `scripts/level5_sets.py` (it reproduces the final policy's
+  1,704 and 1,831 exactly). Reading, fixed now, on the mean of the three
+  runs on family 46: if it is at least 2 points above the final policy's
+  85.20% (the 06:39 rule's margin), the shared fine-tuning alone gains as
+  much, and the pair's +2.67 is not evidence for the recipe; otherwise, if
+  the pair's mean (87.87%) is at least 2 points above the control's, the
+  pair's gain is beyond the shared fine-tuning; otherwise it is
+  inconclusive. Family 47 and the tests are reported next to it.
 - **The one network on ordinary courses in the bots (CPU):**
   `results/combined_policy.pt` has played only skill, ice and neo courses
   in the bots. The offline bot, then real Minecraft, on the 60 standard and

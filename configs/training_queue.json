@@ -228,6 +228,31 @@
         "--seed",
         "1"
       ]
+    },
+    {
+      "name": "l5-ctrl",
+      "flags": [
+        "--pool-size",
+        "1024"
+      ]
+    },
+    {
+      "name": "l5-ctrl-s1",
+      "flags": [
+        "--pool-size",
+        "1024",
+        "--seed",
+        "1"
+      ]
+    },
+    {
+      "name": "l5-ctrl-s2",
+      "flags": [
+        "--pool-size",
+        "1024",
+        "--seed",
+        "2"
+      ]
     }
   ]
 }
