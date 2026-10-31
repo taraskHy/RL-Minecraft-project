@@ -304,7 +304,7 @@ class SegmentEnv(ParkourEnv):
         success, skipped = block_rule(self.cp, new_cp, kk, end)
 
         dist = self._distance(new.pos, self.course, new_cp)
-        progress = self.dist - dist
+        progress = self.dist - dist  # (a skip still earns its landings and progress, then the fall penalty)
         j = new_cp[:, None] + self.fall_range[None, :]
         jv = (j >= 0) & (j <= last[:, None])
         tops = self.pool.top[self.course[:, None], j.clamp(0, MAX_PLATFORMS - 1)]

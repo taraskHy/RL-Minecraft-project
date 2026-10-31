@@ -1,12 +1,14 @@
 """Run a trained policy on held-out courses outside the simulator, and compare.
 
     python -m parkour.live --checkpoint runs/NAME/checkpoints/best.pt --out runs/live-NAME
-                           [--per-level 5] [--offline] [--viewer YourMinecraftName]
+                           [--per-level 5] [--offline] [--viewer YourMinecraftName] [--skill CKPT]
 
 Live mode starts the local void-world server (parkour.server), and the
 Mineflayer bot (bridge/parkour_bot.js) plays every course in real Minecraft.
 Offline mode runs the same JavaScript episode loop on prismarine-physics
-without a server (bridge/offline_bot.js).
+without a server (bridge/offline_bot.js). With --skill (the neo-skill mode,
+parkour.neo_skill; course list only) a second network plays each neo's block
+(neo_assist.skill_cps) in both bots and in the simulator re-run.
 
 Afterwards, every episode is checked two ways:
 * replay: the recorded actions are re-simulated in the Python simulator from
@@ -126,7 +128,13 @@ def main(argv=None):
                     help="JSON overrides of parkour.neo_assist.AssistConfig ('{}': defaults): the bot plans its neos "
                          "with a Python search from its exact state, checks each plan with prismarine-physics, plays it; "
                          "with --router, the router's blocked-path choices (--router-blocked plan)")
+    ap.add_argument("--skill", default="",
+                    help="the neo skill's checkpoint (parkour.neo_skill): it acts instead of the policy while the "
+                         "checkpoint is one of the course's skill_cps (neo_assist.skill_cps: each neo's block), in both "
+                         "bots and in the simulator re-run; course list only (not with --planner, --router or --assist)")
     a = ap.parse_args(argv)
+    if a.skill and (a.planner or a.router or a.assist):  # refused before anything is written
+        raise SystemExit("--skill plays with the course list alone (not with --planner, --router or --assist)")
     if a.router:
         a.planner = True
         a.router_blocked = a.router_blocked or ("plan" if a.assist else "drop")
@@ -138,7 +146,11 @@ def main(argv=None):
         # route_env.Scene refuses it too, but only in the simulator re-run, after the bots have played every course
         raise SystemExit("--router-blocked keep or plan needs the planner's straight-path check (clear_path)")
 
-    from .neo_assist import AssistConfig, assist_fields, courses_from_file
+    from .neo_assist import AssistConfig, assist_fields, courses_from_file, skill_cps
+    if a.skill and (load_model(Path(a.skill).resolve(), "cpu").obs_dim
+                    != load_model(Path(a.checkpoint).resolve(), "cpu").obs_dim):
+        # evaluate_assisted refuses it too, but only in the simulator re-run, after the bots have played every course
+        raise SystemExit("--skill must see the policy's observation (the same obs_dim)")
     assist_cfg = None
     if a.assist:  # refused before anything is written
         if a.planner and not a.router:
@@ -169,11 +181,19 @@ def main(argv=None):
     if assist_cfg is not None and not a.router:
         for c, d in zip(courses, course_json):
             d.update(assist_fields(c, assist_cfg))  # takeoffs, targets (past a slime pad: its exit), retry horizons
+    if a.skill:
+        for c, d in zip(courses, course_json):
+            d["skill_cps"] = skill_cps(c)  # where the bots' neo skill acts (bridge/policy.js Episode)
     (out / "courses.json").write_text(json.dumps({"courses": course_json}))
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     model = load_model(Path(a.checkpoint).resolve(), dev)
     model.export(out / "policy.json", {"checkpoint": str(a.checkpoint)})
     episodes_path = out / "episodes.jsonl"
+    skill_model, skill_args = None, []
+    if a.skill:  # the bots' copy of the neo skill, as the policy's
+        skill_model = load_model(Path(a.skill).resolve(), dev)
+        skill_model.export(out / "skill.json", {"checkpoint": str(a.skill)})
+        skill_args = ["--skill", str(out / "skill.json")]
 
     assist_args = []
     if assist_cfg is not None:
@@ -197,7 +217,7 @@ def main(argv=None):
         subprocess.run([str(NODE), str(BRIDGE / "offline_bot.js"), "--policy", str(out / "policy.json"),
                         "--courses", str(out / "courses.json"), "--out", str(episodes_path),
                         "--settle", str(SETTLE_TICKS), "--stall", str(a.stall), "--planner", planner_json,
-                        "--fall-rule", a.fall_rule] + assist_args, check=True, cwd=str(BRIDGE))
+                        "--fall-rule", a.fall_rule] + assist_args + skill_args, check=True, cwd=str(BRIDGE))
     else:
         from .server import COURSE_ORIGIN, SPAWN_PAD, Server
         with open(out / "server.log", "w") as slog, Server(a.port, log=slog):
@@ -206,7 +226,7 @@ def main(argv=None):
                    "--origin", ",".join(map(str, COURSE_ORIGIN)), "--pad", ",".join(map(str, SPAWN_PAD)),
                    "--stall", str(a.stall), "--style", a.style, "--web-viewer", str(a.web_viewer), "--hold", str(a.hold),
                    "--first-person", "true" if a.first_person else "false", "--planner", planner_json, "--fall-rule", a.fall_rule]
-            cmd += assist_args
+            cmd += assist_args + skill_args
             if a.viewer:
                 cmd += ["--viewer", a.viewer]
                 print(f"Join 127.0.0.1:{a.port} in Minecraft Java 1.21.4 as {a.viewer} to watch.", flush=True)
@@ -239,6 +259,11 @@ def main(argv=None):
         from .neo_assist import evaluate_assisted
         pc = evaluate_assisted(model, pool, dev, assist_cfg, a.stall, settle=SETTLE_TICKS, fall_rule=a.fall_rule)["per_course"]
         sim = {"success": [c["success"] for c in pc], "ticks": [c["ticks"] for c in pc]}
+    elif skill_model is not None:  # the neo-skill mode: the skill acts while the checkpoint is one of skill_cps
+        from .neo_assist import evaluate_assisted
+        pc = evaluate_assisted(model, pool, dev, AssistConfig(enabled=False), a.stall, settle=SETTLE_TICKS,
+                               fall_rule=a.fall_rule, skill=skill_model)["per_course"]
+        sim = {"success": [c["success"] for c in pc], "ticks": [c["ticks"] for c in pc]}
     else:
         sim = evaluate(model, pool, dev, a.stall, deterministic=True, settle=SETTLE_TICKS, per_course=True,
                        fall_rule=a.fall_rule)["per_course"]
@@ -249,7 +274,8 @@ def main(argv=None):
         rows.append({"index": i, "name": courses[i].name, "level": ep["level"], "result": ep["result"], "platform": ep["cp"], "n": ep["n"],
                      "ticks": ep["ticks"], "server_corrections": ep.get("server_corrections"),
                      "replay_max_pos_err": r["max_pos_err"], "replay_first_divergence": r.get("first_divergence_tick"),
-                     "sim_success": bool(sim["success"][i]), "sim_ticks": int(sim["ticks"][i])})
+                     "sim_success": bool(sim["success"][i]), "sim_ticks": int(sim["ticks"][i]),
+                     **({"skill_ticks": ep.get("skill_ticks")} if a.skill else {})})
     n_levels = max(c.level for c in courses) + 1
     by_level = {}
     for L in range(n_levels):
@@ -260,7 +286,8 @@ def main(argv=None):
     errs = [r["replay_max_pos_err"] for r in rows if r["replay_max_pos_err"] is not None]
     summary = {
         "mode": "offline (prismarine-physics, no server)" if a.offline else "live (Minecraft 1.21.4 server)",
-        "checkpoint": str(a.checkpoint), "courses": len(rows), "wall_seconds": round(wall, 1),
+        "checkpoint": str(a.checkpoint), **({"skill": str(a.skill)} if a.skill else {}),
+        "courses": len(rows), "wall_seconds": round(wall, 1),
         **({"router": str(a.router), "router_fill": router_fill} if a.router else {}),
         **({"router_blocked": a.router_blocked} if a.router and a.router_blocked != "drop" else {}),
         "success": sum(r["result"] == "success" for r in rows) / max(len(rows), 1),
@@ -285,6 +312,11 @@ def main(argv=None):
     lines = [f"# {summary['mode']}", "", f"Checkpoint `{a.checkpoint}`, {len(rows)} courses "
              f"({'from ' + a.courses_file if a.courses_file else 'held-out' + (' with obstacles' if a.obstacles else '') + ', 10 jumps each'}).", "",
              "| Level | Courses | Success here | Success in simulator (same courses) |", "| --- | --- | --- | --- |"]
+    if a.skill:  # after the checkpoint's line
+        played = sum(r["skill_ticks"] or 0 for r in rows)
+        lines[3:3] = ["", f"Neo skill `{a.skill}`: it acts instead of the policy in each neo's block (from the "
+                          f"platform before the takeoff to the one after the target), here {played} of "
+                          f"{sum(r['ticks'] for r in rows)} ticks."]
     for L, v in by_level.items():
         lines.append(f"| {L} | {v['n']} | {v['success']:.0%} | {v['sim_success']:.0%} |")
     lines += ["", f"Overall: {summary['success']:.0%} here, {summary['sim_success_same_courses']:.0%} in the simulator; "

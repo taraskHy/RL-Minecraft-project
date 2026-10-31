@@ -6,11 +6,14 @@
 //   node offline_bot.js --policy P.json --courses C.json --out episodes.jsonl [--settle 10]
 //                       [--planner '{"radius": 12}'] [--fall-rule local|remaining]
 //                       [--assist CONFIG_JSON --assist-python PYTHON --assist-checkpoint CKPT --assist-root DIR --assist-device cpu|cuda]
+//                       [--skill SKILL.json]
 //
 // With --assist (bridge/assist.js) the courses carry "assist_takeoffs" and a Python planner
 // service plans the bot's neos; every plan is checked with prismarine-physics before it is played.
 // With --assist and a learned router whose --planner JSON has "blocked": "plan", the router's
 // blocked-path choices are planned instead (RouteAssist, parkour/route_neo.py).
+// With --skill (the neo skill, parkour/neo_skill.py; course list only) the courses carry "skill_cps" and
+// the second network acts instead of the policy while the checkpoint is one of them (policy.js Episode).
 
 const fs = require('fs')
 const path = require('path')
@@ -25,11 +28,12 @@ const Block = require(require.resolve('prismarine-block', { paths: [path.dirname
 const STATES = Object.fromEntries(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'configs', 'block_shapes.json'), 'utf8'))
   .shapes.map(s => [s.name, s.state]))
 
-const args = { settle: 10, stall: 200, maxTicks: 3000, planner: '', fallRule: 'local', assist: '' }
+const args = { settle: 10, stall: 200, maxTicks: 3000, planner: '', fallRule: 'local', assist: '', skill: '' }
 for (let i = 2; i < process.argv.length; i += 2) {
   args[process.argv[i].replace(/^--/, '').replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = process.argv[i + 1]
 }
 const policy = P.Policy.load(args.policy)
+const skill = args.skill ? P.Policy.load(args.skill) : null // the neo skill, loaded as the policy
 const courses = JSON.parse(fs.readFileSync(args.courses, 'utf8')).courses
 const out = fs.createWriteStream(args.out)
 const STONE = mcData.blocksByName.stone.id
@@ -106,7 +110,8 @@ async function main () {
       fallRule: args.fallRule,
       assist: assistConfig ? { config: assistConfig, takeoffs: c.assist_takeoffs || [], targets: c.assist_targets || null, retryHorizons: c.assist_retry_horizons || null, approach: c.assist_approach || null } : null,
       shapes: c.shapes || null,
-      topOf
+      topOf,
+      skill: skill ? { policy: skill, cps: c.skill_cps } : null
     })
     for (;;) {
       const s = { pos: [e.pos.x, e.pos.y, e.pos.z], vel: [e.vel.x, e.vel.y, e.vel.z], yaw: e.yaw, onGround: e.onGround, jumpTicks: e.jumpTicks, collidedH: e.isCollidedHorizontally }

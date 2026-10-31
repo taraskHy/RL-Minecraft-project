@@ -4,6 +4,7 @@
 //   node parkour_bot.js --policy P.json --courses C.json --out episodes.jsonl
 //        [--port 25570] [--origin 0,80,0] [--pad -20,100,-20] [--viewer NAME] [--stall 200] [--max-ticks 3000]
 //        [--assist CONFIG_JSON --assist-python PYTHON --assist-checkpoint CKPT --assist-root DIR --assist-device cpu|cuda]
+//        [--skill SKILL.json]
 //
 // For each course: move to the spawn pad, clear the course area, build the
 // platforms with /fill, /tp onto the start block, then drive the bot with the
@@ -13,7 +14,9 @@
 // replay it in the simulator. With --assist (bridge/assist.js) the bot stops
 // its physics on a planned takeoff while the Python planner searches a plan
 // from its exact state (the server sees it stand still), checks the plan with
-// prismarine-physics against the real blocks, and plays it.
+// prismarine-physics against the real blocks, and plays it. With --skill (the neo skill,
+// parkour/neo_skill.py; course list only) the courses carry "skill_cps" and the second network acts
+// instead of the policy while the checkpoint is one of them (policy.js Episode).
 
 const fs = require('fs')
 require('./physics_patch') // vanilla collision tolerance, as in the simulator
@@ -36,7 +39,7 @@ function sameBoxes (a, b) {
 }
 
 function parseArgs (argv) {
-  const a = { port: 25570, host: '127.0.0.1', origin: '0,80,0', pad: '-20,100,-20', stall: 200, maxTicks: 3000, username: 'ParkourBot', viewer: '', style: 'stone', webViewer: 0, hold: 0, planner: '', fallRule: 'local', assist: '' }
+  const a = { port: 25570, host: '127.0.0.1', origin: '0,80,0', pad: '-20,100,-20', stall: 200, maxTicks: 3000, username: 'ParkourBot', viewer: '', style: 'stone', webViewer: 0, hold: 0, planner: '', fallRule: 'local', assist: '', skill: '' }
   for (let i = 2; i < argv.length; i += 2) {
     const k = argv[i].replace(/^--/, '').replace(/-([a-z])/g, (_, c) => c.toUpperCase())
     a[k] = argv[i + 1]
@@ -53,6 +56,7 @@ function parseArgs (argv) {
 
 const args = parseArgs(process.argv)
 const policy = P.Policy.load(args.policy)
+const skill = args.skill ? P.Policy.load(args.skill) : null // the neo skill, loaded as the policy
 const courses = JSON.parse(fs.readFileSync(args.courses, 'utf8')).courses
 const out = fs.createWriteStream(args.out, { flags: 'a' })
 const [OX, OY, OZ] = args.origin
@@ -300,7 +304,8 @@ async function runCourse (c, index) {
     fallRule: args.fallRule,
     assist: assistConfig ? { config: assistConfig, takeoffs: c.assist_takeoffs || [], targets: c.assist_targets || null, retryHorizons: c.assist_retry_horizons || null, approach: c.assist_approach || null } : null,
     shapes: c.shapes || null,
-    topOf
+    topOf,
+    skill: skill ? { policy: skill, cps: c.skill_cps } : null
   })
   courseIndex = index
   await new Promise(resolve => { finish = resolve; episode = ep })
@@ -308,7 +313,8 @@ async function runCourse (c, index) {
   if (args.webViewer) log(`film: end ${index} ${Date.now()}`)
   const rec = ep.record({ index, level: c.level, seed: c.seed, wall_seconds: (Date.now() - t0) / 1000, server_corrections: corrections, mode: 'live' })
   out.write(JSON.stringify(rec) + '\n')
-  log(`course ${index} (level ${c.level}): ${ep.result}, platform ${ep.cp}/${c.platforms.length - 1}, ${ep.ticks} ticks, corrections ${corrections}`)
+  log(`course ${index} (level ${c.level}): ${ep.result}, platform ${ep.cp}/${c.platforms.length - 1}, ${ep.ticks} ticks, corrections ${corrections}` +
+    (ep.skill ? `, neo skill ${ep.skillTicks} ticks` : ''))
   if (args.webViewer) await sleep(3000) // stay on the last platform for the camera
   return rec
 }

@@ -302,7 +302,7 @@ function onObstacle (s, extra) {
 const PLAN = 'plan'
 
 class Episode {
-  constructor (policy, platforms, isSolid, { stall = 200, maxTicks = 3000, extra = null, planner = null, fallRule = 'local', assist = null, shapes = null, topOf = null } = {}) {
+  constructor (policy, platforms, isSolid, { stall = 200, maxTicks = 3000, extra = null, planner = null, fallRule = 'local', assist = null, shapes = null, topOf = null, skill = null } = {}) {
     this.extra = extra
     // Shaped platforms ({index: shape name}): their own footprints and tops, and the shape tops in the scan.
     this.geom = shapes && Object.keys(shapes).length ? platformGeometry(platforms, shapes) : null
@@ -335,6 +335,17 @@ class Episode {
       this.assist = new Assist(assist.config, assist.takeoffs, assist.targets, assist.retryHorizons, assist.approach)
     }
     this.policy = policy
+    // The neo skill (parkour.neo_skill; parkour.live --skill), {policy, cps}: a second network that acts instead of
+    // ``policy`` while the checkpoint (this.cp, the furthest platform stood on) is one of the course's skill_cps
+    // (neo_assist.skill_cps), from the same observation (neo_assist.evaluate_assisted with ``skill``).
+    this.skill = null
+    this.skillTicks = 0
+    if (skill) {
+      if (!Array.isArray(skill.cps)) throw new Error('the neo skill needs the course\'s skill_cps (parkour.live --skill writes them)')
+      if (skill.policy.obsDim !== policy.obsDim) throw new Error(`the neo skill sees ${skill.policy.obsDim} observations, the policy ${policy.obsDim}`)
+      if (planner || assist) throw new Error('the neo skill plays with the course list alone (no planner, no assist)')
+      this.skill = { policy: skill.policy, cps: new Set(skill.cps) }
+    }
     this.platforms = platforms
     this.isSolid = isSolid
     this.stallLimit = stall
@@ -433,7 +444,9 @@ class Episode {
     const gq = this.geom ? this.geom[n - 1] : null
     const goal = gq ? [(gq[0] + gq[1]) / 2, gq[4], (gq[2] + gq[3]) / 2] : centre(this.platforms[n - 1])
     const obs = observeSlots(s, this.lastAction, slots, goal, progress, this.isSolid, this.memory, this.geom ? this.topOf : null)
-    const a = this.policy.act(obs)
+    const useSkill = this.skill !== null && this.skill.cps.has(this.cp) // the checkpoint before this tick's step
+    if (useSkill) this.skillTicks++
+    const a = (useSkill ? this.skill.policy : this.policy).act(obs)
     this.actions.push(a)
     this.lastAction = a
     return a
@@ -451,7 +464,8 @@ class Episode {
       actions: this.actions,
       traj: this.traj,
       ...(this.planner ? { plans: this.planner.events } : {}),
-      ...(this.assist ? { assist: this.assistLog } : {})
+      ...(this.assist ? { assist: this.assistLog } : {}),
+      ...(this.skill ? { skill_ticks: this.skillTicks } : {}) // ticks the neo skill chose the action
     }
   }
 }
