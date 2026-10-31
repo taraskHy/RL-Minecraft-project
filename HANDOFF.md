@@ -477,6 +477,11 @@ fixed at 09:24:49, before any run of it:**
   gain over a2 so far) stops at its next snapshot after 10:56 to free the
   GPU slot; its snapshots stay candidates, a5's are chosen by the same rule,
   and "at the end" then means once a4 and a5 have finished.
+- **A reference on the fresh set, fixed at 11:16:01 before it runs:** the
+  planner's chosen setting (its family-41 test's: `--jumps all --retries 1
+  --brake 14 --retry-horizon 48 --restarts 3`, the final policy, seed 0,
+  CPU, `--parts 8`) played once on family 49, so the neo skill's test there
+  has the search beside it. A measurement only; nothing is chosen on it.
 - **Progress (simulator unless named; validation family 40):**
   - Code: commits `f8a870f` (the bank, `SegmentEnv`, `TypeSampler`,
     `train.py --segments` and `--segment-base`, `neo_assist --skill` with
