@@ -33,7 +33,11 @@ for every number are in the sections below.
 - **Bots** on the 64 test courses of `single41-first64`:
   - C: **52 of 64 offline and 52 of 64 in real Minecraft**. Each matches its simulator re-run on every course
     (outcome and ticks), with 0 server corrections, and the two bots match each other.
+  - D, additional to C's: **59 of 64 offline and 59 of 64 in real Minecraft**. It is checked the same way: each run
+    matches its simulator re-run on every course, with 0 server corrections, and the two bots match each other.
   - The course-list planner gets 55 in both.
+  - From the bots' start (family 40, settle 10; simulator, CPU; a measurement), the bots' setting gets 282 with D,
+    248 with C and 292 with the course list.
 - **Choices**, by rules written before each run (simulator, CPU):
   - rule 1 kept A over B, which led by 3.0 (under the rule's 4);
   - rule 3 added `plan_on`, which led A by 15.3;
@@ -466,6 +470,34 @@ The two bots play the same courses with the same ticks on all 64 (from 00:12 to 
 Oct). The course-list planner on the same 64 courses completes 55 in both bots (`results/games/single41-offline-corner`,
 `single41-live-corner`). The two sets overlap on 44 courses: 11 are completed only with the course list and 8 only
 with the router.
+
+**Rule 4's setting (D), additional to C's 52 of 64.** D plus the same bot-start fixes: `{"samples": 1024,
+"iterations": 25, "horizon": 32, "retry_horizon": 48, "retries": 1, "brake": 14, "restarts": 3, "plan_on": 1,
+"plan_ahead": 1, "plan_start": 1, "corner_limit": 0.25}`, on the CPU as above, with the same check: real Minecraft
+ran only after the offline bot had matched its re-run on every course. Other jobs of this branch ran beside both
+runs (the family-41 test, families 2 and 5, and the measurement from the bots' start), so their wall times are not
+comparable with C's.
+
+| | Offline bot | Real Minecraft (1.21.4 server) |
+| --- | --- | --- |
+| Run | `results/neo_routing/games/single41-offline-routeneo-D` | `results/neo_routing/games/single41-live-routeneo-D` |
+| Completed | **59 of 64** | **59 of 64** |
+| Simulator re-run, same courses | 59 | 59 |
+| Courses where outcome or ticks differ from the re-run | 0 | 0 |
+| Replaying the recorded actions in the simulator | max 7.1e-15 blocks; 64 of 64 within 1e-6 on every tick | max 2.1e-14 blocks; 64 of 64 within 1e-6 on every tick |
+| Planner requests: found, verified, played | 411, 411, 411 of 427; 10 brakes; 0 errors | 411, 411, 411 of 427; 10 brakes; 0 errors |
+| Server corrections | (no server) | 0, and no "moved wrongly" in the server's log |
+| The bot's play (real Minecraft: with the server's start) | 1,756 s | 1,766 s |
+| The whole run, with the replay and the simulator re-run (the logs' start and exit) | 3,051 s | 2,819 s |
+
+- **Times:** the offline bot from 04:45:03 to 05:35:54 on 31 Oct, real Minecraft from 05:36:10 to 06:23:09. The two bots
+  play the same courses with the same ticks on all 64.
+- **Against the course-list planner's 55:** D's offline bot and the course list overlap on 53 courses. 2 are
+  completed only with the course list (7 and 15) and 6 only with D (16, 18, 29, 33, 45, 60).
+- **Against C's 52:** they overlap on 50 courses. 2 are completed only with C (53 and 62) and 9 only with D (6, 21,
+  23, 28, 34, 37, 42, 44, 57).
+- **Planner requests:** with D the bot asks for 427 searches, against C's 306: the jumps that lead to the neo are
+  planned too.
 
 ### The first trigger's runs (superseded by the amendment; nothing is chosen on them)
 
