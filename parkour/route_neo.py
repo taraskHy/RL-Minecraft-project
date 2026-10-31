@@ -65,12 +65,12 @@ from .planner import PlannerConfig
 from .route_env import RouteConfig, RouteRunner, RouteTables
 from .train import (OBSTACLE_TEST_FAMILY, OBSTACLE_VALIDATION_FAMILY, TEST_SEED_FAMILY, VALIDATION_FAMILY,
                     held_out_courses)
-from .neo_assist import SINGLE_FRESH_TEST_FAMILY, SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY
+from .neo_assist import SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2, SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY
 
 K = C.MAX_PLATFORMS
 OUT_DIR = ROOT / "results" / "neo_routing"
-# (test, validation[, a further test set]); the single-neo sets' fresh test family 49 is the neo skill's (31 Oct)
-SETS = {"single": (SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, SINGLE_FRESH_TEST_FAMILY),
+# (test, validation[, further test sets]); the single-neo sets' fresh test families 49 and 50 are the neo skill's (31 Oct)
+SETS = {"single": (SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2),
         "standard": (TEST_SEED_FAMILY, VALIDATION_FAMILY), "obstacles": (OBSTACLE_TEST_FAMILY, OBSTACLE_VALIDATION_FAMILY)}
 
 
@@ -447,6 +447,8 @@ def main(argv=None):
     ap.add_argument("--skill", default="", help="the neo skill's checkpoint (parkour.neo_skill) instead of the planner: it "
                                                 "plays each walled jump's block (the assist off); rows go to "
                                                 "results/neo_routing/skill_*.jsonl")
+    ap.add_argument("--skill-jump", type=float, default=0.5, help="with --skill: its jump reads 'jump' above this "
+                                                                  "probability (neo_skill.JumpReadout; 0.5: argmax)")
     ap.add_argument("--settle", type=int, default=0, help="ticks without keys on the start block first (the bots: 10)")
     ap.add_argument("--fall-rule", default="local", choices=("local", "remaining"))
     ap.add_argument("--device", default="", help="the episodes and the router (default: cuda if available)")
@@ -504,6 +506,8 @@ def main(argv=None):
         meta["per_level"] = a.per_level
     if a.skill:
         meta["skill"], meta["skill_sha1"] = _rel(Path(a.skill)), _sha1(Path(a.skill))
+        if a.skill_jump != 0.5:  # (in the row only when set)
+            meta["skill_jump"] = a.skill_jump
     if a.parts:
         meta["courses_sha256"] = hashlib.sha256(json.dumps([c.to_json() for c in courses], sort_keys=True).encode()).hexdigest()
         t0 = time.time()
@@ -530,7 +534,7 @@ def main(argv=None):
     res = evaluate_routed_neo(jumper, pool, RouteTables(pool), choose, fill, pcfg, rcfg, acfg, settle=a.settle,
                               fall_rule=a.fall_rule, record=True, search_pool=spool, course_offset=lo,
                               log=lambda d: print(json.dumps(d), flush=True),
-                              skill=load_model(Path(a.skill), dev) if a.skill else None)
+                              skill=_skill(a, dev))
     if a.part:
         part_file.parent.mkdir(parents=True, exist_ok=True)
         tmp = part_file.with_suffix(".tmp")
@@ -540,6 +544,17 @@ def main(argv=None):
         return None
     row = {**meta, **summarize(res), "seconds": round(time.time() - t0, 1)}
     return _publish(row, res, out, details)
+
+
+def _skill(a, dev):
+    """The neo skill of ``--skill`` (and ``--skill-jump``), or None."""
+    if not a.skill:
+        return None
+    skill = load_model(Path(a.skill), dev)
+    if a.skill_jump != 0.5:
+        from .neo_skill import JumpReadout  # here: neo_skill imports neo_assist, which this module imports
+        skill = JumpReadout(skill, a.skill_jump)
+    return skill
 
 
 def _publish(row: dict, res: dict, out: Path, details: Path) -> dict:

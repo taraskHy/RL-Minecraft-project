@@ -48,8 +48,8 @@ from . import physics
 from .env import (FALL_MARGIN, MAX_PLATFORMS, CoursePool, EnvConfig, LevelSampler, ParkourEnv, action_to_controls,
                   on_obstacle)
 from .live import load_model
-from .neo_assist import (SINGLE_FRESH_TEST_FAMILY, SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, single_neo_courses,
-                         single_neo_hashes, single_neo_types, skill_cps)
+from .neo_assist import (SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2, SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY,
+                         single_neo_courses, single_neo_hashes, single_neo_types, skill_cps)
 from .neo_dagger import neo_takeoffs
 from .paths import ROOT
 from .train import course_hash
@@ -84,7 +84,7 @@ def training_courses(families=TRAIN_FAMILIES, per_family: int = 6400) -> tuple[l
     n_types = len(single_neo_types())
     out, types = [], []
     for f in families:
-        if f in (SINGLE_VALIDATION_FAMILY, SINGLE_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY):
+        if f in (SINGLE_VALIDATION_FAMILY, SINGLE_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2):
             raise ValueError(f"family {f} is a held-out single-neo set")
         for i, c in enumerate(single_neo_courses(f, per_family)):
             if course_hash(c) in exclude:
@@ -219,6 +219,22 @@ class SegmentBank:
         out["k"] = self.k[i].to(self.device)
         out["end"] = self.end[i].to(self.device)
         return out
+
+
+class JumpReadout:
+    """A skill whose deterministic jump reads "jump" when the jump head's probability is above ``t`` (argmax: t 0.5;
+    the other heads stay argmax), for a policy that jumps at a random tick in training (HANDOFF.md, 31 Oct, 11:43)."""
+
+    def __init__(self, model, t: float):
+        self.model, self.t, self.obs_dim = model, t, model.obs_dim
+
+    def act(self, obs: torch.Tensor, deterministic: bool = False):
+        a, logp, v = self.model.act(obs, deterministic)
+        if deterministic:
+            jump = self.model.logits(self.model.norm(obs))[2]
+            a = a.clone()
+            a[:, 2] = (torch.softmax(jump, -1)[:, 1] > self.t).to(a.dtype)
+        return a, logp, v
 
 
 class TypeSampler(LevelSampler):

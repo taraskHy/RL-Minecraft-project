@@ -125,7 +125,9 @@ MIXED_VALIDATION_FAMILY = 15
 SINGLE_VALIDATION_FAMILY = 40  # the single-neo sets (families 18-39 are the routing work's)
 SINGLE_TEST_FAMILY = 41
 SINGLE_FRESH_TEST_FAMILY = 49  # a second single-neo test set, for the neo skill (HANDOFF.md section 3, 31 Oct)
-TEST_FAMILIES = (TEST_SEED_FAMILY, RANDOM_TEST_FAMILY, MIXED_TEST_FAMILY, SINGLE_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY)
+SINGLE_FRESH_TEST_FAMILY_2 = 50  # a third, for a later version of the neo skill (31 Oct, 11:43)
+TEST_FAMILIES = (TEST_SEED_FAMILY, RANDOM_TEST_FAMILY, MIXED_TEST_FAMILY, SINGLE_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY,
+                 SINGLE_FRESH_TEST_FAMILY_2)
 HEADS = ("move", "strafe", "jump", "sprint", "yaw")
 
 
@@ -499,9 +501,9 @@ def single_neo_courses(family: int, n: int = 320, n_jumps: int = 10) -> list[C.C
 
 def single_neo_hashes() -> set:
     """``train.course_hash`` of every course of the single-neo sets (320 each: validation, test and the fresh
-    test set): no training course may equal one."""
-    return {course_hash(c) for f in (SINGLE_VALIDATION_FAMILY, SINGLE_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY)
-            for c in single_neo_courses(f)}
+    test sets): no training course may equal one."""
+    return {course_hash(c) for f in (SINGLE_VALIDATION_FAMILY, SINGLE_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY,
+                                     SINGLE_FRESH_TEST_FAMILY_2) for c in single_neo_courses(f)}
 
 
 def skill_cps(course: C.Course) -> list[int]:
@@ -1139,6 +1141,8 @@ def main(argv=None):
     ap.add_argument("--off", action="store_true", help="the policy alone, for comparison")
     ap.add_argument("--skill", default="", help="with --off: the neo skill's checkpoint (parkour.neo_skill), which plays "
                                                 "each neo's block (skill_cps); rows go to results/neo/skill_*.jsonl")
+    ap.add_argument("--skill-jump", type=float, default=0.5, help="with --skill: its jump reads 'jump' above this "
+                                                                  "probability (neo_skill.JumpReadout; 0.5: argmax)")
     ap.add_argument("--courses", type=int, default=0, help="only the first N courses (quick checks)")
     ap.add_argument("--settle", type=int, default=0, help="ticks without keys on the start block first, as the bots "
                                                           "start (parkour.live.SETTLE_TICKS, 10); in the row only when set")
@@ -1169,7 +1173,7 @@ def main(argv=None):
         torch.set_num_threads(a.threads)
     valid = {"official": (TEST_SEED_FAMILY, VALIDATION_FAMILY), "random": (RANDOM_TEST_FAMILY, RANDOM_VALIDATION_FAMILY),
              "mixed": (MIXED_TEST_FAMILY, MIXED_VALIDATION_FAMILY),
-             "single": (SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, SINGLE_FRESH_TEST_FAMILY)}
+             "single": (SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2)}
     if a.family not in valid[a.set]:
         raise SystemExit(f"--set {a.set} has families {valid[a.set]} (test, validation{', fresh test' if a.set == 'single' else ''})")
     if a.skill and (not a.off or a.part or a.parts or a.serve):
@@ -1223,6 +1227,10 @@ def _evaluate_cli(a, cfg, dev):
         meta["skill"] = sk.relative_to(ROOT).as_posix() if sk.is_relative_to(ROOT) else sk.name
         meta["skill_sha1"] = hashlib.sha1(sk.read_bytes()).hexdigest()[:12]
         skill = load_model(sk, dev)
+        if a.skill_jump != 0.5:  # (in the row only when set)
+            from .neo_skill import JumpReadout  # here: neo_skill imports this module
+            meta["skill_jump"] = a.skill_jump
+            skill = JumpReadout(skill, a.skill_jump)
     if a.part or a.parts:
         meta['courses_sha256'] = hashlib.sha256(json.dumps([c.to_json() for c in courses], sort_keys=True).encode()).hexdigest()
     if a.parts:

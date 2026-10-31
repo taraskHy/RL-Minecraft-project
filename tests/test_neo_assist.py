@@ -431,10 +431,11 @@ class SingleNeoSets(unittest.TestCase):
 
     def test_kept_out_of_training(self):
         hashes = single_neo_hashes()
-        fresh = single_neo_courses(SINGLE_FRESH_TEST_FAMILY)  # the fresh test set (the neo skill's) too
-        self.assertEqual(hashes, {course_hash(c) for cs in list(self.sets.values()) + [fresh] for c in cs})
-        self.assertEqual(len(hashes), 960)
+        fresh = [single_neo_courses(f) for f in (SINGLE_FRESH_TEST_FAMILY, NA.SINGLE_FRESH_TEST_FAMILY_2)]  # the neo skill's
+        self.assertEqual(hashes, {course_hash(c) for cs in list(self.sets.values()) + fresh for c in cs})
+        self.assertEqual(len(hashes), 1280)
         self.assertIn(SINGLE_FRESH_TEST_FAMILY, TEST_FAMILIES)
+        self.assertIn(NA.SINGLE_FRESH_TEST_FAMILY_2, TEST_FAMILIES)
         original = T.held_out_courses
         tiny = lambda levels, per_level, n_jumps, obstacle_prob=0.0, family=1, ice_prob=0.0: original(  # noqa: E731
             levels, 1, 2, obstacle_prob=obstacle_prob, family=family, ice_prob=ice_prob)

@@ -508,6 +508,26 @@ fixed at 09:24:49, before any run of it:**
   50 (built now, pinned and checked against the bank before any run), and
   reported on families 41 and 49 as additional tests; course list and router
   mode alike. The bots get the same readout before they play it.
+  **Result (11:46, family 40, CPU):** t 0.4, 0.3 and 0.2 give 275, 275 and
+  276 against 283 at 0.5 (they lose ordinary jumps inside the block), so by
+  the rule t stays 0.5: nothing new to test; family 50 stays unplayed
+  (pinned, `e129393d068b5b9c`, no course in the bank).
+- **A later version: the planner's landings for the four hardest types
+  (DAgger), fixed at 11:46:30 before any run of it.** Labels: the chosen
+  skill (`neo-skill-a2` updates 1000) plays the blocks of the bank's courses
+  of types 16-19 from their bank starts; from its own state at the first
+  ground contact on the takeoff, and again 10 and 20 ticks later while it
+  still stands there, the neo planner's search (`neo_assist.search`, its
+  default samples and rounds, keep 1, the skill's own action probabilities
+  as the prior, weight 0.95) looks for a landing on the target; every landing
+  is simplified (`neo_dagger.simplify`: the skill's own choice put back
+  wherever it still lands) and replayed into (observation, action) pairs.
+  Training: `neo-skill-d1`, from that skill, a2's settings plus `--bc-coef
+  0.3 --bc-pairs` those pairs, 500 updates, a snapshot every 50. Choice: as
+  for every run (family 40, the most strict). If a d1 snapshot beats 283 it
+  is tested once on family 50 in both modes (course list and router) and
+  reported on 41 and 49 as additional; otherwise d1 is reported on
+  validation only.
 - **Router mode with the same skill (no course list, no search;
   `results/neo_routing/skill_*.jsonl`):** validation family 40, 277; test
   family 49, played once, 278 of 320 (86.9%); family 41, additional, 271
