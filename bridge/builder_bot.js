@@ -13,8 +13,9 @@
 // and goal, for a check without a builder. Without !start and !goal (or after !clear) the marks are the marker
 // blocks within MARKER_RANGE of the spawn pad: a gold block the start, a diamond block the goal, emerald blocks
 // platforms the route must pass (nearest the start first); to the simulator they are stone. On !route and !run
-// the bot scans every block around the marks with bot.blockAt and the converter (python -m parkour.builder
-// --serve) turns them into a course, or names the blocks it cannot model. The bot plays as the live bot does
+// the bot scans every block in a box around the start wide enough for any course (BOX) and the converter (python
+// -m parkour.builder --serve) keeps the blocks linked to the start's block, turns them into a course, or names the
+// blocks it cannot model (the spawn pad and the panel are walls of a build near them). The bot plays as the live bot does
 // (bridge/parkour_bot.js, whose details for the game's exact movement are copied here: /tp with decimals, the
 // server's movement-speed attribute removed every tick, the yaw set directly): the final policy, and the neo
 // skill on each neo's block, with the learned router choosing the platforms (no course list; not for shaped
@@ -33,13 +34,16 @@ const P = require('./policy')
 const Panel = require('./builder_panel')
 
 // parkour/builder.py KIT (tests/test_builder.py checks the two lists match)
-const KIT = ['stone', 'ice', 'slime_block', 'ladder', 'stone_slab', 'stone_stairs', 'oak_trapdoor', 'white_carpet',
-  'oak_fence', 'cobblestone_wall', 'iron_bars', 'end_rod', 'gold_block', 'diamond_block', 'emerald_block']
+const KIT = ['stone', 'gold_block', 'diamond_block', 'emerald_block', 'slime_block', 'ice', 'ladder', 'stone_slab', 'stone_stairs',
+  'oak_trapdoor', 'white_carpet', 'oak_fence', 'cobblestone_wall', 'iron_bars', 'end_rod']
 const MARKERS = { gold_block: 'start', diamond_block: 'goal', emerald_block: 'via' } // parkour/builder.py MARKERS
 const MARKER_RANGE = 96 // marker blocks count within this many blocks of the spawn pad
-const SCAN = [64, 32, 64] // the scanned box (the simulator's grid), centred on the marks
-const PAD = Panel.PAD // parkour/server.py SPAWN_PAD: its 5x5 stone floor and the panel are left out of every scan
-const PANEL_CELLS = new Set(Panel.cells().map(([x, y, z]) => `${x},${y},${z}`))
+const SCAN = [64, 32, 64] // the simulator's grid (what !demo clears)
+const BOX = [62, 32, 62] // the scanned box's half-size around the start: a course is at most 60 blocks across, 32 rows
+const PAD = Panel.PAD // parkour/server.py SPAWN_PAD
+const HOME = new Vec3(PAD[0] + 0.5, PAD[1], PAD[2] + 0.5) // where the bot waits: it sees the panel and every marker in range
+const PANEL = new Map(Panel.cells().map(([x, y, z, what]) => [`${x},${y},${z}`, what]))
+const PANEL_BLOCK = { command_block: 'command_block', button: 'stone_button', sign: 'oak_sign' }
 const DEMO_ORIGIN = [100, 80, 100] // where !demo builds (away from the pad and from the live runs' course area at 0 80 0)
 // Shaped platforms and ladders for !demo: the block state of each shape name, as /setblock writes it (as parkour_bot.js).
 const SHAPES = Object.fromEntries(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'configs', 'block_shapes.json'), 'utf8'))
@@ -131,12 +135,22 @@ function pieces (msg, n) {
 }
 
 const others = () => `@a[name=!${args.username}]` // every player but the bot
-// System messages and the action bar reach a player whose chat is turned off (a player's chat does not).
+// System messages reach a player whose chat is turned off for players (Chat: Commands Only) and the action bar one
+// whose chat is Hidden (a player's chat reaches neither), so what matters goes to both.
 function tell (msg, target = null) {
   for (const part of pieces(msg, 150)) command(`/tellraw ${target || others()} ${JSON.stringify([{ text: '[builder] ', color: 'gold' }, { text: part }])}`)
 }
 function bar (msg, target = null) { command(`/title ${target || others()} actionbar ${JSON.stringify({ text: String(msg).slice(0, 120) })}`) }
-function say (msg) { log(msg); tell(msg) }
+const barQueue = [] // say()'s lines for the action bar: a piece every 2.5 s, so that each can be read
+setInterval(() => { const m = barQueue.shift(); if (m) bar(m) }, 2500)
+function say (msg, onBar = true) {
+  log(msg)
+  tell(msg)
+  if (onBar) {
+    barQueue.push(...pieces(msg, 100))
+    barQueue.splice(0, Math.max(0, barQueue.length - 8)) // (the newest eight)
+  }
+}
 
 // As bridge/parkour_bot.js: a vanilla client replaces the server's sprint modifier with its own, so the server's
 // movement-speed attribute is removed every tick and prismarine-physics uses its default (what the simulator models).
@@ -241,47 +255,61 @@ function blockUnder (name) {
   return null
 }
 
-// Every block in the box around the marks that is not air (the spawn pad and the panel left out), as the converter
-// reads them.
+// Every block that is not air in the box of half-size BOX around the start, as the converter reads them, and the
+// box [x0, y0, z0, x1, y1, z1]: the converter keeps the blocks linked to the start's block, and refuses a build
+// that reaches the box's faces (it would be larger than a course).
 async function scan () {
-  const pts = [marks.start, marks.goal, ...marks.via]
-  const lo = [0, 1, 2].map(a => Math.min(...pts.map(p => p[a])))
-  const hi = [0, 1, 2].map(a => Math.max(...pts.map(p => p[a])))
-  const box = [0, 1, 2].map(a => Math.floor((lo[a] + hi[a]) / 2 - SCAN[a] / 2))
-  await command(`/tp ${args.username} ${marks.start[0] + 0.5} ${marks.start[1] + 3} ${marks.start[2] + 0.5}`)
-  await waitFor(() => bot.entity.position.distanceTo(new Vec3(marks.start[0] + 0.5, marks.start[1] + 3, marks.start[2] + 0.5)) < 1, 10000, 'the teleport')
-  const corners = [0, 1].flatMap(i => [0, 1].map(j => new Vec3(box[0] + i * (SCAN[0] - 1), marks.start[1], box[2] + j * (SCAN[2] - 1))))
-  await waitFor(() => !!bot.blockAt(new Vec3(...marks.start), false) && corners.every(v => !!bot.blockAt(v, false)), 20000,
+  const s = marks.start
+  const box = [s[0] - BOX[0], s[1] - BOX[1], s[2] - BOX[2], s[0] + BOX[0], s[1] + BOX[1], s[2] + BOX[2]]
+  await command(`/tp ${args.username} ${s[0] + 0.5} ${s[1] + 3} ${s[2] + 0.5}`)
+  await waitFor(() => bot.entity.position.distanceTo(new Vec3(s[0] + 0.5, s[1] + 3, s[2] + 0.5)) < 1, 10000, 'the teleport')
+  const corners = [0, 3].flatMap(i => [2, 5].map(j => new Vec3(box[i], s[1], box[j])))
+  await waitFor(() => !!bot.blockAt(new Vec3(...s), false) && corners.every(v => !!bot.blockAt(v, false)), 20000,
     'the chunks around the build') // (blockAt gives null in a chunk not loaded yet)
   await sleep(500)
+  const air = new Set(['air', 'cave_air', 'void_air'].flatMap(n => {
+    const b = bot.registry.blocksByName[n]
+    return Array.from({ length: b.maxStateId - b.minStateId + 1 }, (_, k) => b.minStateId + k)
+  }))
   const blocks = []
-  for (let x = box[0]; x < box[0] + SCAN[0]; x++) {
-    for (let y = box[1]; y < box[1] + SCAN[1]; y++) {
-      for (let z = box[2]; z < box[2] + SCAN[2]; z++) {
-        if (y === PAD[1] - 1 && Math.abs(x - PAD[0]) <= 2 && Math.abs(z - PAD[2]) <= 2) continue
-        if (PANEL_CELLS.has(`${x},${y},${z}`)) continue
-        const b = bot.blockAt(new Vec3(x, y, z), false)
-        if (!b || b.name === 'air' || b.name === 'cave_air' || b.name === 'void_air') continue
-        blocks.push([x, y, z, b.name, b.getProperties(), b.shapes])
+  const v = new Vec3(0, 0, 0)
+  for (let x = box[0]; x <= box[3]; x++) {
+    for (let y = box[1]; y <= box[4]; y++) {
+      for (let z = box[2]; z <= box[5]; z++) {
+        v.x = x; v.y = y; v.z = z
+        const id = bot.world.getBlockStateId(v) // (cheap; the Block object only for what is not air)
+        if (id === null || id === undefined || air.has(id)) continue
+        const b = bot.blockAt(v.clone(), false)
+        if (b) blocks.push([x, y, z, b.name, b.getProperties(), b.shapes])
       }
     }
   }
-  return blocks
+  return { blocks, box }
+}
+
+async function goHome () {
+  if (bot.entity.position.distanceTo(HOME) > 2) {
+    await command(`/tp ${args.username} ${HOME.x} ${HOME.y} ${HOME.z}`)
+    await waitFor(() => bot.entity.position.distanceTo(HOME) < 1, 10000, 'the teleport to the spawn')
+  }
 }
 
 // The marker blocks within MARKER_RANGE of the spawn pad: { start: [[x, y, z], ...], goal: [...], via: [...] }.
 async function findMarkers () {
-  const home = new Vec3(PAD[0] + 0.5, PAD[1], PAD[2] + 0.5)
-  if (bot.entity.position.distanceTo(home) > 2) {
-    await command(`/tp ${args.username} ${home.x} ${home.y} ${home.z}`)
-    await waitFor(() => bot.entity.position.distanceTo(home) < 1, 10000, 'the teleport')
+  await goHome()
+  const cols = [] // every chunk column with a point within MARKER_RANGE of the pad
+  for (let cx = Math.floor((PAD[0] - MARKER_RANGE) / 16); cx <= Math.floor((PAD[0] + MARKER_RANGE) / 16); cx++) {
+    for (let cz = Math.floor((PAD[2] - MARKER_RANGE) / 16); cz <= Math.floor((PAD[2] + MARKER_RANGE) / 16); cz++) {
+      const dx = Math.max(cx * 16 - PAD[0], 0, PAD[0] - cx * 16 - 15); const dz = Math.max(cz * 16 - PAD[2], 0, PAD[2] - cz * 16 - 15)
+      if (dx * dx + dz * dz <= MARKER_RANGE * MARKER_RANGE) cols.push([cx, cz])
+    }
   }
-  const ring = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([i, j]) => new Vec3(PAD[0] + i * MARKER_RANGE, PAD[1], PAD[2] + j * MARKER_RANGE))
-  await waitFor(() => ring.every(v => !!bot.blockAt(v, false)), 20000, 'the chunks around the spawn')
+  await waitFor(() => cols.every(([cx, cz]) => !!bot.world.getColumn(cx, cz)), 20000, 'the chunks around the spawn')
   const found = { start: [], goal: [], via: [] }
-  for (const [name, role] of Object.entries(MARKERS)) {
-    found[role] = bot.findBlocks({ point: home, matching: bot.registry.blocksByName[name].id, maxDistance: MARKER_RANGE, count: 64 })
-      .map(v => [v.x, v.y, v.z])
+  for (const [name, role] of Object.entries(MARKERS)) { // (findBlocks walks an octahedron of chunk sections, not a
+    // sphere: search twice as far and keep the sphere)
+    found[role] = bot.findBlocks({ point: HOME, matching: bot.registry.blocksByName[name].id, maxDistance: 2 * MARKER_RANGE + 8, count: 256 })
+      .filter(v => v.distanceTo(HOME) <= MARKER_RANGE).map(v => [v.x, v.y, v.z])
   }
   return found
 }
@@ -312,15 +340,15 @@ async function convert () {
     say('mark the start and the goal first: stand on the first block and say !start, on the last and say !goal (or !clear, then a gold and a diamond block)')
     return null
   }
-  const blocks = await scan()
-  const r = await converter.ask({ blocks, start: marks.start, goal: marks.goal, via: marks.via, name: `build ${runs + 1}`,
-    ...(expect ? { expect } : {}) })
+  const { blocks, box } = await scan()
+  const r = await converter.ask({ blocks, box, start: marks.start, goal: marks.goal, via: marks.via, name: `build ${runs + 1}`,
+    ordered: marks.source === 'chat', ...(expect ? { expect } : {}) }) // (emerald markers count in any order)
   if (r.error) {
     say(`cannot play this build: ${r.error}`)
-    for (const [x, y, z, name, why] of (r.refused || []).slice(0, 5)) say(`  ${name} at ${x} ${y} ${z}: ${why}`)
+    for (const [x, y, z, name, why] of (r.refused || []).slice(0, 5)) say(`  ${name} at ${x} ${y} ${z}: ${why}`, false)
     return null
   }
-  for (const w of r.warnings) say(`note: ${w}`)
+  for (const w of r.warnings) say(`note: ${w}`, false)
   if ('matches_expected' in r) say(r.matches_expected ? `the scan gives demo course ${expect.index} back exactly` : `the scan differs from demo course ${expect.index}`)
   return r
 }
@@ -368,76 +396,90 @@ function describe (r) {
   return bits.join(', ')
 }
 
-// The run; player (if any) watches it in spectator mode and is put back where they were.
+// The run; player (if any) watches it in spectator mode and is put back where they were, whatever happens (a
+// spectator cannot press the panel's buttons). Marker blocks set on top of platforms (r.lifted) are off meanwhile.
 async function playCourse (r, mode, player) {
   const c = r.course;
   [OX, OY, OZ] = r.origin
   const [sx, sy, sz] = c.spawn
   const coord = v => v.toFixed(6) // decimals: Minecraft centres whole-number /tp coordinates on the block
   const viewer = player && bot.players[player] ? player : null
-  const back = viewer && bot.players[viewer].entity ? bot.players[viewer].entity.position.clone() : null
-  if (viewer) await command(`/gamemode spectator ${viewer}`)
-  await command(`/tp ${args.username} ${coord(sx + OX)} ${coord(sy + OY)} ${coord(sz + OZ)} ${toNotchianYawDeg(c.spawn_yaw).toFixed(4)} 0`)
-  await waitFor(() => {
-    const p = bot.entity.position
-    return Math.abs(p.x - (sx + OX)) < 1e-6 && Math.abs(p.z - (sz + OZ)) < 1e-6 && Math.abs(p.y - (sy + OY)) < 1e-6
-  }, 10000, 'the teleport')
-  await waitFor(() => c.platforms.every(([x0, x1, z0, z1, y]) => isSolid(x0, y, z0) && isSolid(x1, y, z1)), 10000, 'the course blocks')
-  if (viewer) await command(`/spectate ${args.username} ${viewer}`)
-  await sleep(500) // a few ticks to settle on the start block, as the live bot does
-  bot.entity.yaw = c.spawn_yaw
-  corrections = 0
-  lastCp = -1
-  skillOn = false
-  watcher = viewer
-  const planner = mode === 'router' ? routerPlanner : null
-  const ep = new P.Episode(policy, c.platforms, isSolid, {
-    stall: args.stall,
-    maxTicks: args.maxTicks,
-    extra: c.extra || [],
-    planner,
-    fallRule: args.fallRule,
-    shapes: c.shapes || null,
-    topOf,
-    skill: skill ? { policy: skill, cps: c.skill_cps } : null
-  })
-  const t0 = Date.now()
-  await new Promise(resolve => { finish = resolve; episode = ep })
-  episode = null
-  watcher = null
+  const seen = viewer && bot.players[viewer].entity // (out of the bot's sight, the viewer goes back to the spawn)
+  const back = viewer ? (seen ? seen.position.clone() : HOME.clone()) : null
+  const lifted = r.lifted || []
+  const isAir = ([x, y, z]) => { const b = bot.blockAt(new Vec3(x, y, z), false); return !!b && b.name === 'air' }
+  let ep = null
+  let t0 = 0
+  try {
+    for (const [x, y, z] of lifted) await command(`/setblock ${x} ${y} ${z} minecraft:air`)
+    if (viewer) await command(`/gamemode spectator ${viewer}`)
+    await command(`/tp ${args.username} ${coord(sx + OX)} ${coord(sy + OY)} ${coord(sz + OZ)} ${toNotchianYawDeg(c.spawn_yaw).toFixed(4)} 0`)
+    await waitFor(() => {
+      const p = bot.entity.position
+      return Math.abs(p.x - (sx + OX)) < 1e-6 && Math.abs(p.z - (sz + OZ)) < 1e-6 && Math.abs(p.y - (sy + OY)) < 1e-6
+    }, 10000, 'the teleport')
+    await waitFor(() => c.platforms.every(([x0, x1, z0, z1, y]) => isSolid(x0, y, z0) && isSolid(x1, y, z1)) && lifted.every(isAir),
+      10000, 'the course blocks')
+    if (viewer) await command(`/spectate ${args.username} ${viewer}`)
+    await sleep(500) // a few ticks to settle on the start block, as the live bot does
+    bot.entity.yaw = c.spawn_yaw
+    corrections = 0
+    lastCp = -1
+    skillOn = false
+    watcher = viewer
+    const planner = mode === 'router' ? routerPlanner : null
+    ep = new P.Episode(policy, c.platforms, isSolid, {
+      stall: args.stall,
+      maxTicks: args.maxTicks,
+      extra: c.extra || [],
+      planner,
+      fallRule: args.fallRule,
+      shapes: c.shapes || null,
+      topOf,
+      skill: skill ? { policy: skill, cps: c.skill_cps } : null
+    })
+    t0 = Date.now()
+    await new Promise(resolve => { finish = resolve; episode = ep })
+  } finally {
+    episode = null
+    watcher = null
+    for (const [x, y, z, name] of lifted) await command(`/setblock ${x} ${y} ${z} minecraft:${name}`)
+    if (viewer) {
+      await command(`/gamemode creative ${viewer}`) // (which ends the spectating)
+      if (back) await command(`/tp ${viewer} ${coord(back.x)} ${coord(back.y)} ${coord(back.z)}`)
+    }
+  }
   const rec = ep.record({ index: 0, mode, wall_seconds: (Date.now() - t0) / 1000, server_corrections: corrections })
-  runsLog.write(JSON.stringify({ run: runs, course: c, origin: r.origin, mode, episode: rec }) + '\n')
+  runsLog.write(JSON.stringify({ run: runs, course: c, origin: r.origin, mode, stopped: !!ep.stoppedByUser, episode: rec }) + '\n')
+  runs++
   const n = c.platforms.length - 1
   if (ep.result === 'success') say(`made it: ${n} jumps in ${ep.ticks} ticks (${(ep.ticks / 20).toFixed(1)} s), ${corrections} server corrections`)
   else if (ep.result === 'fell') say(`fell after platform ${ep.cp} of ${n}${r.about.neos.includes(ep.cp) ? ' (at a neo)' : ''}`)
-  else say(`stopped at platform ${ep.cp} of ${n}: no progress for ${args.stall} ticks`)
-  if (viewer) {
-    await command(`/spectate ${viewer}`) // (no target: stop spectating)
-    await command(`/gamemode creative ${viewer}`)
-    if (back) await command(`/tp ${viewer} ${coord(back.x)} ${coord(back.y)} ${coord(back.z)}`)
-  }
+  else if (ep.stoppedByUser) say(`stopped (!stop) at platform ${ep.cp} of ${n}`)
+  else say(`stopped at platform ${ep.cp} of ${n}: no progress for ${args.stall} ticks, or out of time`)
+  if (!rec.actions || !rec.actions.length) { say('no ticks played, so nothing for the simulator to replay', false); return }
   const check = await converter.ask({ check: { course: c, episode: rec, mode } })
-  if (check.error) say(`simulator check failed: ${check.error}`)
+  if (check.error) say(`simulator check failed: ${check.error}`, false)
   else {
     say(`simulator replay of the game's ticks: largest difference ${check.max_pos_err.toExponential(1)} blocks; ` +
       `the simulator's own run: ${check.sim_success ? 'made it' : 'did not make it'} in ${check.sim_ticks} ticks` +
-      (check.sim_success === rec.success && check.sim_ticks === rec.ticks ? ' (the same)' : ' (different)'))
+      (ep.stoppedByUser ? ' (the game run was stopped)' : check.sim_success === rec.success && check.sim_ticks === rec.ticks ? ' (the same)' : ' (different)'), false)
   }
-  runs++
 }
 
 const HELP = ['The panel by the spawn, chat (!build, ...) and the builder console (build, ...) give the same commands:',
   'Kit / !build: creative mode and the blocks the simulator models',
-  'a gold block marks the start, a diamond block the goal, emerald blocks platforms the route must pass (or stand on a block and say !start, !goal, !via)',
+  'a gold block on (or in) the start platform marks it, a diamond block the goal, emerald blocks platforms the route must pass in any order (or stand on a block and say !start, !goal, !via)',
   'Route / !route: what the bot makes of the build. Run / !run [router|list]: the bot plays it, you watch',
   'Demo / !demo [K]: a ready-made course. Clear / !clear: forget !start, !goal and the demo (the markers count again). !stop ends a run']
-const WELCOME = 'course builder: press Kit on the panel by the spawn (no chat needed), build, put a gold block at the start and a ' +
-  'diamond block at the goal, then press Run. Help explains the rest.'
+const WELCOME = 'course builder: press Kit on the panel by the spawn (no chat needed), build, put a gold block on the start ' +
+  'platform and a diamond block on the goal platform, then press Run. Help explains the rest.'
+const SHORT = 'Kit, build, gold block on the start, diamond on the goal, then Run (chat set to Shown shows more)'
 
 async function onCommand (player, line) {
   const [cmd, opt] = line.trim().split(/\s+/)
-  if (cmd === '!help') { for (const h of HELP) say(h); return }
-  if (cmd === '!stop') { if (episode) { episode.result = 'truncated'; endEpisode(); say('stopped') } return }
+  if (cmd === '!help') { for (const h of HELP) say(h, false); bar(SHORT); return }
+  if (cmd === '!stop') { if (episode) { episode.result = 'truncated'; episode.stoppedByUser = true; endEpisode() } return }
   if (busy) { say('busy; !stop ends a run'); return }
   if (cmd === '!build') {
     if (!player) { say('Kit: no player to give it to'); return }
@@ -445,8 +487,8 @@ async function onCommand (player, line) {
     await command(`/clear ${player}`)
     for (const k of KIT) await command(`/give ${player} minecraft:${k} 64`)
     say('the kit: only blocks the simulator models. Platforms one block thick, a block of air between them, ' +
-      'four blocks of air above. Walls of stone. A gold block marks the start, a diamond block the goal (emerald: a ' +
-      'platform the route must pass). Then Route or Run')
+      'four blocks of air above. Walls of stone. A gold block on the start platform marks it, a diamond block the goal ' +
+      '(emerald: a platform the route must pass). Then Route or Run')
     return
   }
   if (cmd === '!start' || cmd === '!goal' || cmd === '!via') {
@@ -467,11 +509,15 @@ async function onCommand (player, line) {
   }
   if (cmd === '!demo') {
     const k = opt === undefined || opt === '' ? nextDemo : Number(opt)
+    if (!Number.isInteger(k) || k < 0 || k >= demos.length) { say(`no demo course ${opt} (0 to ${demos.length - 1})`); return }
     busy = true
     try {
       await buildDemo(k)
-      if (demos.length) nextDemo = (k + 1) % demos.length
-    } catch (err) { say(`error: ${err.message}`) } finally { busy = false }
+      nextDemo = (k + 1) % demos.length
+    } catch (err) { say(`error: ${err.message}`) } finally {
+      await goHome().catch(err => log(err.message)) // (not left falling in the void by the demo area)
+      busy = false
+    }
     return
   }
   if (cmd === '!route' || cmd === '!run') {
@@ -486,14 +532,16 @@ async function onCommand (player, line) {
         })
         return
       }
-      const mode = opt === 'list' ? 'list' : opt === 'router' ? 'router' : (r.about.router_ok && routerPlanner ? 'router' : 'list')
-      if (mode === 'router' && (!r.about.router_ok || !routerPlanner)) { say('the learned router does not see shaped blocks: use Run (course list) or !run list'); return }
+      const routerNo = !routerPlanner ? 'no router loaded' : r.about.router_ok ? '' : r.about.router_why
+      const mode = opt === 'list' ? 'list' : opt === 'router' ? 'router' : (routerNo ? 'list' : 'router')
+      if (mode === 'router' && routerNo) { say(`the learned router cannot play this build (${routerNo}): use Run (course list) or !run list`); return }
       say(mode === 'router' ? 'playing with the learned router (no course list), the final policy and the neo skill'
-        : 'playing with the course list, the final policy and the neo skill')
+        : 'playing with the course list, the final policy and the neo skill' + (routerNo && opt !== 'list' ? ` (not the router: ${routerNo})` : ''))
       await playCourse(r, mode, player)
     } catch (err) {
       say(`error: ${err.message}`)
     } finally {
+      await goHome().catch(err => log(err.message))
       busy = false
     }
   }
@@ -512,8 +560,20 @@ bot.on('chat', (username, message) => {
 bot.on('messagestr', (message, position) => {
   if (position === 'chat') return
   const c = Panel.parse(message)
-  if (c) run(c.player || consolePlayer(), c.opt ? `${c.cmd} ${c.opt}` : c.cmd)
+  if (!c) return
+  if (c.players.length > 1) { say(`several players by the panel (${c.players.join(', ')}): one presses, the others stand back`); return }
+  run(c.players[0] || consolePlayer(), c.opt ? `${c.cmd} ${c.opt}` : c.cmd)
 })
+
+let panelBuilding = false // the bot's own panel commands are not damage
+let repairing = null
+async function buildPanel () {
+  panelBuilding = true
+  try {
+    for (const c of Panel.commands(args.username)) await command(c)
+    await sleep(2000)
+  } finally { panelBuilding = false }
+}
 
 // A line typed in this console: the same commands without the "!" (for --viewer, or the one player online).
 function consolePlayer () {
@@ -526,24 +586,37 @@ readline.createInterface({ input: process.stdin }).on('line', line => {
   if (text) run(consolePlayer(), '!' + text)
 })
 
-// A marker block placed means: take the marks from the markers again.
+// A broken panel button or sign (one click in creative mode) is put back; a marker block placed means: take the
+// marks from the markers again (not the bot's own lifting during a run).
 bot.on('blockUpdate', (oldBlock, newBlock) => {
-  const role = newBlock && MARKERS[newBlock.name]
-  if (!role || (oldBlock && oldBlock.name === newBlock.name)) return
-  if (marks.source && !busy) { marks.source = null; expect = null }
+  if (!newBlock) return
   const p = newBlock.position
+  const what = PANEL.get(`${p.x},${p.y},${p.z}`)
+  if (what) {
+    if (!panelBuilding && !repairing && newBlock.name !== PANEL_BLOCK[what]) {
+      repairing = setTimeout(() => {
+        repairing = null
+        say('a panel block was broken: putting the panel back', false)
+        buildPanel().catch(err => log(err.message))
+      }, 1000)
+    }
+    return
+  }
+  const role = MARKERS[newBlock.name]
+  if (busy || !role || (oldBlock && oldBlock.name === newBlock.name)) return
+  if (marks.source) { marks.source = null; expect = null }
   bar(`${role} marker at ${p.x} ${p.y} ${p.z}`)
 })
 
 bot.on('playerJoined', player => {
   if (player.username === args.username) return
-  setTimeout(() => { tell(WELCOME, player.username); bar('press Kit on the panel by the spawn', player.username) }, 3000)
+  setTimeout(() => { tell(WELCOME, player.username); bar(SHORT, player.username) }, 3000)
 })
 
 bot.once('spawn', async () => {
   log(`connected on port ${args.port}`)
   await sleep(1500)
-  for (const c of Panel.commands(args.username)) await command(c)
+  await buildPanel()
   say('builder ready: the panel by the spawn, chat (!help) or this console (help)')
 })
 

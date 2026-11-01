@@ -27,9 +27,19 @@ What a build may hold, as in the generated courses:
   not on the route from the start to the goal.
 - Ladders, on the face of a stone wall.
 
+The build: the blocks linked to the start's block, each within ``REACH`` (12 blocks across, as far as the bot sees
+around it, and 24 up or down) of another; anything farther is no part of it and is left out, so the bot scans a box
+wide enough for any build, and a
+build that reaches the box's faces is too large. Command blocks count as stone, buttons and signs as air (they have
+no collision), so the spawn pad and the builder's panel beside it are walls of a build near them, as the bot sees
+them.
+
 The route: the start's platform, then the longest chain of platforms (each a jump, ``_reach``, from the last) that
-ends on the goal's, ties to the shorter jumps. At most 16 platforms (``courses.MAX_PLATFORMS``) and 256 obstacle
-cells (``env.MAX_EXTRA``), inside the 64 x 32 x 64 grid with two blocks to spare on every side.
+ends on the goal's; ties go to the chain that turns least, then to the shorter jumps. At most 16 platforms
+(``courses.MAX_PLATFORMS``) and 256 obstacle cells (``env.MAX_EXTRA``), inside the 64 x 32 x 64 grid with two
+blocks to spare on every side but below, where the lowest platform is on row 3 (``FLOOR``, as in a generated
+course) and the lowest block on row 1 or higher. The learned router plays only routes of jumps it offers
+(``router_why``).
 """
 from __future__ import annotations
 
@@ -45,12 +55,18 @@ import numpy as np
 from . import courses as C
 from .paths import CONFIGS
 
-KIT = ("stone", "ice", "slime_block", "ladder", "stone_slab", "stone_stairs", "oak_trapdoor", "white_carpet",
-       "oak_fence", "cobblestone_wall", "iron_bars", "end_rod", "gold_block", "diamond_block", "emerald_block")  # what !build gives (64 of each)
+KIT = ("stone", "gold_block", "diamond_block", "emerald_block", "slime_block", "ice", "ladder", "stone_slab", "stone_stairs",
+       "oak_trapdoor", "white_carpet", "oak_fence", "cobblestone_wall", "iron_bars", "end_rod")  # what !build gives (64 of
+# each, in this order: the first nine fill the hotbar, so the marker blocks are at hand)
 # Marker blocks: where the start, the goal and the platforms the route must pass are, for a player who cannot chat
 # !start / !goal / !via (bridge/builder_bot.js finds them). Full blocks with stone's friction, so stone to the simulator.
 MARKERS = {"gold_block": "start", "diamond_block": "goal", "emerald_block": "via"}
+STONE_LIKE = ("stone", "command_block", "chain_command_block", "repeating_command_block")  # full blocks, stone's friction
 IGNORED = ("air", "cave_air", "void_air", "structure_void")  # no collision (the bots put structure void under carpets)
+NO_COLLISION = ("_button", "_sign")  # name endings of blocks with no collision box: air to the simulator
+# A block of the build is at most this far (x, y, z) from another: what the bot sees around it while it plays (the
+# learned router looks 12 blocks around, PlannerConfig.radius), and any drop the grid holds.
+REACH = (12, 24, 12)
 MARGIN = 2  # free grid cells on every side of the build (courses._fits keeps two)
 FLOOR = 3  # the lowest platform's row in the grid (courses._fits: y >= 3)
 MAX_CANDIDATES = 40  # platforms the route search considers
@@ -83,9 +99,9 @@ def classify(name: str, props: dict, boxes: list) -> tuple[str, object]:
     facing index), ("shape", shape name) for a block state whose collision boxes are a modelled shape's, or
     ("air", None). Raises ``BuildError`` for a block or a block state the simulator does not model."""
     name = name.removeprefix("minecraft:")
-    if name in IGNORED:
+    if name in IGNORED or name.endswith(NO_COLLISION):
         return "air", None
-    if name == "stone" or name in MARKERS:
+    if name in STONE_LIKE or name in MARKERS:
         return "full", None
     if name == "ice":
         return "ice", None
@@ -123,10 +139,80 @@ def _reach(a: np.ndarray, b: np.ndarray, top_a: float, top_b: float, ladder_b: b
     return gap
 
 
-def scan_to_course(blocks: list, start, goal, name: str = "build", via=()) -> tuple[C.Course, tuple[int, int, int], list[str]]:
+def _linked(points: np.ndarray, first: int, reach=REACH) -> np.ndarray:
+    """Which of ``points`` (N x 3 cells) a chain of points, each within ``reach`` (x, y, z) of the next, links to
+    ``points[first]``."""
+    keep = np.zeros(len(points), dtype=bool)
+    keep[first] = True
+    frontier, lim = np.array([first]), np.asarray(reach)
+    while len(frontier):
+        rest = np.flatnonzero(~keep)
+        if not len(rest):
+            break
+        near, pr = np.zeros(len(rest), dtype=bool), points[rest]
+        for k in range(0, len(frontier), 256):
+            near |= (np.abs(pr[None, :, :] - points[frontier[k:k + 256]][:, None, :]) <= lim).all(axis=2).any(axis=0)
+        frontier = rest[near]
+        keep[frontier] = True
+    return keep
+
+
+def _build_of(blocks: list, start, goal, via, box, warnings: list) -> list:
+    """The scanned blocks that make up the build: those linked (``REACH``) to the start's, the goal's or a via
+    block (if these are apart, the route search says no jump joins them). Raises ``BuildError`` if the build
+    reaches the faces of the scanned ``box`` [x0, y0, z0, x1, y1, z1] (inclusive), so that part may lie outside."""
+    solid = [b for b in blocks if str(b[3]).removeprefix("minecraft:") not in IGNORED]
+    pts = np.array([[int(b[0]), int(b[1]), int(b[2])] for b in solid], dtype=np.int64).reshape(-1, 3)
+    where = {tuple(p): i for i, p in enumerate(pts.tolist())}
+    marked = [where[p] for p in (tuple(int(v) for v in pos) for pos in [start, goal, *via]) if p in where]
+    if tuple(int(v) for v in start) not in where:
+        return blocks  # (no block at the start: scan_to_course says so)
+    keep = np.zeros(len(pts), dtype=bool)
+    for i in marked:
+        if not keep[i]:
+            keep |= _linked(pts, i)
+    if (~keep).sum():
+        warnings.append(f"{int((~keep).sum())} block(s) farther from the build than {REACH[0]} across or {REACH[1]} up "
+                        "or down were left out")
+    if box is not None:
+        lo, hi = np.asarray(box[:3]), np.asarray(box[3:])
+        edge = np.flatnonzero(keep & ((pts == lo) | (pts == hi)).any(axis=1))
+        if len(edge):
+            x, y, z, bname = solid[edge[0]][:4]
+            raise BuildError(f"the build reaches the edge of the scanned box at {x} {y} {z}: it is larger than a course "
+                             f"can be ({C.GRID[0] - 2 * MARGIN} blocks across, {C.GRID[1]} rows)",
+                             [[int(x), int(y), int(z), str(bname).removeprefix("minecraft:"), "at the edge of the scanned box"]])
+    return [b for b, k in zip(solid, keep) if k]
+
+
+def _lift_markers(blocks: list, marks: list, lifted: list) -> tuple[list, list]:
+    """A marker block set on top of a platform's block marks that block (a platform of any kind): the marks move
+    down onto it and the markers leave the build (the bot lifts them off before it plays). ``lifted`` gets them
+    as [x, y, z, name]."""
+    at = {(int(b[0]), int(b[1]), int(b[2])): str(b[3]).removeprefix("minecraft:") for b in blocks}
+    moved, gone = [], set()
+    for pos in marks:
+        p = tuple(int(v) for v in pos)
+        below = (p[0], p[1] - 1, p[2])
+        if at.get(p) in MARKERS and below in at and at[below] not in IGNORED and not at[below].endswith(NO_COLLISION):
+            if p not in gone:
+                gone.add(p)
+                lifted.append([*p, at[p]])
+            p = below
+        moved.append(p)
+    return [b for b in blocks if (int(b[0]), int(b[1]), int(b[2])) not in gone], moved
+
+
+def scan_to_course(blocks: list, start, goal, name: str = "build", via=(), box=None, ordered: bool = True,
+                   lifted: list | None = None) -> tuple[C.Course, tuple[int, int, int], list[str]]:
     """The course of a scanned build (``blocks``: [x, y, z, name, props, boxes] in world coordinates; ``start``,
-    ``goal`` and the optional ``via`` (in order): blocks the player stood on), its origin (the world position of
-    grid cell 0, 0, 0) and warnings. Raises ``BuildError``."""
+    ``goal`` and the optional ``via``: blocks the player stood on, or marker blocks; ``box``: the box the bot
+    scanned, if it says), its origin (the world position of grid cell 0, 0, 0) and warnings. The route passes the
+    via platforms in the given order (!via), or in any order if not ``ordered`` (emerald markers). Marker blocks set
+    on top of a platform go to ``lifted`` (``_lift_markers``). Raises ``BuildError``."""
+    warnings: list = []
+    blocks, (start, goal, *via) = _lift_markers(blocks, [start, goal, *via], [] if lifted is None else lifted)
+    blocks = _build_of(blocks, start, goal, via, box, warnings)
     cells: dict = {}
     refused = []
     for x, y, z, bname, props, boxes in blocks:
@@ -176,7 +262,6 @@ def scan_to_course(blocks: list, start, goal, name: str = "build", via=()) -> tu
     # not a filled rectangle is a wall too.
     over = [{(q[0], q[2]) for q in comp} for comp, _ in comps]
     near = [{(q[0] + dx, q[2] + dz) for q in comp for dx in (-1, 0, 1) for dz in (-1, 0, 1)} for comp, _ in comps]
-    warnings = []
     plats = []
     for i, (comp, kind) in enumerate(comps):
         y = comp[0][1]
@@ -203,15 +288,18 @@ def scan_to_course(blocks: list, start, goal, name: str = "build", via=()) -> tu
         for i, (r, _) in enumerate(plats):
             if r[0] <= x <= r[1] and r[2] <= z <= r[3] and r[4] == y:
                 return i
-        raise BuildError(f"no platform at the {what} ({x} {y} {z}); stand on it and say !{what} again")
+        raise BuildError(f"no platform at the {what} ({x} {y} {z}): its mark (the marker block, or the block stood on for "
+                         f"!{what}) must be a block of a platform, one block thick with two of air above")
 
     s, g = find(start, "start"), find(goal, "goal")
     if s == g:
         raise BuildError("the start and the goal are the same platform")
     vias = [find(v, "via") for v in via]
+    if not ordered:  # emerald markers: one platform may hold several, and one on the start's or goal's means nothing
+        vias = [v for v in dict.fromkeys(vias) if v not in (s, g)]
     if len(set(vias)) != len(vias) or {s, g} & set(vias):
         raise BuildError("a !via platform is given twice, or is the start or the goal")
-    order = {v: k for k, v in enumerate(vias)}  # the route passes them in this order
+    order = {v: k for k, v in enumerate(vias)}  # the route passes them in this order (if ordered)
     if len(plats) > MAX_CANDIDATES:
         raise BuildError(f"{len(plats)} platforms; the builder takes at most {MAX_CANDIDATES}")
 
@@ -263,7 +351,7 @@ def scan_to_course(blocks: list, start, goal, name: str = "build", via=()) -> tu
                 best = (key, list(path))
             return
         for gap, j in edges[i]:
-            if j not in used and (j not in order or order[j] == passed):
+            if j not in used and (j not in order or not ordered or order[j] == passed):
                 used.add(j)
                 path.append(j)
                 dfs(j, turning + (turn(path[-3], i, j) if len(path) >= 3 else 0.0), length + gap,
@@ -295,16 +383,21 @@ def scan_to_course(blocks: list, start, goal, name: str = "build", via=()) -> tu
         bx, bz = {0: (0, 1), 1: (-1, 0), 2: (0, -1), 3: (1, 0)}[f]
         if (x + bx, y, z + bz) not in solid:
             raise BuildError(f"the ladder at {x} {y} {z} has no block behind it", [[x, y, z, "ladder", "nothing behind it"]])
-    # Grid coordinates: the build's lowest corner two cells in from the grid's edges, its lowest platform on row 3.
+    # Grid coordinates: the build's lowest corner two cells in from the grid's x and z edges, its lowest platform on
+    # row 3 (lower if a block lies below it: the lowest block on row 1), every block two rows below the grid's top.
     every = list(cells)
     lo = [min(p[a] for p in every) for a in range(3)]
     low_platform = min(plats[i][0][4] for i in route)
-    origin = (lo[0] - MARGIN, min(lo[1], low_platform - FLOOR) - 1, lo[2] - MARGIN)
+    origin = (lo[0] - MARGIN, min(lo[1] - 1, low_platform - FLOOR), lo[2] - MARGIN)
     hi = [max(p[a] for p in every) - origin[a] for a in range(3)]
     gx, gy, gz = C.GRID
-    if hi[0] > gx - 1 - MARGIN or hi[2] > gz - 1 - MARGIN or max(plats[i][0][4] for i in route) - origin[1] > gy - 2 - C.HEADROOM:
-        raise BuildError(f"the build is too large: at most {gx - 2 * MARGIN - 1} x {gz - 2 * MARGIN - 1} blocks across "
-                         f"and {gy - C.HEADROOM - FLOOR - 3} high")
+    if hi[0] > gx - 1 - MARGIN or hi[2] > gz - 1 - MARGIN:
+        raise BuildError(f"the build is too large: at most {gx - 2 * MARGIN} x {gz - 2 * MARGIN} blocks across")
+    top_platform = max(plats[i][0][4] for i in route) - origin[1]
+    if hi[1] > gy - 1 - MARGIN or top_platform > gy - 2 - C.HEADROOM:
+        raise BuildError(f"the build is too tall for the simulator's {gy}-row grid: its platforms at most "
+                         f"{gy - 2 - C.HEADROOM - FLOOR} rows apart, and its highest block at most "
+                         f"{gy - 1 - MARGIN - (low_platform - origin[1])} rows above its lowest platform")
     if len(extra) > 256:
         raise BuildError(f"{len(extra)} wall cells; a course has at most 256")
     ox, oy, oz = origin
@@ -377,29 +470,55 @@ def demo_courses() -> list[C.Course]:
     return out
 
 
+def router_why(course: C.Course) -> str:
+    """Why the learned router cannot play the course's route ('' if it can): it does not see shaped platforms
+    (bridge/policy.js), climbs no ladder, and offers only jumps that change height by ``dy_min`` to ``dy_max`` with an
+    air gap up to ``MAX_GAP[dy] + slack`` (``planner.options``, ``bridge/router.js``)."""
+    from .planner import MAX_GAP, PlannerConfig
+    cfg = PlannerConfig()
+    if course.shapes:
+        return "shaped blocks"
+    if len(course.ladders):
+        return "a ladder climb"
+    p = np.asarray(course.platforms).tolist()
+    for k, (a, b) in enumerate(zip(p, p[1:]), start=1):
+        dy = b[4] - a[4]
+        gap = math.hypot(max(0, b[0] - a[1] - 1, a[0] - b[1] - 1), max(0, b[2] - a[3] - 1, a[2] - b[3] - 1))
+        if dy > cfg.dy_max:
+            return f"jump {k} goes {dy} up"
+        if dy < cfg.dy_min:
+            return f"jump {k} drops {-dy}"
+        if gap > MAX_GAP[dy] + cfg.slack:
+            return f"jump {k} is {gap:.1f} blocks across ({dy:+d} in height)"
+    return ""
+
+
 def describe(course: C.Course) -> dict:
     """What the bot says about a converted course, and the course-list mode's skill checkpoints."""
     from .neo_assist import skill_cps
     from .neo_dagger import neo_takeoffs
     neos = neo_takeoffs(course)
+    why = router_why(course)
     return {"platforms": course.n, "jumps": course.n - 1, "neos": neos, "skill_cps": skill_cps(course),
             "ice": len(course.ice), "slime": len(course.slime), "shapes": len(course.shapes),
             "ladders": int(len(course.ladders)), "walls": int(len(course.extra)),
-            "router_ok": not course.shapes}  # (bridge/policy.js: the route planner does not see shaped platforms)
+            "router_ok": not why, "router_why": why}
 
 
 def convert(request: dict) -> dict:
-    """One converter request (``serve``): {"blocks", "start", "goal"[, "via", "name"]} -> {"course", "origin",
-    "about", "warnings"} or {"error", "refused"}."""
+    """One converter request (``serve``): {"blocks", "start", "goal"[, "via", "name", "box", "ordered"]} ->
+    {"course", "origin", "about", "warnings", "lifted"} or {"error", "refused"}."""
+    lifted: list = []
     try:
         course, origin, warnings = scan_to_course(request["blocks"], request["start"], request["goal"],
-                                                  request.get("name", "build"), request.get("via", ()))
+                                                  request.get("name", "build"), request.get("via", ()),
+                                                  request.get("box"), request.get("ordered", True), lifted)
     except BuildError as e:
         return {"error": str(e), "refused": e.refused[:20]}
     about = describe(course)
     d = course.to_json()
     d["skill_cps"] = about["skill_cps"]
-    out = {"course": d, "origin": list(origin), "about": about, "warnings": warnings}
+    out = {"course": d, "origin": list(origin), "about": about, "warnings": warnings, "lifted": lifted}
     if "expect" in request:  # (!demo: the course the bot built)
         out["matches_expected"] = same_build(course, origin, C.Course.from_json(request["expect"]["course"]),
                                              request["expect"]["origin"])
@@ -487,8 +606,8 @@ def main(argv=None):
     if a.serve:
         serve(checker=Checker(a.checkpoint, a.skill, a.router) if a.checkpoint else None)
         return
-    from .build_session import run  # the server, the bot and the networks
-    run(rest)
+    from .build_session import run  # the server, the bot and the networks (it takes --checkpoint, --skill, --router too)
+    run(sys.argv[1:] if argv is None else list(argv))
 
 
 if __name__ == "__main__":

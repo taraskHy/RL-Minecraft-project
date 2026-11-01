@@ -1,8 +1,9 @@
 'use strict'
 // The course builder's control panel (bridge/builder_bot.js), for a player who cannot chat (chat turned off in the
 // game's options or by the account): a row of command blocks just north of the spawn pad, each with a button and
-// a sign. A button makes its command block send the builder bot a system message, "builder:COMMAND[:OPTION] PLAYER",
-// PLAYER being the player nearest the button; the bot then acts as on that player's chat command (!COMMAND OPTION).
+// a sign. A button makes its command block send the builder bot a system message, "builder:COMMAND[:OPTION] PLAYERS",
+// PLAYERS being the players (not spectators) within reach of the button; the bot acts as on that player's chat
+// command (!COMMAND OPTION) when there is one, and asks for one at a time when there are several.
 // The builder runs its server with command blocks on (parkour/build_session.py); its scans leave these cells out.
 
 const PAD = [-20, 100, -20] // parkour/server.py SPAWN_PAD: players appear on its 5x5 stone floor at y - 1
@@ -34,9 +35,10 @@ function cells () {
   })
 }
 
-// The command a button runs: a system message to the bot naming the nearest player (the bot left out).
+// The command a button runs: a system message to the bot naming the players within reach of it ("A, B" for two),
+// the bot and spectators (who cannot press buttons) left out.
 function tellraw (botName, command) {
-  return `tellraw ${botName} ["builder:${command} ",{"selector":"@p[distance=..8,name=!${botName}]"}]`
+  return `tellraw ${botName} ["builder:${command} ",{"selector":"@a[distance=..7,gamemode=!spectator,name=!${botName}]"}]`
 }
 
 // The panel's box emptied first, so no block of an older layout touches a new command block: the buttons' row,
@@ -63,11 +65,11 @@ function commands (botName) {
   return out
 }
 
-// "builder:run:list Ethan" -> { cmd: '!run', opt: 'list', player: 'Ethan' }; null for any other message. The
-// player is '' when no player was near the button.
+// "builder:run:list Ethan" -> { cmd: '!run', opt: 'list', players: ['Ethan'] }; null for any other message.
+// players is empty when nobody was near the button.
 function parse (message) {
-  const m = /^builder:([a-z]+)(?::([a-z0-9]+))?(?: ([A-Za-z0-9_]{1,16}))?$/.exec(String(message).trim())
-  return m ? { cmd: '!' + m[1], opt: m[2] || '', player: m[3] || '' } : null
+  const m = /^builder:([a-z]+)(?::([a-z0-9]+))?(?: ([A-Za-z0-9_]{1,16}(?:, [A-Za-z0-9_]{1,16})*))?$/.exec(String(message).trim())
+  return m ? { cmd: '!' + m[1], opt: m[2] || '', players: m[3] ? m[3].split(', ') : [] } : null
 }
 
 module.exports = { PAD, BUTTONS, cells, commands, parse, tellraw }

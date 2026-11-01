@@ -70,6 +70,9 @@ STARTUP_COMMANDS = [
 ]
 
 
+COMMAND_BLOCKS = {"enable-command-block": "true"}  # opt-in: the course builder's panel (bridge/builder_panel.js)
+
+
 def offline_uuid(name: str) -> str:
     """UUID the server assigns an offline-mode player (Java UUID.nameUUIDFromBytes)."""
     h = bytearray(hashlib.md5(("OfflinePlayer:" + name).encode()).digest())
@@ -173,6 +176,8 @@ def main(argv=None):
     a.add_argument("--agree", action="store_true", help="confirm you have read and accept " + EULA_URL)
     r = sub.add_parser("run", help="run the server in this console until you type stop")
     r.add_argument("--port", type=int, default=DEFAULT_PORT)
+    r.add_argument("--command-blocks", action="store_true", help="command blocks on (the course builder's panel, "
+                                                                 "for run.cmd builder --no-server)")
     args = ap.parse_args(argv)
     if args.cmd == "accept-eula":
         if not args.agree:
@@ -182,7 +187,7 @@ def main(argv=None):
         print("Recorded your EULA acceptance in", CONSENT)
         return 0
     if args.cmd == "run":
-        s = Server(args.port, log=sys.stdout).start()
+        s = Server(args.port, log=sys.stdout, properties=COMMAND_BLOCKS if args.command_blocks else None).start()
         print(f"Server running on 127.0.0.1:{args.port}. Type commands; 'stop' ends it.")
         try:
             for line in sys.stdin:

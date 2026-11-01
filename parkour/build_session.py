@@ -23,8 +23,7 @@ import torch
 
 from .live import load_model
 from .paths import BRIDGE, NODE, ROOT
-
-BUILDER_PROPERTIES = {"enable-command-block": "true"}  # the panel's command blocks (the live runs' server keeps them off)
+from .server import COMMAND_BLOCKS as BUILDER_PROPERTIES  # the panel's command blocks (the live runs' server keeps them off)
 
 
 def run(argv=None) -> None:
@@ -62,6 +61,11 @@ def run(argv=None) -> None:
           f"spawn give the bot its commands (no chat needed); chat !help, or type help here. Runs go to {out}. "
           f"Ctrl+C ends the session.", flush=True)
     if a.no_server:
+        from .server import SERVER_DIR
+        props = SERVER_DIR / "server.properties"
+        if "enable-command-block=true" not in (props.read_text() if props.exists() else ""):
+            print("note: the running server has command blocks off, so the panel's buttons will do nothing (start it with "
+                  "run.cmd server --command-blocks, or leave out --no-server); chat and this console work", flush=True)
         subprocess.run(cmd, cwd=str(BRIDGE))
         return
     from .server import Server

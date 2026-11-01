@@ -143,7 +143,7 @@ def test_walls_shapes_and_kinds():
     assert d.n == 4 and d.shapes == {1: "bottom_slab"} and d.ice == [2]
     assert sorted(map(tuple, (np.asarray(d.extra) + o).tolist())) == [(2, 11, 0), (2, 12, 0)]
     # A platform off the route is a wall; a slab that is not a rectangle is a wall too.
-    cells = build(*line(), plain(3, 10, 8), plain(20, 10, 20), plain(21, 10, 20), plain(20, 10, 21))
+    cells = build(*line(), plain(3, 10, 8), plain(12, 10, 10), plain(13, 10, 10), plain(12, 10, 11))
     d, o, w = B.scan_to_course(cells, (0, 10, 0), (6, 10, 0))
     assert d.n == 3 and len(d.extra) == 4 and any("not a rectangle" in x for x in w) and any("off the route" in x for x in w)
 
@@ -188,7 +188,8 @@ def test_the_panel_s_commands():
         pytest.skip("the portable Node runtime is missing (setup.cmd)")
     code = ("const P = require('./builder_panel');"
             "console.log(JSON.stringify({commands: P.commands('ParkourBot'), cells: P.cells(), pad: P.PAD, buttons: P.BUTTONS,"
-            " parsed: ['builder:run:list Ethan_1', 'builder:help Ethan', 'builder:run ', 'hello', '[builder] x'].map(P.parse)}))")
+            " parsed: ['builder:run:list Ethan_1', 'builder:help Ethan', 'builder:run ', 'hello', '[builder] x',"
+            " 'builder:build Ethan, Tal'].map(P.parse)}))")
     out = json.loads(subprocess.run([str(NODE), "-e", code], cwd=BRIDGE, capture_output=True, text=True, check=True).stdout)
     commands, cells, pad = out["commands"], out["cells"], out["pad"]
     assert all(c.endswith(" replace") and len(c) <= 256 for c in commands)
@@ -205,7 +206,7 @@ def test_the_panel_s_commands():
     sent = []
     for c in commands[:n]:
         text = json.loads(re.fullmatch(r".*\{Command:'tellraw ParkourBot (.*)'\} replace", c).group(1))
-        assert text[1] == {"selector": "@p[distance=..8,name=!ParkourBot]"}
+        assert text[1] == {"selector": "@a[distance=..7,gamemode=!spectator,name=!ParkourBot]"}
         sent.append(text[0])
     assert sent == [f"builder:{b[2]} " for b in out["buttons"]]
     for c in commands[n:]:
@@ -222,8 +223,21 @@ def test_the_panel_s_commands():
         touching = [where.get((x + a, y + b, z + c)) for a, b, c in faces]
         assert what != "command_block" or "command_block" not in touching
         assert what != "button" or touching.count("command_block") == 1
-    assert out["parsed"] == [{"cmd": "!run", "opt": "list", "player": "Ethan_1"}, {"cmd": "!help", "opt": "", "player": "Ethan"},
-                             {"cmd": "!run", "opt": "", "player": ""}, None, None]
+    assert out["parsed"] == [{"cmd": "!run", "opt": "list", "players": ["Ethan_1"]}, {"cmd": "!help", "opt": "", "players": ["Ethan"]},
+                             {"cmd": "!run", "opt": "", "players": []}, None, None,
+                             {"cmd": "!build", "opt": "", "players": ["Ethan", "Tal"]}]
+    # each button's own block, sign and button: the command block sends its command, the sign above names it
+    placed = {}
+    for c in commands:
+        x, y, z, block, state, rest = re.fullmatch(r"/setblock (-?\d+) (-?\d+) (-?\d+) minecraft:([a-z_]+)(\[[^\]]*\])?(.*) replace", c).groups()
+        placed[(int(x), int(y), int(z))] = (block, state or "", rest)
+    assert set(placed) == set(where)
+    for i, (line1, line2, command) in enumerate(out["buttons"]):
+        x, y, z = cells[3 * i][:3]
+        assert placed[(x, y, z)][0] == "command_block" and f'["builder:{command} "' in placed[(x, y, z)][2]
+        assert placed[(x, y, z + 1)][:2] == ("stone_button", "[face=wall,facing=south]")
+        sign = placed[(x, y + 1, z)]
+        assert sign[:2] == ("oak_sign", "[rotation=0]") and f"['{json.dumps(line1)}','{json.dumps(line2)}'," in sign[2]
 
 
 def test_the_builder_s_server_turns_command_blocks_on(tmp_path, monkeypatch):
@@ -240,6 +254,136 @@ def test_the_builder_s_server_turns_command_blocks_on(tmp_path, monkeypatch):
     assert "enable-command-block" not in props()  # the live runs' server is as before
     S.prepare(25571, build_session.BUILDER_PROPERTIES)
     assert props()["enable-command-block"] == "true" and props()["server-port"] == "25571" and props()["gamemode"] == "adventure"
+
+    class Stop(Exception):
+        pass
+
+    seen = {}
+
+    def fake(port, properties=None):
+        seen.update(port=port, properties=properties)
+        raise Stop
+
+    monkeypatch.setattr(S, "prepare", fake)  # what Server.start and `run.cmd server --command-blocks` pass on
+    with pytest.raises(Stop):
+        S.Server(25571, properties=build_session.BUILDER_PROPERTIES).start()
+    assert seen == {"port": 25571, "properties": {"enable-command-block": "true"}}
+    with pytest.raises(Stop):
+        S.main(["run", "--port", "25572", "--command-blocks"])
+    assert seen == {"port": 25572, "properties": {"enable-command-block": "true"}}
+    import inspect
+    assert "properties=BUILDER_PROPERTIES" in inspect.getsource(build_session.run)
+
+
+def test_marker_vias_count_in_any_order(sets):
+    # A U: east from the start, north, back west to the goal. The bot sorts emerald marks nearest the start first
+    # (P4 before P2); in that order the route would start the wrong way round; in any order it is the U.
+    s, p1, p2, p3, p4, g = (0, 10, 0), (3, 10, 0), (6, 10, 0), (6, 10, 3), (3, 10, 3), (0, 10, 3)
+    u = build(*(plain(*p) for p in (s, p1, p2, p3, p4, g)))
+    walk = lambda d, o: [tuple(int(v) for v in (r[0] + o[0], r[4] + o[1], r[2] + o[2])) for r in np.asarray(d.platforms)]  # noqa: E731
+    d, o, _ = B.scan_to_course(u, s, g)
+    assert walk(d, o) == [s, p1, p2, p3, p4, g]
+    e, q, _ = B.scan_to_course(u, s, g, via=[p4, p2], ordered=False)
+    assert walk(e, q) == [s, p1, p2, p3, p4, g]
+    f, r, _ = B.scan_to_course(u, s, g, via=[p4, p2])  # (in order, as !via: the other way round)
+    assert walk(f, r) == [s, p4, p3, p2, p1, g]
+    for name in ("standard", "two neos"):  # every marked platform is passed; repeats and a mark on the start are fine
+        for c in sets[name][:10]:
+            start, goal = ends(c)
+            mid = [(int(p[0]) + ORIGIN[0], int(p[4]) + ORIGIN[1], int(p[2]) + ORIGIN[2]) for p in np.asarray(c.platforms)[1:-1]]
+            e, q, _ = B.scan_to_course(B.course_blocks(c, ORIGIN), start, goal, via=mid[::-1] + mid[:1] + [start], ordered=False)
+            assert sorted(world_platforms(e, q)) == sorted(world_platforms(c, ORIGIN)), name
+    with pytest.raises(B.BuildError, match="given twice"):  # !via in chat stays strict
+        B.scan_to_course(build(*line()), (0, 10, 0), (6, 10, 0), via=[(3, 10, 0), (3, 10, 0)])
+
+
+def test_a_marker_set_on_top_of_a_platform_marks_it():
+    base = build(plain(0, 10, 0), plain(3, 10, 0, "slime_block"), plain(6, 10, 0))
+    marked = base + build(plain(0, 11, 0, "gold_block"), plain(3, 11, 0, "emerald_block"), plain(6, 11, 0, "diamond_block"))
+    reply = B.convert({"blocks": marked, "start": [0, 11, 0], "goal": [6, 11, 0], "via": [[3, 11, 0]], "ordered": False})
+    plain_reply = B.convert({"blocks": base, "start": [0, 10, 0], "goal": [6, 10, 0]})
+    assert "error" not in reply and reply["course"] == plain_reply["course"] and reply["origin"] == plain_reply["origin"]
+    assert reply["lifted"] == [[0, 11, 0, "gold_block"], [6, 11, 0, "diamond_block"], [3, 11, 0, "emerald_block"]]
+    assert reply["course"]["slime"] == [1] and plain_reply["lifted"] == []  # (a marker in a platform stays: a stone block)
+
+
+def test_main_passes_every_flag_to_the_session(monkeypatch):
+    from parkour import build_session
+    got = []
+    monkeypatch.setattr(build_session, "run", got.append)
+    argv = ["--viewer", "Ethan", "--checkpoint", "a.pt", "--skill", "b.pt", "--router", "c.pt"]
+    B.main(argv)
+    assert got == [argv]  # (it once kept --checkpoint, --skill and --router for itself)
+
+
+def test_the_router_gets_only_routes_it_can_play():
+    from parkour.planner import PlannerConfig
+    assert B.REACH[0] == B.REACH[2] == PlannerConfig().radius
+    cases = {"": build(*line(gap=2)),
+             "jump 1 goes 2 up": build(plain(0, 10, 0, "slime_block"), plain(3, 12, 0), plain(6, 12, 0)),
+             "jump 1 drops 4": build(plain(0, 14, 0), plain(3, 10, 0), plain(6, 10, 0)),
+             "jump 1 is 4.0 blocks across (+1 in height)": build(plain(0, 10, 0), plain(5, 11, 0), plain(8, 11, 0))}
+    for why, cells in cases.items():
+        reply = B.convert({"blocks": cells, "start": cells[0][:3], "goal": cells[-1][:3]})
+        assert "error" not in reply and reply["about"]["router_why"] == why and reply["about"]["router_ok"] == (why == ""), why
+    demos = B.demo_courses()
+    assert B.router_why(demos[12]) == "shaped blocks" and B.router_why(demos[13]) == "a ladder climb"
+
+
+def test_the_build_is_what_is_linked_to_the_start(sets):
+    import re
+    from parkour.paths import BRIDGE
+    half = tuple(map(int, re.search(r"const BOX = \[(\d+), (\d+), (\d+)\]", (BRIDGE / "builder_bot.js").read_text(encoding="utf-8")).groups()))
+    assert half[0] == half[2] > C.GRID[0] - 2 * B.MARGIN and half[1] >= C.GRID[1]  # any course fits off its faces
+    for name, cs in sets.items():  # so every generated course lies inside the bot's box, and converts as before
+        for c in cs:
+            start, goal = ends(c)
+            box = [start[0] - half[0], start[1] - half[1], start[2] - half[2], start[0] + half[0], start[1] + half[1], start[2] + half[2]]
+            blocks = B.course_blocks(c, ORIGIN)
+            assert all(box[0] < x < box[3] and box[1] < y < box[4] and box[2] < z < box[5] for x, y, z, *_ in blocks), name
+            d, o, w = B.scan_to_course(blocks, start, goal, box=box)
+            e, q, v = B.scan_to_course(blocks, start, goal)
+            assert d.to_json() == e.to_json() and tuple(o) == tuple(q) and w == v, name
+    c = sets["standard"][0]
+    start, goal = ends(c)
+    blocks = B.course_blocks(c, ORIGIN)
+    far = max(blocks, key=lambda b: b[0])
+    junk = [[far[0] + 20, far[1], far[2], "dirt", {}, FULL], [far[0] + 22, far[1], far[2], "stone", {}, FULL]]
+    d, o, w = B.scan_to_course(blocks + junk, start, goal)  # blocks farther than REACH are no part of the build
+    e, q, _ = B.scan_to_course(blocks, start, goal)
+    assert d.to_json() == e.to_json() and tuple(o) == tuple(q) and any("2 block(s) farther" in x for x in w)
+    with pytest.raises(B.BuildError, match="does not model"):  # one within reach is part of it
+        B.scan_to_course(blocks + [[far[0] + 3, far[1] + 6, far[2], "dirt", {}, FULL]], start, goal)
+    with pytest.raises(B.BuildError, match="edge of the scanned box"):
+        B.scan_to_course(build(*line()), (0, 10, 0), (6, 10, 0), box=[-62, -22, -62, 6, 42, 62])
+
+
+def test_the_pad_and_the_panel_are_walls_of_a_build_near_them():
+    assert B.classify("command_block", {}, FULL) == ("full", None)
+    assert B.classify("stone_button", {"face": "wall"}, []) == ("air", None) == B.classify("oak_sign", {}, [])
+    pad = [plain(x, 9, z) for x in range(-12, -7) for z in range(-2, 3)]  # a 5x5 floor, 8 blocks from the start
+    panel = [(-10, 11, -5, "command_block", {}, FULL), (-10, 11, -4, "stone_button", {"face": "wall", "facing": "south"}, []),
+             (-10, 12, -5, "oak_sign", {"rotation": "0"}, [])]
+    d, o, w = B.scan_to_course(build(*line(), *pad, *panel), (0, 10, 0), (6, 10, 0))
+    assert d.n == 3 and len(d.extra) == 26  # the pad's 25 cells and the command block, as the bot sees them in the game
+
+
+def test_every_cell_is_inside_the_grid(sets):
+    gx, gy, gz = C.GRID
+    for name, cs in sets.items():
+        for c in cs[:10]:
+            start, goal = ends(c)
+            d, o, _ = B.scan_to_course(B.course_blocks(c, ORIGIN), start, goal)
+            p = np.asarray(d.platforms)
+            cells = np.concatenate([np.asarray(d.extra).reshape(-1, 3), np.asarray(d.ladders).reshape(-1, 4)[:, :3],
+                                    p[:, [0, 4, 2]], p[:, [1, 4, 3]]])
+            assert cells.min() >= 0 and (cells.max(axis=0) < [gx, gy, gz]).all(), name
+            assert p[:, 4].min() >= B.FLOOR, name
+    d, o, _ = B.scan_to_course(build(*line()), (0, 10, 0), (6, 10, 0))
+    assert o[1] == 10 - B.FLOOR and np.asarray(d.platforms)[:, 4].min() == B.FLOOR  # the lowest platform on row 3
+    pillar = [plain(3, y, 3) for y in range(-6, 26)]  # beside the build, 16 rows below it to 15 above: too tall,
+    with pytest.raises(B.BuildError, match="too tall"):  # said before a run (it once broke the check after one)
+        B.scan_to_course(build(*line(), *pillar), (0, 10, 0), (6, 10, 0))
 
 
 def test_demo_courses_scan_back_exactly():
