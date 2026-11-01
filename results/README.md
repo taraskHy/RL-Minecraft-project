@@ -401,6 +401,21 @@ block, from the platform before the takeoff to the exit; the final policy plays 
 | --- | --- | --- |
 | `results/final_policy.pt` alone | 100 (validation) | 7 of 288 |
 
+Each water-skill run's best snapshot on family 100:
+
+| Run | Updates | Family 100 |
+| --- | --- | --- |
+| water-skill-w1 | 300 | 268 of 288 |
+| water-skill-w2 | 350 | 267 of 288 |
+
+Test, played once: `results/water_skill.pt` (`ee166089143c`) as the water skill, family 101: 260 of 288.
+
+The bots on the first 64 water test courses, from the bots' start:
+
+| Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |
+| --- | --- | --- | --- | --- | --- | --- |
+| water101-offline-skill-w1-u300 | offline (prismarine-physics, no server) | 60/64 | 93.8 | 100.0 | - | 7.1e-15 |
+
 ## Final policy: discount 0.995
 
 The hyperparameter study's only setting that beat the defaults by more than 3 points on validation

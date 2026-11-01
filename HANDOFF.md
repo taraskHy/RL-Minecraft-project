@@ -794,7 +794,7 @@ at 18:05:14, before any run on the two-neo sets:**
     trainers, the scorer and three parts; `runs/assist_parts/water100-val-planner`
     keeps the logs). It runs again as `water100-val-planner16` (16 parts, 2 at
     a time) only while the reading allows: started after five readings in a
-    row below 65%, stopped after three above 88% (a stopped part restarts;
+    row below 62% (65% at first), stopped after two above 85% (a stopped part restarts;
     finished parts are kept). The water bank's first build was stopped at
     21:38 (beside two trainers, a water tick took about 240 ms on the GPU
     against 31 ms on the CPU, `runs/water_tick_timing_2138.txt`;
@@ -820,6 +820,27 @@ at 18:05:14, before any run on the two-neo sets:**
     (`runs/water-skill-r1-eval-snapshots.log`). At the first update the
     widened final policy falls on every block (it drops into the gap before
     the pool or lands on its wall), as it does alone.
+  - **Round 1 (22:09-23:03) and its choice (23:04, by the rule;
+    `results/neo/water_choice.json`):** family 100 for updates 50-400: w1 78,
+    113, 261, 265, 264, **268**, 262, 259; w2 64, 162, 247, 254, 255, 259,
+    267, 263 (`runs/water-skill-r1-eval-snapshots.log`). **Chosen: w1 updates
+    300 (`ee166089143c`, now `results/water_skill.pt`), 268 of 288 (93.1%)**,
+    no course lost at a water jump, 20 at ordinary ones (mostly the final
+    policy's jump right after an exit and the skill's own jump onto a
+    takeoff). Solid (at least 260), so no second round.
+  - **Test, played once (23:05; simulator, CPU, course list;
+    `results/neo/skill_test.jsonl`):** family 101 **260 of 288 (90.3%)**; 27
+    courses lost at ordinary jumps, 1 at water.
+  - **The bots, the first 64 courses of 101 (`results/games/water101-first64-courses.json`):**
+    the offline bot 60 of 64, the simulator's outcome on every course,
+    replay 7.1e-15 blocks (`runs/water101-offline-skill-w1-u300`). Real
+    Minecraft (the slime run, then this one) starts by itself once the
+    builder's server on port 25570 is gone, after copying the world to
+    `runs/world-backups/` (the builder shares it and the live bot clears its
+    course area; `runs/live-chain-1nov.log`). The planner's references on
+    100, 56, 58 and 101 run unattended while Task Manager reads under 62%
+    (stopped after two readings above 85%; `runs/planner-references-1nov.log`,
+    rows in `results/neo/assist_*.jsonl`); not yet recorded here.
 - **The course builder (built 1 Nov, beside the GPU runs; nothing chosen or
   trained on it):** `run.cmd builder` (`parkour.builder`, `parkour.build_session`,
   `bridge/builder_bot.js`) starts the local server and a bot in build mode.
@@ -2356,18 +2377,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `e280fc3` (2026-11-01 22:10, branch `main`): Slime and posts: round 3c (sp3c, sp3d) and the choice by the rules over 92 candidates: the slime skill sp3c updates 75 (275 of 320 on 55, not solid: 288; round 3c added 2, so the rounds end) as results/slime_skill.pt, the posts choice sp3c updates 50 (285 on 57) as results/posts_skill.pt; tests once: 261 of 320 on 56, 285 of 320 on 58; the offline bot 48/64 on 56's first 64, the simulator's outcome on every course; the report's slime/posts and water sections; the water runs w1/w2 queued after the bank
+Generated on top of commit `91f9d00` (2026-11-01 22:33, branch `main`): Water DAgger labels (opt-in, neo_skill dagger --water [--water-every N]): a water skill's own states on the water takeoff, in its flight off it and in the pool, searched to the exit in up to 160 ticks; the policy prior, the simplify rollouts and the pairs with the water observation for a 355-input skill. The default paths are unchanged (test_neo_skill, test_slime); the water path has not run yet. Water round 1's first scores (family 100)
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 113 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 115 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `d905229` 2026-11-01 20:01 | 17 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 297 |
-| `docs/report_draft.md` | `b6c7b2b` 2026-10-31 15:38 | 25 |
+| `README.md` | `d905229` 2026-11-01 20:01 | 19 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 299 |
+| `docs/report_draft.md` | `b6c7b2b` 2026-10-31 15:38 | 27 |
 | `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | `e280fc3` 2026-11-01 22:10 | 0 |
+| `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -2492,6 +2513,8 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `uniform-s0` | 999 | 0.52 | 599 | 95.3 | 94.8 | 95.0 | - |
 | `uniform-s1` | 999 | 0.52 | 899 | 93.5 | 92.9 | 93.0 | - |
 | `uniform-s2` | 999 | 0.52 | 949 | 94.2 | 92.8 | 93.9 | - |
+| `water-skill-w1` | 399 | 0.21 | 399 | 90.0 | 88.2 | - | - |
+| `water-skill-w2` | 399 | 0.21 | 399 | 89.5 | 90.8 | - | - |
 
 ### Games played by the bot (`results/games/*/summary.json`)
 
@@ -2619,10 +2642,11 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `v2-tuned-planner-offline` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 51/60 | 85.0 | 100.0 |
 | `v2-tuned-planner-offline-obstacles` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 56/60 | 93.3 | 100.0 |
 | `viewer-test` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 1/1 | 100.0 | 100.0 |
+| `water101-offline-skill-w1-u300` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 60/64 | 93.8 | 100.0 |
 
 ### In `results/` but not yet in `results/DATA.md`
 
-`games/slime56-offline-skill-sp3c/`, `games/two53-live-skill-t1/`, `games/two53-live-skill-t1-router/`, `games/two53-offline-skill-t1/`, `games/two53-offline-skill-t1-router/`, `neo/slime_choice.json`, `neo_skill_v3.json`, `neo_skill_v3.pt`
+`games/slime56-offline-skill-sp3c/`, `games/two53-live-skill-t1/`, `games/two53-live-skill-t1-router/`, `games/two53-offline-skill-t1/`, `games/two53-offline-skill-t1-router/`, `games/water101-offline-skill-w1-u300/`, `neo/slime_choice.json`, `neo/water_choice.json`, `neo_skill_v3.json`, `neo_skill_v3.pt`
 
 <!-- END AUTO-SNAPSHOT -->
 
@@ -2640,6 +2664,7 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **1 Nov 2026, 23:06, Claude (Claude Code, training PC; the fork):** water finished (Ethan, ~23:00: little Claude usage left, finish locally and wrap up). The water skill (w1 updates 300, `results/water_skill.pt`): 268 of 288 on validation (solid), 260 of 288 on test 101 (played once), the offline bot 60/64 with the simulator's outcomes. Unattended on the PC: the real-Minecraft runs of the slime and water skills (they wait for the builder's server to close; the world is copied first) and the planner's references on 100, 56, 58 and 101 (they wait for the CPU). Next: record those four references and the two live runs (`runs/live-chain-1nov.log`, `runs/planner-references-1nov.log`).
 - **1 Nov 2026, 22:12, Claude (Claude Code, training PC; the fork that took over the main session's work):** Ethan's 1 Nov requests, continued (section 3).
   - Slime and posts: rounds 3 and 3c (DAgger labels for the two slime kinds the skill missed; 3c added the episodes' takeoff starts). Chosen by the rules over 92 candidates: `results/slime_skill.pt` (275 of 320 on 55; not solid, 288) and `results/posts_skill.pt` (285 on 57); the rounds ended (3c added 2). Tests once: 261 of 320 on 56, 285 of 320 on 58; offline bot 48/64 on 56's first 64 (the simulator's outcomes). Open: real Minecraft (the builder Ethan started holds the server), the planner's references on 56 and 58 (they wait for the CPU).
   - Water: pinned sets 100/101 (288 courses, two pools each) with rules fixed at 21:20:41; the water observation (355 inputs, the standard 255 first), training from the widened final policy, the bank, the planner and DAgger in water, the bots' observation and pools (checked against Python and the simulator), and the water physics vectorized on the GPU (bit-identical, 2.6x faster). The final policy alone: 7 of 288 on 100. Round 1 (w1, w2) is training; then the choice, the planner's reference (waits for the CPU), the test on 101, the bots.

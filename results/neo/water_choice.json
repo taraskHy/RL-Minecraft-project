@@ -1,0 +1,13 @@
+{
+ "candidates": 16,
+ "rules": "HANDOFF.md section 3, 1 Nov 21:20:41",
+ "run": "water-skill-w1",
+ "updates": 300,
+ "skill": "runs/water-skill-w1/checkpoints/updates_00300.pt",
+ "sha1": "ee166089143c",
+ "family100": 268,
+ "of": 288,
+ "planner_family100": null,
+ "solid": true,
+ "solid_rule": "at least 260 of 288, or no more than 10 below the planner's count on 100 if that is lower"
+}
