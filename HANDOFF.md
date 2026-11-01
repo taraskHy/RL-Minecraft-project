@@ -479,6 +479,43 @@ at 18:05:14, before any run on the two-neo sets:**
   its single-neo level is measured on courses no version has played. Then
   the offline bot and real Minecraft on the first 64 courses of family 53,
   both modes, each checked against `parkour.live`'s simulator re-run.
+- **The course builder (built 1 Nov, beside the GPU runs; nothing chosen or
+  trained on it):** `run.cmd builder` (`parkour.builder`, `parkour.build_session`,
+  `bridge/builder_bot.js`) starts the local server and a bot in build mode.
+  In the game: `!build` gives creative mode and a kit of only the modelled
+  blocks (stone, ice, slime, ladders, stone slabs and stairs, oak trapdoors,
+  carpets, oak fences, cobblestone walls, iron bars, end rods); `!start` and
+  `!goal` mark the blocks the player stands on (`!via` optional platforms in
+  order); `!route` shows what the bot makes of the build; `!run [router|list]`
+  plays it with the final policy and the neo skill, the learned router
+  choosing the platforms (no course list) unless the build has shaped blocks
+  (the route planner does not see them; then the course list), while the
+  player spectates; the bot reports progress in chat. The scan (`bot.blockAt`
+  over a 64 x 32 x 64 box) goes to the converter, which refuses any block or
+  block state the simulator does not model, naming it and where it is
+  (a connected fence, an open trapdoor, dirt, ...), and builds the course:
+  platforms are one-block-thick rectangles with two blocks of air above, a
+  block of air apart; a full block on a full block is a wall unless a
+  ladder beside it makes it a ladder climb's target; a slab over another
+  platform within four rows is a roof, one four rows up beside it a beam;
+  the route is the longest chain of jumps from the start to the goal, then
+  the one that turns least. After each run the converter replays the game's
+  ticks in the simulator and runs the same networks there, and the bot says
+  both. Tests: `tests/test_builder.py` (8): generated courses of every kind
+  (standard, obstacles, one and two neos, head hitters, ice, shaped blocks,
+  slime, ladders) built as the bot builds them and scanned back give the
+  same course in at least 90% per kind (97% overall; the rest another chain
+  through the same platforms, which `!via` fixes), and the refusals.
+  `!demo K` builds course K of the builder's own demo set (families 80-82,
+  `builder.demo_courses`) for a check without a builder. **Self-check in
+  real Minecraft (18:47-18:58, `runs/builder-selftest-1`, a scripted second
+  player):** demo 0 (two neos back to back) scanned back exactly, played with
+  the router: fell at the first neo, the simulator's own run the same (73
+  ticks), the game's ticks replayed with a largest difference of 3.2e-14
+  blocks; demo 12 (four shaped blocks) scanned back exactly, played with the
+  course list: made it, 14 jumps in 187 ticks, 0 server corrections, the
+  simulator the same 187 ticks (replay 1.6e-13 blocks). A Fabric mod or a
+  browser editor was not needed.
 
 **Single neos at 85% by a network, without the search (Ethan, 31 Oct, about
 08:30: "i need our network/gate will have 85% on neo"; his suggestion: when

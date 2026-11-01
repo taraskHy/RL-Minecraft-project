@@ -21,6 +21,7 @@ if "%CMD%"=="handoff" %PY% -m parkour.handoff %ARGS% & exit /b
 if "%CMD%"=="live" %PY% -m parkour.live %ARGS% & exit /b
 if "%CMD%"=="offline" %PY% -m parkour.live --offline %ARGS% & exit /b
 if "%CMD%"=="server" %PY% -m parkour.server run %ARGS% & exit /b
+if "%CMD%"=="builder" %PY% -m parkour.builder %ARGS% & exit /b
 if "%CMD%"=="accept-eula" %PY% -m parkour.server accept-eula %ARGS% & exit /b
 :help
 echo Usage: run.cmd COMMAND [options]
@@ -32,6 +33,7 @@ echo   report        tables and plots from finished runs (also refreshes the HAN
 echo   handoff       refresh the generated part of HANDOFF.md  (run.cmd handoff --check)
 echo   offline       play held-out courses with the JS bot on Mineflayer's physics, no server
 echo   live          play held-out courses in real Minecraft (needs accept-eula once)
+echo   builder       build a course yourself in Minecraft; the bot plays it (say !help in the game)
 echo   server        start the local parkour server by hand
 echo   accept-eula   record your acceptance of the Minecraft EULA on this PC
 exit /b 1
