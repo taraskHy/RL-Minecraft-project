@@ -24,10 +24,17 @@ from parkour.neo_assist import single_neo_courses, two_neo_courses  # noqa: E402
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("out", type=Path)
-    ap.add_argument("--family", type=int, default=41)
+    ap.add_argument("--family", type=int, default=0, help="default: the set's test family (single 41, two 53)")
     ap.add_argument("--n", type=int, default=64)
     ap.add_argument("--set", choices=("single", "two"), default="single")
     a = ap.parse_args()
+    from parkour import neo_assist as NA  # noqa: E402
+    families = {"single": (NA.SINGLE_TEST_FAMILY, NA.SINGLE_VALIDATION_FAMILY, NA.SINGLE_FRESH_TEST_FAMILY,
+                           NA.SINGLE_FRESH_TEST_FAMILY_2, NA.SINGLE_FRESH_TEST_FAMILY_3, NA.SINGLE_FRESH_TEST_FAMILY_4),
+                "two": (NA.TWO_TEST_FAMILY, NA.TWO_VALIDATION_FAMILY)}[a.set]
+    a.family = a.family or families[0]
+    if a.family not in families:
+        raise SystemExit(f"--set {a.set} has families {families}")
     if a.out.exists():
         raise SystemExit(f"{a.out} exists; the course file is written once")
     cs = [c.to_json() for c in (two_neo_courses if a.set == "two" else single_neo_courses)(a.family, a.n)]

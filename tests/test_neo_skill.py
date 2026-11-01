@@ -315,3 +315,19 @@ def test_a_two_neo_episode_needs_both_neos(monkeypatch):
     assert bool(skipped.all()) and not bool(success.any())
     success, _ = NS.block_rule(k2 + 1, end, k1, end, k2)
     assert bool(success.all())
+
+
+def test_mix_refuses_banks_whose_types_overlap(tmp_path):
+    one, slime = tmp_path / "one.pt", tmp_path / "slime.pt"
+    NS.build_bank(FINAL, one, families=(60,), per_family=3, device="cpu", batch=3)
+    NS.build_bank(FINAL, slime, families=(84,), per_family=3, device="cpu", batch=3, slime=True)
+    try:
+        NS.mix_banks([one, slime], tmp_path / "bad.pt")
+        raise AssertionError("single-neo types 0-31 and slime kinds 0-40 overlap")
+    except ValueError:
+        pass
+    try:
+        NS.main(["bank", "--two", "--slime", "--out", str(tmp_path / "x.pt"), "--device", "cpu"])
+        raise AssertionError("one kind per bank")
+    except SystemExit:
+        pass

@@ -19,8 +19,8 @@ Training (``train.py --segments BANK``) is PPO on the block alone:
 ``SegmentEnv`` starts every episode in the exact state in which the final
 policy (deterministic) first stood on k-1 of a training single-neo course,
 the held-out sets' own generator (``neo_assist.single_neo_courses``) on
-families 60-69, none equal to a course of the single-neo sets (families 40,
-41, 49). The bank (``bank``) holds those states, from the simulator's start
+families 60-69, none equal to a course of the held-out neo sets
+(``neo_assist.held_neo_hashes``). The bank (``bank``) holds those states, from the simulator's start
 and after the bots' 10 settle ticks. An episode succeeds when the bot stands
 on k, then on k+1, then reaches k+2 (or the goal): the course's goal reward
 there, so the value of the block is what the skill learns. Skipping k or k+1
@@ -269,6 +269,9 @@ class SegmentBank:
         for c, t in zip(self.courses, d["types"]):
             c.level = int(t)
         held = set(exclude) | held_neo_hashes()
+        if any(c.slime or c.shapes for c in self.courses):  # (a slime or posts bank: the slime and posts sets too)
+            from .slime import held_slime_hashes
+            held |= held_slime_hashes()
         if any(course_hash(c) in held for c in self.courses):
             raise ValueError("the bank holds a held-out course")
         self.k = torch.as_tensor(d["k"], dtype=torch.int64)
@@ -299,8 +302,18 @@ class SegmentBank:
 
 def mix_banks(paths: list[Path], out: Path) -> dict:
     """One bank of the rows of several, taken in turn (the first row of each, then the second, ...; a bank that
-    runs out drops out), so a run that reads it in order plays them about equally often."""
+    runs out drops out), so a run that reads it in order holds about as many courses of each in its pool. Which
+    of them an episode plays is still the type sampler's (by failure rate): t1 played single-neo blocks in about
+    1 episode in 5. Banks of different kinds must not share type ids (single neos 0-31, two neos 32-127; slime
+    0-40, posts 41-130)."""
     banks = [torch.load(p, map_location="cpu", weights_only=False) for p in paths]
+    seen = {}
+    for p, b in zip(paths, banks):
+        kind = b["meta"].get("kind", "single")
+        for other, types in seen.items():
+            if other != kind and types & set(b["types"]):
+                raise ValueError(f"{p} ({kind}) shares type ids with a {other} bank")
+        seen[kind] = seen.get(kind, set()) | set(b["types"])
     order = []
     for r in range(max(len(b["courses"]) for b in banks)):
         order += [(j, r) for j, b in enumerate(banks) if r < len(b["courses"])]
@@ -579,6 +592,8 @@ def main(argv=None):
     m.add_argument("banks", nargs="+")
     m.add_argument("--out", required=True)
     a = ap.parse_args(argv)
+    if a.cmd == "bank" and a.two + a.slime + a.posts > 1:
+        raise SystemExit("--two, --slime and --posts build one kind of bank each; mix banks with `mix`")
     if a.cmd == "mix":
         if Path(a.out).exists():
             raise SystemExit(f"{a.out} exists; choose a new name")

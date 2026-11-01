@@ -530,7 +530,7 @@ def two_neo_plan(n: int = 320, n_jumps: int = 10) -> list[tuple[int, int, int, i
     the first neo and 10 times as the second (as the same type once), and in half the rounds both neos go around
     the same side. The spacing k2 - k1 is ``TWO_SPACINGS[(t1 + r) mod 5]``, so each type is first in 4 back-to-back
     pairs, 4 one apart and 2 two apart. k1 runs through 0 .. n_jumps - 1 - d in turn among the courses of spacing
-    d, so every position the spacing allows comes equally often."""
+    d, so every position the spacing allows comes equally often, to within one course."""
     n_types = len(single_neo_types())
     seen: dict = {}
     out = []
@@ -1255,7 +1255,7 @@ def main(argv=None):
                                                                   "probability (neo_skill.JumpReadout; 0.5: argmax)")
     ap.add_argument("--skill-blocks", choices=("neo", "slime", "special"), default="neo",
                     help="with --skill: the blocks it plays (slime: each slime pad's, parkour.slime.slime_cps; special: "
-                         "each slime pad's and narrow post's, special_cps)")
+                         "each slime pad's and each shaped platform's, special_cps; the posts sets' shapes are posts)")
     ap.add_argument("--courses", type=int, default=0, help="only the first N courses (quick checks)")
     ap.add_argument("--settle", type=int, default=0, help="ticks without keys on the start block first, as the bots "
                                                           "start (parkour.live.SETTLE_TICKS, 10); in the row only when set")

@@ -342,9 +342,13 @@ def main(argv=None):
              "| Level | Courses | Success here | Success in simulator (same courses) |", "| --- | --- | --- | --- |"]
     if a.skill:  # after the checkpoint's line
         played = sum(r["skill_ticks"] or 0 for r in rows)
-        where = ("in each neo's block (from the platform before the takeoff to the one after the target)" if not a.router
-                 else "from each router decision whose route crosses a wall in its next jump (for two decisions) or in "
-                      "its second (three)")
+        where = ("in each neo's block (from the platform before the takeoff to the one after the target)"
+                 if not a.router and a.skill_blocks == "neo" else
+                 "in each slime pad's block (from the takeoff onto the pad to the pad's exit)" if a.skill_blocks == "slime" else
+                 "in each slime pad's and shaped platform's block (from the takeoff onto it to its exit)"
+                 if a.skill_blocks == "special" else
+                 "from each router decision whose route crosses a wall in its next jump (for two decisions) or in "
+                 "its second (three)")
         same = (f"; at the simulator's checkpoints on {sum(r['skill_at'] == r['sim_skill_at'] for r in rows)} of "
                 f"{len(rows)} courses" if a.router else "")
         lines[3:3] = ["", f"Neo skill `{a.skill}`: it acts instead of the policy {where}, here {played} of "

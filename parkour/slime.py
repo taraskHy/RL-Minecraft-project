@@ -65,6 +65,8 @@ def generate_fixed(rng: np.random.Generator, basic: list[list[C.JumpSpec]], fixe
     draws). Special specs are placed by ``courses._place`` and recorded as ``courses.generate`` records them
     (slime pads, shaped platforms, their exits). None if a spec does not fit in 30 attempts."""
     assert fixed and min(fixed) >= 0 and max(fixed) < n_specs
+    if any(sp.runway or sp.ice for sp in fixed.values()):  # (run-ups add a runway platform; courses.generate places them)
+        raise ValueError("generate_fixed places no run-up jumps")
     gx, gy, gz = grid
     s = 1 if any(fixed[j].neo for j in fixed if j == 0) else int(rng.choice([1, 2, 3], p=[0.4, 0.3, 0.3]))
     heading = int(rng.integers(4))
@@ -174,6 +176,10 @@ def slime_plan(i: int) -> dict:
 
 
 def posts_plan(i: int) -> dict:
+    """Course i of the posts sets: posts at ``POSTS_PATTERNS[i mod 4]``, kinds (4i + j) mod 90; two slime bounces,
+    kinds (2i + j) mod 41, at two of the other positions. Those two follow i mod 4 as the pattern does, so the
+    bounces sit at spec positions 1 and 5 (patterns 0 and 3) or 2 and 6 (patterns 1 and 2), always next to a post
+    (a property of the pinned sets 57 and 58, recorded here, not changed)."""
     posts, kinds = post_kinds(), slime_kinds()
     where = POSTS_PATTERNS[i % len(POSTS_PATTERNS)]
     rest = [p for p in range(8) if p not in where]

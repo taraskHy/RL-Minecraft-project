@@ -76,7 +76,8 @@ fine-tuning calibrated critics, which would hold returns of tens of reward units
 Training courses are skills mode's, built by parkour.train's own code exactly as for runs/combined-distill
 (``--skills basic,advanced,extra --ice-prob 0.3 --obstacle-prob 0.3 --pool-size 1024 --curriculum uniform``,
 jumps 5-12, turn probability 0.25, seed 0, family 0) and exclude the same held-out courses: the skills-mode test
-and validation sets and both single-neo sets (families 40 and 41). The pool is refreshed as parkour.train does
+and validation sets and the held-out neo sets (``neo_assist.held_neo_hashes``; with the extra levels the slime and
+posts sets too, ``parkour.slime.held_slime_hashes``). The pool is refreshed as parkour.train does
 (12.5% every 20 updates); a decision running on a replaced course ends there like a time limit.
 
 Validation, which chooses best.pt, is the measurement's (scripts/gate_headroom.py) whatever the training flags

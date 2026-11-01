@@ -772,17 +772,16 @@ def generate_neos(rng: np.random.Generator, basic: list[list[JumpSpec]], neos: d
 
 
 def heading_of(prev: np.ndarray, new: np.ndarray) -> int:
-    """The heading (index of ``HEADINGS``) of the jump from platform ``prev`` to ``new``: the side of ``prev``
-    that ``new`` lies beyond (``_platform_after`` places a target past the takeoff's far edge)."""
-    if new[0] > prev[1]:
-        return 0
-    if new[2] > prev[3]:
-        return 1
-    if new[1] < prev[0]:
-        return 2
-    if new[3] < prev[2]:
-        return 3
-    raise ValueError("the platforms overlap along both axes")
+    """The heading (index of ``HEADINGS``) of the jump from platform ``prev`` to ``new``: the axis along which
+    ``new`` lies further beyond ``prev`` (``_platform_after`` places a target past the takeoff's far edge, a
+    sideways offset at most 3 across), then the side. Exact for jumps without a sideways offset, as neos are."""
+    sx = max(int(new[0]) - int(prev[1]), int(prev[0]) - int(new[1]))
+    sz = max(int(new[2]) - int(prev[3]), int(prev[2]) - int(new[3]))
+    if max(sx, sz) <= 0:
+        raise ValueError("the platforms overlap along both axes")
+    if sx >= sz:
+        return 0 if new[0] > prev[1] else 2
+    return 1 if new[2] > prev[3] else 3
 
 
 def neo_swing(prev: np.ndarray, new: np.ndarray, heading: int, spec: JumpSpec, lanes: int = 2) -> tuple:

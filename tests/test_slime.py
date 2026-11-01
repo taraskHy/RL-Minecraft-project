@@ -64,3 +64,16 @@ def test_slime_blocks_and_checkpoints():
     c = S.slime_courses(S.SLIME_VALIDATION_FAMILY, 1)[0]
     assert S.slime_cps(c) == sorted({k for s in c.slime for k in (s - 1, s)})
     assert S.slime_blocks(c) == [(s - 1, s - 1) for s in sorted(c.slime)]
+
+
+def test_generate_fixed_refuses_run_ups_and_heading_of_takes_sideways_jumps():
+    import numpy as np
+    import pytest
+    run_up = C.JumpSpec(2, 0, 0, (1, 1), runway=3)
+    with pytest.raises(ValueError):
+        S.generate_fixed(np.random.default_rng(0), C.load_levels(), {1: run_up}, 8)
+    prev = np.array([10, 10, 30, 30, 12])
+    for h in range(4):
+        for lat in (-2, -1, 0, 1, 2):
+            new = C._platform_after(prev, h, C.JumpSpec(2, 0, lat, (1, 1)))
+            assert C.heading_of(prev, new) == h, (h, lat)
