@@ -451,6 +451,41 @@ def extra_study(device, reuse: bool = False):
     return out
 
 
+NEW_POST_SHAPES = ("iron_bars",)  # (opt-in, posts_study) narrow posts no level has yet
+
+
+def posts_study(device):
+    """The iron-bars posts (opt-in, HANDOFF.md section 3, 1 Nov): the post candidates of ``shape_specs`` for
+    ``NEW_POST_SHAPES`` and their fixed exit, studied as the shaped blocks are; members by the shaped-block level's
+    rule (some landing, exit forgiveness at least 0.05), lateral offsets mirrored. Writes
+    configs/jump_feasibility_posts.json and configs/jump_levels_posts.json (``parkour.slime.post_kinds``); the
+    other levels and files are not touched."""
+    t0 = time.time()
+    specs = [JumpSpec(g, dy, lat, (1, 1), block=b) for b in NEW_POST_SHAPES for g in (1, 2, 3)
+             for dy in ((-2, -1, 0) if shape_geometry(b)[0] > 1 else (-1, 0)) for lat in (0, 1)]
+    frac = evaluate(specs, device)
+    exit_f = dict(zip(NEW_POST_SHAPES, _evaluate_courses([exit_course(b, (1, 1)) for b in NEW_POST_SHAPES], device)))
+    rows = [{"kind": "shape", "gap": sp.gap, "dy": sp.dy, "lateral": sp.lateral, "size": list(sp.size), "block": sp.block,
+             "forgiveness": round(float(f), 5), "exit_forgiveness": round(float(exit_f[sp.block]), 5)}
+            for sp, f in zip(specs, frac)]
+    (CONFIGS / "jump_feasibility_posts.json").write_text(json.dumps(
+        {"method": "as the shaped blocks of --extra: the straight strategies of the basic study from a 1x1 stone block "
+                   "onto the post, and from the post over the fixed exit jump (exit_forgiveness)",
+         "seconds": round(time.time() - t0, 1), "specs": rows}, indent=1))
+    members = []
+    for r in rows:
+        if r["forgiveness"] > 0 and r["exit_forgiveness"] >= 0.05:
+            base = {k: r[k] for k in ("gap", "dy", "lateral", "size", "block")}
+            members.append({**base, "side": 1})
+            if r["lateral"]:
+                members.append({**base, "lateral": -r["lateral"], "side": 1})
+    (CONFIGS / "jump_levels_posts.json").write_text(json.dumps(
+        {"source": "parkour.feasibility --posts", "levels": [{"name": "iron bars", "specs": members}]}, indent=1))
+    print(f"iron bars: {sum(r['forgiveness'] > 0 for r in rows)}/{len(rows)} possible, exit forgiveness "
+          f"{rows[0]['exit_forgiveness'] if rows else None}, {len(members)} specs, {round(time.time() - t0, 1)} s")
+    return rows
+
+
 def evaluate(specs, device="cuda", beam=False):
     out = []
     for i in range(0, len(specs), CHUNK):
@@ -475,11 +510,14 @@ def main(argv=None):
     ap.add_argument("--extra", action="store_true", help="study head hitters, ice run-ups, shaped blocks, slime, ladders")
     ap.add_argument("--gpu-mem-fraction", type=float, default=0.0, help="optional CUDA allocator budget")
     ap.add_argument("--reuse", action="store_true", help="with --extra: keep the rows of kinds whose candidates did not change")
+    ap.add_argument("--posts", action="store_true", help="study the iron-bars posts (opt-in; new files only)")
     args = ap.parse_args(argv)
     if args.gpu_mem_fraction and str(args.device).startswith("cuda"):
         dev = torch.device(args.device)
         torch.cuda.set_per_process_memory_fraction(args.gpu_mem_fraction,
                                                    dev.index if dev.index is not None else torch.cuda.current_device())
+    if args.posts:
+        return posts_study(args.device)
     if args.extra:
         return extra_study(args.device, reuse=args.reuse)
     if args.advanced:

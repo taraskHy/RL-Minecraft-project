@@ -1,0 +1,208 @@
+{
+ "source": "parkour.feasibility --posts",
+ "levels": [
+  {
+   "name": "iron bars",
+   "specs": [
+    {
+     "gap": 1,
+     "dy": -1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "block": "iron_bars",
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": -1,
+     "lateral": 1,
+     "size": [
+      1,
+      1
+     ],
+     "block": "iron_bars",
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": -1,
+     "lateral": -1,
+     "size": [
+      1,
+      1
+     ],
+     "block": "iron_bars",
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": 0,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "block": "iron_bars",
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": 0,
+     "lateral": 1,
+     "size": [
+      1,
+      1
+     ],
+     "block": "iron_bars",
+     "side": 1
+    },
+    {
+     "gap": 1,
+     "dy": 0,
+     "lateral": -1,
+     "size": [
+      1,
+      1
+     ],
+     "block": "iron_bars",
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": -1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "block": "iron_bars",
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": -1,
+     "lateral": 1,
+     "size": [
+      1,
+      1
+     ],
+     "block": "iron_bars",
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": -1,
+     "lateral": -1,
+     "size": [
+      1,
+      1
+     ],
+     "block": "iron_bars",
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": 0,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "block": "iron_bars",
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": 0,
+     "lateral": 1,
+     "size": [
+      1,
+      1
+     ],
+     "block": "iron_bars",
+     "side": 1
+    },
+    {
+     "gap": 2,
+     "dy": 0,
+     "lateral": -1,
+     "size": [
+      1,
+      1
+     ],
+     "block": "iron_bars",
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": -1,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "block": "iron_bars",
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": -1,
+     "lateral": 1,
+     "size": [
+      1,
+      1
+     ],
+     "block": "iron_bars",
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": -1,
+     "lateral": -1,
+     "size": [
+      1,
+      1
+     ],
+     "block": "iron_bars",
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": 0,
+     "lateral": 0,
+     "size": [
+      1,
+      1
+     ],
+     "block": "iron_bars",
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": 0,
+     "lateral": 1,
+     "size": [
+      1,
+      1
+     ],
+     "block": "iron_bars",
+     "side": 1
+    },
+    {
+     "gap": 3,
+     "dy": 0,
+     "lateral": -1,
+     "size": [
+      1,
+      1
+     ],
+     "block": "iron_bars",
+     "side": 1
+    }
+   ]
+  }
+ ]
+}

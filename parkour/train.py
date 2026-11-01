@@ -500,6 +500,9 @@ def train(cfg: TrainConfig) -> Path:
     if "advanced" in skills or (not skills and cfg.advanced):  # neos in training: none of the neo sets either
         from .neo_assist import held_neo_hashes  # here: neo_assist imports this module
         test_hashes |= held_neo_hashes()
+    if "extra" in skills or (not skills and cfg.extra):  # slime and shaped blocks: none of the slime and posts sets
+        from .slime import held_slime_hashes
+        test_hashes |= held_slime_hashes()
     bank = factory = None
     if cfg.segments:  # the neo skill: a neo's block per episode (parkour.neo_skill)
         if skills or level_weights or cfg.demos:
@@ -519,9 +522,12 @@ def train(cfg: TrainConfig) -> Path:
     if n_demo:
         pick = np.random.default_rng([2026, 3, cfg.seed]).choice(len(demos), n_demo, replace=False)
         train_courses[:n_demo] = [demo_course(demos[i], cfg.demo_level) for i in pick]
-    pool = CoursePool(train_courses, dev, C.GRID, ice=cfg.ice_prob > 0 or any(sp.ice or sp.bounce for L in levels for sp in L), compact_ice=cfg.compact_ice,
-                      shapes=any(bool(sp.block) or sp.ladder for L in levels for sp in L),
-                      slime=any(sp.bounce for L in levels for sp in L))
+    banked = bank.courses if bank is not None else []  # (a bank's courses may have slime, ice or shapes: parkour.slime)
+    pool = CoursePool(train_courses, dev, C.GRID, ice=cfg.ice_prob > 0 or any(sp.ice or sp.bounce for L in levels for sp in L)
+                      or any(c.ice or c.slime for c in banked), compact_ice=cfg.compact_ice,
+                      shapes=any(bool(sp.block) or sp.ladder for L in levels for sp in L)
+                      or any(c.shapes or len(c.ladders) for c in banked),
+                      slime=any(sp.bounce for L in levels for sp in L) or any(c.slime for c in banked))
     test_pool = None if cfg.test_once else CoursePool(tests, dev, C.GRID)
     obstacle_pool = CoursePool(obstacle_tests, dev, C.GRID) if obstacle_tests and not cfg.test_once else None
     val_pool = None if cfg.eval_batch_size else CoursePool(vals, dev, C.GRID, compact_ice=cfg.compact_ice)

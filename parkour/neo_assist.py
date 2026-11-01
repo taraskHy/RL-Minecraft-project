@@ -136,8 +136,11 @@ SINGLE_FRESH_TEST_FAMILY_3 = 51  # a fourth, for the third DAgger round's versio
 SINGLE_FRESH_TEST_FAMILY_4 = 54  # a fifth, for a two-neo version of the skill (1 Nov)
 TWO_VALIDATION_FAMILY = 52  # the two-neo sets (HANDOFF.md section 3, 1 Nov)
 TWO_TEST_FAMILY = 53
+SLIME_TEST_FAMILY = 56  # the slime-heavy and post-heavy sets (parkour.slime; 55 and 57 are their validation families)
+POSTS_TEST_FAMILY = 58
 TEST_FAMILIES = (TEST_SEED_FAMILY, RANDOM_TEST_FAMILY, MIXED_TEST_FAMILY, SINGLE_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY,
-                 SINGLE_FRESH_TEST_FAMILY_2, SINGLE_FRESH_TEST_FAMILY_3, TWO_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_4)
+                 SINGLE_FRESH_TEST_FAMILY_2, SINGLE_FRESH_TEST_FAMILY_3, TWO_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_4,
+                 SLIME_TEST_FAMILY, POSTS_TEST_FAMILY)
 HEADS = ("move", "strafe", "jump", "sprint", "yaw")
 
 
@@ -625,6 +628,9 @@ def course_set(name: str, family: int) -> list[C.Course]:
         return single_neo_courses(family)
     if name == "two":
         return two_neo_courses(family)
+    if name in ("slime", "posts"):
+        from . import slime  # (a module of its own, opt-in)
+        return (slime.slime_courses if name == "slime" else slime.posts_courses)(family)
     raise ValueError(name)
 
 
@@ -803,7 +809,7 @@ def _arrival(env: ParkourEnv, i: int) -> dict:
 
 def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_ticks: int = 200,
                       max_ticks: int = 4000, settle: int = 0, log=None, fall_rule: str = "local",
-                      course_offset: int = 0, skill=None) -> dict:
+                      course_offset: int = 0, skill=None, skill_blocks: str = "neo") -> dict:
     """First episode on every course of ``pool`` with the neo assist (``cfg.enabled``) or without it.
 
     With the assist off this is ``train.evaluate(..., per_course=True)`` course by course. ``course_offset``:
@@ -814,7 +820,8 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
     before on any later one. ``settle``: ticks without keys on the start block first (the bots' start,
     ``parkour.live.SETTLE_TICKS``); a bot on the ground there is searched from before its first action only with
     ``cfg.plan_start``. ``skill``: the neo skill (``parkour.neo_skill``) plays instead of ``model`` while the
-    checkpoint is one of ``skill_cps`` (the assist off).
+    checkpoint is one of ``skill_cps`` (the assist off); with ``skill_blocks`` "slime", a slime skill while it is one
+    of ``parkour.slime.slime_cps`` (each slime pad's block).
     """
     n = pool.size
     if skill is not None and (cfg.enabled or skill.obs_dim != model.obs_dim):
@@ -849,7 +856,11 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
         plan_at[i, planned[i]] = True
         before[i, approach_platforms(pool.courses[i], planned[i])] = True
         if skill is not None:
-            skill_at[i, skill_cps(pool.courses[i])] = True
+            if skill_blocks == "slime":
+                from .slime import slime_cps
+                skill_at[i, slime_cps(pool.courses[i])] = True
+            else:
+                skill_at[i, skill_cps(pool.courses[i])] = True
     hz = horizons(cfg)
     H = max(list(hz.values()) + [BOUNCE_PLAN_HORIZON, LADDER_PLAN_HORIZON, cfg.brake])
     retry_h = torch.full((n, C.MAX_PLATFORMS), hz["retry"], dtype=torch.int64, device=device)  # stall check of a retry
@@ -1235,13 +1246,15 @@ def _run_parts(a, meta, count) -> list[dict]:
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--checkpoint", default=str(ROOT / "results" / "final_policy.pt"))
-    ap.add_argument("--set", choices=("official", "random", "mixed", "single", "two"), default="official")
+    ap.add_argument("--set", choices=("official", "random", "mixed", "single", "two", "slime", "posts"), default="official")
     ap.add_argument("--family", type=int, default=VALIDATION_FAMILY)
     ap.add_argument("--off", action="store_true", help="the policy alone, for comparison")
     ap.add_argument("--skill", default="", help="with --off: the neo skill's checkpoint (parkour.neo_skill), which plays "
                                                 "each neo's block (skill_cps); rows go to results/neo/skill_*.jsonl")
     ap.add_argument("--skill-jump", type=float, default=0.5, help="with --skill: its jump reads 'jump' above this "
                                                                   "probability (neo_skill.JumpReadout; 0.5: argmax)")
+    ap.add_argument("--skill-blocks", choices=("neo", "slime"), default="neo",
+                    help="with --skill: the blocks it plays (slime: each slime pad's, parkour.slime.slime_cps)")
     ap.add_argument("--courses", type=int, default=0, help="only the first N courses (quick checks)")
     ap.add_argument("--settle", type=int, default=0, help="ticks without keys on the start block first, as the bots "
                                                           "start (parkour.live.SETTLE_TICKS, 10); in the row only when set")
@@ -1274,7 +1287,8 @@ def main(argv=None):
              "mixed": (MIXED_TEST_FAMILY, MIXED_VALIDATION_FAMILY),
              "single": (SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2,
                         SINGLE_FRESH_TEST_FAMILY_3, SINGLE_FRESH_TEST_FAMILY_4),
-             "two": (TWO_TEST_FAMILY, TWO_VALIDATION_FAMILY)}
+             "two": (TWO_TEST_FAMILY, TWO_VALIDATION_FAMILY), "slime": (SLIME_TEST_FAMILY, 55),
+             "posts": (POSTS_TEST_FAMILY, 57)}
     if a.family not in valid[a.set]:
         raise SystemExit(f"--set {a.set} has families {valid[a.set]} (test, validation{', fresh test' if a.set == 'single' else ''})")
     if a.skill and (not a.off or a.part or a.parts or a.serve):
@@ -1332,6 +1346,8 @@ def _evaluate_cli(a, cfg, dev):
             from .neo_skill import JumpReadout  # here: neo_skill imports this module
             meta["skill_jump"] = a.skill_jump
             skill = JumpReadout(skill, a.skill_jump)
+        if a.skill_blocks != "neo":
+            meta["skill_blocks"] = a.skill_blocks
     if a.part or a.parts:
         meta['courses_sha256'] = hashlib.sha256(json.dumps([c.to_json() for c in courses], sort_keys=True).encode()).hexdigest()
     if a.parts:
@@ -1366,7 +1382,7 @@ def _evaluate_cli(a, cfg, dev):
         pool = CoursePool(courses[lo:hi], dev, C.GRID)
         t0 = time.time()
         res = evaluate_assisted(model, pool, dev, cfg, settle=a.settle, log=lambda d: print(json.dumps(d), flush=True),
-                                course_offset=lo, skill=skill)
+                                course_offset=lo, skill=skill, skill_blocks=a.skill_blocks)
         if a.part:
             part_file.parent.mkdir(parents=True, exist_ok=True)
             write_json_atomic(part_file, {"meta": meta, "courses": [lo, hi], **res, "seconds": round(time.time() - t0, 1)})

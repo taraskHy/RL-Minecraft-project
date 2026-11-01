@@ -1,84 +1,66 @@
-"""Slime pads (opt-in): courses record them, the pool bounces on them, and the bot's JavaScript agrees."""
-import json
-import os
-import subprocess
-import tempfile
-import unittest
-
-import numpy as np
-import torch
+"""The slime-heavy and post-heavy course sets (parkour.slime)."""
+import collections
 
 from parkour import courses as C
-from parkour import physics
-from parkour.env import CoursePool
-from parkour.feasibility import bounce_specs
-from parkour.paths import BRIDGE, NODE, ROOT
+from parkour import slime as S
 
 
-def bounce_courses(n, seed):
-    levels = C.load_levels() + [bounce_specs()]
-    rng = np.random.default_rng(seed)
-    return [C.generate(rng, levels, 6 if i % 3 else 1, 8, seed=i) for i in range(n)]
+def test_slime_sets_put_the_bounces_where_the_plan_does():
+    kinds = S.slime_kinds()
+    assert len(kinds) == 41 and all(k.bounce for k in kinds)
+    cs = S.slime_courses(S.SLIME_VALIDATION_FAMILY, 80)
+    for i, c in enumerate(cs):
+        fixed = S.slime_plan(i)
+        assert S.fixed_ok(c, fixed) and c.n == 13 and len(c.slime) == 4
+        assert sorted(fixed) == list(S.SLIME_PATTERNS[i % 8])
+        for p in c.slime:  # each pad: a drop onto it, then the exit two blocks on and `bounce` rows up
+            sp = c.specs[p - 1]
+            assert sp.bounce and c.specs[p] == C.bounce_exit(sp) and c.platforms[p + 1][4] - c.platforms[p][4] == sp.bounce
+    used = collections.Counter(k.key() for i in range(320) for k in S.slime_plan(i).values())
+    assert len(used) == 41 and max(used.values()) - min(used.values()) <= 1  # 1,280 bounces over 41 kinds
+    assert [c.to_json() for c in S.slime_courses(S.SLIME_VALIDATION_FAMILY, 20)] == [c.to_json() for c in cs[:20]]
 
 
-class SlimeCourses(unittest.TestCase):
-    def test_pads_recorded_and_bouncy(self):
-        cs = bounce_courses(30, 4)
-        self.assertGreater(sum(bool(c.slime) for c in cs), 15)
-        for c in cs:
-            self.assertEqual(C.Course.from_json(c.to_json()).slime, c.slime)
-            for k, sp in enumerate(c.specs):
-                if sp.bounce:
-                    self.assertIn(k + 1, c.slime)  # the jump from platform k lands on the pad k + 1
-                    self.assertEqual(int(c.platforms[k + 2][4] - c.platforms[k + 1][4]), sp.bounce)
-        pool = CoursePool(cs, "cpu", C.GRID)
-        self.assertIsNotNone(pool.world.slime)
-        i = next(i for i, c in enumerate(cs) if c.slime)
-        k = cs[i].slime[0]
-        x0, x1, z0, z1, y = (int(v) for v in cs[i].platforms[k])
-        self.assertTrue(bool(pool.slime[i, x0, y, z0]))
-        self.assertEqual(float(pool.slip[i, x0, y, z0]), physics.SLIME_SLIPPERINESS)
-        plain = C.generate(np.random.default_rng(0), C.load_levels(), 2, 6)
-        self.assertIsNone(CoursePool([plain], "cpu", C.GRID).world.slime)  # no slime, no slime grid
-
-    def test_dropping_on_a_pad_bounces(self):
-        cs = bounce_courses(12, 6)
-        c = next(c for c in cs if c.slime)
-        pool = CoursePool([c], "cpu", C.GRID)
-        k = c.slime[0]
-        x0, x1, z0, z1, y = (int(v) for v in c.platforms[k])
-        s = physics.PlayerState.at(torch.tensor([[x0 + 0.5, y + 4.0, z0 + 0.5]], dtype=torch.float64),
-                                   torch.tensor([0.0], dtype=torch.float64))
-        none = torch.zeros(1, 6, dtype=torch.bool)
-        ups = []
-        for _ in range(40):
-            s = physics.simulate(pool.world, torch.tensor([0]), s, none)
-            ups.append(float(s.vel[0, 1]))
-        self.assertGreater(max(ups), 0.3)  # it went back up after landing
+def test_posts_sets_mix_posts_and_slime():
+    cs = S.posts_courses(S.POSTS_VALIDATION_FAMILY, 40)
+    for i, c in enumerate(cs):
+        fixed = S.posts_plan(i)
+        assert S.fixed_ok(c, fixed) and c.n == 15 and len(c.shapes) == 4 and len(c.slime) == 2
+        assert all(C.shape_geometry(name)[2] - C.shape_geometry(name)[1] <= 0.5 for name in c.shapes.values())
 
 
-@unittest.skipUnless(NODE.exists(), "portable Node runtime not installed (run setup.cmd)")
-class SlimeBotParity(unittest.TestCase):
-    def test_offline_bot_plays_slime_courses_like_the_simulator(self):
-        from parkour.live import SETTLE_TICKS, load_model
-        from parkour.train import evaluate
-        cs = bounce_courses(12, 8)
-        model = load_model(ROOT / "results" / "final_policy.pt", "cpu")
-        with torch.no_grad():
-            py = evaluate(model, CoursePool(cs, "cpu", C.GRID), "cpu", 200, settle=SETTLE_TICKS, per_course=True)["per_course"]
-        with tempfile.TemporaryDirectory() as d:
-            pol, crs, out = (os.path.join(d, f) for f in ("policy.json", "courses.json", "episodes.jsonl"))
-            model.export(pol)
-            with open(crs, "w") as f:
-                json.dump({"courses": [c.to_json() for c in cs]}, f)
-            subprocess.run([str(NODE), str(BRIDGE / "offline_bot.js"), "--policy", pol, "--courses", crs, "--out", out,
-                            "--settle", str(SETTLE_TICKS)], check=True, cwd=str(BRIDGE), capture_output=True)
-            js = [json.loads(line) for line in open(out) if line.strip()]
-        self.assertEqual([e["success"] for e in js], [bool(v) for v in py["success"]])
-        self.assertEqual([e["ticks"] for e in js], [int(v) for v in py["ticks"]])
-        reached_pad = sum(any(k <= e["cp"] for k in c.slime) for e, c in zip(js, cs))
-        self.assertGreater(reached_pad, 3)
+def test_fixed_ok_refuses_a_course_without_its_bounce():
+    c = S.slime_courses(S.SLIME_VALIDATION_FAMILY, 1)[0]
+    fixed = S.slime_plan(0)
+    other = dict(fixed)
+    other.pop(min(other))
+    assert S.fixed_ok(c, fixed) and not S.fixed_ok(c, other)
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_sets_are_registered_and_kept_out_of_training():
+    from parkour import neo_assist as NA
+    from parkour.train import course_hash
+    assert (NA.SLIME_TEST_FAMILY, NA.POSTS_TEST_FAMILY) == (S.SLIME_TEST_FAMILY, S.POSTS_TEST_FAMILY)
+    assert {S.SLIME_TEST_FAMILY, S.POSTS_TEST_FAMILY} <= set(NA.TEST_FAMILIES)
+    assert not {S.SLIME_VALIDATION_FAMILY, S.POSTS_VALIDATION_FAMILY} & set(NA.TEST_FAMILIES)
+    held = S.held_slime_hashes()
+    assert len(held) == 1280
+    assert held == {course_hash(c) for f in (55, 56) for c in NA.course_set("slime", f)} | {
+        course_hash(c) for f in (57, 58) for c in NA.course_set("posts", f)}
+    cs, types = S.slime_training_courses(families=(84,), per_family=82)
+    assert len(cs) == 82 and not {course_hash(c) for c in cs} & held and sorted(set(types)) == list(range(41))
+    for f in (55, 58):
+        try:
+            S.slime_training_courses(families=(f,), per_family=1)
+            raise AssertionError("a held-out family")
+        except ValueError:
+            pass
+    for path in ("train.py", "gate.py"):  # extra levels in training: none of these sets
+        from parkour.paths import ROOT
+        assert "held_slime_hashes()" in (ROOT / "parkour" / path).read_text(encoding="utf-8")
+
+
+def test_slime_blocks_and_checkpoints():
+    c = S.slime_courses(S.SLIME_VALIDATION_FAMILY, 1)[0]
+    assert S.slime_cps(c) == sorted({k for s in c.slime for k in (s - 1, s)})
+    assert S.slime_blocks(c) == [(s - 1, s - 1) for s in sorted(c.slime)]

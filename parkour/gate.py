@@ -742,6 +742,9 @@ def training_courses(tc: T.TrainConfig, device):
     if "advanced" in skills:  # neos in training: none of the single- and two-neo sets either
         from .neo_assist import held_neo_hashes
         exclude |= held_neo_hashes()
+    if "extra" in skills:  # slime and shaped blocks: none of the slime and posts sets either
+        from .slime import held_slime_hashes
+        exclude |= held_slime_hashes()
     factory = T.CourseFactory(tc, levels, exclude)
     pool = CoursePool(factory.make(tc.pool_size), device, C.GRID,
                       ice=tc.ice_prob > 0 or any(sp.ice or sp.bounce for L in levels for sp in L),

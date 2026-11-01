@@ -1,0 +1,162 @@
+{
+ "method": "as the shaped blocks of --extra: the straight strategies of the basic study from a 1x1 stone block onto the post, and from the post over the fixed exit jump (exit_forgiveness)",
+ "seconds": 86.0,
+ "specs": [
+  {
+   "kind": "shape",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "block": "iron_bars",
+   "forgiveness": 0.26488,
+   "exit_forgiveness": 0.19792
+  },
+  {
+   "kind": "shape",
+   "gap": 1,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "block": "iron_bars",
+   "forgiveness": 0.13715,
+   "exit_forgiveness": 0.19792
+  },
+  {
+   "kind": "shape",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "block": "iron_bars",
+   "forgiveness": 0.06597,
+   "exit_forgiveness": 0.19792
+  },
+  {
+   "kind": "shape",
+   "gap": 1,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "block": "iron_bars",
+   "forgiveness": 0.0687,
+   "exit_forgiveness": 0.19792
+  },
+  {
+   "kind": "shape",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "block": "iron_bars",
+   "forgiveness": 0.05208,
+   "exit_forgiveness": 0.19792
+  },
+  {
+   "kind": "shape",
+   "gap": 2,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "block": "iron_bars",
+   "forgiveness": 0.04464,
+   "exit_forgiveness": 0.19792
+  },
+  {
+   "kind": "shape",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "block": "iron_bars",
+   "forgiveness": 0.04241,
+   "exit_forgiveness": 0.19792
+  },
+  {
+   "kind": "shape",
+   "gap": 2,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "block": "iron_bars",
+   "forgiveness": 0.03819,
+   "exit_forgiveness": 0.19792
+  },
+  {
+   "kind": "shape",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "block": "iron_bars",
+   "forgiveness": 0.02232,
+   "exit_forgiveness": 0.19792
+  },
+  {
+   "kind": "shape",
+   "gap": 3,
+   "dy": -1,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "block": "iron_bars",
+   "forgiveness": 0.02183,
+   "exit_forgiveness": 0.19792
+  },
+  {
+   "kind": "shape",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 0,
+   "size": [
+    1,
+    1
+   ],
+   "block": "iron_bars",
+   "forgiveness": 0.02232,
+   "exit_forgiveness": 0.19792
+  },
+  {
+   "kind": "shape",
+   "gap": 3,
+   "dy": 0,
+   "lateral": 1,
+   "size": [
+    1,
+    1
+   ],
+   "block": "iron_bars",
+   "forgiveness": 0.01364,
+   "exit_forgiveness": 0.19792
+  }
+ ]
+}

@@ -479,6 +479,66 @@ at 18:05:14, before any run on the two-neo sets:**
   its single-neo level is measured on courses no version has played. Then
   the offline bot and real Minecraft on the first 64 courses of family 53,
   both modes, each checked against `parkour.live`'s simulator re-run.
+- **t1 and t2 (18:36-19:13, queue, two trainers, watchdog on) and the
+  choice (19:14, by the rule):** strict counts on family 52 / family 40, every
+  snapshot (`results/neo/skill_validation.jsonl`): t1 updates 50-500: 207/273,
+  210/277, 228/280, 212/282, 236/276, 232/273, **251/281**, 239/287, 236/286,
+  227/287; t2: 215/277, 230/280, 232/283, 227/277, 225/280, 237/279, 234/277,
+  234/281, 242/281, 233/268. Eligible (at least 280 on family 40): 11 of 20.
+  **Chosen: `neo-skill-t1` updates 350 (sha1 `846c9bb840fd`), 251 of 320 on
+  family 52** (the shipped skill 208, the planner 246), 281 on family 40. All
+  of the gain is in back-to-back pairs: 98 of 128 against 55 (the planner
+  94); one apart 103 and two apart 50, as before. As the best of 11
+  snapshots that move by about 10 between neighbours, 251 is likely a few
+  courses high; the test says by how much. Shipped by the rule as
+  `results/neo_skill.pt` / `.json` (`846c9bb840fd`); d4 kept as
+  `results/neo_skill_v3.*`.
+- **Test, played once (19:14-19:15; simulator, CPU):** two-neo family 53:
+  **236 of 320 (73.75%) with the course list, 240 (75.0%) in router mode**
+  (back to back 82 and 90 of 128, one apart 106 and 101, two apart 48 and
+  49 of 64); fresh single-neo family 54: **278 (86.9%)** and 267 (83.4%), so
+  the single-neo level held (the shipped skill: 86.25% over 1,280). Offline
+  bot, first 64 courses of 53: course list 48, router 50, each the same as
+  the simulator re-run on every course (replay 7.1e-15 and 3.6e-15 blocks;
+  `runs/two53-offline-skill-t1*`).
+- **Slime and narrow posts: rules fixed at 19:21:21, before any run on these
+  sets.** Why: the final policy lands 39.9% of the 41 single slime-bounce
+  kinds (an exit one block above the pad it makes, two or three it does
+  not), and its observation does not tell a slime pad from stone.
+  - **Sets** (`parkour.slime`, `--set slime` / `--set posts` in
+    `neo_assist`): slime-heavy, families 55 (validation) and 56 (test), 320
+    courses of 8 jump specs, 4 of them slime bounces (pad and exit: two jumps
+    each; 12 jumps, 13 platforms), kinds (4i + j) mod 41, at the positions
+    of 8 patterns (apart, in pairs, four in a row), the rest of levels 0-5;
+    post-heavy, families 57 and 58, 8 specs, 4 narrow posts (the fence
+    posts, wall posts and end rods of the shaped-block level, and iron bars:
+    `parkour.feasibility --posts`, the shaped blocks' study and rule on the
+    iron-bars post, 12 of 12 candidates possible, exit forgiveness 0.198, 18
+    kinds; the same code gives the original study's end-rod numbers to
+    5e-6) and 2 slime bounces (14 jumps, 15 platforms). Drawn like the neo
+    sets; pinned (`7a4b6fac0e00287f`, `b5d535d074712825`, `8e473dc63a2dec37`,
+    `034af14067f5548b`) and excluded from every training stream with the
+    extra levels (`train.py`, `gate.py`) and from the slime bank, at 19:19.
+  - **Measurement on validation (55 and 57; simulator, CPU), each once:**
+    the final policy alone, the one network (`results/combined_policy.pt`)
+    alone, and the planner's chosen setting (the reference; it plans every
+    jump, slime bounces with their exits as one plan).
+  - **The slime skill** (the neo skill's machinery; opt-in): a network that
+    plays each slime pad's block, from the first ground contact on the
+    platform before the pad to the first on the pad's exit, handed over at
+    the course list's slime pads (`--skill-blocks slime`,
+    `parkour.slime.slime_cps`); the final policy plays the rest. Trained
+    with PPO on the block alone (`train.py --segments`) from the final
+    policy's arrival states on courses with one slime bounce (the sets'
+    generator, families 84-89, none equal to a held-out course; types = the
+    41 kinds, drawn by failure rate); skipping the pad is a fall. Its
+    training rounds and their choice are fixed here after the measurement
+    and before any of them runs. **Solid**, fixed now: with the slime
+    skill, at least 288 of 320 (90%) on family 55, or no more than 10 below
+    the planner's count there if that is lower. Rounds go on until the
+    choice is solid or a round adds less than 5 courses; then the chosen
+    network is tested once on 56 and 58 (course list), with the planner's
+    reference on both, and played by the bots on the first 64 courses of 56.
 - **The course builder (built 1 Nov, beside the GPU runs; nothing chosen or
   trained on it):** `run.cmd builder` (`parkour.builder`, `parkour.build_session`,
   `bridge/builder_bot.js`) starts the local server and a bot in build mode.

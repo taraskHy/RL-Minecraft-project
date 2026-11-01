@@ -149,11 +149,13 @@ def two_training_courses(families=TWO_TRAIN_FAMILIES, per_family: int = 6400) ->
     return out, types
 
 
-def collect_starts(model, courses: list[C.Course], device, settle: int = 0, max_ticks: int = 2000) -> list:
+def collect_starts(model, courses: list[C.Course], device, settle: int = 0, max_ticks: int = 2000,
+                   blocks: list | None = None) -> list:
     """Per course, the state in which ``model`` (deterministic, as ``train.evaluate``) first stands on the block's
     first platform, or None if its first episode ends before. From the start (after ``settle`` idle ticks) when
     the block starts there. A dict of ``STATE_FIELDS``, ``cp`` (the first platform, or the takeoff if the model
-    jumped over the first one) and ``last_action``."""
+    jumped over the first one) and ``last_action``. ``blocks``: each course's (k, first) instead of its neo
+    block's (``merged_block``; ``parkour.slime.slime_blocks`` gives a slime pad's)."""
     pool = CoursePool(courses, device, C.GRID)
     n = len(courses)
     env = ParkourEnv(pool, EnvConfig(num_envs=n, stall_ticks=200, max_ticks=max_ticks), sampler=None)
@@ -164,8 +166,9 @@ def collect_starts(model, courses: list[C.Course], device, settle: int = 0, max_
             env.state = physics.simulate(pool.world, env.course, env.state, idle)
         env.dist = env._distance(env.state.pos, env.course, env.cp)
         obs = env.observe()
-    blocks = [merged_block(c) for c in courses]  # (one neo: block's own k and first)
-    first = torch.tensor([b[2] for b in blocks], device=device)
+    if blocks is None:
+        blocks = [(b[0], b[2]) for b in (merged_block(c) for c in courses)]  # (one neo: block's own k and first)
+    first = torch.tensor([b[1] for b in blocks], device=device)
     k = torch.tensor([b[0] for b in blocks], device=device)
     out = [None] * n
 
@@ -197,17 +200,25 @@ def collect_starts(model, courses: list[C.Course], device, settle: int = 0, max_
 
 
 def build_bank(checkpoint: Path, out: Path, families=TRAIN_FAMILIES, per_family: int = 6400, device="cuda",
-               batch: int = 4096, two: bool = False) -> dict:
+               batch: int = 4096, two: bool = False, slime: bool = False) -> dict:
     """The training bank: every training course with at least one start (``collect_starts``, per ``SETTLES``).
-    With ``two``, two-neo courses (``two_training_courses``) and each row's second takeoff (``k2``)."""
+    With ``two``, two-neo courses (``two_training_courses``) and each row's second takeoff (``k2``). With
+    ``slime``, courses with one slime bounce (``parkour.slime.slime_training_courses``), each row's block the pad's
+    (``parkour.slime.slime_blocks``: k the takeoff onto the pad, so the episode ends on the pad's exit)."""
     t0 = time.time()
     model = load_model(checkpoint, device)
-    courses, types = (two_training_courses if two else training_courses)(families, per_family)
+    if slime:
+        from .slime import slime_blocks, slime_kinds, slime_training_courses
+        courses, types = slime_training_courses(families, per_family)
+        blocks = [slime_blocks(c)[0] for c in courses]  # (one bounce per training course)
+    else:
+        courses, types = (two_training_courses if two else training_courses)(families, per_family)
+        blocks = [(b[0], b[2]) for b in (merged_block(c) for c in courses)]
     V = len(SETTLES)
     rows = []
     for lo in range(0, len(courses), batch):
         part = courses[lo:lo + batch]
-        per = [collect_starts(model, part, device, settle=s) for s in SETTLES]
+        per = [collect_starts(model, part, device, settle=s, blocks=blocks[lo:lo + batch]) for s in SETTLES]
         for j, c in enumerate(part):
             starts = [per[v][j] for v in range(V)]
             if any(starts):
@@ -229,7 +240,7 @@ def build_bank(checkpoint: Path, out: Path, families=TRAIN_FAMILIES, per_family:
                 arr[key][r, v] = torch.tensor(st[key], dtype=arr[key].dtype)  # (float64: the exact state)
     ck = Path(checkpoint).resolve()
     data = {"courses": [courses[i].to_json() for i, _ in rows], "types": [types[i] for i, _ in rows],
-            "k": [merged_block(courses[i])[0] for i, _ in rows], **arr,
+            "k": [blocks[i][0] for i, _ in rows], **arr,
             "meta": {"checkpoint": ck.relative_to(ROOT).as_posix() if ck.is_relative_to(ROOT) else ck.name,
                      "checkpoint_sha1": hashlib.sha1(ck.read_bytes()).hexdigest()[:12], "families": list(families),
                      "per_family": per_family, "settles": list(SETTLES), "generated": len(courses), "kept": n,
@@ -238,6 +249,8 @@ def build_bank(checkpoint: Path, out: Path, families=TRAIN_FAMILIES, per_family:
     if two:  # (only then, so a single-neo bank's file is as before)
         data["k2"] = [merged_block(courses[i])[1] for i, _ in rows]
         data["meta"].update(kind="two", n_types=4 * len(single_neo_types()))
+    if slime:
+        data["meta"].update(kind="slime", n_types=len(slime_kinds()))
     out.parent.mkdir(parents=True, exist_ok=True)
     torch.save(data, out)
     print(json.dumps(data["meta"]), flush=True)
@@ -545,6 +558,8 @@ def main(argv=None):
     b.add_argument("--batch", type=int, default=4096)
     b.add_argument("--two", action="store_true", help="two-neo courses (two_training_courses; default families "
                                                      f"{TWO_TRAIN_FAMILIES[0]}-{TWO_TRAIN_FAMILIES[-1]})")
+    b.add_argument("--slime", action="store_true", help="courses with one slime bounce (parkour.slime; default "
+                                                       "families 84-89)")
     m = sub.add_parser("mix", help="one bank of several banks' rows, taken in turn")
     m.add_argument("banks", nargs="+")
     m.add_argument("--out", required=True)
@@ -561,12 +576,13 @@ def main(argv=None):
                      a.device, a.batch, seed=a.seed, air_every=a.air_every, exits=a.exits, skip=a.skip)
         return
     if a.cmd == "bank":
-        default = TWO_TRAIN_FAMILIES if a.two else TRAIN_FAMILIES
+        from .slime import SLIME_TRAIN_FAMILIES
+        default = SLIME_TRAIN_FAMILIES if a.slime else TWO_TRAIN_FAMILIES if a.two else TRAIN_FAMILIES
         lo, _, hi = (a.families or f"{default[0]}-{default[-1]}").partition("-")
         fams = tuple(range(int(lo), int(hi or lo) + 1))
         if Path(a.out).exists():
             raise SystemExit(f"{a.out} exists; choose a new name")
-        build_bank(Path(a.checkpoint), Path(a.out), fams, a.per_family, a.device, a.batch, two=a.two)
+        build_bank(Path(a.checkpoint), Path(a.out), fams, a.per_family, a.device, a.batch, two=a.two, slime=a.slime)
 
 
 if __name__ == "__main__":
