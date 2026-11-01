@@ -438,7 +438,12 @@ class SegmentEnv(ParkourEnv):
         tops = self.pool.top[self.course[:, None], j.clamp(0, MAX_PLATFORMS - 1)]
         tops = torch.where(jv, tops, torch.full_like(tops, math.inf))
         fell = (new.pos[:, 1] < tops.amin(dim=1) - FALL_MARGIN) & ~success
-        fell = fell | (on_obstacle(self.pool, new, self.course) & ~success) | skipped
+        obstacle = on_obstacle(self.pool, new, self.course)
+        if self.pool.world.water is not None:  # (as ParkourEnv.step: in water is neither)
+            from .env import in_water
+            wet = in_water(self.pool, new, self.course)
+            fell, obstacle = fell & ~wet, obstacle & ~wet
+        fell = fell | (obstacle & ~success) | skipped
 
         self.stall = torch.where(gained > 0, torch.zeros_like(self.stall), self.stall + 1)
         truncated = ((self.stall >= self.cfg.stall_ticks) | (self.ticks >= self.cfg.max_ticks)) & ~success & ~fell
@@ -467,12 +472,14 @@ class SegmentEnv(ParkourEnv):
 
 
 def takeoff_states(skill, bank: SegmentBank, idx: list[int], device, waits=(0, 10, 20), max_ticks: int = 600,
-                   air_every: int = 0, exits: bool = False, air_max: int = 12):
+                   air_every: int = 0, exits: bool = False, air_max: int = 12, starts: bool = False):
     """The skill's own states in the blocks of bank rows ``idx`` (its deterministic block from a bank start): on the
     takeoff at its first ground contact and ``waits`` ticks later while it still stands there; with ``air_every``,
     also every that many ticks in the air between the takeoff and the target (searched to the target); with
-    ``exits``, its first ground contact on the target (searched to the platform after it). Returns the pool and the
-    arrival dicts (``neo_assist._arrival``: the target is the next platform) for the neo planner's search."""
+    ``exits``, its first ground contact on the target (searched to the platform after it); with ``starts``, the
+    episode's start itself where it stands on the takeoff (a slime bank's: there the takeoff is decided, and the
+    skill seldom lands on it again). Returns the pool and the arrival dicts (``neo_assist._arrival``: the target is
+    the next platform) for the neo planner's search."""
     from .neo_assist import _arrival
     pool = CoursePool([bank.courses[i] for i in idx], device, C.GRID)
     n = len(idx)
@@ -486,6 +493,9 @@ def takeoff_states(skill, bank: SegmentBank, idx: list[int], device, waits=(0, 1
     exited = torch.zeros(n, dtype=torch.bool, device=device)
     finished = torch.zeros(n, dtype=torch.bool, device=device)
     out = []
+    if starts:
+        at = (env.cp == k) & env.standing_on(env.state, env.course)[rows, k]
+        out += [dict(_arrival(env, i), kind="start") for i in torch.nonzero(at).flatten().tolist()]
     with torch.no_grad():
         for t in range(max_ticks):
             a, _, _ = skill.act(obs, deterministic=True)
@@ -513,7 +523,7 @@ def takeoff_states(skill, bank: SegmentBank, idx: list[int], device, waits=(0, 1
 
 def dagger_pairs(skill_path: Path, bank_path: Path, out: Path, types=(16, 17, 18, 19), courses: int = 6000,
                  device="cuda", batch: int = 256, prior: float = 0.95, seed: int = 0, air_every: int = 0,
-                 exits: bool = False, skip: int = 0, slime: bool = False) -> dict:
+                 exits: bool = False, skip: int = 0, slime: bool = False, starts: bool = False) -> dict:
     """(observation, action) pairs from the neo planner's landings, simplified, at the skill's own takeoff states
     (``takeoff_states``) on the bank's courses of ``types`` (HANDOFF.md, 31 Oct, 11:46): ``train.py --bc-pairs``.
     With ``slime`` (a slime bank: the takeoff k is the platform before the pad), a state on the takeoff or in the
@@ -526,12 +536,12 @@ def dagger_pairs(skill_path: Path, bank_path: Path, out: Path, types=(16, 17, 18
     bank = SegmentBank(bank_path, "cpu")
     idx = [i for i, c in enumerate(bank.courses) if c.level in types][skip:skip + courses]
     bank.device = device
-    pool, arrivals = takeoff_states(skill, bank, idx, device, air_every=air_every, exits=exits)
+    pool, arrivals = takeoff_states(skill, bank, idx, device, air_every=air_every, exits=exits, starts=starts)
     horizon = HORIZON
     if slime:
         horizon = NA.BOUNCE_PLAN_HORIZON
         for x in arrivals:
-            if x["kind"] in ("takeoff", "air"):
+            if x["kind"] in ("start", "takeoff", "air"):
                 x["target"], x["touch"] = x["cp"] + 2, x["cp"] + 1
     rules = NA.Rules(pool)
     cfg = NA.AssistConfig(keep=1, prior=prior)
@@ -546,10 +556,11 @@ def dagger_pairs(skill_path: Path, bank_path: Path, out: Path, types=(16, 17, 18
     obs, act = pairs(pool, arrivals, simple, device)
     meta = {"skill": str(skill_path), "skill_sha1": hashlib.sha1(Path(skill_path).read_bytes()).hexdigest()[:12],
             "bank": str(bank_path), "types": list(types), "skip": skip, "courses": len(idx), "air_every": air_every,
-            "exits": exits, **({"slime": True, "horizon": horizon} if slime else {}),
+            "exits": exits, **({"slime": True, "horizon": horizon} if slime else {}), **({"starts": True} if starts else {}),
             "arrivals": len(arrivals),
             "kinds": {kd: [sum(1 for x in arrivals if x["kind"] == kd),
-                           sum(1 for x, f in zip(arrivals, found) if x["kind"] == kd and f)] for kd in ("takeoff", "air", "exit")},
+                           sum(1 for x, f in zip(arrivals, found) if x["kind"] == kd and f)]
+                      for kd in ("start", "takeoff", "air", "exit")},
             "with_landing": sum(bool(f) for f in found), "simplified": sum(len(f) for f in simple),
             "pairs": int(obs.shape[0]), "prior": prior, "device": str(device), "seconds": round(time.time() - t0, 1)}
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -575,6 +586,7 @@ def main(argv=None):
     d.add_argument("--skip", type=int, default=0, help="leave out the first N bank courses of those types (used before)")
     d.add_argument("--slime", action="store_true", help="a slime bank: search takeoff and air states through the bounce "
                                                        "to the pad's exit (dagger_pairs)")
+    d.add_argument("--starts", action="store_true", help="also each episode's start where it stands on the takeoff")
     b = sub.add_parser("bank", help="the training bank of block starts")
     b.add_argument("--checkpoint", default=str(ROOT / "results" / "final_policy.pt"))
     b.add_argument("--out", default=str(ROOT / "runs" / "neo_skill_bank.pt"))
@@ -603,7 +615,8 @@ def main(argv=None):
         if Path(a.out).exists():
             raise SystemExit(f"{a.out} exists; choose a new name")
         dagger_pairs(Path(a.skill), Path(a.bank), Path(a.out), tuple(int(t) for t in a.types.split(",")), a.courses,
-                     a.device, a.batch, seed=a.seed, air_every=a.air_every, exits=a.exits, skip=a.skip, slime=a.slime)
+                     a.device, a.batch, seed=a.seed, air_every=a.air_every, exits=a.exits, skip=a.skip, slime=a.slime,
+                     starts=a.starts)
         return
     if a.cmd == "bank":
         from .slime import POSTS_TRAIN_FAMILIES, SLIME_TRAIN_FAMILIES

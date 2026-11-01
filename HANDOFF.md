@@ -624,6 +624,20 @@ at 18:05:14, before any run on the two-neo sets:**
     (special bank, segment base) and the pairs at imitation weight 0.3:
     `slime-skill-sp3`, and `slime-skill-sp3b` at weight 1.0; 300 updates, a
     snapshot every 25, scored and chosen as round 2 (all candidates).
+  - **A corrected round, fixed at 20:51:45 (round 3's first two snapshots
+    were in: 267 and 266, 255 and 262), before it runs:** on validation the
+    planner misses 9 of the 32 bounces of kind 5 and the skill 30, and no
+    other kind differs by more than 3, so kind 5 is the gap; but round 3's
+    labels hold almost no takeoff states (173 for 1,195 courses): a slime
+    bank's episode starts on the takeoff, where the takeoff is decided, and
+    the label code took takeoff states only at a later landing on it.
+    `takeoff_states(..., starts=True)` (`neo_skill dagger --starts`) also
+    takes each episode's start. Round 3c: the labels again for kinds 1 and 5
+    with the starts (otherwise as round 3), and two runs from sp2 updates 100
+    with round 3's settings on round 3's pairs and the new ones:
+    `slime-skill-sp3c` (weight 0.3) and `slime-skill-sp3d` (weight 1.0); the
+    same scoring and choice (all candidates); a round adding less than 5
+    still ends the rounds.
 - **Water, step 1: the physics (20:16; code only, no run).** `parkour/physics.py`
   (a black box, section 5) gets an opt-in water grid, `World(water=...)`: each
   cell's water level (block metadata, -1 where none), and prismarine-physics
