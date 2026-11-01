@@ -596,6 +596,27 @@ at 18:05:14, before any run on the two-neo sets:**
     policy), the same ties; then the solid check, and the tests (56 for the
     slime skill, 58 for the posts choice, each with the planner's
     reference) or round 3.
+- **Water, step 1: the physics (20:16; code only, no run).** `parkour/physics.py`
+  (a black box, section 5) gets an opt-in water grid, `World(water=...)`: each
+  cell's water level (block metadata, -1 where none), and prismarine-physics
+  1.11.1's liquid movement for 1.21: the current from the neighbours' levels
+  (`getFlow`, falling water too) applied before small speeds are zeroed,
+  jump swimming up (+0.04), the liquid branch (acceleration 0.02, inertia
+  0.8, gravity 0.08 / 16 = 0.005, as `proportionalLiquidGravity`; no ground
+  friction, no ladders) and the jump out of the water (0.3) when blocked
+  sideways with room 0.6 higher. Checked: the parity test against the real
+  engine through Node (`test_water_cpu`: 40 random worlds with pools,
+  flowing and falling water, 150 ticks; positions equal to the last bit on
+  every tick of 60 cases checked, velocities within 4e-17); all eight parity
+  tests pass; and the default path is bit-identical to the code before
+  (plain, ice, shapes, slime and ladders, 30 cases each). Found on the way:
+  torch's float64 square root on the CPU is not correctly rounded (about
+  1.5% of inputs end one ulp off; numpy's and CUDA's are exact), so the
+  water code takes its square roots from numpy on the CPU; the default path
+  keeps torch's, as all its results were measured (it explains part of the
+  1.4e-14 residue of the old parity numbers). Next for water: course pieces
+  held in stone basins (so no water flows in the real game), an observation
+  of water, opt-in training, held-out sets, the bots.
 - **The course builder (built 1 Nov, beside the GPU runs; nothing chosen or
   trained on it):** `run.cmd builder` (`parkour.builder`, `parkour.build_session`,
   `bridge/builder_bot.js`) starts the local server and a bot in build mode.

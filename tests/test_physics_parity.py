@@ -38,6 +38,11 @@ class PhysicsParity(unittest.TestCase):
         # Ladders and vines (the optional climb grid): slow fall and sideways moves, climbing.
         self.check("cpu", 40, 120, 9, climb=0.6)
 
+    def test_water_cpu(self):
+        # Water (the optional water grid, 1 Nov): sources, flowing and falling levels, currents, swimming up and the
+        # jump out at an edge, against the real engine's liquid movement.
+        self.check("cpu", 40, 150, 11, water=0.7)
+
     def test_shape_table_is_prismarine_blocks(self):
         import subprocess
         from parkour.paths import BRIDGE

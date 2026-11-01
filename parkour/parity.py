@@ -32,10 +32,12 @@ class ParityCase:
     slime: np.ndarray | None = None  # (L, 3) int, cells of ``blocks`` that are slime blocks
     ladders: np.ndarray | None = None  # (A, 4) int: x, y, z, facing (0-3: north, east, south, west) of ladder blocks
     vines: np.ndarray | None = None  # (V, 3) int, air cells that hold a vine
+    water: np.ndarray | None = None  # (W, 4) int: x, y, z, level (block metadata 0-15) of air cells that hold water
 
 
 def random_case(rng: np.random.Generator, ticks: int = 120, size: int = 14, ice: float = 0.0,
-                shapes: float = 0.0, slime: float = 0.0, climb: float = 0.0, floor_shapes: float = 0.0) -> ParityCase:
+                shapes: float = 0.0, slime: float = 0.0, climb: float = 0.0, floor_shapes: float = 0.0,
+                water: float = 0.0) -> ParityCase:
     """A random block field with a player on top of a block and sticky random inputs; with ``ice``
     > 0, that share of the raised blocks (and always the start block) is ice; with ``shapes`` > 0,
     that share of the other raised blocks has a random collision shape of physics.shape_table()."""
@@ -124,7 +126,21 @@ def random_case(rng: np.random.Generator, ticks: int = 120, size: int = 14, ice:
             blocks.add((x, y, z))
         ladders = np.array(lad, dtype=np.int64).reshape(-1, 4)
         vines = np.array(vin, dtype=np.int64).reshape(-1, 3)
-    return ParityCase(np.array(sorted(blocks), dtype=np.int64), pos, yaw, controls, cells, shaped, bouncy, ladders, vines)
+    wet = None
+    if water > 0:  # drawn last: a pool over the safety floor and scattered water higher up, sources, flowing and falling
+        taken = set(blocks) | ({tuple(int(v) for v in b) for b in vines} if vines is not None else set())
+        cells_w = []
+        for x in range(o - 3, o + size + 3):
+            for z in range(o - 3, o + size + 3):
+                for y in range(2, floor_y + 4):
+                    if (x, y, z) in taken or rng.random() >= (water if y <= 3 else water * 0.15):
+                        continue
+                    r = rng.random()
+                    level = 0 if r < 0.6 else int(rng.integers(1, 8)) if r < 0.85 else int(rng.integers(8, 16))
+                    cells_w.append((x, y, z, level))
+        wet = np.array(cells_w, dtype=np.int64).reshape(-1, 4)
+    return ParityCase(np.array(sorted(blocks), dtype=np.int64), pos, yaw, controls, cells, shaped, bouncy, ladders, vines,
+                      wet)
 
 
 def run_js(cases: list[ParityCase]) -> list[list[dict]]:
@@ -133,6 +149,7 @@ def run_js(cases: list[ParityCase]) -> list[list[dict]]:
         "shapes": [] if c.shapes is None else [[*b[:3].tolist(), physics.shape_table()[0][b[3]]] for b in c.shapes],
         "slime": [] if c.slime is None else c.slime.tolist(),
         "ladders": [] if c.ladders is None else c.ladders.tolist(), "vines": [] if c.vines is None else c.vines.tolist(),
+        "water": [] if c.water is None else c.water.tolist(),
         "pos": list(c.pos), "vel": [0.0, 0.0, 0.0], "onGround": False,
         "jumpTicks": 0,
         "ticks": [{"yaw": float(c.yaw[t]), "c": [int(v) for v in c.controls[t]]} for t in range(len(c.yaw))],
@@ -199,7 +216,15 @@ def run_torch(cases: list[ParityCase], device: str = "cpu") -> list[dict]:
                     b = torch.as_tensor(arr)
                     climb[i, b[:, 0], b[:, 1], b[:, 2]] = True
         climb = climb.to(device)
-    world = physics.World(solid.to(device), slip, shape, slime, climb)
+    water = None
+    if any(c.water is not None and len(c.water) for c in cases):
+        water = torch.full(solid.shape, -1, dtype=torch.int16)
+        for i, c in enumerate(cases):
+            if c.water is not None and len(c.water):
+                b = torch.as_tensor(c.water)
+                water[i, b[:, 0], b[:, 1], b[:, 2]] = b[:, 3].to(torch.int16)
+        water = water.to(device)
+    world = physics.World(solid.to(device), slip, shape, slime, climb, water=water)
     course = torch.arange(n, device=device)
     state = physics.PlayerState.at(torch.tensor([c.pos for c in cases], dtype=torch.float64, device=device),
                                    torch.zeros(n, dtype=torch.float64, device=device))

@@ -9,8 +9,10 @@ nothing unless passed: per-cell slipperiness (ice) and per-cell collision
 shapes (slabs, stairs, soul sand, carpets, trapdoors, fence and wall posts,
 ..., ``World(shape=...)`` with the boxes of configs/block_shapes.json), and
 slime bounces (``World(slime=...)``, with slipperiness 0.8 in ``slip``), and
-climbing ladders and vines (``World(climb=...)``). Water, lava, honey,
-cobwebs, scaffolding, sneaking, effects and elytra are not ported.
+climbing ladders and vines (``World(climb=...)``), and water (``World(water=...)``:
+each cell's water level, prismarine's liquid movement, currents and the jump out of
+it; opt-in, 1 Nov). Lava, honey, cobwebs, scaffolding, sneaking, effects and elytra
+are not ported.
 
 Every expression keeps the operand order of the JavaScript source, in float64,
 so trajectories match the original to rounding error (see
@@ -33,6 +35,7 @@ import math
 from dataclasses import dataclass
 from functools import lru_cache
 
+import numpy as np
 import torch
 
 from .paths import CONFIGS
@@ -55,6 +58,15 @@ ICE_SLIPPERINESS = 0.98  # ice and packed ice (blue ice: 0.989); only with World
 SLIME_SLIPPERINESS = 0.8  # slime blocks also bounce (World(slime=...))
 LADDER_MAX_SPEED = 0.15  # in a ladder or vine cell (World(climb=...))
 LADDER_CLIMB_SPEED = 0.2
+# Water (World(water=...) only): prismarine-physics' liquid movement for Minecraft 1.21 (proportionalLiquidGravity:
+# 1.13 on, the water's gravity is the normal gravity / 16).
+WATER_INERTIA = 0.8
+LIQUID_ACCELERATION = 0.02
+WATER_GRAVITY = GRAVITY / 16
+OUT_OF_LIQUID_IMPULSE = 0.3
+WATER_CURRENT = 0.014  # the current's push per tick (isInWaterApplyCurrent)
+SWIM_SPEED = 0.04  # jump held in water
+FLOW_DIRS = ((0, 1), (-1, 0), (0, -1), (1, 0))  # getFlow's neighbour order
 GROUND_INERTIA = 0.6 * 0.91  # default slipperiness * 0.91
 _INERTIA_CUBED = GROUND_INERTIA * GROUND_INERTIA * GROUND_INERTIA
 WALK_ACCELERATION = 0.1 * (0.1627714 / _INERTIA_CUBED)
@@ -110,7 +122,8 @@ class World:
     """
 
     def __init__(self, solid: torch.Tensor, slip: torch.Tensor | None = None, shape: torch.Tensor | None = None,
-                 slime: torch.Tensor | None = None, climb: torch.Tensor | None = None, *, compact_ice: bool = False):
+                 slime: torch.Tensor | None = None, climb: torch.Tensor | None = None, *, compact_ice: bool = False,
+                 water: torch.Tensor | None = None):
         if solid.dim() != 4:
             raise ValueError("solid must have shape (P, GX, GY, GZ)")
         self.solid = solid.to(torch.bool).contiguous()
@@ -131,6 +144,10 @@ class World:
             raise ValueError("climb must have the shape of solid")
         # Ladders and vines: cells the player climbs in (a ladder is also solid with its thin box; a vine is not).
         self.climb = None if climb is None else climb.to(torch.bool).contiguous().view(-1)
+        if water is not None and tuple(water.shape) != tuple(solid.shape):
+            raise ValueError("water must have the shape of solid")
+        # Water: each cell's block metadata, its level (0 a source, 1-7 flowing, 8-15 falling), -1 where none.
+        self.water = None if water is None else water.to(torch.int16).contiguous().view(-1)
         self.shape_ids = None
         if shape is not None:
             if tuple(shape.shape) != tuple(solid.shape):
@@ -146,6 +163,14 @@ class World:
         inside = (ix >= 0) & (ix < gx) & (iy >= 0) & (iy < gy) & (iz >= 0) & (iz < gz)
         index = ((course * gx + ix.clamp(0, gx - 1)) * gy + iy.clamp(0, gy - 1)) * gz + iz.clamp(0, gz - 1)
         return self.flat[index] & inside
+
+    def water_meta(self, course, ix, iy, iz):
+        """Water metadata (int64) of integer cells, -1 where there is none (and outside the grid); needs ``water``."""
+        gx, gy, gz = self.shape
+        inside = (ix >= 0) & (ix < gx) & (iy >= 0) & (iy < gy) & (iz >= 0) & (iz < gz)
+        index = ((course * gx + ix.clamp(0, gx - 1)) * gy + iy.clamp(0, gy - 1)) * gz + iz.clamp(0, gz - 1)
+        meta = self.water[index].to(torch.int64)
+        return torch.where(inside, meta, torch.full_like(meta, -1))
 
     def slime_at(self, course, ix, iy, iz):
         """Slime flags of integer cells (False outside the grid); needs ``slime``."""
@@ -399,6 +424,133 @@ def _move(world: World, course: torch.Tensor, pos: torch.Tensor, vel: torch.Tens
     return new_pos, new_vel, new_on_ground, collided_h, collided_v
 
 
+def _depth(meta: torch.Tensor) -> torch.Tensor:
+    """getRenderedDepth of water metadata: 0 for falling water (8-15), the level otherwise, -1 for no water."""
+    return torch.where(meta >= 8, torch.zeros_like(meta), meta)
+
+
+def _sqrt(x: torch.Tensor) -> torch.Tensor:
+    """Math.sqrt, correctly rounded: torch's float64 CPU kernel is not always (about 1.5% of inputs come out one ulp
+    off; numpy's and CUDA's are). Only the water code uses it; the default path keeps torch.sqrt, as measured."""
+    if x.device.type == "cpu":
+        return torch.from_numpy(np.sqrt(x.contiguous().numpy()))
+    return torch.sqrt(x)
+
+
+def _normalize(x: torch.Tensor, y: torch.Tensor, z: torch.Tensor):
+    """Vec3.normalize: divide by the norm when it is not 0."""
+    norm = _sqrt(x * x + y * y + z * z)
+    nz = norm != 0
+    safe = torch.where(nz, norm, torch.ones_like(norm))
+    return torch.where(nz, x / safe, x), torch.where(nz, y / safe, y), torch.where(nz, z / safe, z)
+
+
+def _flow(world: World, course, x, y, z):
+    """getFlow of water cells (x, y, z): the normalised current, from the levels of the four neighbours."""
+    meta = world.water_meta(course, x, y, z)
+    cur = _depth(meta)
+    zero = torch.zeros(cur.shape, dtype=torch.float64, device=cur.device)
+    fx, fy, fz = zero, zero.clone(), zero.clone()
+    for dx, dz in FLOW_DIRS:
+        adj = _depth(world.water_meta(course, x + dx, y, z + dz))
+        below = _depth(world.water_meta(course, x + dx, y - 1, z + dz))
+        solid = world.lookup(course, x + dx, y, z + dz)  # boundingBox !== 'empty'
+        f = torch.where(adj >= 0, adj - cur, below - (cur - 8)).to(torch.float64)
+        use = (adj >= 0) | (solid & (below >= 0))
+        fx = torch.where(use, fx + dx * f, fx)
+        fz = torch.where(use, fz + dz * f, fz)
+    falling = meta >= 8
+    for dx, dz in FLOW_DIRS:
+        blocked = world.lookup(course, x + dx, y, z + dz) | world.lookup(course, x + dx, y + 1, z + dz)
+        apply = falling & blocked
+        nx, ny, nz = _normalize(fx, fy, fz)
+        fx = torch.where(apply, nx + 0, fx)
+        fy = torch.where(apply, ny + -6, fy)
+        fz = torch.where(apply, nz + 0, fz)
+    return _normalize(fx, fy, fz)
+
+
+def _water_cells(world: World, course, lo: torch.Tensor, hi: torch.Tensor, ny: int):
+    """getWaterInBB of the boxes (lo, hi) (N, 3): per cell of the box's window (y outer, then z, then x, as the
+    source), the cell and whether it counts (water whose surface the box's ceiling reaches). ``ny``: the most
+    rows a box spans (2 or 3); x and z span at most 2."""
+    f = torch.floor(lo).to(torch.int64)
+    top = torch.floor(hi).to(torch.int64)
+    ceil_top = torch.ceil(hi[:, 1])
+    out = []
+    for jy in range(ny):
+        cy = f[:, 1] + jy
+        for jz in range(2):
+            cz = f[:, 2] + jz
+            for jx in range(2):
+                cx = f[:, 0] + jx
+                inside = (cy <= top[:, 1]) & (cz <= top[:, 2]) & (cx <= top[:, 0])
+                meta = world.water_meta(course, cx, cy, cz)
+                pcent = (_depth(meta).to(torch.float64) + 1) / 9
+                level = (cy.to(torch.float64) + 1) - pcent
+                out.append((cx, cy, cz, inside & (meta >= 0) & (ceil_top >= level)))
+    return out
+
+
+def _water_current(world: World, course, pos: torch.Tensor, vel: torch.Tensor):
+    """isInWaterApplyCurrent on the player's box contracted by (0.001, 0.401, 0.001): (velocity, in water)."""
+    w = HALF_WIDTH
+    x, y, z = pos.unbind(-1)
+    lo = torch.stack((((-w) + x) + 0.001, (0.0 + y) + 0.401, ((-w) + z) + 0.001), -1)
+    hi = torch.stack(((w + x) - 0.001, (PLAYER_HEIGHT + y) - 0.401, (w + z) - 0.001), -1)
+    ax = torch.zeros_like(x)
+    ay = torch.zeros_like(x)
+    az = torch.zeros_like(x)
+    in_water = torch.zeros(x.shape, dtype=torch.bool, device=x.device)
+    for cx, cy, cz, hit in _water_cells(world, course, lo, hi, 2):
+        if not bool(hit.any()):
+            continue
+        fx, fy, fz = _flow(world, course, cx, cy, cz)
+        ax = torch.where(hit, ax + fx, ax)
+        ay = torch.where(hit, ay + fy, ay)
+        az = torch.where(hit, az + fz, az)
+        in_water = in_water | hit
+    length = _sqrt(ax * ax + ay * ay + az * az)
+    push = length > 0
+    safe = torch.where(push, length, torch.ones_like(length))
+    vx, vy, vz = vel.unbind(-1)
+    vx = torch.where(push, vx + ax / safe * WATER_CURRENT, vx)
+    vy = torch.where(push, vy + ay / safe * WATER_CURRENT, vy)
+    vz = torch.where(push, vz + az / safe * WATER_CURRENT, vz)
+    return torch.stack((vx, vy, vz), -1), in_water
+
+
+def _does_not_collide(world: World, course, p: torch.Tensor) -> torch.Tensor:
+    """doesNotCollide(pos): no block box intersects the player's box at ``p`` (strictly, getSurroundingBBs' window,
+    a row lower too) and no water is in it."""
+    w = HALF_WIDTH
+    x, y, z = p.unbind(-1)
+    lo = torch.stack(((-w) + x, 0.0 + y, (-w) + z), -1)
+    hi = torch.stack((w + x, PLAYER_HEIGHT + y, w + z), -1)
+    f = torch.floor(lo).to(torch.int64)
+    top = torch.floor(hi).to(torch.int64)
+    dev = p.device
+    bx = (f[:, 0:1] + torch.arange(2, device=dev))[:, :, None, None]
+    by = (f[:, 1:2] - 1 + torch.arange(5, device=dev))[:, None, :, None]
+    bz = (f[:, 2:3] + torch.arange(2, device=dev))[:, None, None, :]
+    c = course.view(-1, 1, 1, 1)
+    window = (bx <= top[:, 0].view(-1, 1, 1, 1)) & (by <= top[:, 1].view(-1, 1, 1, 1)) & (bz <= top[:, 2].view(-1, 1, 1, 1))
+    solid = world.lookup(c, bx, by, bz) & window
+    col = (lambda v: v.view(-1, 1, 1, 1, 1))  # noqa: E731
+    if world.shape_ids is not None:
+        blo, bhi, mask = world.cell_boxes(c, bx, by, bz, solid)
+    else:
+        cell = torch.stack(torch.broadcast_tensors(bx, by, bz), -1).to(torch.float64)[..., None, :]
+        blo, bhi, mask = cell, cell + 1, solid[..., None]
+    hit = (mask & (col(lo[:, 0]) < bhi[..., 0]) & (col(hi[:, 0]) > blo[..., 0])
+           & (col(lo[:, 1]) < bhi[..., 1]) & (col(hi[:, 1]) > blo[..., 1])
+           & (col(lo[:, 2]) < bhi[..., 2]) & (col(hi[:, 2]) > blo[..., 2]))
+    wet = torch.zeros(x.shape, dtype=torch.bool, device=dev)
+    for _, _, _, cell_hit in _water_cells(world, course, lo, hi, 3):
+        wet = wet | cell_hit
+    return ~hit.flatten(1).any(dim=1) & ~wet
+
+
 def simulate(world: World, course: torch.Tensor, state: PlayerState, controls: torch.Tensor,
              check: bool = False, larger_first: bool = False) -> PlayerState:
     """One 50 ms tick of physics.simulatePlayer for every row.
@@ -412,17 +564,24 @@ def simulate(world: World, course: torch.Tensor, state: PlayerState, controls: t
     ``corner_limit`` uses it to find moves a server would flag.
     """
     vel = state.vel
+    in_water = None
+    if world.water is not None:  # the current pushes first, before small speeds are zeroed (simulatePlayer)
+        vel, in_water = _water_current(world, course, state.pos, vel)
     vel = torch.where(vel.abs() < NEGLIGIBLE_VELOCITY, torch.zeros_like(vel), vel)
     forward_c, back_c, left_c, right_c, jump, sprint = controls.unbind(-1)
 
     jt = state.jump_ticks
     jt = torch.where(jump & (jt > 0), jt - 1, jt)
     do_jump = jump & state.on_ground & (jt == 0)
+    if in_water is not None:  # in water, jump swims up instead
+        do_jump = do_jump & ~in_water
     yaw2 = math.pi - state.yaw
     sin2 = torch.sin(yaw2)
     cos2 = torch.cos(yaw2)
     vx, vy, vz = vel.unbind(-1)
     vy = torch.where(do_jump, torch.full_like(vy, JUMP_VELOCITY), vy)
+    if in_water is not None:
+        vy = torch.where(jump & in_water, vy + SWIM_SPEED, vy)
     boost = do_jump & sprint
     vx = torch.where(boost, vx - sin2 * SPRINT_JUMP_BOOST, vx)
     vz = torch.where(boost, vz + cos2 * SPRINT_JUMP_BOOST, vz)
@@ -451,6 +610,9 @@ def simulate(world: World, course: torch.Tensor, state: PlayerState, controls: t
         g_accel = g_speed * (0.1627714 / (g_inertia * g_inertia * g_inertia))
         accel = torch.where(ground, g_accel, accel)
         inertia = torch.where(ground, g_inertia, inertia)
+    if in_water is not None:  # the liquid branch of moveEntityWithHeading: no ground friction, no ladders
+        accel = torch.where(in_water, const(LIQUID_ACCELERATION), accel)
+        inertia = torch.where(in_water, const(WATER_INERTIA), inertia)
 
     speed = torch.sqrt(strafe * strafe + forward * forward)
     k = accel / torch.clamp(speed, min=1.0)
@@ -461,6 +623,8 @@ def simulate(world: World, course: torch.Tensor, state: PlayerState, controls: t
     vz = torch.where(heading, vz + (fw * cos2 - st * sin2), vz)
     if world.climb is not None:  # on a ladder or vine: slow sideways, fall at most 0.15 per tick (no sneaking)
         on = world.climb_at(course, state.pos)
+        if in_water is not None:
+            on = on & ~in_water
         m = LADDER_MAX_SPEED
         vx = torch.where(on, torch.maximum(const(-m), torch.minimum(vx, const(m))), vx)
         vz = torch.where(on, torch.maximum(const(-m), torch.minimum(vz, const(m))), vz)
@@ -471,10 +635,23 @@ def simulate(world: World, course: torch.Tensor, state: PlayerState, controls: t
 
     mx, my, mz = mvel.unbind(-1)
     if world.climb is not None:  # pushing against something, or jumping (1.14+), while on a ladder climbs it
-        my = torch.where(world.climb_at(course, pos) & (collided_h | jump), const(LADDER_CLIMB_SPEED), my)
-    my = (my - GRAVITY) * AIRDRAG
+        climbs = world.climb_at(course, pos) & (collided_h | jump)
+        if in_water is not None:
+            climbs = climbs & ~in_water
+        my = torch.where(climbs, const(LADDER_CLIMB_SPEED), my)
+    if in_water is not None:
+        my = torch.where(in_water, my * WATER_INERTIA - WATER_GRAVITY, (my - GRAVITY) * AIRDRAG)
+    else:
+        my = (my - GRAVITY) * AIRDRAG
     mx = mx * inertia
     mz = mz * inertia
+    if in_water is not None and bool((in_water & collided_h).any()):
+        # Jump out of the water: blocked sideways, with room 0.6 higher (and no water there).
+        last_y = state.pos[:, 1]
+        px, py, pz = pos.unbind(-1)
+        probe = torch.stack((px + mx, py + (((my + 0.6) - py) + last_y), pz + mz), -1)
+        out = in_water & collided_h & _does_not_collide(world, course, probe)
+        my = torch.where(out, const(OUT_OF_LIQUID_IMPULSE), my)
     return PlayerState(pos=pos, vel=torch.stack((mx, my, mz), -1), yaw=state.yaw.clone(),
                        on_ground=on_ground, jump_ticks=jt, collided_h=collided_h, collided_v=collided_v)
 
