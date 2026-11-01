@@ -83,6 +83,7 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 let episode = null
 let finish = null
 let previous = [] // solid cells of the last course, to confirm they were cleared
+let previousWater = [] // and its water cells
 let attributeNote = null
 let corrections = 0
 
@@ -215,12 +216,40 @@ async function waitFor (cond, ms, what) {
 
 function toNotchianYawDeg (yaw) { return (Math.PI - yaw) * 180 / Math.PI }
 
+// The water cells ([x, y, z, level], all level 0: parkour.water's sources) as boxes [x0, x1, y0, y1, z0, z1] that
+// hold them exactly (one per pool: its cells fill their box), one /fill each; a cell outside any full box alone.
+function waterBoxes (water) {
+  const left = new Set(water.map(w => `${w[0]},${w[1]},${w[2]}`))
+  if (water.some(w => w[3] !== 0)) throw new Error('the bot builds still water sources only (level 0)')
+  const boxes = []
+  for (const [x, y, z] of water) {
+    if (!left.has(`${x},${y},${z}`)) continue
+    const part = [[x, y, z]] // the cell's connected pool
+    left.delete(`${x},${y},${z}`)
+    for (let i = 0; i < part.length; i++) {
+      const [a, b, c] = part[i]
+      for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
+        const k = `${a + dx},${b + dy},${c + dz}`
+        if (left.has(k)) { left.delete(k); part.push([a + dx, b + dy, c + dz]) }
+      }
+    }
+    const lo = [0, 1, 2].map(i => Math.min(...part.map(p => p[i])))
+    const hi = [0, 1, 2].map(i => Math.max(...part.map(p => p[i])))
+    if (part.length === (hi[0] - lo[0] + 1) * (hi[1] - lo[1] + 1) * (hi[2] - lo[2] + 1)) {
+      boxes.push([lo[0], hi[0], lo[1], hi[1], lo[2], hi[2]])
+    } else {
+      for (const [a, b, c] of part) boxes.push([a, a, b, b, c, c])
+    }
+  }
+  return boxes
+}
+
 async function runCourse (c, index) {
   bot.clearControlStates()
   episode = null
   await chatCommand(`/tp ${args.username} ${args.pad[0]} ${args.pad[1]} ${args.pad[2]}`)
   await sleep(200)
-  for (let k = 0; k < GRID[1]; k += 8) {
+  for (let k = GRID[1] - 8; k >= 0; k -= 8) { // from the top down: a pool's water never has air under it (it would flow)
     await chatCommand(`/fill ${OX} ${OY + k} ${OZ} ${OX + GRID[0] - 1} ${OY + k + 7} ${OZ + GRID[2] - 1} minecraft:air`)
   }
   if (args.style === 'rainbow') {
@@ -247,6 +276,10 @@ async function runCourse (c, index) {
   const ladders = c.ladders || [] // after their walls (the obstacle cells): a ladder needs a block behind it
   for (const [x, y, z, f] of ladders) {
     await chatCommand(`/setblock ${x + OX} ${y + OY} ${z + OZ} ${stateString('ladder_' + ['north', 'east', 'south', 'west'][f])}`)
+  }
+  const water = c.water || [] // after the basins (the obstacle cells): every water cell has stone beside and below
+  for (const [x0, x1, y0, y1, z0, z1] of waterBoxes(water)) { // it, so the sources stay still (parkour.water)
+    await chatCommand(`/fill ${x0 + OX} ${y0 + OY} ${z0 + OZ} ${x1 + OX} ${y1 + OY} ${z1 + OZ} minecraft:water`)
   }
   if (args.style === 'rainbow') {
     // A beacon beam rising beside the goal, from a beacon far below the course (beams have no collision).
@@ -284,6 +317,10 @@ async function runCourse (c, index) {
     const b = bot.blockAt(new Vec3(x + OX, y + OY, z + OZ), false)
     return !!b && b.stateId === SHAPES['ladder_' + ['north', 'east', 'south', 'west'][f]].state
   }), 10000, 'ladders')
+  await waitFor(() => water.every(([x, y, z, level]) => { // still water of the course's level (a source: 0)
+    const b = bot.blockAt(new Vec3(x + OX, y + OY, z + OZ), false)
+    return !!b && b.name === 'water' && b.metadata === level
+  }), 10000, 'water')
   const cells = []
   for (const [x0, x1, z0, z1, y] of c.platforms) for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) cells.push([x, y, z])
   cells.push(...extra)
@@ -291,7 +328,11 @@ async function runCourse (c, index) {
   const wanted = new Set(cells.map(k => k.join(',')))
   const stale = previous.filter(k => !wanted.has(k.join(',')))
   await waitFor(() => stale.every(([x, y, z]) => !isSolid(x, y, z)), 10000, 'previous course cleared')
+  const wantedWater = new Set(water.map(w => `${w[0]},${w[1]},${w[2]}`))
+  await waitFor(() => previousWater.every(([x, y, z]) => wantedWater.has(`${x},${y},${z}`) ||
+    (bot.blockAt(new Vec3(x + OX, y + OY, z + OZ), false) || {}).name !== 'water'), 10000, 'previous water cleared')
   previous = cells
+  previousWater = water
   await sleep(500 + args.hold) // a few ticks to settle on the start block (longer when filming)
   bot.entity.yaw = c.spawn_yaw
   corrections = 0
@@ -306,7 +347,8 @@ async function runCourse (c, index) {
     assist: assistConfig ? { config: assistConfig, takeoffs: c.assist_takeoffs || [], targets: c.assist_targets || null, retryHorizons: c.assist_retry_horizons || null, approach: c.assist_approach || null } : null,
     shapes: c.shapes || null,
     topOf,
-    skill: skill ? { policy: skill, cps: c.skill_cps } : null
+    skill: skill ? { policy: skill, cps: c.skill_cps } : null,
+    water: c.water || null
   })
   courseIndex = index
   await new Promise(resolve => { finish = resolve; episode = ep })

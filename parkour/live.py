@@ -136,9 +136,10 @@ def main(argv=None):
                          "bots and in the simulator re-run; with --router and --router-blocked keep, from each router "
                          "decision whose route crosses a wall in its next two jumps (route_neo.evaluate_routed_neo with "
                          "skill); not with the greedy --planner or --assist")
-    ap.add_argument("--skill-blocks", default="neo", choices=("neo", "slime", "special"),
+    ap.add_argument("--skill-blocks", default="neo", choices=("neo", "slime", "special", "water"),
                     help="with --skill and the course list: the blocks it plays (slime: each slime pad's, "
-                         "parkour.slime.slime_cps)")
+                         "parkour.slime.slime_cps; water: each water jump's, parkour.water.water_cps, a skill with the "
+                         "water observation beside the policy)")
     a = ap.parse_args(argv)
     if a.skill_blocks != "neo" and (not a.skill or a.router):
         raise SystemExit("--skill-blocks slime plays a --skill with the course list (no --router)")
@@ -158,10 +159,13 @@ def main(argv=None):
         raise SystemExit("--router-blocked keep or plan needs the planner's straight-path check (clear_path)")
 
     from .neo_assist import AssistConfig, assist_fields, courses_from_file, skill_cps
-    if a.skill and (load_model(Path(a.skill).resolve(), "cpu").obs_dim
-                    != load_model(Path(a.checkpoint).resolve(), "cpu").obs_dim):
-        # evaluate_assisted refuses it too, but only in the simulator re-run, after the bots have played every course
-        raise SystemExit("--skill must see the policy's observation (the same obs_dim)")
+    if a.skill:
+        from .env import OBS_DIM, OBS_DIM_WATER
+        dims = (load_model(Path(a.skill).resolve(), "cpu").obs_dim, load_model(Path(a.checkpoint).resolve(), "cpu").obs_dim)
+        if dims[0] != dims[1] and not (a.skill_blocks == "water" and dims == (OBS_DIM_WATER, OBS_DIM)):
+            # evaluate_assisted refuses it too, but only in the simulator re-run, after the bots have played every course
+            raise SystemExit("--skill must see the policy's observation (the same obs_dim; with --skill-blocks water, "
+                             "the water observation beside a standard policy)")
     assist_cfg = None
     if a.assist:  # refused before anything is written
         if a.planner and not a.router:
@@ -197,6 +201,9 @@ def main(argv=None):
             if a.skill_blocks in ("slime", "special"):
                 from .slime import slime_cps, special_cps
                 d["skill_cps"] = (slime_cps if a.skill_blocks == "slime" else special_cps)(c)  # (policy.js Episode)
+            elif a.skill_blocks == "water":
+                from .water import water_cps
+                d["skill_cps"] = water_cps(c)
             else:
                 d["skill_cps"] = skill_cps(c)  # where the bots' neo skill acts (bridge/policy.js Episode)
     (out / "courses.json").write_text(json.dumps({"courses": course_json}))
@@ -347,6 +354,8 @@ def main(argv=None):
                  "in each slime pad's block (from the takeoff onto the pad to the pad's exit)" if a.skill_blocks == "slime" else
                  "in each slime pad's and shaped platform's block (from the takeoff onto it to its exit)"
                  if a.skill_blocks == "special" else
+                 "in each water jump's block (from the platform before the takeoff to the exit)"
+                 if a.skill_blocks == "water" else
                  "from each router decision whose route crosses a wall in its next jump (for two decisions) or in "
                  "its second (three)")
         same = (f"; at the simulator's checkpoints on {sum(r['skill_at'] == r['sim_skill_at'] for r in rows)} of "

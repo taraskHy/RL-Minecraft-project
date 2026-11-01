@@ -264,6 +264,49 @@ def test_bridge_water_observation_matches():
     assert js["wet"] == py_wet
 
 
+def test_offline_bot_plays_water_like_the_simulator(tmp_path):
+    """The offline bot (prismarine-physics without a server) with a water skill beside the final policy plays each
+    water course as neo_assist.evaluate_assisted(..., skill_blocks="water") does on the CPU: the same outcome in the
+    same tick. The skill is the final policy widened with random weights on the water inputs, so it acts on them."""
+    import os
+    import subprocess
+
+    import pytest
+    from parkour.env import OBS_DIM
+    from parkour.live import SETTLE_TICKS, load_model
+    from parkour.model import ActorCritic
+    from parkour.neo_assist import AssistConfig, evaluate_assisted
+    from parkour.paths import BRIDGE, NODE
+    from parkour.train import expand_to_water
+    if not NODE.exists():
+        pytest.skip("portable Node runtime not installed (run setup.cmd)")
+    cs = [c for _, c in water_courses()]
+    final = load_model(ROOT / "results" / "final_policy.pt", "cpu")
+    state = expand_to_water(final.state_dict())
+    g = torch.Generator().manual_seed(1)
+    for key in ("actor.0.weight", "critic.0.weight"):
+        state[key][:, OBS_DIM:] = torch.randn(state[key][:, OBS_DIM:].shape, generator=g) * 0.3
+    from parkour.env import OBS_DIM_WATER
+    skill = ActorCritic(OBS_DIM_WATER, hidden=final.hidden)
+    skill.load_state_dict(state)
+    skill.eval()
+    torch.save({"model": skill.state_dict(), "config": {"hidden": list(final.hidden)}}, tmp_path / "skill.pt")
+    res = evaluate_assisted(final, CoursePool(cs, "cpu", C.GRID), "cpu", AssistConfig(enabled=False), settle=SETTLE_TICKS,
+                            skill=load_model(tmp_path / "skill.pt", "cpu"), skill_blocks="water")["per_course"]
+    pol, crs, out, sk = (str(tmp_path / f) for f in ("policy.json", "courses.json", "episodes.jsonl", "skill.json"))
+    final.export(pol)
+    skill.export(sk)
+    with open(crs, "w") as f:
+        json.dump({"courses": [{**c.to_json(), "skill_cps": W.water_cps(c)} for c in cs]}, f)
+    subprocess.run([str(NODE), str(BRIDGE / "offline_bot.js"), "--policy", pol, "--courses", crs, "--out", out,
+                    "--settle", str(SETTLE_TICKS), "--skill", sk], check=True, cwd=str(BRIDGE), capture_output=True)
+    with open(out) as f:
+        js = [json.loads(line) for line in f if line.strip()]
+    assert [(r["success"], r["ticks"]) for r in res] == [(r["success"], r["ticks"]) for r in js]
+    assert sum(r["skill_ticks"] for r in js) > 200  # (the skill played, in and over the water)
+    assert os.path.getsize(out) > 0
+
+
 def test_in_water_matches_the_current_s():
     rng = np.random.default_rng(3)
     from parkour import parity
