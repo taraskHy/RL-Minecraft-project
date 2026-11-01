@@ -689,8 +689,8 @@ def _state_rows(arrivals: list[dict], device) -> physics.PlayerState:
 def policy_prior(model, pool: CoursePool, arrivals: list[dict], device, horizon: int) -> dict:
     """The policy's action probabilities along its own deterministic play from each arrival, (A, T, K) per head.
 
-    ``neo_dagger.policy_prior`` with the horizon as a parameter."""
-    obs_fn = Observer(device)
+    ``neo_dagger.policy_prior`` with the horizon as a parameter (a water skill sees the water observation)."""
+    obs_fn = Observer(device, water=model.obs_dim == OBS_DIM_WATER)
     s = _state_rows(arrivals, device)
     cidx = torch.tensor([a["course"] for a in arrivals], device=device)
     cp = torch.tensor([a["cp"] for a in arrivals], device=device)

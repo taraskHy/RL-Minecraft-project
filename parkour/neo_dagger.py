@@ -43,8 +43,8 @@ import torch
 
 from . import courses as C
 from . import physics
-from .env import (PLATFORM_SLOTS, YAW_STEPS_DEG, CoursePool, EnvConfig, Observer, ParkourEnv, on_obstacle,
-                  standing_on)
+from .env import (OBS_DIM, OBS_DIM_WATER, PLATFORM_SLOTS, YAW_STEPS_DEG, CoursePool, EnvConfig, Observer, ParkourEnv,
+                  on_obstacle, standing_on)
 from .live import load_model
 from .train import course_hash, held_out_courses, obstacle_courses
 
@@ -266,7 +266,7 @@ def _rollout(model, pool, arrivals, idx, given, fixed, device):
     A plan lands on the arrival's target (the next platform unless it names one further on; then only after
     standing on its ``touch`` platform, if any); the observation follows the checkpoint as the environment's does.
     Returns (landed, land_tick, actions actually played)."""
-    obs_fn = Observer(device)
+    obs_fn = Observer(device, water=model.obs_dim == OBS_DIM_WATER)
     arr = [arrivals[i] for i in idx]
     s = state_of(arr, device)
     cidx = torch.tensor([a["course"] for a in arr], device=device)
@@ -333,12 +333,13 @@ def simplify(model, pool: CoursePool, arrivals: list[dict], found: list, device,
     return out
 
 
-def pairs(pool: CoursePool, arrivals: list[dict], found: list, device):
-    """Observations along each found sequence from its arrival state, with the actions."""
-    obs_fn = Observer(device)
+def pairs(pool: CoursePool, arrivals: list[dict], found: list, device, water: bool = False):
+    """Observations along each found sequence from its arrival state, with the actions (``water``: the water
+    observation, for a water skill)."""
+    obs_fn = Observer(device, water=water)
     seqs = [(i, f) for i, fs in enumerate(found) for f in fs]
     if not seqs:
-        return torch.zeros(0, 255), torch.zeros(0, 5, dtype=torch.int64)
+        return torch.zeros(0, OBS_DIM_WATER if water else OBS_DIM), torch.zeros(0, 5, dtype=torch.int64)
     idx = [i for i, _ in seqs]
     arr = [arrivals[i] for i in idx]
     n = len(seqs)

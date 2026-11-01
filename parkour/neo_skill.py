@@ -486,20 +486,26 @@ class SegmentEnv(ParkourEnv):
 
 
 def takeoff_states(skill, bank: SegmentBank, idx: list[int], device, waits=(0, 10, 20), max_ticks: int = 600,
-                   air_every: int = 0, exits: bool = False, air_max: int = 12, starts: bool = False):
+                   air_every: int = 0, exits: bool = False, air_max: int = 12, starts: bool = False, shift: int = 0,
+                   water_every: int = 0, water_max: int = 120):
     """The skill's own states in the blocks of bank rows ``idx`` (its deterministic block from a bank start): on the
     takeoff at its first ground contact and ``waits`` ticks later while it still stands there; with ``air_every``,
     also every that many ticks in the air between the takeoff and the target (searched to the target); with
     ``exits``, its first ground contact on the target (searched to the platform after it); with ``starts``, the
     episode's start itself where it stands on the takeoff (a slime bank's: there the takeoff is decided, and the
-    skill seldom lands on it again). Returns the pool and the arrival dicts (``neo_assist._arrival``: the target is
-    the next platform) for the neo planner's search."""
+    skill seldom lands on it again). With ``shift`` 1 (a water bank, whose block starts a platform before the water
+    takeoff) all of this is about platform k + 1, the takeoff into the pool; with ``water_every``, also every that
+    many ticks in the water (the first ``water_max`` ticks after leaving the takeoff), searched to the exit. Returns
+    the pool and the arrival dicts (``neo_assist._arrival``: the target is the next platform) for the neo planner's
+    search."""
+    from .env import OBS_DIM_WATER, in_water
     from .neo_assist import _arrival
     pool = CoursePool([bank.courses[i] for i in idx], device, C.GRID)
     n = len(idx)
-    env = SegmentEnv(pool, EnvConfig(num_envs=n, stall_ticks=200, max_ticks=max_ticks), slots=bank.rows(idx))
+    env = SegmentEnv(pool, EnvConfig(num_envs=n, stall_ticks=200, max_ticks=max_ticks,
+                                     water_obs=skill.obs_dim == OBS_DIM_WATER), slots=bank.rows(idx))
     obs = env.reset_all(torch.arange(n, device=device))
-    k = env.slot["k"]
+    k = env.slot["k"] + shift
     end = env.slot["end"]
     rows = torch.arange(n, device=device)
     first = torch.full((n,), -1, dtype=torch.int64, device=device)
@@ -527,9 +533,16 @@ def takeoff_states(skill, bank: SegmentBank, idx: list[int], device, waits=(0, 1
             if exits:
                 kinds["exit"] = ~finished & ~exited & (env.cp == k + 1) & (k + 1 < end)
                 exited |= kinds["exit"]
+            if water_every:  # in the pool after leaving the takeoff (searched to the exit, k + 1)
+                if not air_every:
+                    left = torch.where(~finished & (env.cp == k) & (first >= 0) & ~env.state.on_ground & (left < 0),
+                                       torch.full_like(left, t), left)
+                wet = in_water(env.pool, env.state, env.course)
+                kinds["water"] = (~finished & (env.cp == k) & wet & (left >= 0) & ((t - left) % water_every == 0)
+                                  & (t - left <= water_max))
             for kind, take in kinds.items():
                 out += [dict(_arrival(env, i), kind=kind) for i in torch.nonzero(take).flatten().tolist()]
-            if bool(finished.all()) or (not air_every and not exits
+            if bool(finished.all()) or (not air_every and not exits and not water_every
                                         and bool((finished | ((first >= 0) & (t - first > max(waits)))).all())):
                 break
     return pool, out
@@ -537,12 +550,16 @@ def takeoff_states(skill, bank: SegmentBank, idx: list[int], device, waits=(0, 1
 
 def dagger_pairs(skill_path: Path, bank_path: Path, out: Path, types=(16, 17, 18, 19), courses: int = 6000,
                  device="cuda", batch: int = 256, prior: float = 0.95, seed: int = 0, air_every: int = 0,
-                 exits: bool = False, skip: int = 0, slime: bool = False, starts: bool = False) -> dict:
+                 exits: bool = False, skip: int = 0, slime: bool = False, starts: bool = False,
+                 water: bool = False, water_every: int = 0) -> dict:
     """(observation, action) pairs from the neo planner's landings, simplified, at the skill's own takeoff states
     (``takeoff_states``) on the bank's courses of ``types`` (HANDOFF.md, 31 Oct, 11:46): ``train.py --bc-pairs``.
     With ``slime`` (a slime bank: the takeoff k is the platform before the pad), a state on the takeoff or in the
     air is searched through the bounce, to the pad's exit (k + 2) after standing on the pad, and a first contact
-    on the pad to the exit, all with the planner's bounce horizon (``neo_assist.BOUNCE_PLAN_HORIZON``)."""
+    on the pad to the exit, all with the planner's bounce horizon (``neo_assist.BOUNCE_PLAN_HORIZON``). With
+    ``water`` (a water bank: k the platform before the water takeoff), the states are the skill's on the water
+    takeoff (k + 1), in its flight off it and (``water_every``) in the pool, searched to the exit with the planner's
+    water horizon (``neo_assist.WATER_PLAN_HORIZON``); a water skill's pairs carry the water observation."""
     from . import neo_assist as NA
     from .neo_dagger import HORIZON, pairs, simplify
     t0 = time.time()
@@ -550,8 +567,11 @@ def dagger_pairs(skill_path: Path, bank_path: Path, out: Path, types=(16, 17, 18
     bank = SegmentBank(bank_path, "cpu")
     idx = [i for i, c in enumerate(bank.courses) if c.level in types][skip:skip + courses]
     bank.device = device
-    pool, arrivals = takeoff_states(skill, bank, idx, device, air_every=air_every, exits=exits, starts=starts)
-    horizon = HORIZON
+    if water and (slime or exits):
+        raise ValueError("--water labels the water takeoff, its flight and the pool (no --slime, no --exits)")
+    pool, arrivals = takeoff_states(skill, bank, idx, device, air_every=air_every, exits=exits, starts=starts,
+                                    shift=1 if water else 0, water_every=water_every if water else 0)
+    horizon = NA.WATER_PLAN_HORIZON if water else HORIZON
     if slime:
         horizon = NA.BOUNCE_PLAN_HORIZON
         for x in arrivals:
@@ -567,14 +587,16 @@ def dagger_pairs(skill_path: Path, bank_path: Path, out: Path, types=(16, 17, 18
         print(json.dumps({"searched": len(found), "of": len(arrivals), "with_landing": sum(bool(f) for f in found),
                           "seconds": round(time.time() - t0, 1)}), flush=True)
     simple = simplify(skill, pool, arrivals, found, device)
-    obs, act = pairs(pool, arrivals, simple, device)
+    from .env import OBS_DIM_WATER
+    obs, act = pairs(pool, arrivals, simple, device, water=skill.obs_dim == OBS_DIM_WATER)
     meta = {"skill": str(skill_path), "skill_sha1": hashlib.sha1(Path(skill_path).read_bytes()).hexdigest()[:12],
             "bank": str(bank_path), "types": list(types), "skip": skip, "courses": len(idx), "air_every": air_every,
             "exits": exits, **({"slime": True, "horizon": horizon} if slime else {}), **({"starts": True} if starts else {}),
+            **({"water": True, "water_every": water_every, "horizon": horizon} if water else {}),
             "arrivals": len(arrivals),
             "kinds": {kd: [sum(1 for x in arrivals if x["kind"] == kd),
                            sum(1 for x, f in zip(arrivals, found) if x["kind"] == kd and f)]
-                      for kd in ("start", "takeoff", "air", "exit")},
+                      for kd in ("start", "takeoff", "air", "exit", "water")},
             "with_landing": sum(bool(f) for f in found), "simplified": sum(len(f) for f in simple),
             "pairs": int(obs.shape[0]), "prior": prior, "device": str(device), "seconds": round(time.time() - t0, 1)}
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -601,6 +623,9 @@ def main(argv=None):
     d.add_argument("--slime", action="store_true", help="a slime bank: search takeoff and air states through the bounce "
                                                        "to the pad's exit (dagger_pairs)")
     d.add_argument("--starts", action="store_true", help="also each episode's start where it stands on the takeoff")
+    d.add_argument("--water", action="store_true", help="a water bank: the skill's states on the water takeoff, in its "
+                                                       "flight off it and in the pool, searched to the exit")
+    d.add_argument("--water-every", type=int, default=0, help="with --water: also every N ticks in the pool")
     b = sub.add_parser("bank", help="the training bank of block starts")
     b.add_argument("--checkpoint", default=str(ROOT / "results" / "final_policy.pt"))
     b.add_argument("--out", default=str(ROOT / "runs" / "neo_skill_bank.pt"))
@@ -632,7 +657,7 @@ def main(argv=None):
             raise SystemExit(f"{a.out} exists; choose a new name")
         dagger_pairs(Path(a.skill), Path(a.bank), Path(a.out), tuple(int(t) for t in a.types.split(",")), a.courses,
                      a.device, a.batch, seed=a.seed, air_every=a.air_every, exits=a.exits, skip=a.skip, slime=a.slime,
-                     starts=a.starts)
+                     starts=a.starts, water=a.water, water_every=a.water_every)
         return
     if a.cmd == "bank":
         from .slime import POSTS_TRAIN_FAMILIES, SLIME_TRAIN_FAMILIES
