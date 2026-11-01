@@ -4,8 +4,10 @@
                               [--checkpoint results/final_policy.pt] [--skill results/neo_skill.pt]
                               [--router results/routing/router_policy.pt]
 
-Join 127.0.0.1:25570 in Minecraft Java 1.21.4 and say !help. The server needs the EULA accepted on this PC
-(``run.cmd accept-eula``). Ctrl+C ends the session; every run is in OUT/runs.jsonl.
+Join 127.0.0.1:25570 in Minecraft Java 1.21.4. The panel's buttons beside the spawn give the bot its commands
+(no chat needed: ``bridge/builder_panel.js``); chat (!help) and lines typed in this console (help) work too. The
+server needs the EULA accepted on this PC (``run.cmd accept-eula``). Ctrl+C ends the session; every run is in
+OUT/runs.jsonl.
 """
 from __future__ import annotations
 
@@ -22,10 +24,13 @@ import torch
 from .live import load_model
 from .paths import BRIDGE, NODE, ROOT
 
+BUILDER_PROPERTIES = {"enable-command-block": "true"}  # the panel's command blocks (the live runs' server keeps them off)
+
 
 def run(argv=None) -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--viewer", default="", help="your Minecraft name (only shown in the instructions)")
+    ap.add_argument("--viewer", default="", help="your Minecraft name (the player this console's commands act for "
+                                                  "when several are online)")
     ap.add_argument("--port", type=int, default=25570)
     ap.add_argument("--out", default="")
     ap.add_argument("--checkpoint", default=str(ROOT / "results" / "final_policy.pt"))
@@ -51,13 +56,16 @@ def run(argv=None) -> None:
            "--planner", json.dumps(planner), "--python", sys.executable, "--root", str(ROOT), "--out", str(out),
            "--port", str(a.port), "--demo", str(out / "demo_courses.json"),
            "--converter-args", json.dumps(["--checkpoint", a.checkpoint, "--skill", a.skill, "--router", a.router])]
-    print(f"Join 127.0.0.1:{a.port} in Minecraft Java 1.21.4{' as ' + a.viewer if a.viewer else ''} and say !help. "
-          f"Runs go to {out}. Ctrl+C ends the session.", flush=True)
+    if a.viewer:
+        cmd += ["--viewer", a.viewer]
+    print(f"Join 127.0.0.1:{a.port} in Minecraft Java 1.21.4{' as ' + a.viewer if a.viewer else ''}. The buttons by the "
+          f"spawn give the bot its commands (no chat needed); chat !help, or type help here. Runs go to {out}. "
+          f"Ctrl+C ends the session.", flush=True)
     if a.no_server:
         subprocess.run(cmd, cwd=str(BRIDGE))
         return
     from .server import Server
-    with open(out / "server.log", "w") as slog, Server(a.port, log=slog):
+    with open(out / "server.log", "w") as slog, Server(a.port, log=slog, properties=BUILDER_PROPERTIES):
         try:
             subprocess.run(cmd, cwd=str(BRIDGE))
         except KeyboardInterrupt:

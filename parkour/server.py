@@ -91,7 +91,9 @@ def accept_eula() -> None:
                                    "accepted_at": datetime.now(timezone.utc).isoformat()}, indent=2) + "\n")
 
 
-def prepare(port: int = DEFAULT_PORT) -> Path:
+def prepare(port: int = DEFAULT_PORT, properties: dict | None = None) -> Path:
+    """The server folder, its EULA file, ``server.properties`` (``PROPERTIES``, plus the opt-in ``properties``, such
+    as the course builder's command blocks) and ``ops.json``."""
     if not eula_accepted():
         raise SystemExit(
             "The Minecraft EULA has not been accepted on this machine. Read " + EULA_URL +
@@ -100,7 +102,7 @@ def prepare(port: int = DEFAULT_PORT) -> Path:
         raise SystemExit("Minecraft server or Java runtime missing. Run setup.cmd first.")
     SERVER_DIR.mkdir(parents=True, exist_ok=True)
     (SERVER_DIR / "eula.txt").write_text("# Accepted by the user; record in .local/minecraft-eula-consent.json\neula=true\n")
-    props = dict(PROPERTIES, **{"server-port": str(port), "query.port": str(port)})
+    props = {**PROPERTIES, "server-port": str(port), "query.port": str(port), **(properties or {})}
     (SERVER_DIR / "server.properties").write_text("".join(f"{k}={v}\n" for k, v in props.items()))
     ops = [{"uuid": offline_uuid(BOT_NAME), "name": BOT_NAME, "level": 4, "bypassesPlayerLimit": False}]
     (SERVER_DIR / "ops.json").write_text(json.dumps(ops, indent=2))
@@ -110,16 +112,17 @@ def prepare(port: int = DEFAULT_PORT) -> Path:
 class Server:
     """Runs the server as a child process and forwards console commands."""
 
-    def __init__(self, port: int = DEFAULT_PORT, memory_mb: int = 2048, log=None):
+    def __init__(self, port: int = DEFAULT_PORT, memory_mb: int = 2048, log=None, properties: dict | None = None):
         self.port = port
         self.memory_mb = memory_mb
         self.proc: subprocess.Popen | None = None
         self.ready = threading.Event()
         self.lines: list[str] = []
         self.log = log
+        self.properties = properties  # opt-in server.properties on top of PROPERTIES (prepare)
 
     def start(self, timeout: float = 240.0) -> "Server":
-        prepare(self.port)
+        prepare(self.port, self.properties)
         cmd = [str(JAVA), f"-Xms{self.memory_mb // 2}M", f"-Xmx{self.memory_mb}M", "-jar", str(SERVER_JAR), "nogui"]
         self.proc = subprocess.Popen(cmd, cwd=SERVER_DIR, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                      stderr=subprocess.STDOUT, text=True, bufsize=1)

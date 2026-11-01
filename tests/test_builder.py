@@ -154,10 +154,92 @@ def test_the_bot_s_kit_is_the_converter_s():
     src = (BRIDGE / "builder_bot.js").read_text(encoding="utf-8")
     js = re.search(r"const KIT = \[([^\]]*)\]", src, re.S).group(1)
     assert tuple(re.findall(r"'([a-z_]+)'", js)) == B.KIT
+    markers = re.search(r"const MARKERS = \{([^}]*)\}", src).group(1)
+    assert dict(re.findall(r"([a-z_]+): '([a-z]+)'", markers)) == B.MARKERS
     for name in B.KIT:  # every block of the kit is one the converter takes
-        if name in ("stone", "ice", "slime_block", "ladder"):
+        if name in ("stone", "ice", "slime_block", "ladder") or name in B.MARKERS:
             continue
         assert any(s["block"] == name for s in B._shapes()), name
+
+
+def test_marker_blocks_are_stone_to_the_simulator(sets):
+    assert all(B.classify(name, {}, FULL) == ("full", None) for name in B.MARKERS)
+    for name in ("standard", "single neo", "two neos"):
+        for c in sets[name][:10]:
+            start, goal = ends(c)
+            mid = np.asarray(c.platforms)[len(c.platforms) // 2]
+            via = (int(mid[0]) + ORIGIN[0], int(mid[4]) + ORIGIN[1], int(mid[2]) + ORIGIN[2])
+            plain_blocks = B.course_blocks(c, ORIGIN)
+            marked = {start: "gold_block", goal: "diamond_block", via: "emerald_block"}
+            blocks = [[x, y, z, marked.get((x, y, z), n), p, b] for x, y, z, n, p, b in plain_blocks]
+            assert sorted(b[3] for b in blocks if b[3] in B.MARKERS) == sorted(B.MARKERS), name
+            d, o, w = B.scan_to_course(blocks, start, goal, via=[via])
+            e, q, v = B.scan_to_course(plain_blocks, start, goal, via=[via])
+            assert d.to_json() == e.to_json() and tuple(o) == tuple(q) and w == v, name
+
+
+def test_the_panel_s_commands():
+    """bridge/builder_panel.js: the commands that build the panel are valid 1.21.4 commands of at most 256
+    characters, each button sends "builder:COMMAND PLAYER" to the bot, and the panel stays off the spawn pad."""
+    import re
+    import subprocess
+    from parkour.paths import BRIDGE, NODE
+    if not NODE.exists():
+        pytest.skip("the portable Node runtime is missing (setup.cmd)")
+    code = ("const P = require('./builder_panel');"
+            "console.log(JSON.stringify({commands: P.commands('ParkourBot'), cells: P.cells(), pad: P.PAD, buttons: P.BUTTONS,"
+            " parsed: ['builder:run:list Ethan_1', 'builder:help Ethan', 'builder:run ', 'hello', '[builder] x'].map(P.parse)}))")
+    out = json.loads(subprocess.run([str(NODE), "-e", code], cwd=BRIDGE, capture_output=True, text=True, check=True).stdout)
+    commands, cells, pad = out["commands"], out["cells"], out["pad"]
+    assert all(c.endswith(" replace") and len(c) <= 256 for c in commands)
+    fills = [c for c in commands if c.startswith("/fill ")]
+    assert commands[:len(fills)] == fills and all(c.startswith("/setblock ") for c in commands[len(fills):])
+    boxes = [list(map(int, re.match(r"/fill (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) minecraft:air", c).groups())) for c in fills]
+    for x, y, z, _ in cells:  # the clearing covers the panel and stays above the pad's floor
+        assert any(b[0] <= x <= b[3] and b[1] <= y <= b[4] and b[2] <= z <= b[5] for b in boxes)
+    assert min(b[1] for b in boxes) >= pad[1]
+    commands = commands[len(fills):]
+    kinds = [re.match(r"/setblock -?\d+ \d+ -?\d+ minecraft:([a-z_]+)", c).group(1) for c in commands]
+    n = len(out["buttons"])
+    assert kinds[:n] == ["command_block"] * n and sorted(kinds[n:]) == ["oak_sign"] * n + ["stone_button"] * n
+    sent = []
+    for c in commands[:n]:
+        text = json.loads(re.fullmatch(r".*\{Command:'tellraw ParkourBot (.*)'\} replace", c).group(1))
+        assert text[1] == {"selector": "@p[distance=..8,name=!ParkourBot]"}
+        sent.append(text[0])
+    assert sent == [f"builder:{b[2]} " for b in out["buttons"]]
+    for c in commands[n:]:
+        if "oak_sign" in c:  # four lines of JSON text in SNBT strings
+            lines = re.fullmatch(r".*messages:\[(.*)\]\},is_waxed:1b\} replace", c).group(1)
+            assert [json.loads(s) for s in re.findall(r"'([^']*)'", lines)][2:] == ["", ""]
+    where = {tuple(c[:3]): c[3] for c in cells}
+    assert len(where) == len(cells) == 3 * n
+    faces = ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1))
+    for (x, y, z), what in where.items():
+        assert not (y == pad[1] - 1 and abs(x - pad[0]) <= 2 and abs(z - pad[2]) <= 2)  # off the pad's floor
+        assert what == "command_block" or where[(x, y, z - 1) if what == "button" else (x, y - 1, z)] == "command_block"
+        # a pressed button powers its command block, which powers any command block touching it: none may
+        touching = [where.get((x + a, y + b, z + c)) for a, b, c in faces]
+        assert what != "command_block" or "command_block" not in touching
+        assert what != "button" or touching.count("command_block") == 1
+    assert out["parsed"] == [{"cmd": "!run", "opt": "list", "player": "Ethan_1"}, {"cmd": "!help", "opt": "", "player": "Ethan"},
+                             {"cmd": "!run", "opt": "", "player": ""}, None, None]
+
+
+def test_the_builder_s_server_turns_command_blocks_on(tmp_path, monkeypatch):
+    from parkour import build_session
+    from parkour import server as S
+    for name in ("jar", "java"):
+        (tmp_path / name).write_text("")
+    monkeypatch.setattr(S, "SERVER_DIR", tmp_path)
+    monkeypatch.setattr(S, "SERVER_JAR", tmp_path / "jar")
+    monkeypatch.setattr(S, "JAVA", tmp_path / "java")
+    monkeypatch.setattr(S, "eula_accepted", lambda: True)
+    props = lambda: dict(line.split("=", 1) for line in (tmp_path / "server.properties").read_text().splitlines())  # noqa: E731
+    S.prepare(25570)
+    assert "enable-command-block" not in props()  # the live runs' server is as before
+    S.prepare(25571, build_session.BUILDER_PROPERTIES)
+    assert props()["enable-command-block"] == "true" and props()["server-port"] == "25571" and props()["gamemode"] == "adventure"
 
 
 def test_demo_courses_scan_back_exactly():

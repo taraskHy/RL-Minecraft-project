@@ -5,7 +5,10 @@
 
 Ethan joins the local server (``parkour.server``, 127.0.0.1:25570, Minecraft Java 1.21.4) and types ``!build``:
 the bot gives him creative mode and a kit of only the blocks the simulator models (``KIT``). He builds a course,
-stands on its first block and types ``!start``, on its last and types ``!goal``, then ``!run``. The builder bot
+stands on its first block and types ``!start``, on its last and types ``!goal``, then ``!run``. Without chat (turned
+off in the game or by the account) the panel's buttons beside the spawn give the same commands
+(``bridge/builder_panel.js``), and marker blocks mark the course (``MARKERS``: a gold block the start, a diamond
+block the goal, emerald blocks platforms the route must pass; stone to the simulator). The builder bot
 (``bridge/builder_bot.js``) scans every block around the build with ``bot.blockAt`` and sends them here;
 ``scan_to_course`` refuses blocks the simulator does not model, naming each one and where it is, and otherwise
 returns the course: platforms in route order, obstacle cells, ice, slime, shaped platforms and ladders, in course
@@ -43,7 +46,10 @@ from . import courses as C
 from .paths import CONFIGS
 
 KIT = ("stone", "ice", "slime_block", "ladder", "stone_slab", "stone_stairs", "oak_trapdoor", "white_carpet",
-       "oak_fence", "cobblestone_wall", "iron_bars", "end_rod")  # what !build gives (64 of each)
+       "oak_fence", "cobblestone_wall", "iron_bars", "end_rod", "gold_block", "diamond_block", "emerald_block")  # what !build gives (64 of each)
+# Marker blocks: where the start, the goal and the platforms the route must pass are, for a player who cannot chat
+# !start / !goal / !via (bridge/builder_bot.js finds them). Full blocks with stone's friction, so stone to the simulator.
+MARKERS = {"gold_block": "start", "diamond_block": "goal", "emerald_block": "via"}
 IGNORED = ("air", "cave_air", "void_air", "structure_void")  # no collision (the bots put structure void under carpets)
 MARGIN = 2  # free grid cells on every side of the build (courses._fits keeps two)
 FLOOR = 3  # the lowest platform's row in the grid (courses._fits: y >= 3)
@@ -79,7 +85,7 @@ def classify(name: str, props: dict, boxes: list) -> tuple[str, object]:
     name = name.removeprefix("minecraft:")
     if name in IGNORED:
         return "air", None
-    if name == "stone":
+    if name == "stone" or name in MARKERS:
         return "full", None
     if name == "ice":
         return "ice", None

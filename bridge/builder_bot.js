@@ -4,16 +4,23 @@
 //   node builder_bot.js --policy P.json --skill S.json --planner ROUTER_JSON --python PY --root DIR --out DIR
 //        [--converter-args JSON_LIST] [--port 25570] [--viewer NAME]
 //
-// A player chats: !build (creative mode and the kit of modelled blocks), !start / !via / !goal (the block
-// they stand on), !route (what the scan makes of the build), !run [router|list] (the bot plays it while they
-// spectate), !stop, !clear, !help; !demo K builds course K of --demo (a courses file) itself and marks its start
-// and goal, for a check without a builder. On !route and !run the bot scans every block around the marks with
-// bot.blockAt and the converter (python -m parkour.builder --serve) turns them into a course, or names the
-// blocks it cannot model. The bot plays as the live bot does (bridge/parkour_bot.js, whose details for the
-// game's exact movement are copied here: /tp with decimals, the server's movement-speed attribute removed every
-// tick, the yaw set directly): the final policy, and the neo skill on each neo's block, with the learned router
-// choosing the platforms (no course list; not for shaped blocks, which the route planner does not see) or with
-// the course list. Every run is written to --out, and the converter replays it in the simulator.
+// The same commands come three ways: the buttons of the panel beside the spawn pad (bridge/builder_panel.js:
+// command blocks, for a player whose chat is off), a player's chat (!build, !route, ...) and a line typed in this
+// program's console (build, route, ...; for --viewer, or the one player online). !build: creative mode and the kit
+// of modelled blocks, the marker blocks with it; !start / !via / !goal: the block the player stands on; !route:
+// what the scan makes of the build; !run [router|list]: the bot plays it while they spectate; !stop, !clear,
+// !help; !demo [K] builds course K of --demo (a courses file; the next one without K) itself and marks its start
+// and goal, for a check without a builder. Without !start and !goal (or after !clear) the marks are the marker
+// blocks within MARKER_RANGE of the spawn pad: a gold block the start, a diamond block the goal, emerald blocks
+// platforms the route must pass (nearest the start first); to the simulator they are stone. On !route and !run
+// the bot scans every block around the marks with bot.blockAt and the converter (python -m parkour.builder
+// --serve) turns them into a course, or names the blocks it cannot model. The bot plays as the live bot does
+// (bridge/parkour_bot.js, whose details for the game's exact movement are copied here: /tp with decimals, the
+// server's movement-speed attribute removed every tick, the yaw set directly): the final policy, and the neo
+// skill on each neo's block, with the learned router choosing the platforms (no course list; not for shaped
+// blocks, which the route planner does not see) or with the course list. Every run is written to --out, and the
+// converter replays it in the simulator. The bot answers in system messages and on the action bar, which a player
+// sees even with chat turned off, and in this console.
 
 const fs = require('fs')
 const path = require('path')
@@ -23,12 +30,16 @@ require('./physics_patch') // vanilla collision tolerance, as in the simulator
 const mineflayer = require('mineflayer')
 const { Vec3 } = require('vec3')
 const P = require('./policy')
+const Panel = require('./builder_panel')
 
 // parkour/builder.py KIT (tests/test_builder.py checks the two lists match)
 const KIT = ['stone', 'ice', 'slime_block', 'ladder', 'stone_slab', 'stone_stairs', 'oak_trapdoor', 'white_carpet',
-  'oak_fence', 'cobblestone_wall', 'iron_bars', 'end_rod']
+  'oak_fence', 'cobblestone_wall', 'iron_bars', 'end_rod', 'gold_block', 'diamond_block', 'emerald_block']
+const MARKERS = { gold_block: 'start', diamond_block: 'goal', emerald_block: 'via' } // parkour/builder.py MARKERS
+const MARKER_RANGE = 96 // marker blocks count within this many blocks of the spawn pad
 const SCAN = [64, 32, 64] // the scanned box (the simulator's grid), centred on the marks
-const PAD = [-20, 100, -20] // parkour/server.py SPAWN_PAD: its 5x5 stone floor is left out of every scan
+const PAD = Panel.PAD // parkour/server.py SPAWN_PAD: its 5x5 stone floor and the panel are left out of every scan
+const PANEL_CELLS = new Set(Panel.cells().map(([x, y, z]) => `${x},${y},${z}`))
 const DEMO_ORIGIN = [100, 80, 100] // where !demo builds (away from the pad and from the live runs' course area at 0 80 0)
 // Shaped platforms and ladders for !demo: the block state of each shape name, as /setblock writes it (as parkour_bot.js).
 const SHAPES = Object.fromEntries(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'configs', 'block_shapes.json'), 'utf8'))
@@ -98,11 +109,34 @@ let finish = null
 let corrections = 0
 let attributeNote = null
 let busy = false // a scan or a run is under way
-const marks = { start: null, via: [], goal: null }
+const marks = { start: null, via: [], goal: null, source: null } // source: 'chat' (!start, !goal, !via), 'demo', or null (the marker blocks)
 let runs = 0
+let nextDemo = 0 // the course the Demo button (!demo without K) builds next
+let watcher = null // the player watching the current run
 
 function log (msg) { process.stdout.write(`[builder] ${msg}\n`) }
-function say (msg) { log(msg); bot.chat(msg.slice(0, 250)) }
+
+// msg in pieces of at most n characters, cut at spaces where possible.
+function pieces (msg, n) {
+  const out = []
+  let rest = String(msg)
+  while (rest.length > n) {
+    let cut = rest.lastIndexOf(' ', n)
+    if (cut < n / 2) cut = n
+    out.push(rest.slice(0, cut))
+    rest = rest.slice(cut).replace(/^ /, '')
+  }
+  if (rest) out.push(rest)
+  return out
+}
+
+const others = () => `@a[name=!${args.username}]` // every player but the bot
+// System messages and the action bar reach a player whose chat is turned off (a player's chat does not).
+function tell (msg, target = null) {
+  for (const part of pieces(msg, 150)) command(`/tellraw ${target || others()} ${JSON.stringify([{ text: '[builder] ', color: 'gold' }, { text: part }])}`)
+}
+function bar (msg, target = null) { command(`/title ${target || others()} actionbar ${JSON.stringify({ text: String(msg).slice(0, 120) })}`) }
+function say (msg) { log(msg); tell(msg) }
 
 // As bridge/parkour_bot.js: a vanilla client replaces the server's sprint modifier with its own, so the server's
 // movement-speed attribute is removed every tick and prismarine-physics uses its default (what the simulator models).
@@ -163,12 +197,12 @@ bot.on('physicsTick', () => {
   const a = episode.step(state())
   if (a === null) return endEpisode()
   applyAction(a)
-  if (episode.cp !== lastCp) { // progress in chat
+  if (episode.cp !== lastCp) { // progress on the watcher's action bar
     lastCp = episode.cp
-    if (episode.cp > 0 && episode.cp < episode.platforms.length - 1) bot.chat(`platform ${episode.cp}/${episode.platforms.length - 1}`)
+    if (episode.cp > 0 && episode.cp < episode.platforms.length - 1) bar(`platform ${episode.cp}/${episode.platforms.length - 1}`, watcher)
   }
   const on = !!episode.skill && (episode.skill.cps ? episode.skill.cps.has(episode.cp) : episode.skill.left > 0)
-  if (on && !skillOn) bot.chat('the neo skill takes over')
+  if (on && !skillOn) bar('the neo skill takes over', watcher)
   skillOn = on
 })
 
@@ -177,6 +211,8 @@ bot._client.on('position', () => {
 })
 
 async function command (cmd) {
+  if (!bot.entity) { log(`not connected yet, not sent: ${cmd.slice(0, 80)}`); return }
+  if (cmd.length > 256) { log(`over the 256 characters of a chat command, not sent: ${cmd.slice(0, 80)}...`); return }
   bot.chat(cmd)
   await sleep(40)
 }
@@ -205,7 +241,8 @@ function blockUnder (name) {
   return null
 }
 
-// Every block in the box around the marks that is not air (the spawn pad left out), as the converter reads them.
+// Every block in the box around the marks that is not air (the spawn pad and the panel left out), as the converter
+// reads them.
 async function scan () {
   const pts = [marks.start, marks.goal, ...marks.via]
   const lo = [0, 1, 2].map(a => Math.min(...pts.map(p => p[a])))
@@ -222,6 +259,7 @@ async function scan () {
     for (let y = box[1]; y < box[1] + SCAN[1]; y++) {
       for (let z = box[2]; z < box[2] + SCAN[2]; z++) {
         if (y === PAD[1] - 1 && Math.abs(x - PAD[0]) <= 2 && Math.abs(z - PAD[2]) <= 2) continue
+        if (PANEL_CELLS.has(`${x},${y},${z}`)) continue
         const b = bot.blockAt(new Vec3(x, y, z), false)
         if (!b || b.name === 'air' || b.name === 'cave_air' || b.name === 'void_air') continue
         blocks.push([x, y, z, b.name, b.getProperties(), b.shapes])
@@ -231,9 +269,47 @@ async function scan () {
   return blocks
 }
 
+// The marker blocks within MARKER_RANGE of the spawn pad: { start: [[x, y, z], ...], goal: [...], via: [...] }.
+async function findMarkers () {
+  const home = new Vec3(PAD[0] + 0.5, PAD[1], PAD[2] + 0.5)
+  if (bot.entity.position.distanceTo(home) > 2) {
+    await command(`/tp ${args.username} ${home.x} ${home.y} ${home.z}`)
+    await waitFor(() => bot.entity.position.distanceTo(home) < 1, 10000, 'the teleport')
+  }
+  const ring = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([i, j]) => new Vec3(PAD[0] + i * MARKER_RANGE, PAD[1], PAD[2] + j * MARKER_RANGE))
+  await waitFor(() => ring.every(v => !!bot.blockAt(v, false)), 20000, 'the chunks around the spawn')
+  const found = { start: [], goal: [], via: [] }
+  for (const [name, role] of Object.entries(MARKERS)) {
+    found[role] = bot.findBlocks({ point: home, matching: bot.registry.blocksByName[name].id, maxDistance: MARKER_RANGE, count: 64 })
+      .map(v => [v.x, v.y, v.z])
+  }
+  return found
+}
+
 async function convert () {
+  if (!marks.source) { // no !start / !goal / !demo marks: the marker blocks
+    const m = await findMarkers()
+    if (m.start.length !== 1 || m.goal.length !== 1) {
+      const at = ps => ps.slice(0, 4).map(p => p.join(' ')).join(', ')
+      if (!m.start.length && !m.goal.length) {
+        say(`mark the course first: a gold block as the start and a diamond block as the goal, within ${MARKER_RANGE} blocks of the spawn (or stand on them and say !start / !goal)`)
+      }
+      if (m.start.length > 1) say(`${m.start.length} gold blocks (start markers), at ${at(m.start)}: keep one`)
+      if (m.goal.length > 1) say(`${m.goal.length} diamond blocks (goal markers), at ${at(m.goal)}: keep one`)
+      if (!m.start.length && m.goal.length) say('no gold block (the start marker) yet')
+      if (m.start.length && !m.goal.length) say('no diamond block (the goal marker) yet')
+      return null
+    }
+    const [start] = m.start
+    const d = p => Math.hypot(p[0] - start[0], p[1] - start[1], p[2] - start[2])
+    marks.start = start
+    marks.goal = m.goal[0]
+    marks.via = m.via.sort((p, q) => d(p) - d(q))
+    expect = null
+    say(`markers: start ${marks.start.join(' ')}, goal ${marks.goal.join(' ')}` + (marks.via.length ? `, ${marks.via.length} via` : ''))
+  }
   if (!marks.start || !marks.goal) {
-    say('first stand on the first block and say !start, on the last and say !goal')
+    say('mark the start and the goal first: stand on the first block and say !start, on the last and say !goal (or !clear, then a gold and a diamond block)')
     return null
   }
   const blocks = await scan()
@@ -279,9 +355,10 @@ async function buildDemo (k) {
   marks.start = [first[0] + X, first[4] + Y, first[2] + Z]
   marks.goal = [last[0] + X, last[4] + Y, last[2] + Z]
   marks.via = []
+  marks.source = 'demo'
   expect = { index: k, course: c, origin: DEMO_ORIGIN }
   await waitFor(() => !!bot.blockAt(new Vec3(...marks.start), false) && bot.blockAt(new Vec3(...marks.start), false).name !== 'air', 10000, 'the demo blocks')
-  say(`demo course ${k} built at ${X} ${Y} ${Z} (${c.platforms.length - 1} jumps); start and goal marked: say !run`)
+  say(`demo course ${k} built at ${X} ${Y} ${Z} (${c.platforms.length - 1} jumps); start and goal marked: Run (or !run)`)
 }
 
 function describe (r) {
@@ -291,25 +368,28 @@ function describe (r) {
   return bits.join(', ')
 }
 
+// The run; player (if any) watches it in spectator mode and is put back where they were.
 async function playCourse (r, mode, player) {
   const c = r.course;
   [OX, OY, OZ] = r.origin
   const [sx, sy, sz] = c.spawn
   const coord = v => v.toFixed(6) // decimals: Minecraft centres whole-number /tp coordinates on the block
-  const back = bot.players[player] && bot.players[player].entity ? bot.players[player].entity.position.clone() : null
-  await command(`/gamemode spectator ${player}`)
+  const viewer = player && bot.players[player] ? player : null
+  const back = viewer && bot.players[viewer].entity ? bot.players[viewer].entity.position.clone() : null
+  if (viewer) await command(`/gamemode spectator ${viewer}`)
   await command(`/tp ${args.username} ${coord(sx + OX)} ${coord(sy + OY)} ${coord(sz + OZ)} ${toNotchianYawDeg(c.spawn_yaw).toFixed(4)} 0`)
   await waitFor(() => {
     const p = bot.entity.position
     return Math.abs(p.x - (sx + OX)) < 1e-6 && Math.abs(p.z - (sz + OZ)) < 1e-6 && Math.abs(p.y - (sy + OY)) < 1e-6
   }, 10000, 'the teleport')
   await waitFor(() => c.platforms.every(([x0, x1, z0, z1, y]) => isSolid(x0, y, z0) && isSolid(x1, y, z1)), 10000, 'the course blocks')
-  await command(`/spectate ${args.username} ${player}`)
+  if (viewer) await command(`/spectate ${args.username} ${viewer}`)
   await sleep(500) // a few ticks to settle on the start block, as the live bot does
   bot.entity.yaw = c.spawn_yaw
   corrections = 0
   lastCp = -1
   skillOn = false
+  watcher = viewer
   const planner = mode === 'router' ? routerPlanner : null
   const ep = new P.Episode(policy, c.platforms, isSolid, {
     stall: args.stall,
@@ -324,15 +404,18 @@ async function playCourse (r, mode, player) {
   const t0 = Date.now()
   await new Promise(resolve => { finish = resolve; episode = ep })
   episode = null
+  watcher = null
   const rec = ep.record({ index: 0, mode, wall_seconds: (Date.now() - t0) / 1000, server_corrections: corrections })
   runsLog.write(JSON.stringify({ run: runs, course: c, origin: r.origin, mode, episode: rec }) + '\n')
   const n = c.platforms.length - 1
   if (ep.result === 'success') say(`made it: ${n} jumps in ${ep.ticks} ticks (${(ep.ticks / 20).toFixed(1)} s), ${corrections} server corrections`)
   else if (ep.result === 'fell') say(`fell after platform ${ep.cp} of ${n}${r.about.neos.includes(ep.cp) ? ' (at a neo)' : ''}`)
   else say(`stopped at platform ${ep.cp} of ${n}: no progress for ${args.stall} ticks`)
-  await command(`/spectate ${player}`) // (no target: stop spectating)
-  await command(`/gamemode creative ${player}`)
-  if (back) await command(`/tp ${player} ${coord(back.x)} ${coord(back.y)} ${coord(back.z)}`)
+  if (viewer) {
+    await command(`/spectate ${viewer}`) // (no target: stop spectating)
+    await command(`/gamemode creative ${viewer}`)
+    if (back) await command(`/tp ${viewer} ${coord(back.x)} ${coord(back.y)} ${coord(back.z)}`)
+  }
   const check = await converter.ask({ check: { course: c, episode: rec, mode } })
   if (check.error) say(`simulator check failed: ${check.error}`)
   else {
@@ -343,8 +426,13 @@ async function playCourse (r, mode, player) {
   runs++
 }
 
-const HELP = ['!build: creative mode and the kit', '!start / !goal: stand on the first / last block', '!via: an optional platform the route must pass, in order',
-  '!route: what the bot makes of the build', '!run [router|list]: the bot plays it, you watch', '!stop, !clear, !help']
+const HELP = ['The panel by the spawn, chat (!build, ...) and the builder console (build, ...) give the same commands:',
+  'Kit / !build: creative mode and the blocks the simulator models',
+  'a gold block marks the start, a diamond block the goal, emerald blocks platforms the route must pass (or stand on a block and say !start, !goal, !via)',
+  'Route / !route: what the bot makes of the build. Run / !run [router|list]: the bot plays it, you watch',
+  'Demo / !demo [K]: a ready-made course. Clear / !clear: forget !start, !goal and the demo (the markers count again). !stop ends a run']
+const WELCOME = 'course builder: press Kit on the panel by the spawn (no chat needed), build, put a gold block at the start and a ' +
+  'diamond block at the goal, then press Run. Help explains the rest.'
 
 async function onCommand (player, line) {
   const [cmd, opt] = line.trim().split(/\s+/)
@@ -352,25 +440,38 @@ async function onCommand (player, line) {
   if (cmd === '!stop') { if (episode) { episode.result = 'truncated'; endEpisode(); say('stopped') } return }
   if (busy) { say('busy; !stop ends a run'); return }
   if (cmd === '!build') {
+    if (!player) { say('Kit: no player to give it to'); return }
     await command(`/gamemode creative ${player}`)
     await command(`/clear ${player}`)
     for (const k of KIT) await command(`/give ${player} minecraft:${k} 64`)
     say('the kit: only blocks the simulator models. Platforms one block thick, a block of air between them, ' +
-      'four blocks of air above. Walls of stone. Then !start, !goal, !run')
+      'four blocks of air above. Walls of stone. A gold block marks the start, a diamond block the goal (emerald: a ' +
+      'platform the route must pass). Then Route or Run')
     return
   }
   if (cmd === '!start' || cmd === '!goal' || cmd === '!via') {
+    if (!player || !bot.players[player] || !bot.players[player].entity) { say(`${cmd}: the bot cannot see ${player || 'a player'} (come nearer to it)`); return }
     const b = blockUnder(player)
     if (!b) { say('stand on a block first (near its middle)'); return }
+    if (marks.source !== 'chat') { marks.start = null; marks.goal = null; marks.via = [] }
     if (cmd === '!via') marks.via.push(b); else marks[cmd.slice(1)] = b
+    marks.source = 'chat'
     expect = null
     say(`${cmd.slice(1)} at ${b.join(' ')}${cmd === '!via' ? ` (via ${marks.via.length})` : ''}`)
     return
   }
-  if (cmd === '!clear') { marks.start = null; marks.goal = null; marks.via = []; expect = null; say('marks cleared'); return }
+  if (cmd === '!clear') {
+    marks.start = null; marks.goal = null; marks.via = []; marks.source = null; expect = null
+    say('marks cleared: the marker blocks count again')
+    return
+  }
   if (cmd === '!demo') {
+    const k = opt === undefined || opt === '' ? nextDemo : Number(opt)
     busy = true
-    try { await buildDemo(Number(opt || 0)) } catch (err) { say(`error: ${err.message}`) } finally { busy = false }
+    try {
+      await buildDemo(k)
+      if (demos.length) nextDemo = (k + 1) % demos.length
+    } catch (err) { say(`error: ${err.message}`) } finally { busy = false }
     return
   }
   if (cmd === '!route' || cmd === '!run') {
@@ -386,7 +487,7 @@ async function onCommand (player, line) {
         return
       }
       const mode = opt === 'list' ? 'list' : opt === 'router' ? 'router' : (r.about.router_ok && routerPlanner ? 'router' : 'list')
-      if (mode === 'router' && (!r.about.router_ok || !routerPlanner)) { say('the learned router does not see shaped blocks: use !run list'); return }
+      if (mode === 'router' && (!r.about.router_ok || !routerPlanner)) { say('the learned router does not see shaped blocks: use Run (course list) or !run list'); return }
       say(mode === 'router' ? 'playing with the learned router (no course list), the final policy and the neo skill'
         : 'playing with the course list, the final policy and the neo skill')
       await playCourse(r, mode, player)
@@ -398,15 +499,52 @@ async function onCommand (player, line) {
   }
 }
 
+function run (player, line) {
+  onCommand(player, line).catch(err => log('error: ' + (err && err.stack ? err.stack : err)))
+}
+
 bot.on('chat', (username, message) => {
   if (username === args.username || !message.startsWith('!')) return
-  onCommand(username, message).catch(err => log('error: ' + (err && err.stack ? err.stack : err)))
+  run(username, message)
+})
+
+// The panel's buttons: system messages from its command blocks (bridge/builder_panel.js).
+bot.on('messagestr', (message, position) => {
+  if (position === 'chat') return
+  const c = Panel.parse(message)
+  if (c) run(c.player || consolePlayer(), c.opt ? `${c.cmd} ${c.opt}` : c.cmd)
+})
+
+// A line typed in this console: the same commands without the "!" (for --viewer, or the one player online).
+function consolePlayer () {
+  const online = Object.keys(bot.players).filter(n => n !== args.username)
+  if (args.viewer && online.includes(args.viewer)) return args.viewer
+  return online.length === 1 ? online[0] : null
+}
+readline.createInterface({ input: process.stdin }).on('line', line => {
+  const text = line.trim().replace(/^!/, '')
+  if (text) run(consolePlayer(), '!' + text)
+})
+
+// A marker block placed means: take the marks from the markers again.
+bot.on('blockUpdate', (oldBlock, newBlock) => {
+  const role = newBlock && MARKERS[newBlock.name]
+  if (!role || (oldBlock && oldBlock.name === newBlock.name)) return
+  if (marks.source && !busy) { marks.source = null; expect = null }
+  const p = newBlock.position
+  bar(`${role} marker at ${p.x} ${p.y} ${p.z}`)
+})
+
+bot.on('playerJoined', player => {
+  if (player.username === args.username) return
+  setTimeout(() => { tell(WELCOME, player.username); bar('press Kit on the panel by the spawn', player.username) }, 3000)
 })
 
 bot.once('spawn', async () => {
-  log(`connected on port ${args.port}; waiting for !build, !start, !goal, !run`)
+  log(`connected on port ${args.port}`)
   await sleep(1500)
-  bot.chat('builder ready: say !help')
+  for (const c of Panel.commands(args.username)) await command(c)
+  say('builder ready: the panel by the spawn, chat (!help) or this console (help)')
 })
 
 bot.on('kicked', reason => { log('kicked: ' + JSON.stringify(reason)); converter.close(); process.exit(3) })
