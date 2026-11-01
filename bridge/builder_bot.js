@@ -297,10 +297,10 @@ async function goHome () {
 // The marker blocks within MARKER_RANGE of the spawn pad: { start: [[x, y, z], ...], goal: [...], via: [...] }.
 async function findMarkers () {
   await goHome()
-  const cols = [] // every chunk column with a point within MARKER_RANGE of the pad
-  for (let cx = Math.floor((PAD[0] - MARKER_RANGE) / 16); cx <= Math.floor((PAD[0] + MARKER_RANGE) / 16); cx++) {
-    for (let cz = Math.floor((PAD[2] - MARKER_RANGE) / 16); cz <= Math.floor((PAD[2] + MARKER_RANGE) / 16); cz++) {
-      const dx = Math.max(cx * 16 - PAD[0], 0, PAD[0] - cx * 16 - 15); const dz = Math.max(cz * 16 - PAD[2], 0, PAD[2] - cz * 16 - 15)
+  const cols = [] // every chunk column with a point within MARKER_RANGE of HOME (the centre the search keeps)
+  for (let cx = Math.floor((HOME.x - MARKER_RANGE) / 16); cx <= Math.floor((HOME.x + MARKER_RANGE) / 16); cx++) {
+    for (let cz = Math.floor((HOME.z - MARKER_RANGE) / 16); cz <= Math.floor((HOME.z + MARKER_RANGE) / 16); cz++) {
+      const dx = Math.max(cx * 16 - HOME.x, 0, HOME.x - cx * 16 - 16); const dz = Math.max(cz * 16 - HOME.z, 0, HOME.z - cz * 16 - 16)
       if (dx * dx + dz * dz <= MARKER_RANGE * MARKER_RANGE) cols.push([cx, cz])
     }
   }
@@ -471,7 +471,8 @@ const HELP = ['The panel by the spawn, chat (!build, ...) and the builder consol
   'Kit / !build: creative mode and the blocks the simulator models',
   'a gold block on (or in) the start platform marks it, a diamond block the goal, emerald blocks platforms the route must pass in any order (or stand on a block and say !start, !goal, !via)',
   'Route / !route: what the bot makes of the build. Run / !run [router|list]: the bot plays it, you watch',
-  'Demo / !demo [K]: a ready-made course. Clear / !clear: forget !start, !goal and the demo (the markers count again). !stop ends a run']
+  'Demo / !demo [K]: a ready-made course. Clear / !clear: forget !start, !goal and the demo (the markers count again). ' +
+    'A run ends by itself; stop in the builder window (or !stop) ends it sooner']
 const WELCOME = 'course builder: press Kit on the panel by the spawn (no chat needed), build, put a gold block on the start ' +
   'platform and a diamond block on the goal platform, then press Run. Help explains the rest.'
 const SHORT = 'Kit, build, gold block on the start, diamond on the goal, then Run (chat set to Shown shows more)'
@@ -480,7 +481,7 @@ async function onCommand (player, line) {
   const [cmd, opt] = line.trim().split(/\s+/)
   if (cmd === '!help') { for (const h of HELP) say(h, false); bar(SHORT); return }
   if (cmd === '!stop') { if (episode) { episode.result = 'truncated'; episode.stoppedByUser = true; endEpisode() } return }
-  if (busy) { say('busy; !stop ends a run'); return }
+  if (busy) { say('busy: a run ends by itself (or type stop in the builder window, or !stop in chat)'); return }
   if (cmd === '!build') {
     if (!player) { say('Kit: no player to give it to'); return }
     await command(`/gamemode creative ${player}`)
@@ -528,7 +529,8 @@ async function onCommand (player, line) {
       say(`the course: ${describe(r)}`)
       if (cmd === '!route') {
         r.course.platforms.forEach(([x0, x1, z0, z1, y], k) => {
-          if (k < 16) setTimeout(() => command(`/particle minecraft:happy_villager ${(x0 + x1 + 1) / 2 + r.origin[0]} ${y + 1.5 + r.origin[1]} ${(z0 + z1 + 1) / 2 + r.origin[2]} 0.3 0.3 0.3 0 15`), 400 * k)
+          // (force: seen up to 512 blocks away, from the panel too; normal particles only within 32)
+          if (k < 16) setTimeout(() => command(`/particle minecraft:happy_villager ${(x0 + x1 + 1) / 2 + r.origin[0]} ${y + 1.5 + r.origin[1]} ${(z0 + z1 + 1) / 2 + r.origin[2]} 0.3 0.3 0.3 0 15 force`), 400 * k)
         })
         return
       }

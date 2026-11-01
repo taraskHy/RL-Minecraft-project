@@ -211,7 +211,8 @@ def scan_to_course(blocks: list, start, goal, name: str = "build", via=(), box=N
     via platforms in the given order (!via), or in any order if not ``ordered`` (emerald markers). Marker blocks set
     on top of a platform go to ``lifted`` (``_lift_markers``). Raises ``BuildError``."""
     warnings: list = []
-    blocks, (start, goal, *via) = _lift_markers(blocks, [start, goal, *via], [] if lifted is None else lifted)
+    lifted = [] if lifted is None else lifted
+    blocks, (start, goal, *via) = _lift_markers(blocks, [start, goal, *via], lifted)
     blocks = _build_of(blocks, start, goal, via, box, warnings)
     cells: dict = {}
     refused = []
@@ -283,13 +284,16 @@ def scan_to_course(blocks: list, start, goal, name: str = "build", via=(), box=N
                 raise BuildError(f"the platforms at {a[0]} {a[4]} {a[2]} and {b[0]} {b[4]} {b[2]} touch; leave a block "
                                  "of air between platforms")
 
+    on_top = {tuple(m[:3]) for m in lifted}
+
     def find(pos, what):
         x, y, z = (int(v) for v in pos)
         for i, (r, _) in enumerate(plats):
             if r[0] <= x <= r[1] and r[2] <= z <= r[3] and r[4] == y:
                 return i
-        raise BuildError(f"no platform at the {what} ({x} {y} {z}): its mark (the marker block, or the block stood on for "
-                         f"!{what}) must be a block of a platform, one block thick with two of air above")
+        where = f"under the marker block at {x} {y + 1} {z}" if (x, y + 1, z) in on_top else f"{x} {y} {z}"
+        raise BuildError(f"no platform at the {what} ({where}): its mark (a marker block in or on a platform, or the block "
+                         f"stood on for !{what}) must be a block of a platform, one block thick with two of air above")
 
     s, g = find(start, "start"), find(goal, "goal")
     if s == g:

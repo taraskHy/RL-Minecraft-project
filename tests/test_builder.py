@@ -305,6 +305,9 @@ def test_a_marker_set_on_top_of_a_platform_marks_it():
     assert "error" not in reply and reply["course"] == plain_reply["course"] and reply["origin"] == plain_reply["origin"]
     assert reply["lifted"] == [[0, 11, 0, "gold_block"], [6, 11, 0, "diamond_block"], [3, 11, 0, "emerald_block"]]
     assert reply["course"]["slime"] == [1] and plain_reply["lifted"] == []  # (a marker in a platform stays: a stone block)
+    on_wall = build(plain(0, 10, 0), plain(0, 11, 0), plain(0, 12, 0, "gold_block"), plain(3, 10, 0), plain(6, 10, 0))
+    with pytest.raises(B.BuildError, match="under the marker block at 0 12 0"):  # said where the player put it
+        B.scan_to_course(on_wall, (0, 12, 0), (6, 10, 0))
 
 
 def test_main_passes_every_flag_to_the_session(monkeypatch):

@@ -33,7 +33,7 @@ echo   report        tables and plots from finished runs (also refreshes the HAN
 echo   handoff       refresh the generated part of HANDOFF.md  (run.cmd handoff --check)
 echo   offline       play held-out courses with the JS bot on Mineflayer's physics, no server
 echo   live          play held-out courses in real Minecraft (needs accept-eula once)
-echo   builder       build a course yourself in Minecraft; the bot plays it (say !help in the game)
+echo   builder       build a course yourself in Minecraft; the bot plays it (the buttons by the spawn, or !help)
 echo   server        start the local parkour server by hand
 echo   accept-eula   record your acceptance of the Minecraft EULA on this PC
 exit /b 1
