@@ -307,6 +307,31 @@ def test_offline_bot_plays_water_like_the_simulator(tmp_path):
     assert os.path.getsize(out) > 0
 
 
+def test_water_steps_without_the_host_syncs_are_the_same(monkeypatch):
+    """physics.SYNC_SKIPS: on a device not in it (the GPU) the water code computes every cell's current and the jump
+    out of the water for all rows instead of skipping what no row needs; the states are the same to the last bit."""
+    cs = [c for _, c in water_courses()]
+    n = len(cs)
+    runs = []
+    for skips in (("cpu",), ()):
+        monkeypatch.setattr(physics, "SYNC_SKIPS", skips)
+        pool = CoursePool(cs, "cpu", C.GRID)
+        env = ParkourEnv(pool, EnvConfig(num_envs=n, stall_ticks=10 ** 6, max_ticks=10 ** 6), sampler=None)
+        env.reset_all(torch.arange(n))
+        g = torch.Generator().manual_seed(2)
+        x, y, z = (torch.stack([torch.as_tensor(c.water[0][i]) for c in cs]).to(torch.float64) for i in range(3))
+        env.state.pos = torch.stack((x + 0.5, y + 0.9, z + 0.5), -1)  # in every pool, then random keys
+        out = []
+        for _ in range(150):
+            a = torch.stack([torch.randint(0, d, (n,), generator=g) for d in (3, 3, 2, 2, 7)], -1)
+            a[:, 0] = 2
+            env.step(a)
+            s = env.state
+            out.append(torch.cat((s.pos, s.vel, s.on_ground[:, None].double(), s.collided_h[:, None].double()), -1))
+        runs.append(torch.stack(out))
+    assert torch.equal(runs[0], runs[1])
+
+
 def test_in_water_matches_the_current_s():
     rng = np.random.default_rng(3)
     from parkour import parity

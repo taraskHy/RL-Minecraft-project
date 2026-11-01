@@ -470,26 +470,27 @@ def _flow(world: World, course, x, y, z):
     return _normalize(fx, fy, fz)
 
 
+_WINDOWS = {}  # (device, ny) -> the window's cell offsets (jx, jy, jz), each (K,)
+
+
 def _water_cells(world: World, course, lo: torch.Tensor, hi: torch.Tensor, ny: int):
-    """getWaterInBB of the boxes (lo, hi) (N, 3): per cell of the box's window (y outer, then z, then x, as the
-    source), the cell and whether it counts (water whose surface the box's ceiling reaches). ``ny``: the most
-    rows a box spans (2 or 3); x and z span at most 2."""
+    """getWaterInBB of the boxes (lo, hi) (N, 3): the cells of each box's window, (N, K) tensors cx, cy, cz (K = 4
+    ny, y outer, then z, then x, as the source), and whether each counts (water whose surface the box's ceiling
+    reaches). ``ny``: the most rows a box spans (2 or 3); x and z span at most 2."""
+    key = (lo.device, ny)
+    if key not in _WINDOWS:
+        k = torch.arange(4 * ny, device=lo.device)
+        _WINDOWS[key] = (k % 2, k // 4, (k // 2) % 2)
+    jx, jy, jz = _WINDOWS[key]
     f = torch.floor(lo).to(torch.int64)
     top = torch.floor(hi).to(torch.int64)
     ceil_top = torch.ceil(hi[:, 1])
-    out = []
-    for jy in range(ny):
-        cy = f[:, 1] + jy
-        for jz in range(2):
-            cz = f[:, 2] + jz
-            for jx in range(2):
-                cx = f[:, 0] + jx
-                inside = (cy <= top[:, 1]) & (cz <= top[:, 2]) & (cx <= top[:, 0])
-                meta = world.water_meta(course, cx, cy, cz)
-                pcent = (_depth(meta).to(torch.float64) + 1) / 9
-                level = (cy.to(torch.float64) + 1) - pcent
-                out.append((cx, cy, cz, inside & (meta >= 0) & (ceil_top >= level)))
-    return out
+    cx, cy, cz = f[:, 0:1] + jx, f[:, 1:2] + jy, f[:, 2:3] + jz
+    inside = (cy <= top[:, 1:2]) & (cz <= top[:, 2:3]) & (cx <= top[:, 0:1])
+    meta = world.water_meta(course.view(-1, 1), cx, cy, cz)
+    pcent = (_depth(meta).to(torch.float64) + 1) / 9
+    level = (cy.to(torch.float64) + 1) - pcent
+    return cx, cy, cz, inside & (meta >= 0) & (ceil_top[:, None] >= level)
 
 
 def in_water(world: World, course, pos: torch.Tensor) -> torch.Tensor:
@@ -501,10 +502,10 @@ def in_water(world: World, course, pos: torch.Tensor) -> torch.Tensor:
     x, y, z = pos.unbind(-1)
     lo = torch.stack((((-w) + x) + 0.001, (0.0 + y) + 0.401, ((-w) + z) + 0.001), -1)
     hi = torch.stack(((w + x) - 0.001, (PLAYER_HEIGHT + y) - 0.401, (w + z) - 0.001), -1)
-    wet = torch.zeros(x.shape, dtype=torch.bool, device=x.device)
-    for _, _, _, hit in _water_cells(world, course, lo, hi, 2):
-        wet = wet | hit
-    return wet
+    return _water_cells(world, course, lo, hi, 2)[3].any(1)
+
+
+SYNC_SKIPS = ("cpu",)  # devices on which the water code skips work no row needs (a host sync: free only on the CPU)
 
 
 def _water_current(world: World, course, pos: torch.Tensor, vel: torch.Tensor):
@@ -516,15 +517,15 @@ def _water_current(world: World, course, pos: torch.Tensor, vel: torch.Tensor):
     ax = torch.zeros_like(x)
     ay = torch.zeros_like(x)
     az = torch.zeros_like(x)
-    in_water = torch.zeros(x.shape, dtype=torch.bool, device=x.device)
-    for cx, cy, cz, hit in _water_cells(world, course, lo, hi, 2):
-        if not bool(hit.any()):
-            continue
-        fx, fy, fz = _flow(world, course, cx, cy, cz)
-        ax = torch.where(hit, ax + fx, ax)
-        ay = torch.where(hit, ay + fy, ay)
-        az = torch.where(hit, az + fz, az)
-        in_water = in_water | hit
+    cx, cy, cz, hit = _water_cells(world, course, lo, hi, 2)
+    if pos.device.type not in SYNC_SKIPS or bool(hit.any()):  # (no row in water: nothing to add)
+        fx, fy, fz = _flow(world, course.view(-1, 1), cx, cy, cz)  # every cell at once
+        for k in range(hit.shape[1]):  # summed cell by cell, in the source's order
+            h = hit[:, k]
+            ax = torch.where(h, ax + fx[:, k], ax)
+            ay = torch.where(h, ay + fy[:, k], ay)
+            az = torch.where(h, az + fz[:, k], az)
+    in_water = hit.any(1)
     length = _sqrt(ax * ax + ay * ay + az * az)
     push = length > 0
     safe = torch.where(push, length, torch.ones_like(length))
@@ -560,9 +561,7 @@ def _does_not_collide(world: World, course, p: torch.Tensor) -> torch.Tensor:
     hit = (mask & (col(lo[:, 0]) < bhi[..., 0]) & (col(hi[:, 0]) > blo[..., 0])
            & (col(lo[:, 1]) < bhi[..., 1]) & (col(hi[:, 1]) > blo[..., 1])
            & (col(lo[:, 2]) < bhi[..., 2]) & (col(hi[:, 2]) > blo[..., 2]))
-    wet = torch.zeros(x.shape, dtype=torch.bool, device=dev)
-    for _, _, _, cell_hit in _water_cells(world, course, lo, hi, 3):
-        wet = wet | cell_hit
+    wet = _water_cells(world, course, lo, hi, 3)[3].any(1)
     return ~hit.flatten(1).any(dim=1) & ~wet
 
 
@@ -660,7 +659,7 @@ def simulate(world: World, course: torch.Tensor, state: PlayerState, controls: t
         my = (my - GRAVITY) * AIRDRAG
     mx = mx * inertia
     mz = mz * inertia
-    if in_water is not None and bool((in_water & collided_h).any()):
+    if in_water is not None and (state.pos.device.type not in SYNC_SKIPS or bool((in_water & collided_h).any())):
         # Jump out of the water: blocked sideways, with room 0.6 higher (and no water there).
         last_y = state.pos[:, 1]
         px, py, pz = pos.unbind(-1)
