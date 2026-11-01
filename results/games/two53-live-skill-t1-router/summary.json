@@ -1,0 +1,1763 @@
+{
+ "mode": "live (Minecraft 1.21.4 server)",
+ "checkpoint": "results/final_policy.pt",
+ "skill": "results/neo_skill.pt",
+ "courses": 64,
+ "wall_seconds": 656.2,
+ "router": "results/routing/router_policy.pt",
+ "router_fill": "policy",
+ "router_blocked": "keep",
+ "success": 0.78125,
+ "sim_success_same_courses": 0.78125,
+ "outcome_agreement": 1.0,
+ "replay_max_pos_err": 2.1316282072803006e-14,
+ "replay_exact_episodes": 64,
+ "by_level": {
+  "6": {
+   "n": 35,
+   "success": 0.8,
+   "sim_success": 0.8
+  },
+  "7": {
+   "n": 29,
+   "success": 0.7586206896551724,
+   "sim_success": 0.7586206896551724
+  }
+ },
+ "episodes": [
+  {
+   "index": 0,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 302,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 302,
+   "skill_ticks": 154,
+   "skill_at": [
+    0,
+    1,
+    2
+   ],
+   "sim_skill_at": [
+    0,
+    1,
+    2
+   ]
+  },
+  {
+   "index": 1,
+   "name": "",
+   "level": 6,
+   "result": "truncated",
+   "platform": 1,
+   "n": 11,
+   "ticks": 216,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 216,
+   "skill_ticks": 216,
+   "skill_at": [
+    0,
+    1
+   ],
+   "sim_skill_at": [
+    0,
+    1
+   ]
+  },
+  {
+   "index": 2,
+   "name": "",
+   "level": 6,
+   "result": "fell",
+   "platform": 1,
+   "n": 11,
+   "ticks": 35,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 35,
+   "skill_ticks": 35,
+   "skill_at": [
+    0,
+    1
+   ],
+   "sim_skill_at": [
+    0,
+    1
+   ]
+  },
+  {
+   "index": 3,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 146,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.9539925233402755e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 146,
+   "skill_ticks": 75,
+   "skill_at": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "sim_skill_at": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ]
+  },
+  {
+   "index": 4,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 190,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 190,
+   "skill_ticks": 94,
+   "skill_at": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "sim_skill_at": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ]
+  },
+  {
+   "index": 5,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 152,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.9539925233402755e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 152,
+   "skill_ticks": 66,
+   "skill_at": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "sim_skill_at": [
+    1,
+    2,
+    3,
+    4
+   ]
+  },
+  {
+   "index": 6,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 166,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 166,
+   "skill_ticks": 81,
+   "skill_at": [
+    2,
+    3,
+    4,
+    5
+   ],
+   "sim_skill_at": [
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "index": 7,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 146,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.9539925233402755e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 146,
+   "skill_ticks": 86,
+   "skill_at": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "sim_skill_at": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "index": 8,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 176,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.7763568394002505e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 176,
+   "skill_ticks": 87,
+   "skill_at": [
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "sim_skill_at": [
+    2,
+    3,
+    4,
+    5,
+    6
+   ]
+  },
+  {
+   "index": 9,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 189,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.9539925233402755e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 189,
+   "skill_ticks": 103,
+   "skill_at": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "sim_skill_at": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "index": 10,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 171,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.7763568394002505e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 171,
+   "skill_ticks": 71,
+   "skill_at": [
+    3,
+    4,
+    5,
+    6
+   ],
+   "sim_skill_at": [
+    3,
+    4,
+    5,
+    6
+   ]
+  },
+  {
+   "index": 11,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 169,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 169,
+   "skill_ticks": 68,
+   "skill_at": [
+    4,
+    5,
+    6,
+    7
+   ],
+   "sim_skill_at": [
+    4,
+    5,
+    6,
+    7
+   ]
+  },
+  {
+   "index": 12,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 145,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.7763568394002505e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 145,
+   "skill_ticks": 76,
+   "skill_at": [
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "sim_skill_at": [
+    3,
+    4,
+    5,
+    6,
+    7
+   ]
+  },
+  {
+   "index": 13,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 165,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 165,
+   "skill_ticks": 101,
+   "skill_at": [
+    4,
+    5,
+    6,
+    7,
+    8
+   ],
+   "sim_skill_at": [
+    4,
+    5,
+    6,
+    7,
+    8
+   ]
+  },
+  {
+   "index": 14,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 192,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.9539925233402755e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 192,
+   "skill_ticks": 134,
+   "skill_at": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "sim_skill_at": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ]
+  },
+  {
+   "index": 15,
+   "name": "",
+   "level": 6,
+   "result": "fell",
+   "platform": 7,
+   "n": 11,
+   "ticks": 160,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 160,
+   "skill_ticks": 64,
+   "skill_at": [
+    5,
+    6,
+    7
+   ],
+   "sim_skill_at": [
+    5,
+    6,
+    7
+   ]
+  },
+  {
+   "index": 16,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 151,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 151,
+   "skill_ticks": 65,
+   "skill_at": [
+    6,
+    7,
+    8,
+    9
+   ],
+   "sim_skill_at": [
+    6,
+    7,
+    8,
+    9
+   ]
+  },
+  {
+   "index": 17,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 269,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 269,
+   "skill_ticks": 181,
+   "skill_at": [
+    5,
+    6,
+    7,
+    8,
+    9
+   ],
+   "sim_skill_at": [
+    5,
+    6,
+    7,
+    8,
+    9
+   ]
+  },
+  {
+   "index": 18,
+   "name": "",
+   "level": 6,
+   "result": "fell",
+   "platform": 7,
+   "n": 11,
+   "ticks": 89,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 89,
+   "skill_ticks": 31,
+   "skill_at": [
+    6,
+    7
+   ],
+   "sim_skill_at": [
+    6,
+    7
+   ]
+  },
+  {
+   "index": 19,
+   "name": "",
+   "level": 6,
+   "result": "fell",
+   "platform": 3,
+   "n": 11,
+   "ticks": 72,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.7763568394002505e-14,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 72,
+   "skill_ticks": 40,
+   "skill_at": [
+    2,
+    3
+   ],
+   "sim_skill_at": [
+    2,
+    3
+   ]
+  },
+  {
+   "index": 20,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 194,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.9539925233402755e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 194,
+   "skill_ticks": 83,
+   "skill_at": [
+    7,
+    8,
+    9
+   ],
+   "sim_skill_at": [
+    7,
+    8,
+    9
+   ]
+  },
+  {
+   "index": 21,
+   "name": "",
+   "level": 7,
+   "result": "fell",
+   "platform": 1,
+   "n": 11,
+   "ticks": 124,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 124,
+   "skill_ticks": 124,
+   "skill_at": [
+    0,
+    1
+   ],
+   "sim_skill_at": [
+    0,
+    1
+   ]
+  },
+  {
+   "index": 22,
+   "name": "",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 183,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.9539925233402755e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 183,
+   "skill_ticks": 73,
+   "skill_at": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "sim_skill_at": [
+    0,
+    1,
+    2,
+    3
+   ]
+  },
+  {
+   "index": 23,
+   "name": "",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 151,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.7763568394002505e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 151,
+   "skill_ticks": 76,
+   "skill_at": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "sim_skill_at": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ]
+  },
+  {
+   "index": 24,
+   "name": "",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 213,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 213,
+   "skill_ticks": 107,
+   "skill_at": [
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+   ],
+   "sim_skill_at": [
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+   ]
+  },
+  {
+   "index": 25,
+   "name": "",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 171,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 171,
+   "skill_ticks": 79,
+   "skill_at": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "sim_skill_at": [
+    0,
+    1,
+    2,
+    3
+   ]
+  },
+  {
+   "index": 26,
+   "name": "",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 153,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.9539925233402755e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 153,
+   "skill_ticks": 68,
+   "skill_at": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "sim_skill_at": [
+    1,
+    2,
+    3,
+    4
+   ]
+  },
+  {
+   "index": 27,
+   "name": "",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 167,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 167,
+   "skill_ticks": 91,
+   "skill_at": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "sim_skill_at": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "index": 28,
+   "name": "",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 165,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 165,
+   "skill_ticks": 87,
+   "skill_at": [
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "sim_skill_at": [
+    2,
+    3,
+    4,
+    5,
+    6
+   ]
+  },
+  {
+   "index": 29,
+   "name": "",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 174,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.9539925233402755e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 174,
+   "skill_ticks": 91,
+   "skill_at": [
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+   ],
+   "sim_skill_at": [
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+   ]
+  },
+  {
+   "index": 30,
+   "name": "",
+   "level": 7,
+   "result": "truncated",
+   "platform": 3,
+   "n": 11,
+   "ticks": 264,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.7763568394002505e-14,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 264,
+   "skill_ticks": 214,
+   "skill_at": [
+    2,
+    3
+   ],
+   "sim_skill_at": [
+    2,
+    3
+   ]
+  },
+  {
+   "index": 31,
+   "name": "",
+   "level": 7,
+   "result": "fell",
+   "platform": 4,
+   "n": 11,
+   "ticks": 74,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 74,
+   "skill_ticks": 23,
+   "skill_at": [
+    3,
+    4
+   ],
+   "sim_skill_at": [
+    3,
+    4
+   ]
+  },
+  {
+   "index": 32,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 169,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.9539925233402755e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 169,
+   "skill_ticks": 88,
+   "skill_at": [
+    4,
+    5,
+    6,
+    7
+   ],
+   "sim_skill_at": [
+    4,
+    5,
+    6,
+    7
+   ]
+  },
+  {
+   "index": 33,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 150,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 150,
+   "skill_ticks": 67,
+   "skill_at": [
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "sim_skill_at": [
+    3,
+    4,
+    5,
+    6,
+    7
+   ]
+  },
+  {
+   "index": 34,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 162,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.9539925233402755e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 162,
+   "skill_ticks": 70,
+   "skill_at": [
+    4,
+    5,
+    6,
+    7,
+    8
+   ],
+   "sim_skill_at": [
+    4,
+    5,
+    6,
+    7,
+    8
+   ]
+  },
+  {
+   "index": 35,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 225,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.7763568394002505e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 225,
+   "skill_ticks": 131,
+   "skill_at": [
+    5,
+    6,
+    7,
+    8,
+    9
+   ],
+   "sim_skill_at": [
+    5,
+    6,
+    7,
+    8,
+    9
+   ]
+  },
+  {
+   "index": 36,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 164,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 164,
+   "skill_ticks": 69,
+   "skill_at": [
+    5,
+    6,
+    7,
+    8
+   ],
+   "sim_skill_at": [
+    5,
+    6,
+    7,
+    8
+   ]
+  },
+  {
+   "index": 37,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 143,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.9539925233402755e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 143,
+   "skill_ticks": 63,
+   "skill_at": [
+    6,
+    7,
+    8,
+    9
+   ],
+   "sim_skill_at": [
+    6,
+    7,
+    8,
+    9
+   ]
+  },
+  {
+   "index": 38,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 168,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 168,
+   "skill_ticks": 77,
+   "skill_at": [
+    5,
+    6,
+    7,
+    8,
+    9
+   ],
+   "sim_skill_at": [
+    5,
+    6,
+    7,
+    8,
+    9
+   ]
+  },
+  {
+   "index": 39,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 174,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 174,
+   "skill_ticks": 76,
+   "skill_at": [
+    6,
+    7,
+    8,
+    9
+   ],
+   "sim_skill_at": [
+    6,
+    7,
+    8,
+    9
+   ]
+  },
+  {
+   "index": 40,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 139,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 139,
+   "skill_ticks": 85,
+   "skill_at": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "sim_skill_at": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ]
+  },
+  {
+   "index": 41,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 150,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.9539925233402755e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 150,
+   "skill_ticks": 41,
+   "skill_at": [
+    7,
+    8,
+    9
+   ],
+   "sim_skill_at": [
+    7,
+    8,
+    9
+   ]
+  },
+  {
+   "index": 42,
+   "name": "",
+   "level": 6,
+   "result": "fell",
+   "platform": 1,
+   "n": 11,
+   "ticks": 46,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.7763568394002505e-14,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 46,
+   "skill_ticks": 46,
+   "skill_at": [
+    0,
+    1
+   ],
+   "sim_skill_at": [
+    0,
+    1
+   ]
+  },
+  {
+   "index": 43,
+   "name": "",
+   "level": 6,
+   "result": "fell",
+   "platform": 2,
+   "n": 11,
+   "ticks": 53,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.7763568394002505e-14,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 53,
+   "skill_ticks": 53,
+   "skill_at": [
+    0,
+    1,
+    2
+   ],
+   "sim_skill_at": [
+    0,
+    1,
+    2
+   ]
+  },
+  {
+   "index": 44,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 167,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.9539925233402755e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 167,
+   "skill_ticks": 82,
+   "skill_at": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "sim_skill_at": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ]
+  },
+  {
+   "index": 45,
+   "name": "",
+   "level": 6,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 160,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.9539925233402755e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 160,
+   "skill_ticks": 95,
+   "skill_at": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "sim_skill_at": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "index": 46,
+   "name": "",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 157,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 157,
+   "skill_ticks": 68,
+   "skill_at": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "sim_skill_at": [
+    0,
+    1,
+    2,
+    3
+   ]
+  },
+  {
+   "index": 47,
+   "name": "",
+   "level": 7,
+   "result": "fell",
+   "platform": 2,
+   "n": 11,
+   "ticks": 52,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 52,
+   "skill_ticks": 36,
+   "skill_at": [
+    1,
+    2
+   ],
+   "sim_skill_at": [
+    1,
+    2
+   ]
+  },
+  {
+   "index": 48,
+   "name": "",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 152,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 152,
+   "skill_ticks": 71,
+   "skill_at": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "sim_skill_at": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "index": 49,
+   "name": "",
+   "level": 7,
+   "result": "fell",
+   "platform": 4,
+   "n": 11,
+   "ticks": 122,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 122,
+   "skill_ticks": 66,
+   "skill_at": [
+    2,
+    3,
+    4
+   ],
+   "sim_skill_at": [
+    2,
+    3,
+    4
+   ]
+  },
+  {
+   "index": 50,
+   "name": "",
+   "level": 7,
+   "result": "fell",
+   "platform": 2,
+   "n": 11,
+   "ticks": 56,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 56,
+   "skill_ticks": 43,
+   "skill_at": [
+    1,
+    2
+   ],
+   "sim_skill_at": [
+    1,
+    2
+   ]
+  },
+  {
+   "index": 51,
+   "name": "",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 174,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 174,
+   "skill_ticks": 61,
+   "skill_at": [
+    2,
+    3,
+    4,
+    5
+   ],
+   "sim_skill_at": [
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "index": 52,
+   "name": "",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 157,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.9539925233402755e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 157,
+   "skill_ticks": 59,
+   "skill_at": [
+    3,
+    4,
+    5,
+    6
+   ],
+   "sim_skill_at": [
+    3,
+    4,
+    5,
+    6
+   ]
+  },
+  {
+   "index": 53,
+   "name": "",
+   "level": 7,
+   "result": "fell",
+   "platform": 3,
+   "n": 11,
+   "ticks": 64,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.7763568394002505e-14,
+   "replay_first_divergence": null,
+   "sim_success": false,
+   "sim_ticks": 64,
+   "skill_ticks": 11,
+   "skill_at": [
+    3
+   ],
+   "sim_skill_at": [
+    3
+   ]
+  },
+  {
+   "index": 54,
+   "name": "",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 195,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 195,
+   "skill_ticks": 97,
+   "skill_at": [
+    4,
+    5,
+    6,
+    7,
+    8
+   ],
+   "sim_skill_at": [
+    4,
+    5,
+    6,
+    7,
+    8
+   ]
+  },
+  {
+   "index": 55,
+   "name": "",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 162,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 162,
+   "skill_ticks": 101,
+   "skill_at": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "sim_skill_at": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ]
+  },
+  {
+   "index": 56,
+   "name": "",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 193,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.9539925233402755e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 193,
+   "skill_ticks": 83,
+   "skill_at": [
+    4,
+    5,
+    6,
+    7
+   ],
+   "sim_skill_at": [
+    4,
+    5,
+    6,
+    7
+   ]
+  },
+  {
+   "index": 57,
+   "name": "",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 146,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 146,
+   "skill_ticks": 68,
+   "skill_at": [
+    5,
+    6,
+    7,
+    8
+   ],
+   "sim_skill_at": [
+    5,
+    6,
+    7,
+    8
+   ]
+  },
+  {
+   "index": 58,
+   "name": "",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 136,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.7763568394002505e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 136,
+   "skill_ticks": 76,
+   "skill_at": [
+    5,
+    6,
+    7,
+    8,
+    9
+   ],
+   "sim_skill_at": [
+    5,
+    6,
+    7,
+    8,
+    9
+   ]
+  },
+  {
+   "index": 59,
+   "name": "",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 165,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 165,
+   "skill_ticks": 68,
+   "skill_at": [
+    6,
+    7,
+    8,
+    9
+   ],
+   "sim_skill_at": [
+    6,
+    7,
+    8,
+    9
+   ]
+  },
+  {
+   "index": 60,
+   "name": "",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 149,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 149,
+   "skill_ticks": 95,
+   "skill_at": [
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+   ],
+   "sim_skill_at": [
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+   ]
+  },
+  {
+   "index": 61,
+   "name": "",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 167,
+   "server_corrections": 0,
+   "replay_max_pos_err": 1.7763568394002505e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 167,
+   "skill_ticks": 74,
+   "skill_at": [
+    6,
+    7,
+    8,
+    9
+   ],
+   "sim_skill_at": [
+    6,
+    7,
+    8,
+    9
+   ]
+  },
+  {
+   "index": 62,
+   "name": "",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 178,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 178,
+   "skill_ticks": 70,
+   "skill_at": [
+    7,
+    8,
+    9
+   ],
+   "sim_skill_at": [
+    7,
+    8,
+    9
+   ]
+  },
+  {
+   "index": 63,
+   "name": "",
+   "level": 7,
+   "result": "success",
+   "platform": 10,
+   "n": 11,
+   "ticks": 169,
+   "server_corrections": 0,
+   "replay_max_pos_err": 2.1316282072803006e-14,
+   "replay_first_divergence": null,
+   "sim_success": true,
+   "sim_ticks": 169,
+   "skill_ticks": 70,
+   "skill_at": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "sim_skill_at": [
+    0,
+    1,
+    2,
+    3
+   ]
+  }
+ ]
+}

@@ -500,7 +500,16 @@ at 18:05:14, before any run on the two-neo sets:**
   the single-neo level held (the shipped skill: 86.25% over 1,280). Offline
   bot, first 64 courses of 53: course list 48, router 50, each the same as
   the simulator re-run on every course (replay 7.1e-15 and 3.6e-15 blocks;
-  `runs/two53-offline-skill-t1*`).
+  `runs/two53-offline-skill-t1*`). **Real Minecraft, the same 64 courses:
+  course list 48, router 50, the same as the re-run on every course, 0
+  server corrections, no "moved wrongly" in the server logs** (replay
+  2.1e-14 blocks; `runs/two53-live-skill-t1*`). **The planner's reference on
+  53 (played once, 19:14-19:57): 245 of 320 (76.6%)**; back to back 97, one
+  apart 93, two apart 55. So on the test courses the skill is 9 below the
+  planner with the course list and 5 below in router mode (on validation
+  the shipped skill was 38 below); it beats the planner one jump apart
+  (106 against 93) and trails it back to back (82 against 97) and two apart
+  (48 against 55).
 - **Slime and narrow posts: rules fixed at 19:21:21, before any run on these
   sets.** Why: the final policy lands 39.9% of the 41 single slime-bounce
   kinds (an exit one block above the pad it makes, two or three it does
@@ -2095,18 +2104,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `a92f86f` (2026-10-31 14:30, branch `main`): Neo skill: d3 on validation (best 283, below 287: no test); rule and queue job for a corrected round d4 (hard-type pairs only)
+Generated on top of commit `e38b47d` (2026-11-01 19:39, branch `main`): Slime skill plumbing: posts training courses and a special hand-over (slime pads and narrow posts) in the bank builder, neo_assist --skill-blocks and parkour.live --skill-blocks
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 87 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 95 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
 | `README.md` | updated together with this snapshot | 0 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 271 |
-| `docs/report_draft.md` | updated together with this snapshot | 0 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 279 |
+| `docs/report_draft.md` | `b6c7b2b` 2026-10-31 15:38 | 7 |
 | `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | updated together with this snapshot | 0 |
+| `results/DATA.md` | `b6c7b2b` 2026-10-31 15:38 | 7 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -2200,6 +2209,8 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `neo-skill-d2` | 499 | 0.26 | 499 | 91.3 | 89.4 | - | - |
 | `neo-skill-d3` | 499 | 0.26 | 499 | 89.0 | 88.9 | - | - |
 | `neo-skill-d4` | 499 | 0.26 | 499 | 88.8 | 88.2 | - | - |
+| `neo-skill-t1` | 499 | 0.26 | 499 | 87.7 | 89.4 | - | - |
+| `neo-skill-t2` | 499 | 0.26 | 499 | 89.0 | 88.9 | - | - |
 | `neo-stall` | 999 | 0.52 | 749 | 84.7 | 84.7 | 84.8 | 82.3 |
 | `nofall-s0` | 999 | 0.52 | 949 | 93.7 | 91.8 | 91.2 | - |
 | `nofall-s1` | 999 | 0.52 | 649 | 90.5 | 90.8 | 90.9 | - |
@@ -2215,6 +2226,8 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `obstacles-g995` | 999 | 0.52 | 699 | 97.6 | 98.4 | 97.5 | 94.7 |
 | `progress-demo` | 399 | 0.21 | 324 | 89.5 | 89.8 | 91.0 | - |
 | `skills-hh-ft` | 499 | 0.26 | 399 | 86.4 | 89.4 | - | - |
+| `slime-skill-s1` | 499 | 0.26 | 499 | 26.2 | 25.5 | - | - |
+| `slime-skill-s2` | 499 | 0.26 | 499 | 13.5 | 13.9 | - | - |
 | `sparse-s0` | 999 | 0.52 | - | - | - | 95.1 | - |
 | `sparse-s1` | 999 | 0.52 | 749 | 93.5 | 93.2 | 91.5 | - |
 | `sparse-s2` | 999 | 0.52 | 799 | 94.7 | 94.4 | 94.1 | - |
@@ -2328,6 +2341,10 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `skill-replays-offline-65` | offline (prismarine-physics, no server) | `results/combined_policy.pt` | 59/65 | 90.8 | 100.0 |
 | `skill-replays-untrained-live` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 6/8 | 75.0 | 100.0 |
 | `skill-replays-untrained-offline` | offline (prismarine-physics, no server) | `results/combined_policy.pt` | 6/8 | 75.0 | 100.0 |
+| `two53-live-skill-t1` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 48/64 | 75.0 | 100.0 |
+| `two53-live-skill-t1-router` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 50/64 | 78.1 | 100.0 |
+| `two53-offline-skill-t1` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 48/64 | 75.0 | 100.0 |
+| `two53-offline-skill-t1-router` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 50/64 | 78.1 | 100.0 |
 | `v2-live` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 59/60 | 98.3 | 100.0 |
 | `v2-live-obstacles` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 57/60 | 95.0 | 100.0 |
 | `v2-live-showcase` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 3/4 | 75.0 | 100.0 |
@@ -2346,7 +2363,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 
 ### In `results/` but not yet in `results/DATA.md`
 
-Nothing: the data index names everything.
+`games/two53-live-skill-t1/`, `games/two53-live-skill-t1-router/`, `games/two53-offline-skill-t1/`, `games/two53-offline-skill-t1-router/`, `neo_skill_v3.json`, `neo_skill_v3.pt`
 
 <!-- END AUTO-SNAPSHOT -->
 
@@ -2364,6 +2381,10 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **1 Nov 2026, 19:59, Claude (Claude Code, training PC; the session forked from the main one, which was idle, took over its work):** Ethan's 1 Nov requests (section 3), in his order.
+  - Two neos per course: held-out sets 52/53 pinned and excluded before any run; the shipped skill was well short of the planner on validation (208 against 246; it lost the first neo of back-to-back pairs); trained on two-neo blocks (t1, t2), the choice t1 updates 350 (251) is shipped as `results/neo_skill.pt` (d4 kept as `_v3`). Test, once: 236 (course list) and 240 (router) of 320 against the planner's 245; fresh single-neo family 54: 278; the bots 48 and 50 of the first 64, offline and in real Minecraft, the simulator's courses, 0 corrections.
+  - The course builder (`run.cmd builder`): build in creative with a kit of modelled blocks, `!start`/`!goal`/`!run`; checked in real Minecraft with a scripted player (two demo courses scanned back exactly, the game equal to the simulator).
+  - Slime and posts: sets 55-58 pinned and excluded; the networks alone measured; slime-skill round 1 (s1, s2) trained; the posts bank built. Next: the round-1 choice, then posts (round 2), then water (prismarine-physics' water into physics.py, with parity tests).
 - **31 Oct 2026, 15:37, Claude (Claude Code, training PC, main session):** the third DAgger round (Ethan: "Yes, run it"), rules in section 3 (13:49, 14:30, 15:04).
   - d3 (labels from d2's own states on new hard-type courses and on the other 28 types) peaked at 283: the easy types' labels pulled the skill off. d4 (the same without the easy-type labels) reached 289 on family 40, the most of 82 candidates, so it is the shipped skill (`results/neo_skill.pt`; d2 kept as `results/neo_skill_v2.pt`).
   - d4's own fresh test (family 51, once): 265 of 320 (82.8%), router 267; additional 274, 274, 291 (41, 49, 50). Over the four test sets: d4 1,104 of 1,280 (86.25%), d2 1,100 (d2 on 51, measured afterwards and choosing nothing: 275); router d4 1,077 (84.1%), d2 1,075; the planner 1,132 (88.4%; its 51: 284). One 320-course set moves a count by about 4 points, more than the versions differ.
