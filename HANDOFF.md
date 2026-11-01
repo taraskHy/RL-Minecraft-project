@@ -568,6 +568,34 @@ at 18:05:14, before any run on the two-neo sets:**
     family 55 with `--skill-blocks slime` (course list, CPU); the most strict
     wins, ties to fewer updates, then to s1; family 57 is played too and
     reported.
+  - **Round 1 (19:27-19:59) and its choice (20:03, by the rule):** family 55
+    / family 57 for updates 50-500: s1 260/141, **262/146**, 256/137, 252/146,
+    245/133, 243/143, 226/139, 238/138, 220/132, 227/133; s2 130/106,
+    234/137, 245/143, 246/134, 246/145, 233/136, 237/136, 251/132, 231/126,
+    228/126. **Chosen: s1 updates 100 (`e59cc56505d3`), 262 of 320 (81.9%)**
+    (the one network alone 194). Most failures are the bounce off a pad (47
+    courses), then ordinary jumps after the hand-back (9, rising to 20 by
+    update 450, as s1's count falls while its training success rises to 89%:
+    it trains on courses with one bounce, starting from the final policy's
+    arrival, while the sets chain four).
+  - **Round 2, fixed at 20:03:18 before it runs (solid or not, posts need
+    it):** both runs from s1 updates 100, with `--segment-base
+    results/final_policy.pt` (the final policy plays the jump after the
+    block inside each episode, so the skill's landing on the exit is judged
+    by what the final policy makes of it), otherwise round 1's settings,
+    300 updates, a snapshot every 25: `slime-skill-sl2` on the slime bank;
+    `slime-skill-sp2` on `runs/neo_skill_bank_special_v1.pt`, the slime bank's
+    rows and the posts bank's in turn (`runs/neo_skill_bank_posts_v1.pt`:
+    families 90-95, 4,050 courses each with one narrow post, the 90 post
+    kinds, types 41-130; 24,244 with starts), handed every slime pad and every
+    post (`--skill-blocks special`). Every snapshot played on families 55 and
+    57 with its own run's blocks. **The slime skill:** the most strict on 55
+    among every candidate (round 1 and round 2, ties to fewer updates, then
+    the earlier run); **posts:** the most strict on 57 among every candidate
+    with its own blocks (the slime-only skills leave the posts to the final
+    policy), the same ties; then the solid check, and the tests (56 for the
+    slime skill, 58 for the posts choice, each with the planner's
+    reference) or round 3.
 - **The course builder (built 1 Nov, beside the GPU runs; nothing chosen or
   trained on it):** `run.cmd builder` (`parkour.builder`, `parkour.build_session`,
   `bridge/builder_bot.js`) starts the local server and a bot in build mode.
