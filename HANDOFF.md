@@ -434,6 +434,51 @@ at 18:05:14, before any run on the two-neo sets:**
   with the planner's reference, and played by the bots. **If not:** the
   shipped skill is tested once on family 53 in both modes, with the
   planner's reference, and then played by the bots.
+- **Measured (18:06-18:33; simulator, CPU, family 52, strict of 320):** the
+  shipped skill with the course list **208** (65.0%), in router mode 210;
+  the planner **246** (76.9%; `assist_parts/two52-val-planner`). So the skill
+  is 38 below the planner: well short. By spacing (course list, router,
+  planner): back to back 55, 63 and 94 of 128; one apart 103, 99 and 105 of
+  128; two apart 50, 48 and 47 of 64. Apart, the skill is the planner's
+  equal; back to back it fails the first neo 56 times (43 falls), the
+  planner 5 times: the second wall, one to three blocks past the first
+  neo's 1x1 target, throws the skill off the first neo. (127 of the 128
+  back-to-back pairs are straight: a turned second wall would reach back
+  along the first neo's flight, which the set's swing rule excludes.)
+- **Two-neo training, fixed at 18:33:45 before any run:** the code first
+  (`neo_skill.merged_block`, `block_rule` with the second takeoff `k2`,
+  `bank --two`, `mix`; opt-in, a single-neo bank trains as before; tests in
+  `tests/test_neo_skill.py`). Bank `runs/neo_skill_bank_two_v1.pt`: 25,544
+  two-neo courses of training families 70-73 (the two-neo sets' generator,
+  6,400 per family, none equal to a held-out course), the final policy's
+  arrival on the platform before the first takeoff from the simulator's
+  start and after 10 settle ticks (205 s on the GPU). A two-neo episode is
+  the merged block, from there to the platform after the second neo's
+  target; skipping either takeoff or either target is a fall; types 32-127
+  (spacing class x the first neo's type), drawn by failure rate with the
+  single-neo types 0-31. Two runs side by side through the queue (two
+  trainers at most, the watchdog on), each from the shipped skill
+  (`runs/neo-skill-d4/checkpoints/updates_00400.pt`, the bytes of
+  `results/neo_skill.pt`) with d4's settings (gamma 0.99, `--reward-stall
+  5`, learning rate at most 3e-4, pool 4,096, entropy 0.01, imitation weight
+  0.3 on the three DAgger pair files d4 used), 500 updates, a snapshot
+  every 50: `neo-skill-t1` on `runs/neo_skill_bank_mix_v1.pt` (the
+  single-neo bank's rows and the two-neo bank's in turn) and `neo-skill-t2`
+  on the two-neo bank alone.
+- **Choice, validation only:** every snapshot of both runs played on
+  family 52 and on single-neo family 40 (course list, CPU). Eligible: at
+  least 280 on family 40 (the shipped skill's 289 less 9), so a choice does
+  not lose single neos. Chosen: the eligible snapshot with the most strict
+  on family 52, ties to fewer updates, then to t1. It replaces the shipped
+  skill only if it beats 208 there by more than 16; otherwise the shipped
+  skill stays.
+- **Test, once, then the bots:** the chosen network on family 53 with the
+  course list and in router mode, with the planner's reference on 53 (as on
+  52); a new network also on fresh single-neo family 54 (pinned, fingerprint
+  `2d81189ee13514ee`, and excluded at 18:27, before any run), both modes, so
+  its single-neo level is measured on courses no version has played. Then
+  the offline bot and real Minecraft on the first 64 courses of family 53,
+  both modes, each checked against `parkour.live`'s simulator re-run.
 
 **Single neos at 85% by a network, without the search (Ethan, 31 Oct, about
 08:30: "i need our network/gate will have 85% on neo"; his suggestion: when

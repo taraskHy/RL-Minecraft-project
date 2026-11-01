@@ -212,3 +212,106 @@ def test_bank_and_training_on_segments(tmp_path, monkeypatch):
         raise AssertionError("--segments needs --test-once")
     except ValueError:
         pass
+
+
+def test_merged_block_of_two_neos_is_the_switch_s_run_of_checkpoints():
+    from parkour.neo_assist import TWO_VALIDATION_FAMILY, two_neo_courses, two_neo_plan
+    for c, (_, _, k1, k2) in zip(two_neo_courses(TWO_VALIDATION_FAMILY, 40), two_neo_plan(40)):
+        assert NS.merged_block(c) == (k1, k2, max(k1 - 1, 0), min(k2 + 2, c.n - 1))
+        assert skill_cps(c) == list(range(max(k1 - 1, 0), k2 + 2))  # one run: the skill plays it all
+    for c in courses(8):
+        k, first, end = NS.block(c)
+        assert NS.merged_block(c) == (k, k, first, end)
+
+
+def test_block_rule_with_a_second_neo():
+    k, k2, end = torch.tensor([3] * 7), torch.tensor([4] * 7), torch.tensor([6] * 7)  # back to back: 3, 4, then 5
+    cp = torch.tensor([3, 4, 4, 3, 5, 5, 2])
+    new = torch.tensor([4, 5, 6, 5, 6, 7, 3])
+    success, skipped = NS.block_rule(cp, new, k, end, k2)
+    assert skipped.tolist() == [False, False, True, True, False, False, False]  # past k2+1, past k2 (= k+1)
+    assert success.tolist() == [False, False, False, False, True, True, False]
+    one = NS.block_rule(cp, new, k, end, k)  # k2 = k: the one-neo rule
+    assert [x.tolist() for x in one] == [x.tolist() for x in NS.block_rule(cp, new, k, end)]
+
+
+def test_two_neo_bank_mix_and_training(tmp_path, monkeypatch):
+    from parkour.neo_assist import held_neo_hashes
+    for f in (52, 53, 40):
+        try:
+            NS.two_training_courses(families=(f,), per_family=1)
+            raise AssertionError("a held-out family")
+        except ValueError:
+            pass
+    cs, types = NS.two_training_courses(families=(70,), per_family=40)
+    assert not {T.course_hash(c) for c in cs} & held_neo_hashes()
+    assert [c.level for c in cs] == types and all(32 <= t < 128 for t in types)
+    assert {t // 32 for t in types} == {1, 2, 3}
+    two, one = tmp_path / "two.pt", tmp_path / "one.pt"
+    meta = NS.build_bank(FINAL, two, families=(70,), per_family=6, device="cpu", batch=6, two=True)
+    assert meta["kind"] == "two" and meta["n_types"] == 128 and meta["generated"] == 6
+    NS.build_bank(FINAL, one, families=(60,), per_family=5, device="cpu", batch=5)
+    b2 = NS.SegmentBank(two, "cpu")
+    assert b2.n_types == 128
+    for c, k, k2, end in zip(b2.courses, b2.k.tolist(), b2.k2.tolist(), b2.end.tolist()):
+        assert NS.merged_block(c)[:2] == (k, k2) and k < k2 and end == min(k2 + 2, c.n - 1)
+    assert NS.SegmentBank(one, "cpu").k2.tolist() == NS.SegmentBank(one, "cpu").k.tolist()
+    mixed = tmp_path / "mix.pt"
+    mm = NS.mix_banks([one, two], mixed)
+    bm, b1 = NS.SegmentBank(mixed, "cpu"), NS.SegmentBank(one, "cpu")
+    assert mm["n_types"] == 128 and len(bm.courses) == len(b1.courses) + len(b2.courses)
+    n = min(len(b1.courses), len(b2.courses))
+    assert [c.to_json() for c in bm.courses[:2 * n:2]] == [c.to_json() for c in b1.courses[:n]]
+    assert [c.to_json() for c in bm.courses[1:2 * n:2]] == [c.to_json() for c in b2.courses[:n]]
+    assert torch.equal(bm.starts["pos"][1], b2.starts["pos"][0]) and bm.k2[1] == b2.k2[0]
+    # A few PPO updates on single and two-neo blocks (tiny network, CPU): 128 types in the log.
+    monkeypatch.setattr(T, "RUNS", tmp_path)
+    original = T.held_out_courses
+    monkeypatch.setattr(T, "held_out_courses", lambda levels, per_level, n_jumps, obstacle_prob=0, family=1, ice_prob=0.0:
+                        original(levels, 1, 2, obstacle_prob=obstacle_prob, family=family))
+    cfg = T.TrainConfig(run="tiny-two", device="cpu", threads=1, num_envs=8, rollout=4, pool_size=4, pool_refresh_every=2,
+                        pool_refresh_frac=0.5, hidden=(8,), epochs=1, minibatches=1, eval_every=2, iterations=3, test_once=True,
+                        segments=str(mixed), save_at="3")
+    out = T.train(cfg)
+    log = (out / "train_log.csv").read_text().splitlines()
+    assert len(log) == 4 and "train_success_L127" in log[0]
+
+
+def test_a_two_neo_episode_needs_both_neos(monkeypatch):
+    """In a two-neo block, standing on k2+1 is not the end and skipping the second takeoff is a fall."""
+    from parkour.neo_assist import TWO_VALIDATION_FAMILY, two_neo_courses, two_neo_plan
+    cs = [c for c, (_, _, k1, k2) in zip(two_neo_courses(TWO_VALIDATION_FAMILY, 40), two_neo_plan(40))
+          if k2 - k1 == 2 and k2 + 2 < c.n][:2]
+    n = len(cs)
+    blocks = [NS.merged_block(c) for c in cs]
+    model = load_model(FINAL, "cpu")
+    starts = NS.collect_starts(model, cs, "cpu")
+    kinds = {"pos": torch.float64, "vel": torch.float64, "yaw": torch.float64, "on_ground": torch.bool,
+             "jump_ticks": torch.int64, "collided_h": torch.bool, "collided_v": torch.bool, "cp": torch.int64,
+             "last_action": torch.int64}
+    starts = [s or starts[0] for s in starts]
+    slots = {key: torch.tensor([s[key] for s in starts], dtype=dt)[:, None] for key, dt in kinds.items()}
+    slots["valid"] = torch.ones(n, 1, dtype=torch.bool)
+    slots["k"] = torch.tensor([b[0] for b in blocks])
+    slots["k2"] = torch.tensor([b[1] for b in blocks])
+    slots["end"] = torch.tensor([b[3] for b in blocks])
+    env = NS.SegmentEnv(CoursePool(cs, "cpu", C.GRID), EnvConfig(num_envs=n), slots=slots)
+    env.reset_all(torch.arange(n))
+    seen = {}
+    rule = NS.block_rule
+
+    def spy(cp, new_cp, k, end, k2=None):
+        seen.update(k=k.clone(), k2=None if k2 is None else k2.clone(), end=end.clone())
+        return rule(cp, new_cp, k, end, k2)
+
+    monkeypatch.setattr(NS, "block_rule", spy)
+    env.step(torch.zeros(n, 5, dtype=torch.int64))
+    assert torch.equal(seen["k"], slots["k"]) and torch.equal(seen["k2"], slots["k2"])
+    assert torch.equal(seen["end"], slots["end"])  # the second neo's k2+2
+    k1, k2, end = slots["k"], slots["k2"], slots["end"]
+    success, skipped = NS.block_rule(k1 + 1, k1 + 2, k1, end, k2)  # the platform between: on the way
+    assert not bool(success.any()) and not bool(skipped.any())
+    success, skipped = NS.block_rule(k2 - 1, k2 + 1, k1, end, k2)  # past the second takeoff
+    assert bool(skipped.all()) and not bool(success.any())
+    success, _ = NS.block_rule(k2 + 1, end, k1, end, k2)
+    assert bool(success.all())

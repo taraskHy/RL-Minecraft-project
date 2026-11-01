@@ -30,6 +30,16 @@ and the other rewards are the environment's. The course's level is its neo
 type (0-31, ``neo_assist.single_neo_types``), so the training log shows
 each type's success, and ``TypeSampler`` draws the types that fail more
 often more often.
+
+Two neos (opt-in, HANDOFF.md section 3, 1 Nov): with two neos at most
+three jumps apart the switch's checkpoints are one run, from the platform
+before the first takeoff to the one after the second neo's target
+(``merged_block``), and so is the training episode. ``bank --two`` builds a
+bank of two-neo courses (``two_training_courses``: the two-neo sets'
+generator on families 70-79), each row with its second takeoff ``k2``, which
+``block_rule`` also requires to be stood on, and its target; a course's
+type is ``two_type`` (32-127). ``mix`` interleaves banks, so a run can
+train on single and two-neo blocks together.
 """
 from __future__ import annotations
 
@@ -49,13 +59,17 @@ from .env import (FALL_MARGIN, MAX_PLATFORMS, CoursePool, EnvConfig, LevelSample
                   on_obstacle)
 from .live import load_model
 from .neo_assist import (SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2, SINGLE_FRESH_TEST_FAMILY_3,
-                         SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, TWO_TEST_FAMILY, TWO_VALIDATION_FAMILY,
-                         held_neo_hashes, single_neo_courses, single_neo_types, skill_cps)
+                         SINGLE_FRESH_TEST_FAMILY_4, SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, TWO_SPACINGS,
+                         TWO_TEST_FAMILY, TWO_VALIDATION_FAMILY, held_neo_hashes, single_neo_courses, single_neo_types,
+                         skill_cps, two_neo_courses, two_neo_plan)
 from .neo_dagger import neo_takeoffs
 from .paths import ROOT
 from .train import course_hash
 
 TRAIN_FAMILIES = tuple(range(60, 70))  # the bank's single-neo courses; nothing else uses these families
+TWO_TRAIN_FAMILIES = tuple(range(70, 80))  # two-neo training courses (HANDOFF.md section 3, 1 Nov); nothing else uses them
+HELD_FAMILIES = (SINGLE_VALIDATION_FAMILY, SINGLE_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2,
+                 SINGLE_FRESH_TEST_FAMILY_3, SINGLE_FRESH_TEST_FAMILY_4, TWO_VALIDATION_FAMILY, TWO_TEST_FAMILY)
 SETTLES = (0, 10)  # the simulator's start, and the bots' (parkour.live.SETTLE_TICKS)
 STATE_FIELDS = ("pos", "vel", "yaw", "on_ground", "jump_ticks", "collided_h", "collided_v")
 
@@ -70,11 +84,25 @@ def block(course: C.Course) -> tuple[int, int, int]:
     return k, max(k - 1, 0), min(k + 2, course.n - 1)
 
 
-def block_rule(cp: torch.Tensor, new_cp: torch.Tensor, k: torch.Tensor, end: torch.Tensor):
+def merged_block(course: C.Course) -> tuple[int, int, int, int]:
+    """(k1, k2, first, end) of the block the skill plays on a course with one neo (k2 = k1: ``block``) or two
+    neos at most three jumps apart (``neo_assist.skill_cps`` is then one run of checkpoints): from the platform
+    before the first takeoff (or 0) to the one after the second neo's target (or the goal)."""
+    ks = neo_takeoffs(course)
+    if len(ks) == 1:
+        ks = ks * 2
+    elif len(ks) != 2 or not 0 < ks[1] - ks[0] <= max(TWO_SPACINGS):
+        raise ValueError(f"a merged block has one neo or two at most {max(TWO_SPACINGS)} apart, not {ks}")
+    return ks[0], ks[1], max(ks[0] - 1, 0), min(ks[1] + 2, course.n - 1)
+
+
+def block_rule(cp: torch.Tensor, new_cp: torch.Tensor, k: torch.Tensor, end: torch.Tensor, k2: torch.Tensor | None = None):
     """(success, skipped) of one step in a block: skipped when the furthest platform stood on went past the
-    takeoff k without standing on it, or past the target k+1 without standing on it; success when it reached
-    ``end`` without skipping."""
+    takeoff k without standing on it, or past the target k+1 without standing on it (with ``k2``, the second
+    neo's takeoff, also past k2 or k2+1); success when it reached ``end`` without skipping."""
     skipped = ((cp < k) & (new_cp > k)) | ((cp < k + 1) & (new_cp > k + 1))
+    if k2 is not None:
+        skipped = skipped | ((cp < k2) & (new_cp > k2)) | ((cp < k2 + 1) & (new_cp > k2 + 1))
     return (new_cp >= end) & ~skipped, skipped
 
 
@@ -85,8 +113,7 @@ def training_courses(families=TRAIN_FAMILIES, per_family: int = 6400) -> tuple[l
     n_types = len(single_neo_types())
     out, types = [], []
     for f in families:
-        if f in (SINGLE_VALIDATION_FAMILY, SINGLE_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2,
-                 SINGLE_FRESH_TEST_FAMILY_3, TWO_VALIDATION_FAMILY, TWO_TEST_FAMILY):
+        if f in HELD_FAMILIES:
             raise ValueError(f"family {f} is a held-out neo set")
         for i, c in enumerate(single_neo_courses(f, per_family)):
             if course_hash(c) in exclude:
@@ -94,6 +121,31 @@ def training_courses(families=TRAIN_FAMILIES, per_family: int = 6400) -> tuple[l
             c.level = i % n_types
             out.append(c)
             types.append(i % n_types)
+    return out, types
+
+
+def two_type(t1: int, k1: int, k2: int) -> int:
+    """The training type of a two-neo course (its level in a bank): 32 + 32 x (spacing class) + the first neo's
+    type, the classes back to back, one apart and two apart (types 32-127; the single-neo types are 0-31)."""
+    n = len(single_neo_types())
+    return n + n * (k2 - k1 - 1) + t1
+
+
+def two_training_courses(families=TWO_TRAIN_FAMILIES, per_family: int = 6400) -> tuple[list[C.Course], list[int]]:
+    """Two-neo courses of the held-out sets' generator (``neo_assist.two_neo_courses``) on training families, none
+    equal to a course of the single- or two-neo sets; each course's level set to its ``two_type``."""
+    exclude = held_neo_hashes()
+    plan = two_neo_plan(per_family)
+    out, types = [], []
+    for f in families:
+        if f in HELD_FAMILIES:
+            raise ValueError(f"family {f} is a held-out neo set")
+        for c, (t1, _, k1, k2) in zip(two_neo_courses(f, per_family), plan):
+            if course_hash(c) in exclude:
+                continue
+            c.level = two_type(t1, k1, k2)
+            out.append(c)
+            types.append(c.level)
     return out, types
 
 
@@ -112,8 +164,8 @@ def collect_starts(model, courses: list[C.Course], device, settle: int = 0, max_
             env.state = physics.simulate(pool.world, env.course, env.state, idle)
         env.dist = env._distance(env.state.pos, env.course, env.cp)
         obs = env.observe()
-    blocks = [block(c) for c in courses]
-    first = torch.tensor([b[1] for b in blocks], device=device)
+    blocks = [merged_block(c) for c in courses]  # (one neo: block's own k and first)
+    first = torch.tensor([b[2] for b in blocks], device=device)
     k = torch.tensor([b[0] for b in blocks], device=device)
     out = [None] * n
 
@@ -145,11 +197,12 @@ def collect_starts(model, courses: list[C.Course], device, settle: int = 0, max_
 
 
 def build_bank(checkpoint: Path, out: Path, families=TRAIN_FAMILIES, per_family: int = 6400, device="cuda",
-               batch: int = 4096) -> dict:
-    """The training bank: every training course with at least one start (``collect_starts``, per ``SETTLES``)."""
+               batch: int = 4096, two: bool = False) -> dict:
+    """The training bank: every training course with at least one start (``collect_starts``, per ``SETTLES``).
+    With ``two``, two-neo courses (``two_training_courses``) and each row's second takeoff (``k2``)."""
     t0 = time.time()
     model = load_model(checkpoint, device)
-    courses, types = training_courses(families, per_family)
+    courses, types = (two_training_courses if two else training_courses)(families, per_family)
     V = len(SETTLES)
     rows = []
     for lo in range(0, len(courses), batch):
@@ -176,12 +229,15 @@ def build_bank(checkpoint: Path, out: Path, families=TRAIN_FAMILIES, per_family:
                 arr[key][r, v] = torch.tensor(st[key], dtype=arr[key].dtype)  # (float64: the exact state)
     ck = Path(checkpoint).resolve()
     data = {"courses": [courses[i].to_json() for i, _ in rows], "types": [types[i] for i, _ in rows],
-            "k": [block(courses[i])[0] for i, _ in rows], **arr,
+            "k": [merged_block(courses[i])[0] for i, _ in rows], **arr,
             "meta": {"checkpoint": ck.relative_to(ROOT).as_posix() if ck.is_relative_to(ROOT) else ck.name,
                      "checkpoint_sha1": hashlib.sha1(ck.read_bytes()).hexdigest()[:12], "families": list(families),
                      "per_family": per_family, "settles": list(SETTLES), "generated": len(courses), "kept": n,
                      "starts": {str(s): int(arr["valid"][:, v].sum()) for v, s in enumerate(SETTLES)},
                      "device": str(device), "seconds": round(time.time() - t0, 1)}}
+    if two:  # (only then, so a single-neo bank's file is as before)
+        data["k2"] = [merged_block(courses[i])[1] for i, _ in rows]
+        data["meta"].update(kind="two", n_types=4 * len(single_neo_types()))
     out.parent.mkdir(parents=True, exist_ok=True)
     torch.save(data, out)
     print(json.dumps(data["meta"]), flush=True)
@@ -201,11 +257,13 @@ class SegmentBank:
         if any(course_hash(c) in held for c in self.courses):
             raise ValueError("the bank holds a held-out course")
         self.k = torch.as_tensor(d["k"], dtype=torch.int64)
-        self.end = torch.as_tensor([min(int(k) + 2, c.n - 1) for k, c in zip(d["k"], self.courses)], dtype=torch.int64)
+        self.k2 = torch.as_tensor(d.get("k2", d["k"]), dtype=torch.int64)  # the second neo's takeoff (k: one neo)
+        self.end = torch.as_tensor([min(int(k) + 2, c.n - 1) for k, c in zip(self.k2.tolist(), self.courses)],
+                                   dtype=torch.int64)
         self.starts = {key: d[key] for key in STATE_FIELDS + ("cp", "last_action", "valid")}
         if not bool(self.starts["valid"].any(1).all()):
             raise ValueError("every bank course needs a start")
-        self.n_types = len(single_neo_types())
+        self.n_types = int(self.meta.get("n_types", len(single_neo_types())))
         self.device = device
         self.next = 0
 
@@ -219,8 +277,31 @@ class SegmentBank:
         i = torch.as_tensor(idx, dtype=torch.int64)
         out = {key: v[i].to(self.device) for key, v in self.starts.items()}
         out["k"] = self.k[i].to(self.device)
+        out["k2"] = self.k2[i].to(self.device)
         out["end"] = self.end[i].to(self.device)
         return out
+
+
+def mix_banks(paths: list[Path], out: Path) -> dict:
+    """One bank of the rows of several, taken in turn (the first row of each, then the second, ...; a bank that
+    runs out drops out), so a run that reads it in order plays them about equally often."""
+    banks = [torch.load(p, map_location="cpu", weights_only=False) for p in paths]
+    order = []
+    for r in range(max(len(b["courses"]) for b in banks)):
+        order += [(j, r) for j, b in enumerate(banks) if r < len(b["courses"])]
+    data = {"courses": [banks[j]["courses"][r] for j, r in order], "types": [banks[j]["types"][r] for j, r in order],
+            "k": [banks[j]["k"][r] for j, r in order],
+            "k2": [banks[j].get("k2", banks[j]["k"])[r] for j, r in order]}
+    for key in STATE_FIELDS + ("cp", "last_action", "valid"):
+        data[key] = torch.stack([banks[j][key][r] for j, r in order])
+    data["meta"] = {"mixed": [str(p) for p in paths], "banks": [b["meta"] for b in banks], "kept": len(order),
+                    "settles": banks[0]["meta"]["settles"],
+                    "n_types": max(int(b["meta"].get("n_types", len(single_neo_types()))) for b in banks)}
+    if any(b["meta"]["settles"] != data["meta"]["settles"] for b in banks):
+        raise ValueError("the banks were collected with other settle ticks")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(data, out)
+    return data["meta"]
 
 
 class JumpReadout:
@@ -293,11 +374,12 @@ class SegmentEnv(ParkourEnv):
         """``ParkourEnv.step`` with the block's end as the goal and a skipped platform as a fall."""
         cfg = self.cfg.reward
         kk = self.slot["k"][self.course]
+        kk2 = self.slot["k2"][self.course] if "k2" in self.slot else None  # (a second neo; = kk with one neo)
         end = self.slot["end"][self.course]
         ctrl = torch.ones_like(self.cp, dtype=torch.bool)  # the given action is played
         if self.base is not None:  # the jump after the block is the base's
             end = torch.minimum(end + 1, self.pool.n[self.course] - 1)
-            ctrl = self.cp < kk + 2
+            ctrl = self.cp < (kk if kk2 is None else kk2) + 2
             if not bool(ctrl.all()):
                 with torch.no_grad():
                     action = torch.where(ctrl[:, None], action, self.base.act(self.observe(), deterministic=True)[0])
@@ -319,7 +401,7 @@ class SegmentEnv(ParkourEnv):
         new_cp = torch.maximum(self.cp, reached)
         gained = (new_cp - self.cp).to(torch.float64)
         last = self.pool.n[self.course] - 1
-        success, skipped = block_rule(self.cp, new_cp, kk, end)
+        success, skipped = block_rule(self.cp, new_cp, kk, end, kk2)
 
         dist = self._distance(new.pos, self.course, new_cp)
         progress = self.dist - dist  # (a skip still earns its landings and progress, then the fall penalty)
@@ -458,10 +540,20 @@ def main(argv=None):
     b.add_argument("--checkpoint", default=str(ROOT / "results" / "final_policy.pt"))
     b.add_argument("--out", default=str(ROOT / "runs" / "neo_skill_bank.pt"))
     b.add_argument("--per-family", type=int, default=6400)
-    b.add_argument("--families", default=f"{TRAIN_FAMILIES[0]}-{TRAIN_FAMILIES[-1]}")
+    b.add_argument("--families", default="", help=f"default {TRAIN_FAMILIES[0]}-{TRAIN_FAMILIES[-1]}")
     b.add_argument("--device", default="cuda")
     b.add_argument("--batch", type=int, default=4096)
+    b.add_argument("--two", action="store_true", help="two-neo courses (two_training_courses; default families "
+                                                     f"{TWO_TRAIN_FAMILIES[0]}-{TWO_TRAIN_FAMILIES[-1]})")
+    m = sub.add_parser("mix", help="one bank of several banks' rows, taken in turn")
+    m.add_argument("banks", nargs="+")
+    m.add_argument("--out", required=True)
     a = ap.parse_args(argv)
+    if a.cmd == "mix":
+        if Path(a.out).exists():
+            raise SystemExit(f"{a.out} exists; choose a new name")
+        print(json.dumps(mix_banks([Path(x) for x in a.banks], Path(a.out))), flush=True)
+        return
     if a.cmd == "dagger":
         if Path(a.out).exists():
             raise SystemExit(f"{a.out} exists; choose a new name")
@@ -469,11 +561,12 @@ def main(argv=None):
                      a.device, a.batch, seed=a.seed, air_every=a.air_every, exits=a.exits, skip=a.skip)
         return
     if a.cmd == "bank":
-        lo, _, hi = a.families.partition("-")
+        default = TWO_TRAIN_FAMILIES if a.two else TRAIN_FAMILIES
+        lo, _, hi = (a.families or f"{default[0]}-{default[-1]}").partition("-")
         fams = tuple(range(int(lo), int(hi or lo) + 1))
         if Path(a.out).exists():
             raise SystemExit(f"{a.out} exists; choose a new name")
-        build_bank(Path(a.checkpoint), Path(a.out), fams, a.per_family, a.device, a.batch)
+        build_bank(Path(a.checkpoint), Path(a.out), fams, a.per_family, a.device, a.batch, two=a.two)
 
 
 if __name__ == "__main__":

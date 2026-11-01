@@ -1,6 +1,7 @@
 """The first N courses of a single-neo set as a course file for the bots (parkour.live --courses-file).
 
     python scripts/single_neo_bot_courses.py OUT.json [--family 41] [--n 64]
+    python scripts/single_neo_bot_courses.py OUT.json --set two --family 53   (a two-neo set, 1 Nov)
 
 HANDOFF.md section 3 (rules of 29 Oct, 17:49): after the simulator's test on family 41, the offline bot and, only if
 it matches the simulator on every course, real Minecraft play the first 64 test courses (each of the 32 single-neo
@@ -17,7 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from parkour.neo_assist import single_neo_courses  # noqa: E402
+from parkour.neo_assist import single_neo_courses, two_neo_courses  # noqa: E402
 
 
 def main():
@@ -25,12 +26,13 @@ def main():
     ap.add_argument("out", type=Path)
     ap.add_argument("--family", type=int, default=41)
     ap.add_argument("--n", type=int, default=64)
+    ap.add_argument("--set", choices=("single", "two"), default="single")
     a = ap.parse_args()
     if a.out.exists():
         raise SystemExit(f"{a.out} exists; the course file is written once")
-    cs = [c.to_json() for c in single_neo_courses(a.family, a.n)]
+    cs = [c.to_json() for c in (two_neo_courses if a.set == "two" else single_neo_courses)(a.family, a.n)]
     a.out.write_text(json.dumps({"courses": cs}), encoding="utf-8")
-    print(json.dumps({"out": str(a.out), "family": a.family, "courses": len(cs),
+    print(json.dumps({"out": str(a.out), "set": a.set, "family": a.family, "courses": len(cs),
                       "sha256": hashlib.sha256(a.out.read_bytes()).hexdigest()}))
 
 

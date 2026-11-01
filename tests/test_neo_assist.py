@@ -432,12 +432,13 @@ class SingleNeoSets(unittest.TestCase):
     def test_kept_out_of_training(self):
         hashes = single_neo_hashes()
         fresh = [single_neo_courses(f) for f in (SINGLE_FRESH_TEST_FAMILY, NA.SINGLE_FRESH_TEST_FAMILY_2,
-                                                 NA.SINGLE_FRESH_TEST_FAMILY_3)]  # the neo skill's
+                                                 NA.SINGLE_FRESH_TEST_FAMILY_3, NA.SINGLE_FRESH_TEST_FAMILY_4)]  # the neo skill's
         self.assertEqual(hashes, {course_hash(c) for cs in list(self.sets.values()) + fresh for c in cs})
-        self.assertEqual(len(hashes), 1600)
+        self.assertEqual(len(hashes), 1920)
         self.assertIn(SINGLE_FRESH_TEST_FAMILY, TEST_FAMILIES)
         self.assertIn(NA.SINGLE_FRESH_TEST_FAMILY_2, TEST_FAMILIES)
         self.assertIn(NA.SINGLE_FRESH_TEST_FAMILY_3, TEST_FAMILIES)
+        self.assertIn(NA.SINGLE_FRESH_TEST_FAMILY_4, TEST_FAMILIES)
         original = T.held_out_courses
         tiny = lambda levels, per_level, n_jumps, obstacle_prob=0.0, family=1, ice_prob=0.0: original(  # noqa: E731
             levels, 1, 2, obstacle_prob=obstacle_prob, family=family, ice_prob=ice_prob)
@@ -561,7 +562,7 @@ class TwoNeoSets(unittest.TestCase):
         self.assertEqual(two, {course_hash(c) for cs in self.sets.values() for c in cs})
         self.assertEqual(len(two), 640)
         self.assertEqual(NA.held_neo_hashes(), single_neo_hashes() | two)
-        self.assertEqual(len(NA.held_neo_hashes()), 2240)
+        self.assertEqual(len(NA.held_neo_hashes()), 2560)
         from parkour import neo_skill
         for f in (NA.TWO_VALIDATION_FAMILY, NA.TWO_TEST_FAMILY):
             with self.assertRaises(ValueError):

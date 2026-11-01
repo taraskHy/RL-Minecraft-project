@@ -65,14 +65,15 @@ from .planner import PlannerConfig
 from .route_env import RouteConfig, RouteRunner, RouteTables
 from .train import (OBSTACLE_TEST_FAMILY, OBSTACLE_VALIDATION_FAMILY, TEST_SEED_FAMILY, VALIDATION_FAMILY,
                     held_out_courses)
-from .neo_assist import (SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2, SINGLE_FRESH_TEST_FAMILY_3, SINGLE_TEST_FAMILY,
-                         SINGLE_VALIDATION_FAMILY, TWO_TEST_FAMILY, TWO_VALIDATION_FAMILY)
+from .neo_assist import (SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2, SINGLE_FRESH_TEST_FAMILY_3,
+                         SINGLE_FRESH_TEST_FAMILY_4, SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, TWO_TEST_FAMILY,
+                         TWO_VALIDATION_FAMILY)
 
 K = C.MAX_PLATFORMS
 OUT_DIR = ROOT / "results" / "neo_routing"
 # (test, validation[, further test sets]); the single-neo sets' fresh test families 49, 50 and 51 are the neo skill's (31 Oct)
 SETS = {"single": (SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2,
-                   SINGLE_FRESH_TEST_FAMILY_3),
+                   SINGLE_FRESH_TEST_FAMILY_3, SINGLE_FRESH_TEST_FAMILY_4),
         "two": (TWO_TEST_FAMILY, TWO_VALIDATION_FAMILY),  # the two-neo sets (1 Nov)
         "standard": (TEST_SEED_FAMILY, VALIDATION_FAMILY), "obstacles": (OBSTACLE_TEST_FAMILY, OBSTACLE_VALIDATION_FAMILY)}
 
