@@ -1,0 +1,149 @@
+{
+ "best": {
+  "iteration": 299,
+  "validation_success": 0.49666666666666665,
+  "test_success": 0.5141666666666667,
+  "validation_per_level": {
+   "0": {
+    "success": 0.96,
+    "fell": 0.04,
+    "progress": 0.9673333333333334,
+    "ticks_success": 127.42708333333331,
+    "n": 100
+   },
+   "1": {
+    "success": 0.91,
+    "fell": 0.06,
+    "progress": 0.9460000000000001,
+    "ticks_success": 127.89010989010988,
+    "n": 100
+   },
+   "2": {
+    "success": 0.56,
+    "fell": 0.3,
+    "progress": 0.7808571428571429,
+    "ticks_success": 142.57142857142858,
+    "n": 100
+   },
+   "3": {
+    "success": 0.46,
+    "fell": 0.48,
+    "progress": 0.6307142857142857,
+    "ticks_success": 152.3913043478261,
+    "n": 100
+   },
+   "4": {
+    "success": 0.08,
+    "fell": 0.76,
+    "progress": 0.37699999999999995,
+    "ticks_success": 144.875,
+    "n": 100
+   },
+   "5": {
+    "success": 0.01,
+    "fell": 0.5499999999999999,
+    "progress": 0.14722222222222223,
+    "ticks_success": 166.0,
+    "n": 100
+   }
+  }
+ },
+ "last_eval": {
+  "validation_success": 0.49666666666666665,
+  "validation_per_level": {
+   "0": {
+    "success": 0.96,
+    "fell": 0.04,
+    "progress": 0.9673333333333334,
+    "ticks_success": 127.42708333333331,
+    "n": 100
+   },
+   "1": {
+    "success": 0.91,
+    "fell": 0.06,
+    "progress": 0.9460000000000001,
+    "ticks_success": 127.89010989010988,
+    "n": 100
+   },
+   "2": {
+    "success": 0.56,
+    "fell": 0.3,
+    "progress": 0.7808571428571429,
+    "ticks_success": 142.57142857142858,
+    "n": 100
+   },
+   "3": {
+    "success": 0.46,
+    "fell": 0.48,
+    "progress": 0.6307142857142857,
+    "ticks_success": 152.3913043478261,
+    "n": 100
+   },
+   "4": {
+    "success": 0.08,
+    "fell": 0.76,
+    "progress": 0.37699999999999995,
+    "ticks_success": 144.875,
+    "n": 100
+   },
+   "5": {
+    "success": 0.01,
+    "fell": 0.5499999999999999,
+    "progress": 0.14722222222222223,
+    "ticks_success": 166.0,
+    "n": 100
+   }
+  }
+ },
+ "iteration": 299,
+ "env_steps": 157286400,
+ "test_eval": {
+  "iteration": 299,
+  "success": 0.5141666666666667,
+  "per_level": {
+   "0": {
+    "success": 0.965,
+    "fell": 0.035,
+    "progress": 0.9789999999999999,
+    "ticks_success": 124.35751295336787,
+    "n": 200
+   },
+   "1": {
+    "success": 0.905,
+    "fell": 0.09,
+    "progress": 0.9420000000000001,
+    "ticks_success": 128.3314917127072,
+    "n": 200
+   },
+   "2": {
+    "success": 0.615,
+    "fell": 0.285,
+    "progress": 0.7743333333333333,
+    "ticks_success": 141.21138211382114,
+    "n": 200
+   },
+   "3": {
+    "success": 0.435,
+    "fell": 0.52,
+    "progress": 0.6370833333333333,
+    "ticks_success": 151.56321839080456,
+    "n": 200
+   },
+   "4": {
+    "success": 0.15,
+    "fell": 0.685,
+    "progress": 0.4086388888888889,
+    "ticks_success": 158.8,
+    "n": 200
+   },
+   "5": {
+    "success": 0.015,
+    "fell": 0.525,
+    "progress": 0.1295,
+    "ticks_success": 118.0,
+    "n": 200
+   }
+  }
+ },
+ "completed": true
+}

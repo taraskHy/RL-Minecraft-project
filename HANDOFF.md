@@ -2356,18 +2356,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `e38b47d` (2026-11-01 19:39, branch `main`): Slime skill plumbing: posts training courses and a special hand-over (slime pads and narrow posts) in the bank builder, neo_assist --skill-blocks and parkour.live --skill-blocks
+Generated on top of commit `e280fc3` (2026-11-01 22:10, branch `main`): Slime and posts: round 3c (sp3c, sp3d) and the choice by the rules over 92 candidates: the slime skill sp3c updates 75 (275 of 320 on 55, not solid: 288; round 3c added 2, so the rounds end) as results/slime_skill.pt, the posts choice sp3c updates 50 (285 on 57) as results/posts_skill.pt; tests once: 261 of 320 on 56, 285 of 320 on 58; the offline bot 48/64 on 56's first 64, the simulator's outcome on every course; the report's slime/posts and water sections; the water runs w1/w2 queued after the bank
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 95 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 113 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | updated together with this snapshot | 0 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 279 |
-| `docs/report_draft.md` | `b6c7b2b` 2026-10-31 15:38 | 7 |
+| `README.md` | `d905229` 2026-11-01 20:01 | 17 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 297 |
+| `docs/report_draft.md` | `b6c7b2b` 2026-10-31 15:38 | 25 |
 | `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | `b6c7b2b` 2026-10-31 15:38 | 7 |
+| `results/DATA.md` | `e280fc3` 2026-11-01 22:10 | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -2480,6 +2480,12 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `skills-hh-ft` | 499 | 0.26 | 399 | 86.4 | 89.4 | - | - |
 | `slime-skill-s1` | 499 | 0.26 | 499 | 26.2 | 25.5 | - | - |
 | `slime-skill-s2` | 499 | 0.26 | 499 | 13.5 | 13.9 | - | - |
+| `slime-skill-sl2` | 299 | 0.16 | 299 | 26.0 | 26.4 | - | - |
+| `slime-skill-sp2` | 299 | 0.16 | 299 | 53.8 | 54.6 | - | - |
+| `slime-skill-sp3` | 299 | 0.16 | 299 | 49.7 | 51.4 | - | - |
+| `slime-skill-sp3b` | 299 | 0.16 | 299 | 49.8 | 51.4 | - | - |
+| `slime-skill-sp3c` | 299 | 0.16 | 299 | 50.3 | 52.7 | - | - |
+| `slime-skill-sp3d` | 299 | 0.16 | 299 | 48.3 | 51.2 | - | - |
 | `sparse-s0` | 999 | 0.52 | - | - | - | 95.1 | - |
 | `sparse-s1` | 999 | 0.52 | 749 | 93.5 | 93.2 | 91.5 | - |
 | `sparse-s2` | 999 | 0.52 | 799 | 94.7 | 94.4 | 94.1 | - |
@@ -2593,6 +2599,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 | `skill-replays-offline-65` | offline (prismarine-physics, no server) | `results/combined_policy.pt` | 59/65 | 90.8 | 100.0 |
 | `skill-replays-untrained-live` | live (Minecraft 1.21.4 server) | `results/combined_policy.pt` | 6/8 | 75.0 | 100.0 |
 | `skill-replays-untrained-offline` | offline (prismarine-physics, no server) | `results/combined_policy.pt` | 6/8 | 75.0 | 100.0 |
+| `slime56-offline-skill-sp3c` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 48/64 | 75.0 | 100.0 |
 | `two53-live-skill-t1` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 48/64 | 75.0 | 100.0 |
 | `two53-live-skill-t1-router` | live (Minecraft 1.21.4 server) | `results/final_policy.pt` | 50/64 | 78.1 | 100.0 |
 | `two53-offline-skill-t1` | offline (prismarine-physics, no server) | `results/final_policy.pt` | 48/64 | 75.0 | 100.0 |
@@ -2615,7 +2622,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 
 ### In `results/` but not yet in `results/DATA.md`
 
-`games/two53-live-skill-t1/`, `games/two53-live-skill-t1-router/`, `games/two53-offline-skill-t1/`, `games/two53-offline-skill-t1-router/`, `neo_skill_v3.json`, `neo_skill_v3.pt`
+`games/slime56-offline-skill-sp3c/`, `games/two53-live-skill-t1/`, `games/two53-live-skill-t1-router/`, `games/two53-offline-skill-t1/`, `games/two53-offline-skill-t1-router/`, `neo/slime_choice.json`, `neo_skill_v3.json`, `neo_skill_v3.pt`
 
 <!-- END AUTO-SNAPSHOT -->
 
@@ -2633,6 +2640,10 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **1 Nov 2026, 22:12, Claude (Claude Code, training PC; the fork that took over the main session's work):** Ethan's 1 Nov requests, continued (section 3).
+  - Slime and posts: rounds 3 and 3c (DAgger labels for the two slime kinds the skill missed; 3c added the episodes' takeoff starts). Chosen by the rules over 92 candidates: `results/slime_skill.pt` (275 of 320 on 55; not solid, 288) and `results/posts_skill.pt` (285 on 57); the rounds ended (3c added 2). Tests once: 261 of 320 on 56, 285 of 320 on 58; offline bot 48/64 on 56's first 64 (the simulator's outcomes). Open: real Minecraft (the builder Ethan started holds the server), the planner's references on 56 and 58 (they wait for the CPU).
+  - Water: pinned sets 100/101 (288 courses, two pools each) with rules fixed at 21:20:41; the water observation (355 inputs, the standard 255 first), training from the widened final policy, the bank, the planner and DAgger in water, the bots' observation and pools (checked against Python and the simulator), and the water physics vectorized on the GPU (bit-identical, 2.6x faster). The final policy alone: 7 of 288 on 100. Round 1 (w1, w2) is training; then the choice, the planner's reference (waits for the CPU), the test on 101, the bots.
+  - CPU: Ethan's game, its anti-cheat and OneDrive took about four cores this evening; the planner references run only while Task Manager reads under 65% (stopped above 88%).
 - **1 Nov 2026, 19:59, Claude (Claude Code, training PC; the session forked from the main one, which was idle, took over its work):** Ethan's 1 Nov requests (section 3), in his order.
   - Two neos per course: held-out sets 52/53 pinned and excluded before any run; the shipped skill was well short of the planner on validation (208 against 246; it lost the first neo of back-to-back pairs); trained on two-neo blocks (t1, t2), the choice t1 updates 350 (251) is shipped as `results/neo_skill.pt` (d4 kept as `_v3`). Test, once: 236 (course list) and 240 (router) of 320 against the planner's 245; fresh single-neo family 54: 278; the bots 48 and 50 of the first 64, offline and in real Minecraft, the simulator's courses, 0 corrections.
   - The course builder (`run.cmd builder`): build in creative with a kit of modelled blocks, `!start`/`!goal`/`!run`; checked in real Minecraft with a scripted player (two demo courses scanned back exactly, the game equal to the simulator).

@@ -348,6 +348,59 @@ The bots on the first 64 two-neo test courses, from the bots' start:
 | two53-offline-skill-t1-router (router + neo skill t1) | offline (prismarine-physics, no server) | 50/64 | 78.1 | 100.0 | - | 3.6e-15 |
 | two53-live-skill-t1-router (router + neo skill t1) | live (Minecraft 1.21.4 server) | 50/64 | 78.1 | 100.0 | 0 | 2.1e-14 |
 
+## Slime-heavy and post-heavy courses (simulator; HANDOFF.md section 3, rules of 1 Nov 19:21:21)
+
+320 courses per family, 8 jump specs: slime-heavy, 4 slime bounces (a pad and its exit; families 55
+validation, 56 test); post-heavy, 4 narrow posts (fence and wall posts, end rods, iron bars) and 2 slime
+bounces (57, 58). The slime skill (`parkour.neo_skill` on slime blocks) plays each pad's block (and each
+post's, `--skill-blocks special`) from the takeoff onto it to its exit; the final policy plays the rest.
+
+| Player | Family 55 | Family 57 |
+| --- | --- | --- |
+| `results/final_policy.pt` alone | 0 | 9 |
+| `results/combined_policy.pt` alone | 194 | 226 |
+| final policy + planner (its chosen setting) | 304 | - |
+
+Each training run's best snapshot on family 55 (every snapshot of every run was played on 55 and 57):
+
+| Run | Updates | Family 55 | Family 57 (same snapshot) |
+| --- | --- | --- | --- |
+| slime-skill-s1 | 100 | 262 | 146 |
+| slime-skill-s2 | 400 | 251 | 132 |
+| slime-skill-sl2 | 25 | 269 | 151 |
+| slime-skill-sp2 | 100 | 271 | 281 |
+| slime-skill-sp3 | 275 | 273 | 271 |
+| slime-skill-sp3b | 225 | 270 | 273 |
+| slime-skill-sp3c | 75 | 275 | 270 |
+| slime-skill-sp3d | 250 | 266 | 265 |
+
+Chosen over all 92 candidates: the slime skill `runs/slime-skill-sp3c/checkpoints/updates_00075.pt` (`57e864224252`, 275 on family 55); for posts `runs/slime-skill-sp3c/checkpoints/updates_00050.pt` (`564b41df5a80`, 285 on family 57). Round 3c added 2 on family 55 (best before it 273), less than 5, so the rounds end; the solid bar was 288.
+
+Tests, each played once (course list):
+
+| Player | Set | Completed |
+| --- | --- | --- |
+| `results/slime_skill.pt` (`57e864224252`) as the slime skill | slime 56 | 261 of 320 |
+| `results/posts_skill.pt` (`564b41df5a80`) as the slime skill | posts 58 | 285 of 320 |
+
+The bots on the first 64 slime-heavy test courses, from the bots' start:
+
+| Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |
+| --- | --- | --- | --- | --- | --- | --- |
+| slime56-offline-skill-sp3c | offline (prismarine-physics, no server) | 48/64 | 75.0 | 100.0 | - | 7.1e-15 |
+
+## Water (simulator; HANDOFF.md section 3, rules of 1 Nov 21:20:41)
+
+288 courses per family, 8 jump specs, 2 of them water pieces of 24 kinds (a pool breaking a drop, a
+column to swim up, a gap to swim across; `parkour.water`; families 100 validation, 101 test). The water
+physics is prismarine-physics' (checked against the real engine). The water skill sees 100 more numbers
+(in water, the surface above the feet, the water surface over the block scan) and plays each water jump's
+block, from the platform before the takeoff to the exit; the final policy plays the rest.
+
+| Player | Family | Completed |
+| --- | --- | --- |
+| `results/final_policy.pt` alone | 100 (validation) | 7 of 288 |
+
 ## Final policy: discount 0.995
 
 The hyperparameter study's only setting that beat the defaults by more than 3 points on validation
@@ -501,6 +554,8 @@ are the chosen settings.
 | validation | slime (family 55) | `combined_policy` | policy alone |  | 194/320 (60.6) | 0/0 |  |
 | validation | posts (family 57) | `final_policy` | policy alone |  | 9/320 (2.8) | 0/0 |  |
 | validation | posts (family 57) | `combined_policy` | policy alone |  | 226/320 (70.6) | 0/0 |  |
+| validation | slime (family 55) | `final_policy` | slime-heavy validation: the planner's chosen setting, the reference (rules of 1 Nov 19:21:21) | all | 304/320 (95.0) | 0/0 | 2463/2463 |
+| validation | water (family 100) | `final_policy` | policy alone |  | 7/288 (2.4) | 0/0 |  |
 | test | random (family 12) | `final_policy` | policy alone |  | 33/200 (16.5) | 1/162 |  |
 | test | official (family 1) | `final_policy` | policy alone |  | 0/210 (0.0) | 0/124 |  |
 | test | mixed (family 14) | `final_policy` | policy alone |  | 35/200 (17.5) | 0/16 |  |
