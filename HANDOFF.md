@@ -638,6 +638,16 @@ at 18:05:14, before any run on the two-neo sets:**
     `slime-skill-sp3c` (weight 0.3) and `slime-skill-sp3d` (weight 1.0); the
     same scoring and choice (all candidates); a round adding less than 5
     still ends the rounds.
+  - **Round 3 (20:39-21:14):** family 55 / 57 for updates 25-300: sp3
+    267/272, 266/273, 259/285, 261/274, 265/279, 266/260, 270/276, 264/275,
+    261/283, 266/271, **273**/271, 272/284; sp3b 255/274, 262/278, 259/270,
+    260/277, 260/273, 262/273, 267/285, 259/275, 270/273, 262/275, 263/277,
+    262/275. Best on 55: sp3 updates 275 (`ef47564d354f`), 273 (45 courses
+    lost off a pad), 2 above round 2's 271; best on 57: 285, sp3 updates 75
+    (`638347fdafaf`; sp3b updates 175 ties with more updates). Round 3c's
+    labels started at 21:14 (`runs/slime_skill_dagger_v2_starts.log`); its
+    two runs are queued when they are done; the choice over all candidates
+    comes after them.
 - **Water, step 1: the physics (20:16; code only, no run).** `parkour/physics.py`
   (a black box, section 5) gets an opt-in water grid, `World(water=...)`: each
   cell's water level (block metadata, -1 where none), and prismarine-physics
@@ -678,6 +688,73 @@ at 18:05:14, before any run on the two-neo sets:**
   short). Tests: `tests/test_water.py` (5). Next: the planner's alive rule in
   water, the water observation (appended after the 255 numbers, so the final
   policy reads its own prefix), the bank, training, held-out sets, the bots.
+- **Water, step 3: the observation, the planner, training and the bots' code
+  (21:20; code only).** The planner's searches and the DAgger rollouts treat
+  water as neither a fall nor an obstacle, with 160 ticks for a jump over a
+  pool. `EnvConfig.water_obs` appends 100 numbers after the standard 255
+  (`env.OBS_LAYOUT_WATER`): in water, the water surface above the feet, and
+  the water surface at each of the 98 points of the block scan; a standard
+  network reads its own prefix. `train.py --water-obs` widens a standard
+  checkpoint (`expand_to_water`: the new inputs' weights zero, so it starts
+  acting and valuing exactly as before). `neo_skill bank --water`,
+  `neo_assist --set water` and `--skill-blocks water` (a 355-input skill
+  beside the 255-input final policy). The bots: `bridge/policy.js` builds the
+  same water observation and rules (checked against Python on the final
+  policy's states over the pools and on states put into them: within 1e-5,
+  the same in-water flags; `tests/test_water.py`) and the offline bot's world
+  holds water blocks. A check on training courses (family 102, one course of
+  each of the 24 kinds; simulator, CPU; `runs/water_planner_check_family102.*`): the final policy alone
+  completes 0 of 24; the planner's chosen setting 23 of 24, every one of the 24
+  water jumps planned (93-160 ticks), the one miss an ordinary jump.
+- **Water: rules fixed at 21:20:41, before any run on these sets.**
+  - **Sets** (`parkour.water.water_set`, `neo_assist --set water`): families
+    100 (validation) and 101 (test), 288 courses of 8 jump specs, 2 of them
+    water pieces of the 24 kinds (12 pools breaking a drop: 3, 5 or 8 rows
+    down, 6 or 8 long, 2 or 3 deep, 3 wide; 6 columns to swim up: 1 wide, 5
+    long, 4-6 deep, entered 1 or 3 rows above the surface; 6 gaps to swim
+    across: 5, 6 or 8 long, 2 wide, 2 deep, entered level with the rim or 1
+    above), course i's kinds (2i + j) mod 24 at the spec positions
+    `WATER_PATTERNS[(i div 12) mod 6]` (never the first jump, never two in a
+    row; every 12 courses hold every kind once), the other jumps of levels
+    0-5. Drawn like the slime sets (one stream `[2026, family, 6]` in course
+    order, a course drawn again until its pieces are where the plan puts
+    them and nothing else is special). Pinned at 21:19 (`8f32e60addb086c2`,
+    `a628365f8a1e3e0c`) and excluded from the water bank.
+  - **Measurement on validation (100; simulator, CPU), each once:** the
+    final policy alone, and the planner's chosen setting (the reference: it
+    plans every jump, a water jump in up to 160 ticks).
+  - **The water skill** (the slime skill's machinery; opt-in): a network
+    with the water observation that plays each water jump's block, from the
+    first ground contact on the platform before the takeoff to the first on
+    the exit, handed over at the course list's water jumps (`--skill-blocks
+    water`, `parkour.water.water_cps`); the final policy plays the rest on
+    its 255 numbers. Trained with PPO on the block alone (`train.py
+    --segments --water-obs --segment-base results/final_policy.pt`: the final
+    policy plays the jump after the exit inside each episode) from the final
+    policy's arrival states on courses with one water piece (the sets'
+    generator, families 102-107, 4,032 courses each, kind i mod 24 at spec
+    position 1 + (i div 24) mod 7, none equal to a held-out course; types =
+    the 24 kinds, drawn by failure rate); skipping the takeoff is a fall.
+    **Solid:** at least 260 of 288 (90%) on family 100, or no more than 10
+    below the planner's count there if that is lower.
+  - **Round 1, fixed now:** bank `runs/neo_skill_bank_water_v1.pt` (the final
+    policy's first contact on the platform before the takeoff, from the
+    simulator's start and after 10 settle ticks). Two runs side by side
+    through the queue after slime round 3c (two trainers at most, the
+    watchdog on), both from the final policy widened to the water
+    observation, with the skills' settings (`--reward-stall 5`, learning rate
+    at most 3e-4, pool 4,096, entropy 0.01, no imitation pairs), 400 updates,
+    a snapshot every 50: `water-skill-w1` at gamma 0.99 and `water-skill-w2`
+    at gamma 0.995 (a water jump takes up to about 160 ticks). Choice: every
+    snapshot played on family 100 with `--skill-blocks water` (course list,
+    CPU); the most completed wins, ties to fewer updates, then w1. Then the
+    solid check; if it is not solid, the next round is fixed after this
+    measurement and before it runs, and rounds go on until the choice is
+    solid or a round adds less than 5 courses. Then the chosen network is
+    tested once on family 101 (course list) with the planner's reference on
+    101, and played by the bots on the first 64 courses of 101: the offline
+    bot, and the live bot in real Minecraft (it builds the basins in stone
+    and fills them with water).
 - **The course builder (built 1 Nov, beside the GPU runs; nothing chosen or
   trained on it):** `run.cmd builder` (`parkour.builder`, `parkour.build_session`,
   `bridge/builder_bot.js`) starts the local server and a bot in build mode.

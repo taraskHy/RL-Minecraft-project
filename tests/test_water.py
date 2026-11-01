@@ -128,6 +128,142 @@ def test_water_observation_extends_the_standard_one():
     assert o[0] == 0 and o[1] == 0 and bool((o[2:] < 0).all())  # no water anywhere: NO_FLOOR / 3
 
 
+def test_expand_to_water_acts_as_before():
+    """A standard network widened to the water observation (train.expand_to_water) acts and values as before."""
+    from parkour.env import OBS_DIM, OBS_DIM_WATER
+    from parkour.model import ActorCritic
+    from parkour.train import expand_to_water
+    torch.manual_seed(0)
+    small = ActorCritic(OBS_DIM)
+    small.norm.mean.uniform_(-1, 1)
+    small.norm.var.uniform_(0.5, 2.0)
+    big = ActorCritic(OBS_DIM_WATER)
+    big.load_state_dict(expand_to_water(small.state_dict()))
+    obs = torch.randn(64, OBS_DIM_WATER) * 3
+    with torch.no_grad():
+        for a, b in zip(small.logits(small.norm(obs[:, :OBS_DIM])), big.logits(big.norm(obs))):
+            assert torch.allclose(a, b, atol=1e-5)
+        assert torch.allclose(small.value(small.norm(obs[:, :OBS_DIM])), big.value(big.norm(obs)), atol=1e-5)
+
+
+def test_water_sets_hold_their_pieces():
+    """The water sets' pieces are where water_plan puts them, every 12 courses hold every kind once, and the skill's
+    checkpoints are each piece's t-1 and t."""
+    cs = W.water_set(W.WATER_VALIDATION_FAMILY, 18)
+    assert len(W.water_specs()) == 24
+    for i, c in enumerate(cs):
+        plan = W.water_plan(i)
+        assert W.water_ok(c, plan) and W.water_takeoffs(c) == sorted(plan)
+        assert W.water_cps(c) == sorted({k for t in plan for k in (t - 1, t)})
+        assert W.water_blocks(c) == [(t - 1, t - 1) for t in sorted(plan)]
+        assert len(c.extra) <= C.MAX_EXTRA
+    assert sorted(sp.key() for i in range(12) for sp in W.water_plan(i).values()) == sorted(
+        sp.key() for sp in W.water_specs())
+    assert W.water_set(W.WATER_VALIDATION_FAMILY, 3)[2].to_json() == cs[2].to_json()  # (a longer set: the same first)
+
+
+def test_a_widened_final_policy_as_the_water_skill_changes_nothing(tmp_path, monkeypatch):
+    """The water bank (neo_skill bank --water) and its segments with the water observation, and the course-list
+    mode with a water skill beside the final policy: with the final policy widened as the skill, every course ends
+    as with the final policy alone (the skill reads the same prefix with zero weights on the rest)."""
+    from parkour import neo_skill as NS
+    from parkour.live import load_model
+    from parkour.neo_assist import AssistConfig, evaluate_assisted
+    from parkour.model import ActorCritic
+    from parkour.env import OBS_DIM_WATER
+    from parkour.train import expand_to_water, load_frozen
+    monkeypatch.setattr(W, "held_water_hashes", lambda: frozenset())  # (the test needs no 648 held-out courses)
+    ck = ROOT / "results" / "final_policy.pt"
+    meta = NS.build_bank(ck, tmp_path / "bank.pt", families=(102,), per_family=6, device="cpu", water=True)
+    assert meta["kind"] == "water" and meta["n_types"] == len(W.water_specs()) and meta["kept"] >= 1
+    bank = NS.SegmentBank(tmp_path / "bank.pt", "cpu")
+    assert all(int(k) == W.water_blocks(c)[0][0] for k, c in zip(bank.k.tolist(), bank.courses))
+    n = len(bank.courses)
+    pool = CoursePool(bank.courses, "cpu", C.GRID)
+    base = load_frozen(str(ck), "cpu")
+    env = NS.SegmentEnv(pool, EnvConfig(num_envs=n, water_obs=True), sampler=None, slots=bank.rows(list(range(n))),
+                        base=base)
+    obs = env.reset_all(torch.arange(n))
+    assert obs.shape == (n, OBS_DIM_WATER)
+    final = load_model(ck, "cpu")
+    skill = ActorCritic(OBS_DIM_WATER, hidden=final.hidden)
+    skill.load_state_dict(expand_to_water(final.state_dict()))
+    skill.eval()
+    with torch.no_grad():
+        for _ in range(300):
+            a, _, _ = skill.act(obs, deterministic=True)
+            obs, *_ = env.step(a)
+    cs = W.water_set(W.WATER_VALIDATION_FAMILY, 4)
+    runs = []
+    for sk in (None, skill):
+        res = evaluate_assisted(final, CoursePool(cs, "cpu", C.GRID), "cpu", AssistConfig(enabled=False), skill=sk,
+                                skill_blocks="water")
+        runs.append([(r["success"], r["ticks"], r["progress"]) for r in res["per_course"]])
+    assert runs[0] == runs[1]
+
+
+def test_bridge_water_observation_matches():
+    """bridge/policy.js's water observation (OBS_DIM_WATER) and in-water test match the Python ones on the final
+    policy's own states over water pieces (it ends up in the pools) and on states put into the water."""
+    import os
+    import subprocess
+    import tempfile
+
+    import pytest
+    from parkour.env import OBS_DIM_WATER
+    from parkour.live import load_model
+    from parkour.paths import BRIDGE, NODE
+    if not NODE.exists():
+        pytest.skip("portable Node runtime not installed (run setup.cmd)")
+    cs = [c for _, c in water_courses()]
+    pool = CoursePool(cs, "cpu", C.GRID)
+    n = len(cs)
+    env = ParkourEnv(pool, EnvConfig(num_envs=n, stall_ticks=10 ** 6, max_ticks=10 ** 6, water_obs=True), sampler=None)
+    obs = env.reset_all(torch.arange(n))
+    model = load_model(ROOT / "results" / "final_policy.pt", "cpu")
+    g = torch.Generator().manual_seed(5)
+    cases, py_obs, py_wet = [], [], []
+
+    def record(o):
+        s = env.state
+        wet = in_water(pool, s, env.course)
+        for i in range(n):
+            cases.append({"course": int(env.course[i]), "cp": int(env.cp[i]), "lastAction": env.last_action[i].tolist(),
+                          "state": {"pos": s.pos[i].tolist(), "vel": s.vel[i].tolist(), "yaw": float(s.yaw[i]),
+                                    "onGround": bool(s.on_ground[i]), "jumpTicks": int(s.jump_ticks[i]),
+                                    "collidedH": bool(s.collided_h[i])}})
+            py_obs.append(o[i].numpy())
+            py_wet.append(bool(wet[i]))
+
+    with torch.no_grad():
+        for t in range(400):
+            a, _, _ = model.act(obs[:, :model.obs_dim], deterministic=True)
+            a[:, 4] = torch.where(torch.rand(n, generator=g) < 0.3, torch.randint(0, 7, (n,), generator=g), a[:, 4])
+            obs, *_ = env.step(a)
+            if t % 5 == 0:
+                record(obs)
+        for k in range(6):  # into every pool: a random cell, at random heights in and over it
+            w = torch.stack([torch.as_tensor(c.water[int(torch.randint(len(c.water), (1,), generator=g))][:3])
+                             for c in cs]).to(torch.float64)
+            env.state.pos = w + torch.stack((torch.rand(n, generator=g), torch.rand(n, generator=g) * 2.4 - 0.4,
+                                             torch.rand(n, generator=g)), -1).to(torch.float64)
+            env.state.yaw = (torch.rand(n, generator=g, dtype=torch.float64) * 2 - 1) * np.pi
+            record(env.observe())
+    assert sum(py_wet) > 200 and len(py_wet) - sum(py_wet) > 200
+    with tempfile.TemporaryDirectory() as d:
+        inp = os.path.join(d, "in.json")
+        with open(inp, "w") as f:
+            json.dump({"policy": None, "courses": [{"platforms": c.platforms.tolist(), "extra": c.extra.tolist(),
+                                                    "water": c.water.tolist()} for c in cs], "cases": cases}, f)
+        out = subprocess.run([str(NODE), str(BRIDGE / "obs_parity.js"), inp], capture_output=True, text=True,
+                             check=True, cwd=str(BRIDGE))
+    js = json.loads(out.stdout)
+    js_obs = np.array(js["obs"])
+    assert js_obs.shape == (len(cases), OBS_DIM_WATER)
+    assert np.abs(js_obs - np.array(py_obs)).max() < 1e-5  # (Python's observation is float32)
+    assert js["wet"] == py_wet
+
+
 def test_in_water_matches_the_current_s():
     rng = np.random.default_rng(3)
     from parkour import parity

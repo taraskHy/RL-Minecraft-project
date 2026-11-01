@@ -56,6 +56,10 @@ ASSIST_SETS = {  # (parkour.neo_assist --set, family) -> sha1 prefix
     ("slime", 56): "b5d535d074712825",
     ("posts", 57): "8e473dc63a2dec37",
     ("posts", 58): "034af14067f5548b",
+    # The water sets (parkour.water.water_set, 288 courses each; computed on 407451c + the sets, 1 Nov 21:19, before
+    # any run on them).
+    ("water", 100): "8f32e60addb086c2",
+    ("water", 101): "a628365f8a1e3e0c",
 }
 EXTRA_PREVIEW_SETS = {  # scripts/extra_preview.py: levels 0-5 plus one extra level, 200 courses, (level, family) -> sha1
     ("head hitter", 1): "507e74e214ef759c", ("head hitter", 2): "f3030cea3b9a0c02",

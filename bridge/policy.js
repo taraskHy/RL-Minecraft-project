@@ -21,6 +21,7 @@ const PLATFORM_SLOTS = 4
 const STAND_EPS = 1e-6
 const FALL_MARGIN = 1.0
 const HALF_WIDTH = 0.3
+const PLAYER_HEIGHT = 1.8
 const YAW_STEPS_DEG = [-20.0, -6.0, -1.5, 0.0, 1.5, 6.0, 20.0]
 const ACTION_DIMS = [3, 3, 2, 2, 7]
 const OBS_DIM = 6 + 5 + PLATFORM_SLOTS * 11 + SCAN_FORWARD.length * SCAN_LATERAL.length * 2 + 4
@@ -29,6 +30,9 @@ const SCAN_FAR_FORWARD = Array.from({ length: 15 }, (_, i) => -4.0 + i)
 const SCAN_FAR_LATERAL = Array.from({ length: 13 }, (_, i) => -6.0 + i)
 const MEMORY_SLOTS = 3
 const OBS_DIM_EXT = OBS_DIM + SCAN_FAR_FORWARD.length * SCAN_FAR_LATERAL.length * 2 + MEMORY_SLOTS * 4
+// Water observation (env.OBS_LAYOUT_WATER, parkour.water): in water, the surface above the feet, and the water
+// surface at each point of the standard scan, after the standard observation (a standard policy reads its prefix).
+const OBS_DIM_WATER = OBS_DIM + 2 + SCAN_FORWARD.length * SCAN_LATERAL.length
 const NO_ACTION = [1, 1, 0, 0, 3]
 const GRID = [64, 32, 64] // parkour.courses.GRID: the planner only looks inside the course area
 
@@ -67,7 +71,7 @@ function platformGeometry (platforms, shapes) {
 // platforms: [[x0,x1,z0,z1,y], ...] in the same coordinates as s.pos
 // isSolid(x, y, z): integer cell -> boolean
 // geom (shaped courses): platformGeometry(...); topOf(x, y, z): the top of a solid cell's shape (1 for full blocks)
-function observe (s, lastAction, platforms, cp, isSolid, geom = null, topOf = null) {
+function observe (s, lastAction, platforms, cp, isSolid, geom = null, topOf = null, waterMeta = null) {
   const n = platforms.length
   const slots = []
   for (let k = 0; k < PLATFORM_SLOTS && cp + k < n; k++) {
@@ -75,14 +79,15 @@ function observe (s, lastAction, platforms, cp, isSolid, geom = null, topOf = nu
   }
   const g = geom ? geom[n - 1] : null
   const goal = g ? [(g[0] + g[1]) / 2, g[4], (g[2] + g[3]) / 2] : centre(platforms[n - 1])
-  return observeSlots(s, lastAction, slots, goal, cp / Math.max(n - 1, 1), isSolid, null, geom ? topOf : null)
+  return observeSlots(s, lastAction, slots, goal, cp / Math.max(n - 1, 1), isSolid, null, geom ? topOf : null, waterMeta)
 }
 
 // The observation with explicit platform slots ([{p, goal}], current platform first; missing
 // slots are empty), goal centre and progress: what observe() builds from the course, or what
 // the route planner builds from the blocks it sees.
-function observeSlots (s, lastAction, slots, g, progress, isSolid, memory = null, topOf = null) {
-  const out = new Float64Array(memory ? OBS_DIM_EXT : OBS_DIM)
+function observeSlots (s, lastAction, slots, g, progress, isSolid, memory = null, topOf = null, waterMeta = null) {
+  if (memory && waterMeta) throw new Error('the water observation extends the standard one, not the extended one')
+  const out = new Float64Array(memory ? OBS_DIM_EXT : waterMeta ? OBS_DIM_WATER : OBS_DIM)
   let o = 0
   const [px, py, pz] = s.pos
   const sy = Math.sin(s.yaw)
@@ -160,7 +165,66 @@ function observeSlots (s, lastAction, slots, g, progress, isSolid, memory = null
       out[o++] = (m[1] - py) / 2.0
     }
   }
+  if (waterMeta) out.set(waterFeatures(s, waterMeta), o)
   return out
+}
+
+// physics.in_water: the player's box contracted by (0.001, 0.401, 0.001) reaches a water cell's surface, as
+// simulatePlayer finds it (getWaterInBB). waterMeta(x, y, z): the water block's metadata (level), -1 for none.
+function inWater (pos, waterMeta) {
+  const [x, y, z] = pos
+  const lo = [(-HALF_WIDTH + x) + 0.001, (0.0 + y) + 0.401, (-HALF_WIDTH + z) + 0.001]
+  const hi = [(HALF_WIDTH + x) - 0.001, (PLAYER_HEIGHT + y) - 0.401, (HALF_WIDTH + z) - 0.001]
+  const ceilTop = Math.ceil(hi[1])
+  for (let cy = Math.floor(lo[1]); cy <= Math.floor(hi[1]); cy++) {
+    for (let cz = Math.floor(lo[2]); cz <= Math.floor(hi[2]); cz++) {
+      for (let cx = Math.floor(lo[0]); cx <= Math.floor(hi[0]); cx++) {
+        const meta = waterMeta(cx, cy, cz)
+        if (meta >= 0 && ceilTop >= (cy + 1) - ((meta >= 8 ? 0 : meta) + 1) / 9) return true
+      }
+    }
+  }
+  return false
+}
+
+// Observer.water_features: in water (0/1), the water surface above the feet (/ 2; 0 when dry), then the water
+// surface's height relative to the feet at each scan point (/ 3; NO_FLOOR / 3 where the scan's floor levels hold
+// no water). A surface: the highest water cell's row + 1 - its liquid height (level + 1) / 9.
+function waterFeatures (s, waterMeta) {
+  const out = new Float64Array(2 + SCAN_FORWARD.length * SCAN_LATERAL.length)
+  const [px, py, pz] = s.pos
+  const fy = Math.floor(py + STAND_EPS)
+  const surface = (ix, iz, rows) => { // the highest water surface in rows (top-down), or null
+    for (const r of rows) {
+      const m = waterMeta(ix, r, iz)
+      if (m >= 0) return (r + 1) - ((m >= 8 ? 0 : m) + 1) / 9
+    }
+    return null
+  }
+  const wet = inWater(s.pos, waterMeta)
+  const top = surface(Math.floor(px), Math.floor(pz), [fy + 2, fy + 1, fy, fy - 1, fy - 2, fy - 3])
+  out[0] = wet ? 1 : 0
+  out[1] = wet && top !== null ? (top - py) / 2.0 : 0
+  const sy = Math.sin(s.yaw)
+  const cy = Math.cos(s.yaw)
+  const fx = -sy; const fz = -cy
+  const rx = cy; const rz = -sy
+  const rows = SCAN_FLOOR_LEVELS.map(lv => fy + lv)
+  let o = 2
+  for (const a of SCAN_FORWARD) {
+    for (const b of SCAN_LATERAL) {
+      const h = surface(Math.floor(px + a * fx + b * rx), Math.floor(pz + a * fz + b * rz), rows)
+      out[o++] = (h !== null ? h - py : NO_FLOOR) / 3.0
+    }
+  }
+  return out
+}
+
+// waterMeta(x, y, z) of a course's water cells (Course.water: [x, y, z, level]): the level, -1 for none.
+function waterLookup (water) {
+  if (!water || !water.length) return null
+  const m = new Map(water.map(w => [`${w[0]},${w[1]},${w[2]}`, w[3]]))
+  return (x, y, z) => { const v = m.get(`${x},${y},${z}`); return v === undefined ? -1 : v }
 }
 
 // Landing memory (EnvConfig.extended_obs): the last MEMORY_SLOTS spots landed on, newest first.
@@ -214,7 +278,7 @@ function fellBelow (s, platforms, cp, rule = 'local', geom = null) {
 class Policy {
   constructor (data) {
     if (data.format !== 'parkour-policy-v1') throw new Error('unknown policy format ' + data.format)
-    if (data.obs_dim !== OBS_DIM && data.obs_dim !== OBS_DIM_EXT) throw new Error(`policy expects ${data.obs_dim} observations, bridge builds ${OBS_DIM} or ${OBS_DIM_EXT}`)
+    if (![OBS_DIM, OBS_DIM_EXT, OBS_DIM_WATER].includes(data.obs_dim)) throw new Error(`policy expects ${data.obs_dim} observations, bridge builds ${OBS_DIM}, ${OBS_DIM_EXT} or ${OBS_DIM_WATER}`)
     this.mean = data.norm_mean
     this.std = data.norm_std
     this.clip = data.norm_clip
@@ -302,8 +366,11 @@ function onObstacle (s, extra) {
 const PLAN = 'plan'
 
 class Episode {
-  constructor (policy, platforms, isSolid, { stall = 200, maxTicks = 3000, extra = null, planner = null, fallRule = 'local', assist = null, shapes = null, topOf = null, skill = null } = {}) {
+  constructor (policy, platforms, isSolid, { stall = 200, maxTicks = 3000, extra = null, planner = null, fallRule = 'local', assist = null, shapes = null, topOf = null, skill = null, water = null } = {}) {
     this.extra = extra
+    // Water (Course.water, parkour.water; waterLookup): in water is neither a fall nor standing on an obstacle
+    // (ParkourEnv.step), and a water skill (OBS_DIM_WATER) plays beside a standard policy, which reads its prefix.
+    this.waterMeta = waterLookup(water)
     // Shaped platforms ({index: shape name}): their own footprints and tops, and the shape tops in the scan.
     this.geom = shapes && Object.keys(shapes).length ? platformGeometry(platforms, shapes) : null
     this.topOf = topOf
@@ -348,7 +415,8 @@ class Episode {
         throw new Error('the neo skill plays with the course list alone or with the learned router (no greedy planner, no assist)')
       }
       if (!routed && !Array.isArray(skill.cps)) throw new Error('the neo skill needs the course\'s skill_cps (parkour.live --skill writes them)')
-      if (skill.policy.obsDim !== policy.obsDim) throw new Error(`the neo skill sees ${skill.policy.obsDim} observations, the policy ${policy.obsDim}`)
+      const waterSkill = skill.policy.obsDim === OBS_DIM_WATER && policy.obsDim === OBS_DIM && !!this.waterMeta
+      if (skill.policy.obsDim !== policy.obsDim && !waterSkill) throw new Error(`the neo skill sees ${skill.policy.obsDim} observations, the policy ${policy.obsDim}`)
       if (routed && planner.blocked !== 'keep' && planner.blocked !== 'plan') {
         throw new Error('the neo skill with the learned router needs its blocked choices kept ("blocked": "keep")')
       }
@@ -380,7 +448,8 @@ class Episode {
       const k = standingOn(s, this.platforms, this.geom)
       if (k > this.cp) { this.cp = k; this.stall = 0 } else this.stall++
       const success = this.cp >= this.platforms.length - 1
-      const fell = !success && (fellBelow(s, this.platforms, this.cp, this.fallRule, this.geom) || onObstacle(s, this.extra))
+      const wet = this.waterMeta !== null && inWater(s.pos, this.waterMeta)
+      const fell = !success && !wet && (fellBelow(s, this.platforms, this.cp, this.fallRule, this.geom) || onObstacle(s, this.extra))
       const truncated = !success && !fell && (this.stall >= this.stallLimit || this.ticks >= this.maxTicks)
       if (success || fell || truncated) {
         this.result = success ? 'success' : fell ? 'fell' : 'truncated'
@@ -467,14 +536,16 @@ class Episode {
     }
     const gq = this.geom ? this.geom[n - 1] : null
     const goal = gq ? [(gq[0] + gq[1]) / 2, gq[4], (gq[2] + gq[3]) / 2] : centre(this.platforms[n - 1])
-    const obs = observeSlots(s, this.lastAction, slots, goal, progress, this.isSolid, this.memory, this.geom ? this.topOf : null)
+    const wide = this.skill !== null && this.skill.policy.obsDim === OBS_DIM_WATER && this.policy.obsDim === OBS_DIM
+    const obs = observeSlots(s, this.lastAction, slots, goal, progress, this.isSolid, this.memory, this.geom ? this.topOf : null,
+      wide ? this.waterMeta : null)
     const sk = this.skill // the checkpoint (with the router: the count) before this tick's step
     const useSkill = sk !== null && (sk.cps ? sk.cps.has(this.cp) : sk.left > 0)
     if (useSkill) {
       this.skillTicks++
       if (sk.at) sk.at.add(this.cp)
     }
-    const a = (useSkill ? sk.policy : this.policy).act(obs)
+    const a = useSkill ? sk.policy.act(obs) : this.policy.act(wide ? obs.subarray(0, OBS_DIM) : obs)
     this.actions.push(a)
     this.lastAction = a
     return a
@@ -502,5 +573,6 @@ class Episode {
 
 module.exports = {
   observe, observeSlots, LandingMemory, OBS_DIM_EXT, standingOn, fellBelow, onObstacle, Policy, Episode, controls, wrapYaw, centre,
-  OBS_DIM, ACTION_DIMS, NO_ACTION, YAW_STEPS_DEG, PLAN, platformGeometry, shapeGeometry
+  OBS_DIM, ACTION_DIMS, NO_ACTION, YAW_STEPS_DEG, PLAN, platformGeometry, shapeGeometry, OBS_DIM_WATER, inWater, waterFeatures,
+  waterLookup
 }

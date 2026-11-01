@@ -23,11 +23,17 @@ dry: ``tests/test_water.py``), so a piece is passed only through the water.
 ``water_piece`` builds the cells of one piece after a takeoff platform; ``water_course`` makes a short course of
 ordinary jumps with water pieces in it. Courses keep the water in ``Course.water`` (x, y, z, level 0) and the basin
 in ``Course.extra``; in water the environment's fall and obstacle rules do not apply (``env.in_water``).
+
+The held-out water sets (``water_set``; HANDOFF.md section 3, 1 Nov 21:20): families 100 (validation) and 101
+(test), 288 courses of 8 jumps, 2 of them water pieces (``water_plan``); training courses with one piece on
+families 102-107 (``water_training_courses``). ``water_takeoffs`` finds a course's water jumps, ``water_cps`` and
+``water_blocks`` hand them to the water skill (``neo_assist --skill-blocks water``, ``neo_skill bank --water``).
 """
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from functools import lru_cache
 
 import numpy as np
 
@@ -208,3 +214,113 @@ def water_course(rng: np.random.Generator, basic: list[list[C.JumpSpec]], pieces
     d = centres[1] - centres[0]
     c.spawn_yaw = float(math.atan2(-d[0], -d[2]) + rng.uniform(-yaw_noise, yaw_noise))
     return c
+
+
+WATER_VALIDATION_FAMILY = 100  # the water sets (HANDOFF.md section 3, 1 Nov); 96 and 99 are only tests' streams
+WATER_TEST_FAMILY = 101
+WATER_TRAIN_FAMILIES = tuple(range(102, 108))  # training courses with one water piece; nothing else uses them
+WATER_PATTERNS = ((1, 4), (2, 5), (3, 6), (1, 6), (2, 7), (4, 7))  # spec positions of a set course's 2 pieces:
+# never the first jump (the skill starts on the platform before the takeoff), never two in a row
+WATER_SET_SIZE = 288  # every kind 24 times
+MAX_DRAWS = 10_000
+
+
+def water_takeoffs(course: C.Course) -> list[int]:
+    """The takeoffs k of the course's water jumps (``water_piece``): water in the exit's own row (the surface's
+    row, which is the exit's) inside the box of platforms k and k+1."""
+    if not len(course.water):
+        return []
+    w = np.asarray(course.water).reshape(-1, 4)
+    p = np.asarray(course.platforms)
+    out = []
+    for k in range(course.n - 1):
+        a, b = p[k], p[k + 1]
+        if ((w[:, 0] >= min(a[0], b[0])) & (w[:, 0] <= max(a[1], b[1])) & (w[:, 2] >= min(a[2], b[2]))
+                & (w[:, 2] <= max(a[3], b[3])) & (w[:, 1] == b[4])).any():
+            out.append(k)
+    return out
+
+
+def water_cps(course: C.Course) -> list[int]:
+    """The checkpoints at which the water skill plays (the course-list mode, as ``slime.slime_cps``): for each
+    water jump from takeoff t, t-1 and t, so it plays from the first ground contact on the platform before the
+    takeoff until the bot first stands on the exit."""
+    return sorted({k for t in water_takeoffs(course) for k in (t - 1, t) if k >= 0})
+
+
+def water_blocks(course: C.Course) -> list[tuple[int, int]]:
+    """(k, first) of each water jump's block for a bank (``neo_skill.build_bank``): k = t-1, the jump onto the
+    takeoff t (the segment rule's takeoff: the bot must stand on t, k+1, before the exit, so the episode ends on
+    the exit, k+2), and the platform the skill starts on (k)."""
+    return [(t - 1, t - 1) for t in water_takeoffs(course) if t >= 1]
+
+
+def water_ok(course: C.Course, pieces: dict, n_specs: int = 8) -> bool:
+    """The water jumps exactly at the positions of ``pieces`` (spec position j: takeoff j), and no other special
+    jump: no wall in any jump's way (``neo_dagger.neo_takeoffs``), no slime, shaped block or ladder."""
+    from .neo_dagger import neo_takeoffs
+    return (len(course.specs) == n_specs and water_takeoffs(course) == sorted(pieces) and not course.slime
+            and not course.shapes and not len(course.ladders) and not neo_takeoffs(course))
+
+
+def water_plan(i: int) -> dict:
+    """Course i of the water sets: 2 pieces at ``WATER_PATTERNS[(i div 12) mod 6]``, kinds (2i + j) mod 24, so
+    every 12 courses hold every kind once and every 72 every kind in every pattern."""
+    kinds = water_specs()
+    where = WATER_PATTERNS[(i // (len(kinds) // 2)) % len(WATER_PATTERNS)]
+    return {p: kinds[(2 * i + j) % len(kinds)] for j, p in enumerate(where)}
+
+
+def water_set(family: int, n: int = WATER_SET_SIZE) -> list[C.Course]:
+    """The water set of ``family``: 8 jump specs, 2 of them water pieces (``water_plan``), the other jumps of
+    levels 0-5; one random stream ``[2026, family, 6]`` in course order (the first courses of a longer set are the
+    same courses), a course drawn again until its pieces are where the plan puts them (``water_ok``)."""
+    basic = C.load_levels()
+    rng = np.random.default_rng([2026, family, 6])
+    out = []
+    for i in range(n):
+        plan = water_plan(i)
+        for _ in range(MAX_DRAWS):
+            c = water_course(rng, basic, plan, 8, level=6, seed=i)
+            if c is not None and water_ok(c, plan):
+                break
+        else:
+            raise RuntimeError(f"no water course {i} of family {family} in {MAX_DRAWS} draws")
+        out.append(c)
+    return out
+
+
+@lru_cache(maxsize=None)
+def held_water_hashes() -> frozenset:
+    """``train.course_hash`` of every course of the water sets: no training course may equal one."""
+    from .train import course_hash
+    return frozenset(course_hash(c) for f in (WATER_VALIDATION_FAMILY, WATER_TEST_FAMILY) for c in water_set(f))
+
+
+def water_training_courses(families=WATER_TRAIN_FAMILIES, per_family: int = 4032) -> tuple[list[C.Course], list[int]]:
+    """Courses of 8 jump specs with one water piece (course i: kind i mod 24 at spec position 1 + (i div 24) mod 7,
+    the other jumps of levels 0-5; the sets' generator), none equal to a course of the water sets; each course's
+    level set to its kind (0-23)."""
+    from .train import course_hash
+    held = held_water_hashes()
+    kinds = water_specs()
+    basic = C.load_levels()
+    out, types = [], []
+    for f in families:
+        if f in (WATER_VALIDATION_FAMILY, WATER_TEST_FAMILY):
+            raise ValueError(f"family {f} is a held-out set")
+        rng = np.random.default_rng([2026, f, 6])
+        for i in range(per_family):
+            t = i % len(kinds)
+            plan = {1 + (i // len(kinds)) % 7: kinds[t]}
+            for _ in range(MAX_DRAWS):
+                c = water_course(rng, basic, plan, 8, level=t, seed=i)
+                if c is not None and water_ok(c, plan):
+                    break
+            else:
+                continue
+            if course_hash(c) in held:
+                continue
+            out.append(c)
+            types.append(t)
+    return out, types

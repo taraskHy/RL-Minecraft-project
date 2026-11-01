@@ -26,7 +26,7 @@ import torch
 
 from . import courses as C
 from . import physics
-from .env import ACTION_DIMS, OBS_DIM, OBS_DIM_EXT, CoursePool, EnvConfig, LevelSampler, ParkourEnv, RewardConfig
+from .env import ACTION_DIMS, OBS_DIM, OBS_DIM_EXT, OBS_DIM_WATER, CoursePool, EnvConfig, LevelSampler, ParkourEnv, RewardConfig
 from .model import ActorCritic, RunningNorm
 from .paths import RUNS
 
@@ -121,6 +121,24 @@ def macro_score(groups: dict) -> float:
 def level_columns(per_level: dict, key: str, n_levels: int) -> list:
     """One CSV cell per level; blank for a level without courses (skills mode: the ice ids in obstacle sets)."""
     return [round(per_level[L][key], 4) if L in per_level else "" for L in range(n_levels)]
+
+
+def expand_to_water(state: dict) -> dict:
+    """A standard-observation network's weights (``OBS_DIM`` inputs) for one with the water observation
+    (``OBS_DIM_WATER``, whose first ``OBS_DIM`` inputs are the standard ones): the first layers' new input columns
+    zero, so it acts and values exactly as before whatever the water inputs read; the normaliser's new columns
+    mean 0 and variance 1 (its shared count stays, so they stay near that: the water inputs are within a few units)."""
+    out = dict(state)
+    extra = OBS_DIM_WATER - OBS_DIM
+    if state["norm.mean"].shape[0] != OBS_DIM:
+        raise ValueError("expand_to_water widens a standard-observation network")
+    for key in ("norm.mean", "norm.var"):
+        fill = torch.zeros if key == "norm.mean" else torch.ones
+        out[key] = torch.cat((state[key], fill(extra, dtype=state[key].dtype, device=state[key].device)))
+    for key in ("actor.0.weight", "critic.0.weight"):
+        w = state[key]
+        out[key] = torch.cat((w, torch.zeros(w.shape[0], extra, dtype=w.dtype, device=w.device)), 1)
+    return out
 
 
 def load_frozen(path: str, device) -> ActorCritic:
@@ -222,6 +240,9 @@ class TrainConfig:
     init_from: str = ""
     hide: str = ""  # comma-separated observation parts the policy must not see, e.g. "platforms"
     extended_obs: bool = False  # far scan and landing memory (env.OBS_LAYOUT_EXT)
+    # The water observation (env.OBS_LAYOUT_WATER, parkour.water): a standard checkpoint (--init-from) is widened to
+    # it by expand_to_water, so the network starts as it was; off by default.
+    water_obs: bool = False
     # Learning from demonstrations (parkour.neo_demos): a behaviour-cloning loss on the
     # demonstrations' (observation, action) pairs next to PPO, and pool slots whose courses start
     # where a demonstration starts (takeoff, the jump, an easy platform). Slots are never refreshed.
@@ -355,7 +376,8 @@ def evaluate(model: ActorCritic, pool: CoursePool, device, stall_ticks: int, det
     """
     n = pool.size
     env = ParkourEnv(pool, EnvConfig(num_envs=n, stall_ticks=stall_ticks, max_ticks=max_ticks, fall_rule=fall_rule,
-                                     extended_obs=model.obs_dim == OBS_DIM_EXT), sampler=None)
+                                     extended_obs=model.obs_dim == OBS_DIM_EXT,
+                                     water_obs=model.obs_dim == OBS_DIM_WATER), sampler=None)
     obs = env.reset_all(torch.arange(n, device=device))
     if settle:
         idle = torch.zeros(n, 6, dtype=torch.bool, device=device)
@@ -527,7 +549,8 @@ def train(cfg: TrainConfig) -> Path:
                       or any(c.ice or c.slime for c in banked), compact_ice=cfg.compact_ice,
                       shapes=any(bool(sp.block) or sp.ladder for L in levels for sp in L)
                       or any(c.shapes or len(c.ladders) for c in banked),
-                      slime=any(sp.bounce for L in levels for sp in L) or any(c.slime for c in banked))
+                      slime=any(sp.bounce for L in levels for sp in L) or any(c.slime for c in banked),
+                      water=any(len(c.water) for c in banked) or None)  # (a water bank: every row's pool)
     test_pool = None if cfg.test_once else CoursePool(tests, dev, C.GRID)
     obstacle_pool = CoursePool(obstacle_tests, dev, C.GRID) if obstacle_tests and not cfg.test_once else None
     val_pool = None if cfg.eval_batch_size else CoursePool(vals, dev, C.GRID, compact_ice=cfg.compact_ice)
@@ -545,7 +568,7 @@ def train(cfg: TrainConfig) -> Path:
     else:
         raise ValueError(cfg.curriculum)
     env_cfg = EnvConfig(num_envs=cfg.num_envs, stall_ticks=cfg.stall_ticks, reward=cfg.reward,
-                        extended_obs=cfg.extended_obs)
+                        extended_obs=cfg.extended_obs, water_obs=cfg.water_obs)
     if cfg.segment_base and bank is None:
         raise ValueError("--segment-base needs --segments")
     if bank is not None:
@@ -554,13 +577,17 @@ def train(cfg: TrainConfig) -> Path:
     else:
         env = ParkourEnv(pool, env_cfg, sampler=sampler, seed=cfg.seed)
 
-    model = ActorCritic(obs_dim=OBS_DIM_EXT if cfg.extended_obs else OBS_DIM, hidden=cfg.hidden,
-                        hidden_parts=tuple(p for p in cfg.hide.split(",") if p)).to(dev)
+    model = ActorCritic(obs_dim=OBS_DIM_EXT if cfg.extended_obs else OBS_DIM_WATER if cfg.water_obs else OBS_DIM,
+                        hidden=cfg.hidden, hidden_parts=tuple(p for p in cfg.hide.split(",") if p)).to(dev)
     opt = torch.optim.Adam(model.parameters(), lr=cfg.lr, eps=1e-5)
     lr = cfg.lr
     start_it = 0
     if cfg.init_from:
         ck = torch.load(cfg.init_from, map_location=dev, weights_only=False)
+        if cfg.water_obs and ck["model"]["norm.mean"].shape[0] == OBS_DIM:  # (a standard network: widened)
+            if resuming:
+                raise ValueError("a run with the water observation resumes from its own checkpoints")
+            ck = {"model": expand_to_water(ck["model"])}
         model.load_state_dict(ck["model"])
         if "optimizer" in ck and resuming:
             opt.load_state_dict(ck["optimizer"])

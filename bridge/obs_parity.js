@@ -4,13 +4,14 @@
 //
 // Input (file path argument, JSON):
 //   { "policy": "path/to/policy.json" | null,
-//     "courses": [ { "platforms": [[x0,x1,z0,z1,y], ...], "shapes": {index: shape name} (optional) } ],
+//     "courses": [ { "platforms": [[x0,x1,z0,z1,y], ...], "shapes": {index: shape name} (optional),
+//                    "water": [[x,y,z,level], ...] (optional: the water observation, env.OBS_LAYOUT_WATER) } ],
 //     "cases": [ { "course": 0, "state": {pos, vel, yaw, onGround, jumpTicks, collidedH},
 //                  "lastAction": [..5], "cp": 0 } ] }
-// Output (stdout, JSON): { "obs": [[...]], "logits": [[...]] | null, "standing": [..], "fell": [..] }
+// Output (stdout, JSON): { "obs": [[...]], "logits": [[...]] | null, "standing": [..], "fell": [..], "wet": [..] }
 
 const fs = require('fs')
-const { observe, standingOn, fellBelow, Policy, platformGeometry, shapeGeometry } = require('./policy')
+const { observe, standingOn, fellBelow, Policy, platformGeometry, shapeGeometry, inWater, waterLookup } = require('./policy')
 
 const input = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
 const solids = input.courses.map(c => {
@@ -32,7 +33,9 @@ const shaped = input.courses.map(c => {
   }
   return { geom: platformGeometry(c.platforms, c.shapes), topOf: (x, y, z) => tops.get(`${x},${y},${z}`) ?? 1 }
 })
+const waters = input.courses.map(c => waterLookup(c.water))
 const policy = input.policy ? Policy.load(input.policy) : null
+const wet = []
 const obs = []
 const logits = []
 const standing = []
@@ -41,10 +44,12 @@ for (const c of input.cases) {
   const platforms = input.courses[c.course].platforms
   const set = solids[c.course]
   const { geom, topOf } = shaped[c.course]
-  const o = observe(c.state, c.lastAction, platforms, c.cp, (x, y, z) => set.has(`${x},${y},${z}`), geom, topOf)
+  const wm = waters[c.course]
+  const o = observe(c.state, c.lastAction, platforms, c.cp, (x, y, z) => set.has(`${x},${y},${z}`), geom, topOf, wm)
+  wet.push(wm ? inWater(c.state.pos, wm) : false)
   obs.push(Array.from(o))
   if (policy) logits.push(Array.from(policy.logits(o)))
   standing.push(standingOn(c.state, platforms, geom))
   fell.push(fellBelow(c.state, platforms, c.cp, 'local', geom))
 }
-process.stdout.write(JSON.stringify({ obs, logits: policy ? logits : null, standing, fell }))
+process.stdout.write(JSON.stringify({ obs, logits: policy ? logits : null, standing, fell, wet }))

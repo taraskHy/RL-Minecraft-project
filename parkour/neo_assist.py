@@ -91,6 +91,11 @@ Course sets (``--set``):
             types, back to back (the first neo's 1x1 target is the second's
             takeoff), one jump apart, or two apart; families 53 (test) and
             52 (validation), held out like the single-neo sets.
+  slime, posts  the slime-heavy and post-heavy sets (``parkour.slime``): families
+            56 and 58 (test), 55 and 57 (validation).
+  water     courses with two water pieces (``parkour.water.water_set``: a pool
+            breaking a drop, a column to swim up, a gap to swim across): 288
+            per family, 8 jumps; families 101 (test) and 100 (validation).
 
 Settings are chosen on the validation families; the test families are run
 once with the chosen setting. Each run appends one JSON line to ``--out``
@@ -117,7 +122,7 @@ import torch
 
 from . import courses as C
 from . import physics
-from .env import (OBS_DIM_EXT, STAND_EPS, YAW_STEPS_DEG, CoursePool, EnvConfig, Observer, ParkourEnv, action_to_controls,
+from .env import (OBS_DIM, OBS_DIM_EXT, OBS_DIM_WATER, STAND_EPS, YAW_STEPS_DEG, CoursePool, EnvConfig, Observer, ParkourEnv, action_to_controls,
                   standing_on)
 from .live import load_model
 from .neo_dagger import ELITE, HORIZON, neo_takeoffs
@@ -138,9 +143,10 @@ TWO_VALIDATION_FAMILY = 52  # the two-neo sets (HANDOFF.md section 3, 1 Nov)
 TWO_TEST_FAMILY = 53
 SLIME_TEST_FAMILY = 56  # the slime-heavy and post-heavy sets (parkour.slime; 55 and 57 are their validation families)
 POSTS_TEST_FAMILY = 58
+WATER_TEST_FAMILY = 101  # the water sets (parkour.water; 100 is their validation family)
 TEST_FAMILIES = (TEST_SEED_FAMILY, RANDOM_TEST_FAMILY, MIXED_TEST_FAMILY, SINGLE_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY,
                  SINGLE_FRESH_TEST_FAMILY_2, SINGLE_FRESH_TEST_FAMILY_3, TWO_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_4,
-                 SLIME_TEST_FAMILY, POSTS_TEST_FAMILY)
+                 SLIME_TEST_FAMILY, POSTS_TEST_FAMILY, WATER_TEST_FAMILY)
 HEADS = ("move", "strafe", "jump", "sprint", "yaw")
 
 
@@ -292,13 +298,11 @@ WATER_PLAN_HORIZON = 160  # a jump over a pool (parkour.water): the drop, the sw
 
 
 def water_jump(course: C.Course, k: int) -> bool:
-    """Whether the jump from platform k crosses water (``parkour.water``: a pool between k and k+1)."""
-    if not len(course.water) or k + 1 >= course.n:
+    """Whether the jump from platform k crosses water (``parkour.water.water_takeoffs``: a pool between k and k+1)."""
+    if not len(course.water):
         return False
-    a, b = course.platforms[k], course.platforms[k + 1]
-    w = np.asarray(course.water).reshape(-1, 4)
-    return bool(((w[:, 0] >= min(a[0], b[0])) & (w[:, 0] <= max(a[1], b[1])) & (w[:, 2] >= min(a[2], b[2]))
-                 & (w[:, 2] <= max(a[3], b[3]))).any())
+    from .water import water_takeoffs
+    return k in water_takeoffs(course)
 
 
 def plan_target(course: C.Course, k: int) -> int:
@@ -418,6 +422,8 @@ def jump_kind(course: C.Course, k: int, neos: list) -> str:
     on ice, onto a shaped block, off one (its exit), onto a slime pad, off a pad, a ladder climb, other, or basic."""
     if k in neos:
         return "neo"
+    if water_jump(course, k):
+        return "water"
     sp = course.specs[k] if k < len(course.specs) else None
     if sp is None:
         return "unknown"
@@ -644,6 +650,9 @@ def course_set(name: str, family: int) -> list[C.Course]:
     if name in ("slime", "posts"):
         from . import slime  # (a module of its own, opt-in)
         return (slime.slime_courses if name == "slime" else slime.posts_courses)(family)
+    if name == "water":
+        from .water import water_set
+        return water_set(family)
     raise ValueError(name)
 
 
@@ -838,10 +847,13 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
     ``parkour.live.SETTLE_TICKS``); a bot on the ground there is searched from before its first action only with
     ``cfg.plan_start``. ``skill``: the neo skill (``parkour.neo_skill``) plays instead of ``model`` while the
     checkpoint is one of ``skill_cps`` (the assist off); with ``skill_blocks`` "slime", a slime skill while it is one
-    of ``parkour.slime.slime_cps`` (each slime pad's block).
+    of ``parkour.slime.slime_cps`` (each slime pad's block); "water", a water skill while it is one of
+    ``parkour.water.water_cps``. A skill with the water observation (``env.OBS_DIM_WATER``) plays beside a policy of
+    the standard one, which reads its prefix.
     """
     n = pool.size
-    if skill is not None and (cfg.enabled or skill.obs_dim != model.obs_dim):
+    water_obs = skill is not None and skill.obs_dim == OBS_DIM_WATER and model.obs_dim == OBS_DIM
+    if skill is not None and (cfg.enabled or (skill.obs_dim != model.obs_dim and not water_obs)):
         raise ValueError("the neo skill replaces the search (the assist off) and sees the policy's observation")
     if cfg.enabled and (cfg.plan_on or cfg.plan_ahead):
         raise ValueError("plan_on and plan_ahead are the learned router's (parkour.route_neo); with the course list use "
@@ -852,7 +864,7 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
     if cfg.enabled and cfg.batch > 1 and any(getattr(cfg, k) for k in per_request):
         raise ValueError(f"{', '.join(per_request)} act per request (plan_once): they need batch 1")
     env = ParkourEnv(pool, EnvConfig(num_envs=n, stall_ticks=stall_ticks, max_ticks=max_ticks, fall_rule=fall_rule,
-                                     extended_obs=model.obs_dim == OBS_DIM_EXT), sampler=None)
+                                     extended_obs=model.obs_dim == OBS_DIM_EXT, water_obs=water_obs), sampler=None)
     obs = env.reset_all(torch.arange(n, device=device))
     if settle:
         idle = torch.zeros(n, 6, dtype=torch.bool, device=device)
@@ -876,10 +888,14 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
             if skill_blocks in ("slime", "special"):
                 from .slime import slime_cps, special_cps
                 skill_at[i, (slime_cps if skill_blocks == "slime" else special_cps)(pool.courses[i])] = True
+            elif skill_blocks == "water":
+                from .water import water_cps
+                skill_at[i, water_cps(pool.courses[i])] = True
             else:
                 skill_at[i, skill_cps(pool.courses[i])] = True
     hz = horizons(cfg)
-    H = max(list(hz.values()) + [BOUNCE_PLAN_HORIZON, LADDER_PLAN_HORIZON, cfg.brake])
+    H = max(list(hz.values()) + [BOUNCE_PLAN_HORIZON, LADDER_PLAN_HORIZON, cfg.brake]
+            + ([WATER_PLAN_HORIZON] if pool.world.water is not None else []))
     retry_h = torch.full((n, C.MAX_PLATFORMS), hz["retry"], dtype=torch.int64, device=device)  # stall check of a retry
     for i, ks in enumerate(planned):
         for k in ks:
@@ -997,7 +1013,7 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
             none = torch.zeros(n, dtype=torch.bool, device=device)
             searches(-1, env.cp, on, none, none)
         for t in range(max_ticks):
-            a, _, _ = model.act(obs, deterministic=True)
+            a, _, _ = model.act(obs[:, :model.obs_dim] if water_obs else obs, deterministic=True)
             if skill is not None:
                 use = skill_at[rows, env.cp]
                 if bool(use.any()):
@@ -1263,16 +1279,18 @@ def _run_parts(a, meta, count) -> list[dict]:
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--checkpoint", default=str(ROOT / "results" / "final_policy.pt"))
-    ap.add_argument("--set", choices=("official", "random", "mixed", "single", "two", "slime", "posts"), default="official")
+    ap.add_argument("--set", choices=("official", "random", "mixed", "single", "two", "slime", "posts", "water"),
+                    default="official")
     ap.add_argument("--family", type=int, default=VALIDATION_FAMILY)
     ap.add_argument("--off", action="store_true", help="the policy alone, for comparison")
     ap.add_argument("--skill", default="", help="with --off: the neo skill's checkpoint (parkour.neo_skill), which plays "
                                                 "each neo's block (skill_cps); rows go to results/neo/skill_*.jsonl")
     ap.add_argument("--skill-jump", type=float, default=0.5, help="with --skill: its jump reads 'jump' above this "
                                                                   "probability (neo_skill.JumpReadout; 0.5: argmax)")
-    ap.add_argument("--skill-blocks", choices=("neo", "slime", "special"), default="neo",
+    ap.add_argument("--skill-blocks", choices=("neo", "slime", "special", "water"), default="neo",
                     help="with --skill: the blocks it plays (slime: each slime pad's, parkour.slime.slime_cps; special: "
-                         "each slime pad's and each shaped platform's, special_cps; the posts sets' shapes are posts)")
+                         "each slime pad's and each shaped platform's, special_cps; the posts sets' shapes are posts; "
+                         "water: each water jump's, parkour.water.water_cps)")
     ap.add_argument("--courses", type=int, default=0, help="only the first N courses (quick checks)")
     ap.add_argument("--settle", type=int, default=0, help="ticks without keys on the start block first, as the bots "
                                                           "start (parkour.live.SETTLE_TICKS, 10); in the row only when set")
@@ -1306,7 +1324,7 @@ def main(argv=None):
              "single": (SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2,
                         SINGLE_FRESH_TEST_FAMILY_3, SINGLE_FRESH_TEST_FAMILY_4),
              "two": (TWO_TEST_FAMILY, TWO_VALIDATION_FAMILY), "slime": (SLIME_TEST_FAMILY, 55),
-             "posts": (POSTS_TEST_FAMILY, 57)}
+             "posts": (POSTS_TEST_FAMILY, 57), "water": (WATER_TEST_FAMILY, 100)}
     if a.family not in valid[a.set]:
         raise SystemExit(f"--set {a.set} has families {valid[a.set]} (test, validation{', fresh test' if a.set == 'single' else ''})")
     if a.skill and (not a.off or a.part or a.parts or a.serve):

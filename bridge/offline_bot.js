@@ -41,8 +41,9 @@ const STONE = mcData.blocksByName.stone.id
 const ICE = mcData.blocksByName.ice.id
 const SLIME = mcData.blocksByName.slime_block.id
 const AIR = mcData.blocksByName.air.id
+const WATER = mcData.blocksByName.water.id
 
-function makeWorld (platforms, extra, ice, shapes, slime, ladders) {
+function makeWorld (platforms, extra, ice, shapes, slime, ladders, water) {
   const solid = new Set()
   const icy = new Set()
   const bouncy = new Set()
@@ -67,9 +68,15 @@ function makeWorld (platforms, extra, ice, shapes, slime, ladders) {
   }
   const isSolid = (x, y, z) => solid.has(`${x},${y},${z}`)
   const topOf = (x, y, z) => { const b = shaped.get(`${x},${y},${z}`); return b ? Math.max(...b.shapes.map(q => q[4])) : 1 }
+  const wet = new Map((water || []).map(w => [`${w[0]},${w[1]},${w[2]}`, w[3]])) // Course.water: [x, y, z, level]
   const world = {
     getBlock (p) {
       const x = Math.floor(p.x); const y = Math.floor(p.y); const z = Math.floor(p.z)
+      if (wet.has(`${x},${y},${z}`)) { // (as bridge/physics_parity.js: a water block whose metadata is its level)
+        const level = wet.get(`${x},${y},${z}`)
+        return { type: WATER, shapes: [], boundingBox: 'empty', position: new Vec3(x, y, z), metadata: level, isWaterlogged: false,
+          getProperties () { return { level } } }
+      }
       const real = shaped.get(`${x},${y},${z}`)
       if (real) return { type: real.type, shapes: real.shapes, boundingBox: real.boundingBox, position: new Vec3(x, y, z), metadata: real.metadata }
       const s = isSolid(x, y, z)
@@ -99,7 +106,7 @@ const service = assistConfig
 async function main () {
   let ok = 0
   for (const [index, c] of courses.entries()) {
-    const { world, isSolid, topOf } = makeWorld(c.platforms, c.extra, c.ice, c.shapes, c.slime, c.ladders)
+    const { world, isSolid, topOf } = makeWorld(c.platforms, c.extra, c.ice, c.shapes, c.slime, c.ladders, c.water)
     const physics = Physics(mcData, world)
     const e = entityAt(c.spawn, c.spawn_yaw)
     for (let t = 0; t < Number(args.settle); t++) physics.simulatePlayer(e, world)
@@ -112,7 +119,8 @@ async function main () {
       assist: assistConfig ? { config: assistConfig, takeoffs: c.assist_takeoffs || [], targets: c.assist_targets || null, retryHorizons: c.assist_retry_horizons || null, approach: c.assist_approach || null } : null,
       shapes: c.shapes || null,
       topOf,
-      skill: skill ? { policy: skill, cps: c.skill_cps } : null
+      skill: skill ? { policy: skill, cps: c.skill_cps } : null,
+      water: c.water || null
     })
     for (;;) {
       const s = { pos: [e.pos.x, e.pos.y, e.pos.z], vel: [e.vel.x, e.vel.y, e.vel.z], yaw: e.yaw, onGround: e.onGround, jumpTicks: e.jumpTicks, collidedH: e.isCollidedHorizontally }

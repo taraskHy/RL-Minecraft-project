@@ -200,15 +200,22 @@ def collect_starts(model, courses: list[C.Course], device, settle: int = 0, max_
 
 
 def build_bank(checkpoint: Path, out: Path, families=TRAIN_FAMILIES, per_family: int = 6400, device="cuda",
-               batch: int = 4096, two: bool = False, slime: bool = False, posts: bool = False) -> dict:
+               batch: int = 4096, two: bool = False, slime: bool = False, posts: bool = False,
+               water: bool = False) -> dict:
     """The training bank: every training course with at least one start (``collect_starts``, per ``SETTLES``).
     With ``two``, two-neo courses (``two_training_courses``) and each row's second takeoff (``k2``). With
     ``slime``, courses with one slime bounce (``parkour.slime.slime_training_courses``), each row's block the pad's
     (``parkour.slime.slime_blocks``: k the takeoff onto the pad, so the episode ends on the pad's exit); with
-    ``posts``, one narrow post instead (``parkour.slime.special_blocks``; types after the slime kinds)."""
+    ``posts``, one narrow post instead (``parkour.slime.special_blocks``; types after the slime kinds). With
+    ``water``, courses with one water piece (``parkour.water.water_training_courses``; each row's block from the
+    platform before the takeoff to the exit, ``parkour.water.water_blocks``; types the 24 kinds)."""
     t0 = time.time()
     model = load_model(checkpoint, device)
-    if slime or posts:
+    if water:
+        from .water import water_blocks, water_training_courses
+        courses, types = water_training_courses(families, per_family)
+        blocks = [water_blocks(c)[0] for c in courses]  # (one piece per training course)
+    elif slime or posts:
         from .slime import post_kinds, slime_kinds, slime_training_courses, special_blocks
         courses, types = slime_training_courses(families, per_family, posts=posts)
         blocks = [special_blocks(c)[0] for c in courses]  # (one bounce or one post per training course)
@@ -253,6 +260,9 @@ def build_bank(checkpoint: Path, out: Path, families=TRAIN_FAMILIES, per_family:
     if slime or posts:
         data["meta"].update(kind="posts" if posts else "slime",
                             n_types=len(slime_kinds()) + (len(post_kinds()) if posts else 0))
+    if water:
+        from .water import water_specs
+        data["meta"].update(kind="water", n_types=len(water_specs()))
     out.parent.mkdir(parents=True, exist_ok=True)
     torch.save(data, out)
     print(json.dumps(data["meta"]), flush=True)
@@ -272,6 +282,9 @@ class SegmentBank:
         if any(c.slime or c.shapes for c in self.courses):  # (a slime or posts bank: the slime and posts sets too)
             from .slime import held_slime_hashes
             held |= held_slime_hashes()
+        if any(len(c.water) for c in self.courses):  # (a water bank: the water sets too)
+            from .water import held_water_hashes
+            held |= held_water_hashes()
         if any(course_hash(c) in held for c in self.courses):
             raise ValueError("the bank holds a held-out course")
         self.k = torch.as_tensor(d["k"], dtype=torch.int64)
@@ -410,7 +423,8 @@ class SegmentEnv(ParkourEnv):
             ctrl = self.cp < (kk if kk2 is None else kk2) + 2
             if not bool(ctrl.all()):
                 with torch.no_grad():
-                    action = torch.where(ctrl[:, None], action, self.base.act(self.observe(), deterministic=True)[0])
+                    o = self.observe()[:, :self.base.obs_dim]  # (a standard base beside a water skill: its prefix)
+                    action = torch.where(ctrl[:, None], action, self.base.act(o, deterministic=True)[0])
         s = self.state
         yaw = s.yaw + self.yaw_steps[action[:, 4]]
         s.yaw = torch.remainder(yaw + math.pi, 2 * math.pi) - math.pi
@@ -600,12 +614,14 @@ def main(argv=None):
                                                        "families 84-89)")
     b.add_argument("--posts", action="store_true", help="courses with one narrow post (parkour.slime; default "
                                                        "families 90-95)")
+    b.add_argument("--water", action="store_true", help="courses with one water piece (parkour.water; default "
+                                                       "families 102-107)")
     m = sub.add_parser("mix", help="one bank of several banks' rows, taken in turn")
     m.add_argument("banks", nargs="+")
     m.add_argument("--out", required=True)
     a = ap.parse_args(argv)
-    if a.cmd == "bank" and a.two + a.slime + a.posts > 1:
-        raise SystemExit("--two, --slime and --posts build one kind of bank each; mix banks with `mix`")
+    if a.cmd == "bank" and a.two + a.slime + a.posts + a.water > 1:
+        raise SystemExit("--two, --slime, --posts and --water build one kind of bank each; mix banks with `mix`")
     if a.cmd == "mix":
         if Path(a.out).exists():
             raise SystemExit(f"{a.out} exists; choose a new name")
@@ -620,14 +636,15 @@ def main(argv=None):
         return
     if a.cmd == "bank":
         from .slime import POSTS_TRAIN_FAMILIES, SLIME_TRAIN_FAMILIES
-        default = (POSTS_TRAIN_FAMILIES if a.posts else SLIME_TRAIN_FAMILIES if a.slime else TWO_TRAIN_FAMILIES if a.two
-                   else TRAIN_FAMILIES)
+        from .water import WATER_TRAIN_FAMILIES
+        default = (WATER_TRAIN_FAMILIES if a.water else POSTS_TRAIN_FAMILIES if a.posts else SLIME_TRAIN_FAMILIES
+                   if a.slime else TWO_TRAIN_FAMILIES if a.two else TRAIN_FAMILIES)
         lo, _, hi = (a.families or f"{default[0]}-{default[-1]}").partition("-")
         fams = tuple(range(int(lo), int(hi or lo) + 1))
         if Path(a.out).exists():
             raise SystemExit(f"{a.out} exists; choose a new name")
         build_bank(Path(a.checkpoint), Path(a.out), fams, a.per_family, a.device, a.batch, two=a.two, slime=a.slime,
-                   posts=a.posts)
+                   posts=a.posts, water=a.water)
 
 
 if __name__ == "__main__":
