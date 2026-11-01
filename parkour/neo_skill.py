@@ -49,8 +49,8 @@ from .env import (FALL_MARGIN, MAX_PLATFORMS, CoursePool, EnvConfig, LevelSample
                   on_obstacle)
 from .live import load_model
 from .neo_assist import (SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2, SINGLE_FRESH_TEST_FAMILY_3,
-                         SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY,
-                         single_neo_courses, single_neo_hashes, single_neo_types, skill_cps)
+                         SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, TWO_TEST_FAMILY, TWO_VALIDATION_FAMILY,
+                         held_neo_hashes, single_neo_courses, single_neo_types, skill_cps)
 from .neo_dagger import neo_takeoffs
 from .paths import ROOT
 from .train import course_hash
@@ -80,14 +80,14 @@ def block_rule(cp: torch.Tensor, new_cp: torch.Tensor, k: torch.Tensor, end: tor
 
 def training_courses(families=TRAIN_FAMILIES, per_family: int = 6400) -> tuple[list[C.Course], list[int]]:
     """Single-neo courses of the held-out sets' generator on training families, none equal to a course of the
-    single-neo sets; each course's level set to its neo type (course i of a family has type i mod 32)."""
-    exclude = single_neo_hashes()
+    single- or two-neo sets; each course's level set to its neo type (course i of a family has type i mod 32)."""
+    exclude = held_neo_hashes()
     n_types = len(single_neo_types())
     out, types = [], []
     for f in families:
         if f in (SINGLE_VALIDATION_FAMILY, SINGLE_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2,
-                 SINGLE_FRESH_TEST_FAMILY_3):
-            raise ValueError(f"family {f} is a held-out single-neo set")
+                 SINGLE_FRESH_TEST_FAMILY_3, TWO_VALIDATION_FAMILY, TWO_TEST_FAMILY):
+            raise ValueError(f"family {f} is a held-out neo set")
         for i, c in enumerate(single_neo_courses(f, per_family)):
             if course_hash(c) in exclude:
                 continue
@@ -197,7 +197,7 @@ class SegmentBank:
         self.courses = [C.Course.from_json(c) for c in d["courses"]]
         for c, t in zip(self.courses, d["types"]):
             c.level = int(t)
-        held = set(exclude) | single_neo_hashes()
+        held = set(exclude) | held_neo_hashes()
         if any(course_hash(c) in held for c in self.courses):
             raise ValueError("the bank holds a held-out course")
         self.k = torch.as_tensor(d["k"], dtype=torch.int64)

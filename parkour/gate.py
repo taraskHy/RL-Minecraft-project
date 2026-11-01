@@ -739,9 +739,9 @@ def training_courses(tc: T.TrainConfig, device):
     vals = [c for g in T.skill_sets("validation", tc.val_per_level, tc.eval_jumps, skills).values()
             for c in g["standard"] + g["obstacles"]]
     exclude = {T.course_hash(c) for c in tests + obstacle_tests + vals}
-    if "advanced" in skills:  # neos in training: none of the single-neo sets either
-        from .neo_assist import single_neo_hashes
-        exclude |= single_neo_hashes()
+    if "advanced" in skills:  # neos in training: none of the single- and two-neo sets either
+        from .neo_assist import held_neo_hashes
+        exclude |= held_neo_hashes()
     factory = T.CourseFactory(tc, levels, exclude)
     pool = CoursePool(factory.make(tc.pool_size), device, C.GRID,
                       ice=tc.ice_prob > 0 or any(sp.ice or sp.bounce for L in levels for sp in L),

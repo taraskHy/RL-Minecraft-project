@@ -86,6 +86,11 @@ Course sets (``--set``):
             single-neo types of levels 6 and 7, every type and every
             position equally often; families 41 (test) and 40 (validation),
             which nothing else uses and no training stream may contain.
+  two       courses with exactly two neos (``two_neo_courses``): 320 per
+            family, 10 jumps, eight from levels 0-5 and two single-neo
+            types, back to back (the first neo's 1x1 target is the second's
+            takeoff), one jump apart, or two apart; families 53 (test) and
+            52 (validation), held out like the single-neo sets.
 
 Settings are chosen on the validation families; the test families are run
 once with the chosen setting. Each run appends one JSON line to ``--out``
@@ -104,6 +109,7 @@ import sys
 import time
 from parkour.run_cache import append_jsonl_once, cache_lock, write_json_atomic
 from dataclasses import asdict, dataclass, replace
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -127,8 +133,10 @@ SINGLE_TEST_FAMILY = 41
 SINGLE_FRESH_TEST_FAMILY = 49  # a second single-neo test set, for the neo skill (HANDOFF.md section 3, 31 Oct)
 SINGLE_FRESH_TEST_FAMILY_2 = 50  # a third, for a later version of the neo skill (31 Oct, 11:43)
 SINGLE_FRESH_TEST_FAMILY_3 = 51  # a fourth, for the third DAgger round's version (31 Oct, 13:49)
+TWO_VALIDATION_FAMILY = 52  # the two-neo sets (HANDOFF.md section 3, 1 Nov)
+TWO_TEST_FAMILY = 53
 TEST_FAMILIES = (TEST_SEED_FAMILY, RANDOM_TEST_FAMILY, MIXED_TEST_FAMILY, SINGLE_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY,
-                 SINGLE_FRESH_TEST_FAMILY_2, SINGLE_FRESH_TEST_FAMILY_3)
+                 SINGLE_FRESH_TEST_FAMILY_2, SINGLE_FRESH_TEST_FAMILY_3, TWO_TEST_FAMILY)
 HEADS = ("move", "strafe", "jump", "sprint", "yaw")
 
 
@@ -507,6 +515,92 @@ def single_neo_hashes() -> set:
                                      SINGLE_FRESH_TEST_FAMILY_2, SINGLE_FRESH_TEST_FAMILY_3) for c in single_neo_courses(f)}
 
 
+TWO_SPACINGS = (1, 1, 2, 2, 3)  # second takeoff minus the first, by spacing class: back to back, one apart, two apart
+
+
+def two_neo_plan(n: int = 320, n_jumps: int = 10) -> list[tuple[int, int, int, int]]:
+    """(t1, t2, k1, k2) of course i of a two-neo set: the types (``single_neo_types``) and takeoffs of its two neos.
+
+    t1 is i mod 32 and t2 is (t1 + 1 + 7r) mod 32, r = i div 32, so in 320 courses every type comes 10 times as
+    the first neo and 10 times as the second (as the same type once), and in half the rounds both neos go around
+    the same side. The spacing k2 - k1 is ``TWO_SPACINGS[(t1 + r) mod 5]``, so each type is first in 4 back-to-back
+    pairs, 4 one apart and 2 two apart. k1 runs through 0 .. n_jumps - 1 - d in turn among the courses of spacing
+    d, so every position the spacing allows comes equally often."""
+    n_types = len(single_neo_types())
+    seen: dict = {}
+    out = []
+    for i in range(n):
+        t1, r = i % n_types, i // n_types
+        d = TWO_SPACINGS[(t1 + r) % len(TWO_SPACINGS)]
+        k1 = seen.get(d, 0) % (n_jumps - d)
+        seen[d] = seen.get(d, 0) + 1
+        out.append((t1, (t1 + 1 + 7 * r) % n_types, k1, k1 + d))
+    return out
+
+
+def two_neo_ok(course: C.Course, ks: tuple) -> bool:
+    """Exactly the neos at takeoffs ``ks``, by the wall rule (``neo_takeoffs``) and by the specs; the course's
+    obstacle cells exactly their walls, as ``courses._place`` builds them, with no cell in both; no wall cell
+    inside the flight corridor of another jump (``courses._corridor``); and none inside another neo's
+    ``courses.neo_swing`` (its corridor and the two lanes beside it on its wall's open side), where that neo's
+    flight goes around its own wall."""
+    ks = list(ks)
+    if neo_takeoffs(course) != ks or [j for j, sp in enumerate(course.specs) if sp.neo] != ks:
+        return False
+    p = course.platforms
+    walls = []
+    for k in ks:
+        top = max(int(q[4]) for q in p[max(k - 2, 0):k + 2])  # as _place: two before the takeoff to the target
+        cells = C._neo_wall(p[k], p[k + 1], C.heading_of(p[k], p[k + 1]), course.specs[k], top=top)
+        walls.append({tuple(int(v) for v in c) for c in cells})
+    union = set().union(*walls)
+    cells = [tuple(int(v) for v in e) for e in course.extra]
+    if len(union) != sum(len(w) for w in walls) or len(cells) != len(union) or set(cells) != union:
+        return False
+    for j in range(course.n - 1):
+        box = (C.neo_swing(p[j], p[j + 1], C.heading_of(p[j], p[j + 1]), course.specs[j]) if j in ks
+               else C._corridor(p[j], p[j + 1]))
+        for k, wall in zip(ks, walls):
+            if k != j and any(C._boxes_overlap(box, (x, x, y, y, z, z)) for x, y, z in wall):
+                return False
+    return True
+
+
+def two_neo_courses(family: int, n: int = 320, n_jumps: int = 10) -> list[C.Course]:
+    """Courses with exactly two neos (``--set two``: families 52 validation, 53 test), by ``courses.generate_neos``.
+
+    Course i has the neos of ``two_neo_plan``; the other jumps, start, turns and spawn are drawn as in
+    ``single_neo_courses``, from one random stream, ``[2026, family, 6]``, in course order (the first courses of
+    a longer set are the same courses), course i again until ``two_neo_ok``. Its level is the higher of its two
+    neos' levels (6 or 7), its seed i."""
+    types = single_neo_types()
+    basic = C.load_levels()
+    rng = np.random.default_rng([2026, family, 6])
+    out = []
+    for i, (t1, t2, k1, k2) in enumerate(two_neo_plan(n, n_jumps)):
+        (l1, s1), (l2, s2) = types[t1], types[t2]
+        for _ in range(SINGLE_MAX_DRAWS):
+            c = C.generate_neos(rng, basic, {k1: s1, k2: s2}, n_jumps, level=max(l1, l2), seed=i)
+            if c is not None and two_neo_ok(c, (k1, k2)):
+                break
+        else:
+            raise RuntimeError(f"no two-neo course {i} ({s1.key()} as jump {k1}, {s2.key()} as jump {k2}) "
+                               f"in {SINGLE_MAX_DRAWS} draws")
+        out.append(c)
+    return out
+
+
+@lru_cache(maxsize=None)
+def two_neo_hashes() -> frozenset:
+    """``train.course_hash`` of every course of the two-neo sets (320 each: validation and test)."""
+    return frozenset(course_hash(c) for f in (TWO_VALIDATION_FAMILY, TWO_TEST_FAMILY) for c in two_neo_courses(f))
+
+
+def held_neo_hashes() -> set:
+    """The single-neo and the two-neo sets' course hashes: no training course with a neo may equal one."""
+    return set(single_neo_hashes()) | set(two_neo_hashes())
+
+
 def skill_cps(course: C.Course) -> list[int]:
     """The checkpoint values (the furthest platform stood on) at which the neo skill plays (``--skill``,
     ``parkour.neo_skill``): for each neo takeoff k, k-1 (0 at the start) to k+1, so the skill plays from the first
@@ -527,6 +621,8 @@ def course_set(name: str, family: int) -> list[C.Course]:
         return mixed_courses(family)
     if name == "single":
         return single_neo_courses(family)
+    if name == "two":
+        return two_neo_courses(family)
     raise ValueError(name)
 
 
@@ -1137,7 +1233,7 @@ def _run_parts(a, meta, count) -> list[dict]:
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--checkpoint", default=str(ROOT / "results" / "final_policy.pt"))
-    ap.add_argument("--set", choices=("official", "random", "mixed", "single"), default="official")
+    ap.add_argument("--set", choices=("official", "random", "mixed", "single", "two"), default="official")
     ap.add_argument("--family", type=int, default=VALIDATION_FAMILY)
     ap.add_argument("--off", action="store_true", help="the policy alone, for comparison")
     ap.add_argument("--skill", default="", help="with --off: the neo skill's checkpoint (parkour.neo_skill), which plays "
@@ -1175,7 +1271,8 @@ def main(argv=None):
     valid = {"official": (TEST_SEED_FAMILY, VALIDATION_FAMILY), "random": (RANDOM_TEST_FAMILY, RANDOM_VALIDATION_FAMILY),
              "mixed": (MIXED_TEST_FAMILY, MIXED_VALIDATION_FAMILY),
              "single": (SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2,
-                        SINGLE_FRESH_TEST_FAMILY_3)}
+                        SINGLE_FRESH_TEST_FAMILY_3),
+             "two": (TWO_TEST_FAMILY, TWO_VALIDATION_FAMILY)}
     if a.family not in valid[a.set]:
         raise SystemExit(f"--set {a.set} has families {valid[a.set]} (test, validation{', fresh test' if a.set == 'single' else ''})")
     if a.skill and (not a.off or a.part or a.parts or a.serve):

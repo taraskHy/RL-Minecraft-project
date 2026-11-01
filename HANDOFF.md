@@ -384,6 +384,57 @@ More facts that hold now:
 
 ## 3. What is left to do
 
+**Two neos per course, more blocks, a course builder (Ethan, 1 Nov). His
+order: the two-neo measurement first, then the course builder (CPU, beside
+GPU training), then slime and fences, then water. The same rules as
+before: each rule written here before its runs, choices on validation
+only, each test set played once, CPU at most 85%, at most two GPU trainers
+with the watchdog, and Ethan asked before any download. Two-neo rules fixed
+at 18:05:14, before any run on the two-neo sets:**
+- **The sets:** `--set two` (`neo_assist.two_neo_courses`; generator
+  `courses.generate_neos`, which with one neo draws `generate_single_neo`'s
+  courses), families 52 (validation) and 53 (test), 320 courses of 10
+  jumps: eight ordinary jumps of levels 0-5 and two of the 32 single-neo
+  types. Course i: the first neo of type i mod 32, the second of type
+  (i mod 32 + 1 + 7 x (i div 32)) mod 32, so every type is 10 times first
+  and 10 times second, and in half the courses both neos go around the same
+  side; back to back (the first neo's 1x1 target is the second's takeoff)
+  in 128 courses, one jump apart in 128, two apart in 64; the first neo's
+  position runs through every position its spacing allows. Drawn as the
+  single-neo sets (one stream `[2026, family, 6]`, a course drawn again
+  until it passes) and checked (`two_neo_ok`): the obstacle cells are
+  exactly the two walls as the generator builds them, with no shared cell;
+  no wall cell in another jump's flight corridor, nor in the two lanes
+  beside the other neo's corridor on its wall's open side, where that
+  neo's flight goes around its wall (about 20 back-to-back drafts per set
+  fail only this). Pinned (`dd4eb6bf8cc72211`, `4205b4a4db722246`) and,
+  with the single-neo sets, excluded from every training stream with neos
+  (`neo_assist.held_neo_hashes`, 2,240 hashes; `train.py`, `gate.py`,
+  `neo_dagger`, `neo_skill`) at 17:57, before any run. Tests:
+  `tests/test_neo_assist.py` `TwoNeoSets`.
+- **Measurement on validation (family 52; simulator, CPU), each once:** (a)
+  the shipped neo skill (`results/neo_skill.pt`, d4 updates 400) with the
+  course list (`neo_assist --off --set two --family 52 --skill
+  results/neo_skill.pt --device cpu`); (b) the same skill in router mode
+  (`route_neo --set two --family 52 --skill results/neo_skill.pt --blocked
+  plan --device cpu`); (c) the reference: the planner's chosen setting
+  (`--jumps all --retries 1 --brake 14 --retry-horizon 48 --restarts 3`, the
+  final policy, seed 0, `--parts 8`). Strict counts (completed, both neos
+  done as neos), with the failures by spacing and by where they happen.
+- **"Well short", fixed now:** the skill is well short if its strict count
+  with the course list on family 52 is more than 16 (5 points of 320) below
+  the planner's there; the router mode's count is reported beside it. On
+  the single-neo test sets the gap is 2.2 points (1,104 against 1,132 of
+  1,280), so more than 5 on the same courses means the second neo costs the
+  skill more than it costs the search. **If well short:** the skill's
+  training is extended to two-neo blocks (the bank, `SegmentEnv` and
+  `block_rule` first, on two-neo training courses of fresh families,
+  hash-excluded; the training and choice rules fixed here before any run),
+  fine-tuned, chosen on family 52, tested once on family 53 in both modes
+  with the planner's reference, and played by the bots. **If not:** the
+  shipped skill is tested once on family 53 in both modes, with the
+  planner's reference, and then played by the bots.
+
 **Single neos at 85% by a network, without the search (Ethan, 31 Oct, about
 08:30: "i need our network/gate will have 85% on neo"; his suggestion: when
 the router sees a neo it hands over to the neo skill, like a gate). Rules

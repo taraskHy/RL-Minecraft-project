@@ -702,6 +702,107 @@ def generate_single_neo(rng: np.random.Generator, basic: list[list[JumpSpec]], n
     return c
 
 
+def generate_neos(rng: np.random.Generator, basic: list[list[JumpSpec]], neos: dict, n_jumps: int = 10, grid=GRID,
+                  turn_prob: float = 0.25, yaw_noise: float = math.radians(60), level: int = 0,
+                  seed: int = 0) -> Course | None:
+    """``generate_single_neo`` with a neo at each position of ``neos`` (position -> neo spec; opt-in: the two-neo
+    sets of ``parkour.neo_assist``). With one neo it draws the same course from the same stream;
+    ``generate_single_neo`` stays as it is, since the pinned single-neo sets are its draws.
+
+    Each neo is placed by ``_place`` (a takeoff one block wide; its wall clear of the platforms and of the jump
+    onto its takeoff); a later wall is not checked against the corridors of jumps before that one, nor against
+    the other walls (``neo_assist.two_neo_ok`` checks the finished course)."""
+    assert neos and all(neos[j].neo for j in neos) and min(neos) >= 0 and max(neos) < n_jumps < MAX_PLATFORMS
+    gx, gy, gz = grid
+    s = 1 if 0 in neos else int(rng.choice([1, 2, 3], p=[0.4, 0.3, 0.3]))
+    heading = int(rng.integers(4))
+    hx, hz = HEADINGS[heading]
+    y0 = int(rng.integers(10, gy - 14))
+    if hx > 0:
+        x0 = int(rng.integers(3, 10))
+    elif hx < 0:
+        x0 = int(rng.integers(gx - 10 - s, gx - 3 - s))
+    else:
+        x0 = int(rng.integers(8, gx - 8 - s))
+    if hz > 0:
+        z0 = int(rng.integers(3, 10))
+    elif hz < 0:
+        z0 = int(rng.integers(gz - 10 - s, gz - 3 - s))
+    else:
+        z0 = int(rng.integers(8, gz - 8 - s))
+    platforms = [np.array([x0, x0 + s - 1, z0, z0 + s - 1, y0], dtype=np.int64)]
+    specs = []
+    extras: list = []
+    for j in range(n_jumps):
+        placed = False
+        for attempt in range(30):
+            if j in neos:
+                spec = neos[j]
+            else:
+                lv = int(rng.integers(len(basic)))
+                spec = basic[lv][int(rng.integers(len(basic[lv])))]
+            h = heading
+            if rng.random() < turn_prob or attempt >= 15:
+                h = (heading + int(rng.choice([1, 3]))) % 4
+            if j in neos:
+                placed_parts = _place(platforms, extras, h, spec, grid)
+                if placed_parts is None:
+                    continue
+                platforms.extend(placed_parts[0])
+                extras.extend(placed_parts[1])
+            else:
+                new = _platform_after(platforms[-1], h, spec)
+                if not _fits(new, platforms, grid, extras=extras):
+                    continue
+                platforms.append(new)
+            specs.append(spec)
+            heading = h
+            placed = True
+            break
+        if not placed:
+            return None
+    c = Course(np.stack(platforms), np.zeros(3), 0.0, level=level, seed=seed, specs=specs,
+               extra=np.array(extras, dtype=np.int64).reshape(-1, 3))
+    centres = c.centers()
+    c.spawn = centres[0].copy()
+    d = centres[1] - centres[0]
+    yaw_to = math.atan2(-d[0], -d[2])  # Mineflayer yaw that faces direction d
+    c.spawn_yaw = float(yaw_to + rng.uniform(-yaw_noise, yaw_noise))
+    return c
+
+
+def heading_of(prev: np.ndarray, new: np.ndarray) -> int:
+    """The heading (index of ``HEADINGS``) of the jump from platform ``prev`` to ``new``: the side of ``prev``
+    that ``new`` lies beyond (``_platform_after`` places a target past the takeoff's far edge)."""
+    if new[0] > prev[1]:
+        return 0
+    if new[2] > prev[3]:
+        return 1
+    if new[1] < prev[0]:
+        return 2
+    if new[3] < prev[2]:
+        return 3
+    raise ValueError("the platforms overlap along both axes")
+
+
+def neo_swing(prev: np.ndarray, new: np.ndarray, heading: int, spec: JumpSpec, lanes: int = 2) -> tuple:
+    """The box a neo's flight may pass through: the jump's corridor (``_corridor``) widened by ``lanes`` blocks
+    on the wall's open side, where the bot goes around the wall's end (``_neo_wall``: the wall is flush with the
+    platforms there)."""
+    x0, x1, y0, y1, z0, z1 = _corridor(prev, new)
+    hx, hz = HEADINGS[heading]
+    if hx != 0:
+        if spec.side * hx > 0:  # open towards +z
+            z1 += lanes
+        else:
+            z0 -= lanes
+    elif -spec.side * hz > 0:  # open towards +x
+        x1 += lanes
+    else:
+        x0 -= lanes
+    return (x0, x1, y0, y1, z0, z1)
+
+
 def single_jump(spec: JumpSpec, takeoff: tuple = (1, 1), grid=(24, 16, 24), heading: int = 0) -> Course:
     """A two-platform course for one jump, used by the feasibility study.
 

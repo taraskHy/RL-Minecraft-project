@@ -58,7 +58,7 @@ from . import physics
 from .env import CoursePool, EnvConfig, ParkourEnv, standing_on
 from .live import load_model
 from .neo_assist import (AssistConfig, Rules, _arrival, brake_plan, config_meta, horizons, jump_kind, neo_done, plan_once,
-                         single_neo_courses, summarize)
+                         single_neo_courses, summarize, two_neo_courses)
 from .neo_dagger import neo_takeoffs
 from .paths import ROOT
 from .planner import PlannerConfig
@@ -66,13 +66,14 @@ from .route_env import RouteConfig, RouteRunner, RouteTables
 from .train import (OBSTACLE_TEST_FAMILY, OBSTACLE_VALIDATION_FAMILY, TEST_SEED_FAMILY, VALIDATION_FAMILY,
                     held_out_courses)
 from .neo_assist import (SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2, SINGLE_FRESH_TEST_FAMILY_3, SINGLE_TEST_FAMILY,
-                         SINGLE_VALIDATION_FAMILY)
+                         SINGLE_VALIDATION_FAMILY, TWO_TEST_FAMILY, TWO_VALIDATION_FAMILY)
 
 K = C.MAX_PLATFORMS
 OUT_DIR = ROOT / "results" / "neo_routing"
 # (test, validation[, further test sets]); the single-neo sets' fresh test families 49, 50 and 51 are the neo skill's (31 Oct)
 SETS = {"single": (SINGLE_TEST_FAMILY, SINGLE_VALIDATION_FAMILY, SINGLE_FRESH_TEST_FAMILY, SINGLE_FRESH_TEST_FAMILY_2,
                    SINGLE_FRESH_TEST_FAMILY_3),
+        "two": (TWO_TEST_FAMILY, TWO_VALIDATION_FAMILY),  # the two-neo sets (1 Nov)
         "standard": (TEST_SEED_FAMILY, VALIDATION_FAMILY), "obstacles": (OBSTACLE_TEST_FAMILY, OBSTACLE_VALIDATION_FAMILY)}
 
 
@@ -326,12 +327,14 @@ def evaluate_routed_neo(jumper, pool: CoursePool, tables: RouteTables, choose=No
 
 
 def course_set(name: str, family: int, per_level: int = 0) -> list[C.Course]:
-    """The single-neo sets (40, 41), or the router's own sets (route_eval.course_sets): standard (2, 1) and
-    obstacles (5, 4), 300 courses per level on validation and 200 on test unless ``per_level``."""
+    """The single-neo sets (40, 41), the two-neo sets (52, 53), or the router's own sets (route_eval.course_sets):
+    standard (2, 1) and obstacles (5, 4), 300 courses per level on validation and 200 on test unless ``per_level``."""
     if family not in SETS[name]:
         raise ValueError(f"--set {name} has families {SETS[name]} (test, validation, then any further test set)")
     if name == "single":
         return single_neo_courses(family)
+    if name == "two":
+        return two_neo_courses(family)
     per_level = per_level or (200 if family == SETS[name][0] else 300)
     levels = C.load_levels()
     if name == "standard":

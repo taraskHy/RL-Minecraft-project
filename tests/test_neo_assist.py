@@ -470,6 +470,109 @@ class SingleNeoSets(unittest.TestCase):
         self.assertEqual(seen, [False, False, True, False, True])
 
 
+class TwoNeoSets(unittest.TestCase):
+    """The two-neo sets (--set two, families 52 and 53): balanced, held out, and drawn like the single-neo sets."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.sets = {f: NA.two_neo_courses(f) for f in (NA.TWO_VALIDATION_FAMILY, NA.TWO_TEST_FAMILY)}
+
+    def test_two_neos_where_the_plan_puts_them(self):
+        types = single_neo_types()
+        basic = {s for L in C.load_levels() for s in L}
+        plan = NA.two_neo_plan()
+        self.assertEqual(collections.Counter(k2 - k1 for *_, k1, k2 in plan), {1: 128, 2: 128, 3: 64})
+        self.assertEqual(set(collections.Counter(t1 for t1, *_ in plan).values()), {10})
+        self.assertEqual(set(collections.Counter(t2 for _, t2, *_ in plan).values()), {10})
+        self.assertEqual(len({(t1, t2) for t1, t2, *_ in plan}), 320)
+        self.assertEqual(sum(types[t1][1].side == types[t2][1].side for t1, t2, *_ in plan), 160)
+        for d, n in ((1, 9), (2, 8), (3, 7)):  # every position the spacing allows, equally often (to one)
+            counts = collections.Counter(k1 for *_, k1, k2 in plan if k2 - k1 == d)
+            self.assertEqual(set(counts), set(range(n)))
+            self.assertLessEqual(max(counts.values()) - min(counts.values()), 1)
+        for family, cs in self.sets.items():
+            self.assertEqual(len(cs), 320)
+            for i, (c, (t1, t2, k1, k2)) in enumerate(zip(cs, plan)):
+                self.assertEqual(neo_takeoffs(c), [k1, k2])
+                self.assertTrue(NA.two_neo_ok(c, (k1, k2)))
+                self.assertEqual((c.specs[k1], c.specs[k2]), (types[t1][1], types[t2][1]))
+                self.assertEqual((c.n, c.level, c.seed), (11, max(types[t1][0], types[t2][0]), i))
+                self.assertTrue(all(sp in basic for j, sp in enumerate(c.specs) if j not in (k1, k2)))
+                if k1 == 0:  # a 1x1 start
+                    x0, x1, z0, z1, _ = c.platforms[0]
+                    self.assertEqual((x0, z0), (x1, z1))
+                if k2 == k1 + 1:  # back to back: the first neo's 1x1 target is the second's takeoff
+                    x0, x1, z0, z1, _ = c.platforms[k2]
+                    self.assertEqual((x0, z0), (x1, z1))
+        self.assertEqual([c.to_json() for c in NA.two_neo_courses(NA.TWO_VALIDATION_FAMILY, n=40)],
+                         [c.to_json() for c in self.sets[NA.TWO_VALIDATION_FAMILY][:40]])  # a prefix: the same courses
+        self.assertIn(NA.TWO_TEST_FAMILY, TEST_FAMILIES)
+        self.assertNotIn(NA.TWO_VALIDATION_FAMILY, TEST_FAMILIES)
+
+    def test_two_neo_ok_refuses_walls_in_the_way(self):
+        c = self.sets[NA.TWO_VALIDATION_FAMILY][0]
+        k1, k2 = NA.two_neo_plan(1)[0][2:]
+        self.assertTrue(NA.two_neo_ok(c, (k1, k2)))
+        self.assertFalse(NA.two_neo_ok(c, (k2, k1 + 5)))  # other takeoffs
+        d = dataclasses.replace(c, extra=np.concatenate([c.extra, c.extra[:1]]))
+        self.assertFalse(NA.two_neo_ok(d, (k1, k2)))  # a cell twice
+        p = c.platforms
+        j = next(j for j in range(c.n - 1) if j not in (k1, k2))
+        x0, x1, y0, _, z0, _ = C._corridor(p[j], p[j + 1])
+        d = dataclasses.replace(c, extra=np.concatenate([c.extra, [[x0, y0 + 2, z0]]]))
+        self.assertFalse(NA.two_neo_ok(d, (k1, k2)))  # a cell that is no wall's, in an ordinary jump's way
+        h = C.heading_of(p[k1], p[k1 + 1])
+        swing, corridor = C.neo_swing(p[k1], p[k1 + 1], h, c.specs[k1]), C._corridor(p[k1], p[k1 + 1])
+        self.assertEqual(sorted(abs(a - b) for a, b in zip(swing, corridor)), [0, 0, 0, 0, 0, 2])  # two lanes, one side
+        # The swing lanes: replaying the validation set's stream, some draws fail only them (a wall beside the other
+        # neo's corridor, on its wall's open side), and the courses kept are the set's.
+        types, basic = single_neo_types(), C.load_levels()
+        rng = np.random.default_rng([2026, NA.TWO_VALIDATION_FAMILY, 6])
+        corridor_only = lambda prev, new, heading, spec, lanes=2: C._corridor(prev, new)  # noqa: E731
+        kept, only_swing = [], 0
+        for i, (t1, t2, k1, k2) in enumerate(NA.two_neo_plan(40)):
+            while True:
+                d = C.generate_neos(rng, basic, {k1: types[t1][1], k2: types[t2][1]}, 10,
+                                    level=max(types[t1][0], types[t2][0]), seed=i)
+                if d is None:
+                    continue
+                if NA.two_neo_ok(d, (k1, k2)):
+                    kept.append(d.to_json())
+                    break
+                with mock.patch.object(C, "neo_swing", corridor_only):
+                    only_swing += NA.two_neo_ok(d, (k1, k2))
+        self.assertEqual(kept, [c.to_json() for c in self.sets[NA.TWO_VALIDATION_FAMILY][:40]])
+        self.assertGreater(only_swing, 0)
+
+    def test_one_neo_draws_the_single_neo_generator_s_course(self):
+        types, basic = single_neo_types(), C.load_levels()
+        r1, r2 = np.random.default_rng([2026, 99, 0]), np.random.default_rng([2026, 99, 0])
+        for i in range(64):
+            level, spec = types[i % 32]
+            k = (i % 32 + i // 32) % 10
+            a = C.generate_single_neo(r1, basic, spec, k, 10, level=level, seed=i)
+            b = C.generate_neos(r2, basic, {k: spec}, 10, level=level, seed=i)
+            self.assertEqual(a is None, b is None)
+            if a is not None:
+                self.assertEqual(a.to_json(), b.to_json())
+
+    def test_kept_out_of_training(self):
+        two = NA.two_neo_hashes()
+        self.assertEqual(two, {course_hash(c) for cs in self.sets.values() for c in cs})
+        self.assertEqual(len(two), 640)
+        self.assertEqual(NA.held_neo_hashes(), single_neo_hashes() | two)
+        self.assertEqual(len(NA.held_neo_hashes()), 2240)
+        from parkour import neo_skill
+        for f in (NA.TWO_VALIDATION_FAMILY, NA.TWO_TEST_FAMILY):
+            with self.assertRaises(ValueError):
+                neo_skill.training_courses(families=(f,), per_family=1)
+        # The training paths with neos exclude both sets (train.py, gate.py, neo_dagger, neo_skill).
+        for path in ("train.py", "gate.py", "neo_dagger.py", "neo_skill.py"):
+            src = (ROOT / "parkour" / path).read_text(encoding="utf-8")
+            self.assertIn("held_neo_hashes()", src)
+            self.assertNotIn("single_neo_hashes()", src)
+
+
 class StrictNeoMetric(unittest.TestCase):
     """neo_done: the bot stood on the neo's takeoff, then on its target (not past either)."""
 
