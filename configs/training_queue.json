@@ -675,6 +675,70 @@
         "--segment-base",
         "results/final_policy.pt"
       ]
+    },
+    {
+      "name": "slime-skill-sp3",
+      "init": "runs/slime-skill-sp2/checkpoints/updates_00100.pt",
+      "flags": [
+        "--segments",
+        "runs/neo_skill_bank_special_v1.pt",
+        "--gamma",
+        "0.99",
+        "--obstacle-prob",
+        "0",
+        "--iterations",
+        "300",
+        "--reward-stall",
+        "5",
+        "--lr-max",
+        "3e-4",
+        "--pool-size",
+        "4096",
+        "--eval-every",
+        "300",
+        "--save-at",
+        "25,50,75,100,125,150,175,200,225,250,275,300",
+        "--ent-coef",
+        "0.01",
+        "--segment-base",
+        "results/final_policy.pt",
+        "--bc-coef",
+        "0.3",
+        "--bc-pairs",
+        "runs/slime_skill_dagger_v1.pt"
+      ]
+    },
+    {
+      "name": "slime-skill-sp3b",
+      "init": "runs/slime-skill-sp2/checkpoints/updates_00100.pt",
+      "flags": [
+        "--segments",
+        "runs/neo_skill_bank_special_v1.pt",
+        "--gamma",
+        "0.99",
+        "--obstacle-prob",
+        "0",
+        "--iterations",
+        "300",
+        "--reward-stall",
+        "5",
+        "--lr-max",
+        "3e-4",
+        "--pool-size",
+        "4096",
+        "--eval-every",
+        "300",
+        "--save-at",
+        "25,50,75,100,125,150,175,200,225,250,275,300",
+        "--ent-coef",
+        "0.01",
+        "--segment-base",
+        "results/final_policy.pt",
+        "--bc-coef",
+        "1.0",
+        "--bc-pairs",
+        "runs/slime_skill_dagger_v1.pt"
+      ]
     }
   ]
 }
