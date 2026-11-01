@@ -755,6 +755,21 @@ at 18:05:14, before any run on the two-neo sets:**
     101, and played by the bots on the first 64 courses of 101: the offline
     bot, and the live bot in real Minecraft (it builds the basins in stone
     and fills them with water).
+  - **Measured so far (21:33-21:45):** the final policy alone on family 100,
+    **7 of 288** (273 courses lost at a water jump, 8 at an ordinary one;
+    simulator, CPU, `results/neo/assist_validation.jsonl`). The planner's
+    reference started at 21:33 in 8 parts and was stopped at 21:41 before
+    any part finished: Task Manager's reading was about 100% (the user's
+    game, its anti-cheat and OneDrive took about four cores beside the two
+    trainers, the scorer and three parts; `runs/assist_parts/water100-val-planner`
+    keeps the logs). It runs again as `water100-val-planner16` (16 parts, 2 at
+    a time) only while the reading allows: started after five readings in a
+    row below 65%, stopped after three above 88% (a stopped part restarts;
+    finished parts are kept). The water bank's first build was stopped at
+    21:38 (beside two trainers, a water tick took about 240 ms on the GPU
+    against 31 ms on the CPU; `runs/neo_skill_bank_water_v1.stopped-2133.*`);
+    it is built again on the GPU when round 3c's runs end, then w1 and w2
+    are queued.
 - **The course builder (built 1 Nov, beside the GPU runs; nothing chosen or
   trained on it):** `run.cmd builder` (`parkour.builder`, `parkour.build_session`,
   `bridge/builder_bot.js`) starts the local server and a bot in build mode.
