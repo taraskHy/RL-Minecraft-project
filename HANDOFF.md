@@ -539,6 +539,26 @@ at 18:05:14, before any run on the two-neo sets:**
     choice is solid or a round adds less than 5 courses; then the chosen
     network is tested once on 56 and 58 (course list), with the planner's
     reference on both, and played by the bots on the first 64 courses of 56.
+  - **Measured, the networks alone (19:22; simulator, CPU, of 320):**
+    slime-heavy family 55: the final policy **0** (315 fail on the bounce off
+    a pad), the one network **194** (60.6%; 121 off a pad); post-heavy family
+    57: the final policy 9 (209 off a pad, 92 onto a post), the one network
+    **226** (70.6%; 53 off a pad, 36 onto a post). The planner's reference
+    runs when the CPU is free (it only sets the solid bar).
+  - **Slime round 1, fixed at 19:24:27, before any training run:** bank
+    `runs/neo_skill_bank_slime_v1.pt` (families 84-89, 4,100 courses each,
+    one bounce per course, kind i mod 41 at spec position (i div 41) mod 8;
+    the final policy's first contact on the takeoff onto the pad, from the
+    simulator's start and after 10 settle ticks). Two runs side by side
+    through the queue (two trainers at most, the watchdog on), the neo
+    skill's settings (gamma 0.99, `--reward-stall 5`, learning rate at most
+    3e-4, pool 4,096, entropy 0.01; no imitation pairs), 500 updates, a
+    snapshot every 50: `slime-skill-s1` from the one network
+    (`results/combined_policy.pt`, which saw slime in training) and
+    `slime-skill-s2` from the final policy. Choice: every snapshot played on
+    family 55 with `--skill-blocks slime` (course list, CPU); the most strict
+    wins, ties to fewer updates, then to s1; family 57 is played too and
+    reported.
 - **The course builder (built 1 Nov, beside the GPU runs; nothing chosen or
   trained on it):** `run.cmd builder` (`parkour.builder`, `parkour.build_session`,
   `bridge/builder_bot.js`) starts the local server and a bot in build mode.

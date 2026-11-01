@@ -567,6 +567,58 @@
         "--bc-pairs",
         "runs/neo_skill_dagger_v1.pt,runs/neo_skill_dagger_v2_air.pt,runs/neo_skill_dagger_v3_hard.pt"
       ]
+    },
+    {
+      "name": "slime-skill-s1",
+      "init": "results/combined_policy.pt",
+      "flags": [
+        "--segments",
+        "runs/neo_skill_bank_slime_v1.pt",
+        "--gamma",
+        "0.99",
+        "--obstacle-prob",
+        "0",
+        "--iterations",
+        "500",
+        "--reward-stall",
+        "5",
+        "--lr-max",
+        "3e-4",
+        "--pool-size",
+        "4096",
+        "--eval-every",
+        "500",
+        "--save-at",
+        "50,100,150,200,250,300,350,400,450,500",
+        "--ent-coef",
+        "0.01"
+      ]
+    },
+    {
+      "name": "slime-skill-s2",
+      "init": "results/final_policy.pt",
+      "flags": [
+        "--segments",
+        "runs/neo_skill_bank_slime_v1.pt",
+        "--gamma",
+        "0.99",
+        "--obstacle-prob",
+        "0",
+        "--iterations",
+        "500",
+        "--reward-stall",
+        "5",
+        "--lr-max",
+        "3e-4",
+        "--pool-size",
+        "4096",
+        "--eval-every",
+        "500",
+        "--save-at",
+        "50,100,150,200,250,300,350,400,450,500",
+        "--ent-coef",
+        "0.01"
+      ]
     }
   ]
 }
