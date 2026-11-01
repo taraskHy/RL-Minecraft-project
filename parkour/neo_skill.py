@@ -200,17 +200,18 @@ def collect_starts(model, courses: list[C.Course], device, settle: int = 0, max_
 
 
 def build_bank(checkpoint: Path, out: Path, families=TRAIN_FAMILIES, per_family: int = 6400, device="cuda",
-               batch: int = 4096, two: bool = False, slime: bool = False) -> dict:
+               batch: int = 4096, two: bool = False, slime: bool = False, posts: bool = False) -> dict:
     """The training bank: every training course with at least one start (``collect_starts``, per ``SETTLES``).
     With ``two``, two-neo courses (``two_training_courses``) and each row's second takeoff (``k2``). With
     ``slime``, courses with one slime bounce (``parkour.slime.slime_training_courses``), each row's block the pad's
-    (``parkour.slime.slime_blocks``: k the takeoff onto the pad, so the episode ends on the pad's exit)."""
+    (``parkour.slime.slime_blocks``: k the takeoff onto the pad, so the episode ends on the pad's exit); with
+    ``posts``, one narrow post instead (``parkour.slime.special_blocks``; types after the slime kinds)."""
     t0 = time.time()
     model = load_model(checkpoint, device)
-    if slime:
-        from .slime import slime_blocks, slime_kinds, slime_training_courses
-        courses, types = slime_training_courses(families, per_family)
-        blocks = [slime_blocks(c)[0] for c in courses]  # (one bounce per training course)
+    if slime or posts:
+        from .slime import post_kinds, slime_kinds, slime_training_courses, special_blocks
+        courses, types = slime_training_courses(families, per_family, posts=posts)
+        blocks = [special_blocks(c)[0] for c in courses]  # (one bounce or one post per training course)
     else:
         courses, types = (two_training_courses if two else training_courses)(families, per_family)
         blocks = [(b[0], b[2]) for b in (merged_block(c) for c in courses)]
@@ -249,8 +250,9 @@ def build_bank(checkpoint: Path, out: Path, families=TRAIN_FAMILIES, per_family:
     if two:  # (only then, so a single-neo bank's file is as before)
         data["k2"] = [merged_block(courses[i])[1] for i, _ in rows]
         data["meta"].update(kind="two", n_types=4 * len(single_neo_types()))
-    if slime:
-        data["meta"].update(kind="slime", n_types=len(slime_kinds()))
+    if slime or posts:
+        data["meta"].update(kind="posts" if posts else "slime",
+                            n_types=len(slime_kinds()) + (len(post_kinds()) if posts else 0))
     out.parent.mkdir(parents=True, exist_ok=True)
     torch.save(data, out)
     print(json.dumps(data["meta"]), flush=True)
@@ -560,6 +562,8 @@ def main(argv=None):
                                                      f"{TWO_TRAIN_FAMILIES[0]}-{TWO_TRAIN_FAMILIES[-1]})")
     b.add_argument("--slime", action="store_true", help="courses with one slime bounce (parkour.slime; default "
                                                        "families 84-89)")
+    b.add_argument("--posts", action="store_true", help="courses with one narrow post (parkour.slime; default "
+                                                       "families 90-95)")
     m = sub.add_parser("mix", help="one bank of several banks' rows, taken in turn")
     m.add_argument("banks", nargs="+")
     m.add_argument("--out", required=True)
@@ -576,13 +580,15 @@ def main(argv=None):
                      a.device, a.batch, seed=a.seed, air_every=a.air_every, exits=a.exits, skip=a.skip)
         return
     if a.cmd == "bank":
-        from .slime import SLIME_TRAIN_FAMILIES
-        default = SLIME_TRAIN_FAMILIES if a.slime else TWO_TRAIN_FAMILIES if a.two else TRAIN_FAMILIES
+        from .slime import POSTS_TRAIN_FAMILIES, SLIME_TRAIN_FAMILIES
+        default = (POSTS_TRAIN_FAMILIES if a.posts else SLIME_TRAIN_FAMILIES if a.slime else TWO_TRAIN_FAMILIES if a.two
+                   else TRAIN_FAMILIES)
         lo, _, hi = (a.families or f"{default[0]}-{default[-1]}").partition("-")
         fams = tuple(range(int(lo), int(hi or lo) + 1))
         if Path(a.out).exists():
             raise SystemExit(f"{a.out} exists; choose a new name")
-        build_bank(Path(a.checkpoint), Path(a.out), fams, a.per_family, a.device, a.batch, two=a.two, slime=a.slime)
+        build_bank(Path(a.checkpoint), Path(a.out), fams, a.per_family, a.device, a.batch, two=a.two, slime=a.slime,
+                   posts=a.posts)
 
 
 if __name__ == "__main__":

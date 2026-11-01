@@ -211,13 +211,29 @@ def slime_blocks(course: C.Course) -> list[tuple[int, int]]:
     return [(s - 1, s - 1) for s in sorted(course.slime) if s >= 1]
 
 
-def slime_training_courses(families=SLIME_TRAIN_FAMILIES, per_family: int = 4100) -> tuple[list[C.Course], list[int]]:
+def special_cps(course: C.Course) -> list[int]:
+    """``slime_cps`` with the narrow posts too: for each slime pad and each shaped platform s, s-1 and s."""
+    return sorted({k for s in list(course.slime) + list(course.shapes) for k in (s - 1, s) if k >= 0})
+
+
+def special_blocks(course: C.Course) -> list[tuple[int, int]]:
+    """``slime_blocks`` with the shaped platforms too (a post's block: onto it from k = s-1, then its exit)."""
+    return [(s - 1, s - 1) for s in sorted(set(course.slime) | set(course.shapes)) if s >= 1]
+
+
+POSTS_TRAIN_FAMILIES = tuple(range(90, 96))  # training courses with one post; nothing else uses them
+
+
+def slime_training_courses(families=SLIME_TRAIN_FAMILIES, per_family: int = 4100,
+                           posts: bool = False) -> tuple[list[C.Course], list[int]]:
     """Courses of 8 jump specs with one slime bounce (course i: kind i mod 41 at spec position (i div 41) mod 8, the
     other jumps of levels 0-5; the sets' generator), none equal to a course of the slime or posts sets; each
-    course's level set to its kind (0-40)."""
+    course's level set to its kind (0-40). With ``posts``, one narrow post instead (``post_kinds``, types 41 on:
+    a bank of both can be mixed, ``neo_skill mix``)."""
     held = held_slime_hashes()
     from .train import course_hash
-    kinds = slime_kinds()
+    kinds = post_kinds() if posts else slime_kinds()
+    offset = len(slime_kinds()) if posts else 0
     basic = C.load_levels()
     out, types = [], []
     for f in families:
@@ -228,7 +244,7 @@ def slime_training_courses(families=SLIME_TRAIN_FAMILIES, per_family: int = 4100
             t = i % len(kinds)
             fixed = {(i // len(kinds)) % 8: kinds[t]}
             for _ in range(MAX_DRAWS):
-                c = generate_fixed(rng, basic, fixed, 8, level=t, seed=i)
+                c = generate_fixed(rng, basic, fixed, 8, level=offset + t, seed=i)
                 if c is not None and fixed_ok(c, fixed):
                     break
             else:
@@ -236,5 +252,5 @@ def slime_training_courses(families=SLIME_TRAIN_FAMILIES, per_family: int = 4100
             if course_hash(c) in held:
                 continue
             out.append(c)
-            types.append(t)
+            types.append(offset + t)
     return out, types

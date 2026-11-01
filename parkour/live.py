@@ -136,7 +136,12 @@ def main(argv=None):
                          "bots and in the simulator re-run; with --router and --router-blocked keep, from each router "
                          "decision whose route crosses a wall in its next two jumps (route_neo.evaluate_routed_neo with "
                          "skill); not with the greedy --planner or --assist")
+    ap.add_argument("--skill-blocks", default="neo", choices=("neo", "slime", "special"),
+                    help="with --skill and the course list: the blocks it plays (slime: each slime pad's, "
+                         "parkour.slime.slime_cps)")
     a = ap.parse_args(argv)
+    if a.skill_blocks != "neo" and (not a.skill or a.router):
+        raise SystemExit("--skill-blocks slime plays a --skill with the course list (no --router)")
     if a.skill and (a.assist or (a.planner and not a.router) or (a.router and a.router_blocked != "keep")):
         # refused before anything is written (route_neo.evaluate_routed_neo refuses the rest, but only in the re-run)
         raise SystemExit("--skill plays with the course list, or with --router and --router-blocked keep (not with "
@@ -189,7 +194,11 @@ def main(argv=None):
             d.update(assist_fields(c, assist_cfg))  # takeoffs, targets (past a slime pad: its exit), retry horizons
     if a.skill and not a.router:  # with --router the router's decisions hand the skill each block (no skill_cps)
         for c, d in zip(courses, course_json):
-            d["skill_cps"] = skill_cps(c)  # where the bots' neo skill acts (bridge/policy.js Episode)
+            if a.skill_blocks in ("slime", "special"):
+                from .slime import slime_cps, special_cps
+                d["skill_cps"] = (slime_cps if a.skill_blocks == "slime" else special_cps)(c)  # (policy.js Episode)
+            else:
+                d["skill_cps"] = skill_cps(c)  # where the bots' neo skill acts (bridge/policy.js Episode)
     (out / "courses.json").write_text(json.dumps({"courses": course_json}))
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     model = load_model(Path(a.checkpoint).resolve(), dev)
@@ -278,7 +287,7 @@ def main(argv=None):
     elif skill_model is not None:  # the neo-skill mode: the skill acts while the checkpoint is one of skill_cps
         from .neo_assist import evaluate_assisted
         pc = evaluate_assisted(model, pool, dev, AssistConfig(enabled=False), a.stall, settle=SETTLE_TICKS,
-                               fall_rule=a.fall_rule, skill=skill_model)["per_course"]
+                               fall_rule=a.fall_rule, skill=skill_model, skill_blocks=a.skill_blocks)["per_course"]
         sim = {"success": [c["success"] for c in pc], "ticks": [c["ticks"] for c in pc]}
     else:
         sim = evaluate(model, pool, dev, a.stall, deterministic=True, settle=SETTLE_TICKS, per_course=True,
@@ -305,6 +314,7 @@ def main(argv=None):
     summary = {
         "mode": "offline (prismarine-physics, no server)" if a.offline else "live (Minecraft 1.21.4 server)",
         "checkpoint": str(a.checkpoint), **({"skill": str(a.skill)} if a.skill else {}),
+        **({"skill_blocks": a.skill_blocks} if a.skill_blocks != "neo" else {}),
         "courses": len(rows), "wall_seconds": round(wall, 1),
         **({"router": str(a.router), "router_fill": router_fill} if a.router else {}),
         **({"router_blocked": a.router_blocked} if a.router and a.router_blocked != "drop" else {}),

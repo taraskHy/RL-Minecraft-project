@@ -856,9 +856,9 @@ def evaluate_assisted(model, pool: CoursePool, device, cfg: AssistConfig, stall_
         plan_at[i, planned[i]] = True
         before[i, approach_platforms(pool.courses[i], planned[i])] = True
         if skill is not None:
-            if skill_blocks == "slime":
-                from .slime import slime_cps
-                skill_at[i, slime_cps(pool.courses[i])] = True
+            if skill_blocks in ("slime", "special"):
+                from .slime import slime_cps, special_cps
+                skill_at[i, (slime_cps if skill_blocks == "slime" else special_cps)(pool.courses[i])] = True
             else:
                 skill_at[i, skill_cps(pool.courses[i])] = True
     hz = horizons(cfg)
@@ -1253,8 +1253,9 @@ def main(argv=None):
                                                 "each neo's block (skill_cps); rows go to results/neo/skill_*.jsonl")
     ap.add_argument("--skill-jump", type=float, default=0.5, help="with --skill: its jump reads 'jump' above this "
                                                                   "probability (neo_skill.JumpReadout; 0.5: argmax)")
-    ap.add_argument("--skill-blocks", choices=("neo", "slime"), default="neo",
-                    help="with --skill: the blocks it plays (slime: each slime pad's, parkour.slime.slime_cps)")
+    ap.add_argument("--skill-blocks", choices=("neo", "slime", "special"), default="neo",
+                    help="with --skill: the blocks it plays (slime: each slime pad's, parkour.slime.slime_cps; special: "
+                         "each slime pad's and narrow post's, special_cps)")
     ap.add_argument("--courses", type=int, default=0, help="only the first N courses (quick checks)")
     ap.add_argument("--settle", type=int, default=0, help="ticks without keys on the start block first, as the bots "
                                                           "start (parkour.live.SETTLE_TICKS, 10); in the row only when set")
