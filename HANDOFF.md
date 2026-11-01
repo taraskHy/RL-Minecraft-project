@@ -659,6 +659,25 @@ at 18:05:14, before any run on the two-neo sets:**
   1.4e-14 residue of the old parity numbers). Next for water: course pieces
   held in stone basins (so no water flows in the real game), an observation
   of water, opt-in training, held-out sets, the bots.
+- **Water, step 2: pieces and the environment (20:53; code only, no run).**
+  `Course.water` (x, y, z, level; in the JSON only when there is water, so no
+  other course file or hash changes), `CoursePool` builds the water grid
+  only when a course has water, `physics.in_water`, and in water the fall and
+  obstacle rules do not fire (`ParkourEnv.step`, `SegmentEnv.step`; nothing
+  changes without water). `parkour.water`: one piece, a pool between a
+  takeoff and an exit on its far rim, in three kinds by its numbers (a pool
+  breaking a drop: 3-8 rows down, 6-8 long; a column to swim up: 1 wide, 5
+  long, 4-6 deep, sunk into and swum up out of, since a shaft entered at its
+  foot would need an opening that lets the water out in the real game; a
+  gap to swim across: 5-8 long, 2 deep); the water fills a stone basin to
+  the rim, with stone beside and below every water cell (still sources in
+  the real game), and the player climbs out by the engine's jump out of the
+  water. Every pool is longer than a jump reaches: the final policy, never
+  trained with water, completes none dry, 3 of 36 drops through the water
+  and no column or gap (it refuses at the edge, lands on a wall, or falls
+  short). Tests: `tests/test_water.py` (5). Next: the planner's alive rule in
+  water, the water observation (appended after the 255 numbers, so the final
+  policy reads its own prefix), the bank, training, held-out sets, the bots.
 - **The course builder (built 1 Nov, beside the GPU runs; nothing chosen or
   trained on it):** `run.cmd builder` (`parkour.builder`, `parkour.build_session`,
   `bridge/builder_bot.js`) starts the local server and a bot in build mode.

@@ -156,6 +156,7 @@ class Course:
     shapes: dict = field(default_factory=dict)  # platform index -> block shape name (optional; default stone)
     slime: list = field(default_factory=list)  # indices of platforms made of slime blocks (optional; they bounce)
     ladders: np.ndarray = field(default_factory=lambda: np.zeros((0, 4), dtype=np.int64))  # x, y, z, facing (0-3)
+    water: np.ndarray = field(default_factory=lambda: np.zeros((0, 4), dtype=np.int64))  # x, y, z, level (opt-in)
 
     @property
     def n(self) -> int:
@@ -211,6 +212,8 @@ class Course:
             d["slime"] = [int(k) for k in self.slime]
         if len(self.ladders):
             d["ladders"] = np.asarray(self.ladders).reshape(-1, 4).tolist()
+        if len(self.water):
+            d["water"] = np.asarray(self.water).reshape(-1, 4).tolist()
         return d
 
     @classmethod
@@ -219,7 +222,8 @@ class Course:
                    float(d["spawn_yaw"]), int(d.get("level", 0)), int(d.get("seed", 0)), name=d.get("name", ""),
                    extra=np.array(d.get("extra", []), dtype=np.int64).reshape(-1, 3), ice=[int(k) for k in d.get("ice", [])],
                    shapes={int(k): v for k, v in d.get("shapes", {}).items()}, slime=[int(k) for k in d.get("slime", [])],
-                   ladders=np.array(d.get("ladders", []), dtype=np.int64).reshape(-1, 4))
+                   ladders=np.array(d.get("ladders", []), dtype=np.int64).reshape(-1, 4),
+                   water=np.array(d.get("water", []), dtype=np.int64).reshape(-1, 4))
 
 
 def load_levels(path: Path | None = None, advanced: bool = False, extra: bool = False) -> list[list[JumpSpec]]:

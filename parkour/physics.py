@@ -492,6 +492,21 @@ def _water_cells(world: World, course, lo: torch.Tensor, hi: torch.Tensor, ny: i
     return out
 
 
+def in_water(world: World, course, pos: torch.Tensor) -> torch.Tensor:
+    """(N,) bool: the player at ``pos`` is in water as simulatePlayer finds it (the box contracted by 0.001, 0.401,
+    0.001); all False without a water grid."""
+    if world.water is None:
+        return torch.zeros(pos.shape[0], dtype=torch.bool, device=pos.device)
+    w = HALF_WIDTH
+    x, y, z = pos.unbind(-1)
+    lo = torch.stack((((-w) + x) + 0.001, (0.0 + y) + 0.401, ((-w) + z) + 0.001), -1)
+    hi = torch.stack(((w + x) - 0.001, (PLAYER_HEIGHT + y) - 0.401, (w + z) - 0.001), -1)
+    wet = torch.zeros(x.shape, dtype=torch.bool, device=x.device)
+    for _, _, _, hit in _water_cells(world, course, lo, hi, 2):
+        wet = wet | hit
+    return wet
+
+
 def _water_current(world: World, course, pos: torch.Tensor, vel: torch.Tensor):
     """isInWaterApplyCurrent on the player's box contracted by (0.001, 0.401, 0.001): (velocity, in water)."""
     w = HALF_WIDTH

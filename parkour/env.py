@@ -103,7 +103,7 @@ class CoursePool:
     """Courses packed into tensors on one device."""
 
     def __init__(self, courses: list[Course], device, grid, ice: bool | None = None, shapes: bool | None = None,
-                 compact_ice: bool = False, slime: bool | None = None):
+                 compact_ice: bool = False, slime: bool | None = None, water: bool | None = None):
         """``ice``: keep a slipperiness grid for ice platforms (default: if any course has ice; a pool
         that will receive ice courses through ``replace`` needs True). ``shapes``: the same for shaped
         platforms (``Course.shapes``: a collision shape grid and shape-aware tops and footprints)."""
@@ -153,7 +153,14 @@ class CoursePool:
             for i, c in enumerate(courses):
                 self._set_shapes(self.shape_grid, i, c)
             self.shape_grid = self.shape_grid.to(device)
-        self.world = physics.World(solid.to(device), self.slip, self.shape_grid, self.slime, self.climb, compact_ice=compact_ice)
+        self.water = None
+        if any(len(c.water) for c in courses) if water is None else water:  # water cells (opt-in; physics.World(water=))
+            self.water = torch.full(solid.shape, -1, dtype=torch.int16)
+            for i, c in enumerate(courses):
+                self._set_water(self.water, i, c)
+            self.water = self.water.to(device)
+        self.world = physics.World(solid.to(device), self.slip, self.shape_grid, self.slime, self.climb, compact_ice=compact_ice,
+                                   water=self.water)
         self.plat = plat.to(device)
         self.rem = rem.to(device)
         self.n = n.to(device)
@@ -199,6 +206,13 @@ class CoursePool:
             grid[index, x0:x1 + 1, y, z0:z1 + 1] = physics.shape_id(name)
         for x, y, z, f in np.asarray(course.ladders, dtype=np.int64).reshape(-1, 4):
             grid[index, x, y, z] = physics.shape_id("ladder_" + LADDER_FACING[f])
+
+    @staticmethod
+    def _set_water(grid: torch.Tensor, index: int, course: Course) -> None:
+        grid[index] = -1
+        w = torch.as_tensor(np.asarray(course.water, dtype=np.int64).reshape(-1, 4), device=grid.device)
+        if len(w):
+            grid[index, w[:, 0], w[:, 1], w[:, 2]] = w[:, 3].to(grid.dtype)
 
     @staticmethod
     def _set_climb(grid: torch.Tensor, index: int, course: Course) -> None:
@@ -261,6 +275,10 @@ class CoursePool:
             self._set_slime(self.slime, index, course)
         elif course.slime:
             raise ValueError("this pool has no slime grid; build it with ice=True")
+        if self.water is not None:
+            self._set_water(self.water, index, course)  # (the world reads this tensor's memory)
+        elif len(course.water):
+            raise ValueError("this pool has no water grid; build it with water=True")
         self.version += 1
 
 
@@ -278,6 +296,11 @@ def standing_on(pool: CoursePool, s: physics.PlayerState, course: torch.Tensor) 
     level = (y - pool.top[course]).abs() < STAND_EPS
     k = torch.arange(MAX_PLATFORMS, device=s.pos.device)[None, :]
     return over & level & s.on_ground[:, None] & (k < pool.n[course][:, None])
+
+
+def in_water(pool: CoursePool, s: physics.PlayerState, course: torch.Tensor) -> torch.Tensor:
+    """(N,) bool: in water (``physics.in_water``); all False in a pool without water."""
+    return physics.in_water(pool.world, course, s.pos)
 
 
 def on_obstacle(pool: CoursePool, s: physics.PlayerState, course: torch.Tensor) -> torch.Tensor:
@@ -631,7 +654,11 @@ class ParkourEnv:
         tops = torch.where(jv, tops, torch.full_like(tops, math.inf))
         fell = (new.pos[:, 1] < tops.amin(dim=1) - FALL_MARGIN) & ~success
         # Standing on an obstacle (wall, beam, pillar) is not parkour: it ends the episode like a fall.
-        fell = fell | (on_obstacle(self.pool, new, self.course) & ~success)
+        obstacle = on_obstacle(self.pool, new, self.course)
+        if self.pool.world.water is not None:  # in water (a pool between platforms): neither a fall nor an obstacle
+            wet = in_water(self.pool, new, self.course)
+            fell, obstacle = fell & ~wet, obstacle & ~wet
+        fell = fell | (obstacle & ~success)
 
         self.stall = torch.where(gained > 0, torch.zeros_like(self.stall), self.stall + 1)
         truncated = ((self.stall >= self.cfg.stall_ticks) | (self.ticks >= self.cfg.max_ticks)) & ~success & ~fell
