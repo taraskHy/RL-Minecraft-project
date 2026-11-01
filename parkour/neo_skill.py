@@ -500,9 +500,12 @@ def takeoff_states(skill, bank: SegmentBank, idx: list[int], device, waits=(0, 1
 
 def dagger_pairs(skill_path: Path, bank_path: Path, out: Path, types=(16, 17, 18, 19), courses: int = 6000,
                  device="cuda", batch: int = 256, prior: float = 0.95, seed: int = 0, air_every: int = 0,
-                 exits: bool = False, skip: int = 0) -> dict:
+                 exits: bool = False, skip: int = 0, slime: bool = False) -> dict:
     """(observation, action) pairs from the neo planner's landings, simplified, at the skill's own takeoff states
-    (``takeoff_states``) on the bank's courses of ``types`` (HANDOFF.md, 31 Oct, 11:46): ``train.py --bc-pairs``."""
+    (``takeoff_states``) on the bank's courses of ``types`` (HANDOFF.md, 31 Oct, 11:46): ``train.py --bc-pairs``.
+    With ``slime`` (a slime bank: the takeoff k is the platform before the pad), a state on the takeoff or in the
+    air is searched through the bounce, to the pad's exit (k + 2) after standing on the pad, and a first contact
+    on the pad to the exit, all with the planner's bounce horizon (``neo_assist.BOUNCE_PLAN_HORIZON``)."""
     from . import neo_assist as NA
     from .neo_dagger import HORIZON, pairs, simplify
     t0 = time.time()
@@ -511,20 +514,26 @@ def dagger_pairs(skill_path: Path, bank_path: Path, out: Path, types=(16, 17, 18
     idx = [i for i, c in enumerate(bank.courses) if c.level in types][skip:skip + courses]
     bank.device = device
     pool, arrivals = takeoff_states(skill, bank, idx, device, air_every=air_every, exits=exits)
+    horizon = HORIZON
+    if slime:
+        horizon = NA.BOUNCE_PLAN_HORIZON
+        for x in arrivals:
+            if x["kind"] in ("takeoff", "air"):
+                x["target"], x["touch"] = x["cp"] + 2, x["cp"] + 1
     rules = NA.Rules(pool)
     cfg = NA.AssistConfig(keep=1, prior=prior)
     found = []
     for b in range(0, len(arrivals), batch):
         part = arrivals[b:b + batch]
-        pr = NA.policy_prior(skill, pool, part, device, HORIZON) if prior > 0 else None
-        found += NA.search(pool, rules, part, device, cfg, seed + b, pr, HORIZON)[0]
+        pr = NA.policy_prior(skill, pool, part, device, horizon) if prior > 0 else None
+        found += NA.search(pool, rules, part, device, cfg, seed + b, pr, horizon)[0]
         print(json.dumps({"searched": len(found), "of": len(arrivals), "with_landing": sum(bool(f) for f in found),
                           "seconds": round(time.time() - t0, 1)}), flush=True)
     simple = simplify(skill, pool, arrivals, found, device)
     obs, act = pairs(pool, arrivals, simple, device)
     meta = {"skill": str(skill_path), "skill_sha1": hashlib.sha1(Path(skill_path).read_bytes()).hexdigest()[:12],
             "bank": str(bank_path), "types": list(types), "skip": skip, "courses": len(idx), "air_every": air_every,
-            "exits": exits,
+            "exits": exits, **({"slime": True, "horizon": horizon} if slime else {}),
             "arrivals": len(arrivals),
             "kinds": {kd: [sum(1 for x in arrivals if x["kind"] == kd),
                            sum(1 for x, f in zip(arrivals, found) if x["kind"] == kd and f)] for kd in ("takeoff", "air", "exit")},
@@ -551,6 +560,8 @@ def main(argv=None):
     d.add_argument("--exits", action="store_true", help="also its first ground contact on the target (to the next platform)")
     d.add_argument("--seed", type=int, default=0)
     d.add_argument("--skip", type=int, default=0, help="leave out the first N bank courses of those types (used before)")
+    d.add_argument("--slime", action="store_true", help="a slime bank: search takeoff and air states through the bounce "
+                                                       "to the pad's exit (dagger_pairs)")
     b = sub.add_parser("bank", help="the training bank of block starts")
     b.add_argument("--checkpoint", default=str(ROOT / "results" / "final_policy.pt"))
     b.add_argument("--out", default=str(ROOT / "runs" / "neo_skill_bank.pt"))
@@ -577,7 +588,7 @@ def main(argv=None):
         if Path(a.out).exists():
             raise SystemExit(f"{a.out} exists; choose a new name")
         dagger_pairs(Path(a.skill), Path(a.bank), Path(a.out), tuple(int(t) for t in a.types.split(",")), a.courses,
-                     a.device, a.batch, seed=a.seed, air_every=a.air_every, exits=a.exits, skip=a.skip)
+                     a.device, a.batch, seed=a.seed, air_every=a.air_every, exits=a.exits, skip=a.skip, slime=a.slime)
         return
     if a.cmd == "bank":
         from .slime import POSTS_TRAIN_FAMILIES, SLIME_TRAIN_FAMILIES

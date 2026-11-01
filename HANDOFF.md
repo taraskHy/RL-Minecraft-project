@@ -596,6 +596,34 @@ at 18:05:14, before any run on the two-neo sets:**
     policy), the same ties; then the solid check, and the tests (56 for the
     slime skill, 58 for the posts choice, each with the planner's
     reference) or round 3.
+  - **The planner's reference on family 55 (20:04-20:28):** 304 of 320
+    (95.0%; `assist_parts/slime55-val-planner`), so the solid bar stays 288.
+  - **Round 2 (20:04-20:27) and its choice (20:30, by the rule):** family 55
+    / 57 for updates 25-300: sl2 269/151, 266/143, 267/143, 253/146, 267/139,
+    265/149, 258/147, 252/140, 265/147, 264/146, 259/136, 258/143; sp2
+    265/277, 255/277, 258/277, **271/281**, 270/281, 258/281, 268/279,
+    263/268, 264/277, 254/269, 270/277, 259/276. **Chosen for both: sp2
+    updates 100 (`8da34015ac23`): 271 of 320 slime-heavy, 281 post-heavy**
+    (the one network alone 194 and 226; the slime-only skills leave the posts
+    to the final policy and stay near 145 on 57). Not solid (271 against
+    288); round 2 added 9 over round 1, so round 3 follows.
+  - **Round 3, fixed at 20:36:25 before it runs:** in its own training
+    (updates 80-110) sp2 makes every slime kind at least 93% of the time but
+    two: kind 5 (gap 1, drop 3, 1x1 pad, exit 3 up: 0%, forgiveness 0.008, the
+    hardest of the study) and kind 1 (gap 1, drop 2, 1x1, exit 2 up: 75%);
+    each comes about 31 times in family 55's 1,280 bounces, so the two
+    explain about 39 of its 49 lost courses. DAgger as for neos, those two
+    kinds only (d3 showed that labels on kinds the skill already makes pull
+    it off its own way): sp2 updates 100's own states on the slime bank's
+    courses of kinds 1 and 5 (on the takeoff, every 3rd tick of the first 12
+    of its flight, its first contact on the pad), searched by the planner
+    (keep 1, prior 0.95) through the bounce to the exit after standing on the
+    pad, with the planner's bounce horizon (80 ticks; `neo_skill dagger
+    --slime`, the label code checked to give the neo rounds' pairs exactly),
+    simplified. Two runs from sp2 updates 100 with round 2's settings
+    (special bank, segment base) and the pairs at imitation weight 0.3:
+    `slime-skill-sp3`, and `slime-skill-sp3b` at weight 1.0; 300 updates, a
+    snapshot every 25, scored and chosen as round 2 (all candidates).
 - **Water, step 1: the physics (20:16; code only, no run).** `parkour/physics.py`
   (a black box, section 5) gets an opt-in water grid, `World(water=...)`: each
   cell's water level (block metadata, -1 where none), and prismarine-physics

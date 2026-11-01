@@ -237,9 +237,30 @@ def search(pool: CoursePool, arrivals: list[dict], device, samples: int, iterati
     return found
 
 
+def _targets(pool, arr, cidx, cp, device):
+    """Per arrival: the target (``target``, default the next platform), the platform to stand on first (``touch``,
+    -1: none) and the fall line, the lowest top from ``cp`` to the target (as ``neo_assist.search``)."""
+    target = torch.tensor([a.get("target", a["cp"] + 1) for a in arr], device=device)
+    touch = torch.tensor([a.get("touch", -1) for a in arr], device=device)
+    tops = pool.top[cidx, cp].minimum(pool.top[cidx, target])
+    for o in range(1, int((target - cp).max()) if len(arr) else 1):  # (a slime pad between the two)
+        tops = tops.minimum(pool.top[cidx, torch.minimum(cp + o, target)])
+    return target, touch, tops
+
+
+def _advance(pool, s, cidx, cp, target):
+    """The checkpoint after a tick, as the environment moves it (the furthest platform stood on), up to ``target``."""
+    stand = standing_on(pool, s, cidx)
+    k = torch.arange(stand.shape[1], device=cp.device)[None, :]
+    ahead = stand & (k > cp[:, None]) & (k <= target[:, None])
+    return torch.maximum(cp, torch.where(ahead, k, torch.full_like(k, -1)).amax(dim=1)), stand
+
+
 def _rollout(model, pool, arrivals, idx, given, fixed, device):
     """Play from each arrival: ``given`` actions where ``fixed`` is true, the policy's own choice elsewhere.
 
+    A plan lands on the arrival's target (the next platform unless it names one further on; then only after
+    standing on its ``touch`` platform, if any); the observation follows the checkpoint as the environment's does.
     Returns (landed, land_tick, actions actually played)."""
     obs_fn = Observer(device)
     arr = [arrivals[i] for i in idx]
@@ -247,8 +268,8 @@ def _rollout(model, pool, arrivals, idx, given, fixed, device):
     cidx = torch.tensor([a["course"] for a in arr], device=device)
     cp = torch.tensor([a["cp"] for a in arr], device=device)
     last = torch.tensor([a["last_action"] for a in arr], device=device)
-    target = cp + 1
-    tops = pool.top[cidx, cp].minimum(pool.top[cidx, target])
+    target, touch, tops = _targets(pool, arr, cidx, cp, device)
+    touched = touch < 0
     steps = torch.tensor(YAW_STEPS_DEG, dtype=torch.float64, device=device) * (math.pi / 180)
     n, T = given.shape[0], given.shape[1]
     played = torch.zeros_like(given)
@@ -267,7 +288,9 @@ def _rollout(model, pool, arrivals, idx, given, fixed, device):
             s = physics.simulate(pool.world, cidx, s, torch.stack((a[:, 0] == 2, a[:, 0] == 0, a[:, 1] == 0, a[:, 1] == 2,
                                                                     a[:, 2] == 1, a[:, 3] == 1), -1))
             alive &= ~on_obstacle(pool, s, cidx) & (s.pos[:, 1] > tops - 1.0)
-            now = standing_on(pool, s, cidx).gather(1, target[:, None]).squeeze(1) & alive & ~landed
+            cp, stand = _advance(pool, s, cidx, cp, target)
+            touched = touched | stand.gather(1, touch.clamp(min=0)[:, None]).squeeze(1)
+            now = stand.gather(1, target[:, None]).squeeze(1) & alive & ~landed & touched
             land_tick = torch.where(now, torch.full_like(land_tick, t + 1), land_tick)
             landed |= now
             last = a
@@ -281,7 +304,7 @@ def simplify(model, pool: CoursePool, arrivals: list[dict], found: list, device,
     for c0 in range(0, len(seqs), chunk):
         part = seqs[c0:c0 + chunk]
         idx = [i for i, _ in part]
-        n, T = len(part), HORIZON
+        n, T = len(part), max([HORIZON] + [len(f) for _, f in part])
         given = torch.zeros(n, T, 5, dtype=torch.int64, device=device)
         fixed = torch.zeros(n, T, 5, dtype=torch.bool, device=device)
         for j, (_, f) in enumerate(part):
@@ -315,6 +338,7 @@ def pairs(pool: CoursePool, arrivals: list[dict], found: list, device):
     cidx = torch.tensor([a["course"] for a in arr], device=device)
     cp = torch.tensor([a["cp"] for a in arr], device=device)
     last = torch.tensor([a["last_action"] for a in arr], device=device)
+    target, _, _ = _targets(pool, arr, cidx, cp, device)
     T = max(len(f) for _, f in seqs)
     acts = torch.zeros(n, T, 5, dtype=torch.int64, device=device)
     lens = torch.tensor([len(f) for _, f in seqs], device=device)
@@ -332,6 +356,7 @@ def pairs(pool: CoursePool, arrivals: list[dict], found: list, device):
         s.yaw = torch.remainder(y + math.pi, 2 * math.pi) - math.pi
         s = physics.simulate(pool.world, cidx, s, torch.stack((a[:, 0] == 2, a[:, 0] == 0, a[:, 1] == 0, a[:, 1] == 2,
                                                                 a[:, 2] == 1, a[:, 3] == 1), -1))
+        cp, _ = _advance(pool, s, cidx, cp, target)  # (a plan past the next platform: the slots move on with it)
         last = a
     return torch.cat(obs_all), torch.cat(act_all)
 
