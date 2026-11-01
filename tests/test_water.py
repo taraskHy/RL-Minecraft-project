@@ -103,6 +103,31 @@ def test_no_piece_is_passed_dry():
     assert not bool((past & ~wet).any())
 
 
+def test_water_observation_extends_the_standard_one():
+    """EnvConfig.water_obs appends OBS_LAYOUT_WATER's features after the standard 255 numbers, which stay as they
+    were; in a pool the player reads in water with the surface above the feet, on a dry course nothing."""
+    from parkour.env import OBS_DIM, OBS_DIM_WATER
+    sp, c = next((sp, c) for sp, c in water_courses() if sp.kind == "drop")
+    x, y, z = c.water[0][:3]
+    pool = CoursePool([c, c], "cpu", C.GRID)
+    envs = [ParkourEnv(pool, EnvConfig(num_envs=2, water_obs=w), sampler=None) for w in (False, True)]
+    obs = []
+    for env in envs:
+        env.reset_all(torch.arange(2))
+        env.state.pos[1] = torch.tensor([x + 0.5, y + 0.2, z + 0.5], dtype=torch.float64)
+        obs.append(env.observe())
+    assert obs[0].shape == (2, OBS_DIM) and obs[1].shape == (2, OBS_DIM_WATER)
+    assert torch.equal(obs[1][:, :OBS_DIM], obs[0])
+    wet = obs[1][:, OBS_DIM:]
+    assert wet[0, 0] == 0 and wet[1, 0] == 1  # on the spawn platform, in the pool
+    assert wet[1, 1] > 0  # the surface is above the feet
+    dry = CoursePool([C.Course.from_json({k: v for k, v in c.to_json().items() if k != "water"})], "cpu", C.GRID)
+    env = ParkourEnv(dry, EnvConfig(num_envs=1, water_obs=True), sampler=None)
+    env.reset_all(torch.arange(1))
+    o = env.observe()[0, OBS_DIM:]
+    assert o[0] == 0 and o[1] == 0 and bool((o[2:] < 0).all())  # no water anywhere: NO_FLOOR / 3
+
+
 def test_in_water_matches_the_current_s():
     rng = np.random.default_rng(3)
     from parkour import parity

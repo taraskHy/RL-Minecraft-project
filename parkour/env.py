@@ -56,6 +56,12 @@ SCAN_FAR_LATERAL = tuple(float(i) for i in range(-6, 7))
 MEMORY_SLOTS = 3
 OBS_LAYOUT_EXT = OBS_LAYOUT + (("farscan", len(SCAN_FAR_FORWARD) * len(SCAN_FAR_LATERAL) * 2), ("memory", MEMORY_SLOTS * 4))
 OBS_DIM_EXT = sum(n for _, n in OBS_LAYOUT_EXT)
+# Water observation (EnvConfig.water_obs; parkour.water): whether the player is in water and how far the surface
+# is above the feet, then the water surface's height at each point of the standard block scan (as its floor
+# heights, NO_FLOOR where there is no water). Appended after the standard observation, so a policy of
+# OBS_DIM inputs reads its own prefix (the final policy beside a water skill).
+OBS_LAYOUT_WATER = OBS_LAYOUT + (("water_self", 2), ("water_scan", len(SCAN_FORWARD) * len(SCAN_LATERAL)))
+OBS_DIM_WATER = sum(n for _, n in OBS_LAYOUT_WATER)
 
 
 @dataclass
@@ -82,6 +88,7 @@ class EnvConfig:
     # lower platform (a shortcut a route planner may take) is not a fall. Evaluation only.
     fall_rule: str = "local"
     extended_obs: bool = False  # add OBS_LAYOUT_EXT's far scan and landing memory
+    water_obs: bool = False  # add OBS_LAYOUT_WATER's water features (not with extended_obs)
 
 
 MAX_EXTRA = 256
@@ -316,7 +323,11 @@ def on_obstacle(pool: CoursePool, s: physics.PlayerState, course: torch.Tensor) 
 class Observer:
     """Builds observations; shared by the environment and the parity tests."""
 
-    def __init__(self, device, extended: bool = False):
+    def __init__(self, device, extended: bool = False, water: bool = False):
+        if extended and water:
+            raise ValueError("the water observation extends the standard one, not the extended one")
+        self.water = water
+
         def grid(fwd, lat):
             a = torch.tensor(fwd, dtype=torch.float64, device=device)
             b = torch.tensor(lat, dtype=torch.float64, device=device)
@@ -377,7 +388,49 @@ class Observer:
             vf = mvalid.to(torch.float64)
             m = torch.stack((vf, mf / 4.0 * vf, mr / 4.0 * vf, (mem[..., 1] - pos[:, 1:2]) / 2.0 * vf), -1).reshape(n, -1)
             parts += [far, m]
+        if self.water:
+            parts.append(self.water_features(pool, course, s))
         return torch.cat(parts, -1).to(torch.float32)
+
+    def water_features(self, pool: CoursePool, course: torch.Tensor, s: physics.PlayerState) -> torch.Tensor:
+        """(N, 2 + scan points): in water (0/1) and the water surface above the feet (/ 2; 0 when dry), then
+        the water surface's height relative to the feet at each scan point (/ 3; NO_FLOOR / 3 where the scan's
+        floor levels hold no water). A surface: the highest water cell's row + 1 - its liquid height (level + 1) / 9,
+        as prismarine-physics measures it."""
+        n = course.shape[0]
+        pos = s.pos
+        npts = self.scan_a.shape[0]
+        world = pool.world
+        if world.water is None:
+            return torch.cat((torch.zeros(n, 2, dtype=torch.float64, device=pos.device),
+                              torch.full((n, npts), NO_FLOOR / 3.0, dtype=torch.float64, device=pos.device)), -1)
+        wet = physics.in_water(world, course, pos)
+        fy = torch.floor(pos[:, 1] + STAND_EPS).to(torch.int64)
+
+        def surface(ix, iz, levels):  # the highest water surface in the given rows (top-down), and whether any
+            meta = world.water_meta(course.view(-1, *([1] * (levels.dim() - 1))), ix[..., None], levels, iz[..., None])
+            found = (meta >= 0).any(-1)
+            first = torch.argmax((meta >= 0).to(torch.int8), dim=-1)
+            row = levels.gather(-1, first[..., None]).squeeze(-1)
+            m = meta.gather(-1, first[..., None]).squeeze(-1)
+            depth = torch.where(m >= 8, torch.zeros_like(m), m).clamp(min=0)
+            return (row + 1).to(torch.float64) - (depth.to(torch.float64) + 1) / 9, found
+
+        ix = torch.floor(pos[:, 0]).to(torch.int64)
+        iz = torch.floor(pos[:, 2]).to(torch.int64)
+        rows = fy[:, None] + torch.arange(2, -4, -1, device=pos.device)[None, :]  # the feet's row + 2 down to - 3
+        top, found = surface(ix, iz, rows)
+        above = torch.where(wet & found, (top - pos[:, 1]) / 2.0, torch.zeros_like(top))
+        sy, cy = torch.sin(s.yaw), torch.cos(s.yaw)
+        fx, fz = -sy, -cy
+        rx, rz = cy, -sy
+        px = pos[:, 0:1] + self.scan_a * fx[:, None] + self.scan_b * rx[:, None]
+        pz = pos[:, 2:3] + self.scan_a * fz[:, None] + self.scan_b * rz[:, None]
+        sx, szz = torch.floor(px).to(torch.int64), torch.floor(pz).to(torch.int64)
+        levels = fy[:, None, None] + self.floor_levels[None, None, :]
+        stop, sfound = surface(sx, szz, levels.expand(n, npts, -1))
+        h = torch.where(sfound, stop - pos[:, 1:2], torch.full_like(stop, NO_FLOOR))
+        return torch.cat((wet.to(torch.float64)[:, None], above[:, None], h / 3.0), -1)
 
     def scan(self, pool: CoursePool, course: torch.Tensor, s: physics.PlayerState, a: torch.Tensor, b: torch.Tensor):
         """Height (top of the highest block within the floor levels) and ceiling at points (a ahead, b right)."""
@@ -510,7 +563,7 @@ class ParkourEnv:
         self.n = config.num_envs
         self.sampler = sampler
         torch.manual_seed(seed)
-        self.obs_fn = Observer(self.device, extended=config.extended_obs)
+        self.obs_fn = Observer(self.device, extended=config.extended_obs, water=config.water_obs)
         self.yaw_steps = torch.tensor(YAW_STEPS_DEG, dtype=torch.float64, device=self.device) * (math.pi / 180)
         self.no_action = torch.tensor([1, 1, 0, 0, 3], device=self.device)
         self.k_range = torch.arange(MAX_PLATFORMS, device=self.device)

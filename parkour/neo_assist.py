@@ -276,7 +276,7 @@ def brake_plan(pool: CoursePool, rules: "Rules", arrival: dict, ticks: int, devi
         y = s.yaw + steps[acts[:, t, 4]]
         s.yaw = torch.remainder(y + math.pi, 2 * math.pi) - math.pi
         s = physics.simulate(pool.world, course, s, action_to_controls(acts[:, t]))
-        alive &= ~rules.on_obstacle(s, course)
+        alive &= ~(rules.on_obstacle(s, course) & ~physics.in_water(pool.world, course, s.pos))
     still = standing_on(pool, s, course)[:, arrival["cp"]] & (torch.linalg.norm(s.vel[:, [0, 2]], dim=-1) < 1e-3)
     ok = torch.nonzero(alive & still).flatten().tolist()
     return seqs[ok[0]] if ok else None
@@ -288,6 +288,17 @@ def horizons(cfg: "AssistConfig") -> dict:
 
 BOUNCE_PLAN_HORIZON = 80  # a jump onto a slime pad: takeoff, fall, bounce and the flight to the exit
 LADDER_PLAN_HORIZON = 64  # a ladder climb: 5 blocks take about 43 ticks from a standstill
+WATER_PLAN_HORIZON = 160  # a jump over a pool (parkour.water): the drop, the swim and the climb out
+
+
+def water_jump(course: C.Course, k: int) -> bool:
+    """Whether the jump from platform k crosses water (``parkour.water``: a pool between k and k+1)."""
+    if not len(course.water) or k + 1 >= course.n:
+        return False
+    a, b = course.platforms[k], course.platforms[k + 1]
+    w = np.asarray(course.water).reshape(-1, 4)
+    return bool(((w[:, 0] >= min(a[0], b[0])) & (w[:, 0] <= max(a[1], b[1])) & (w[:, 2] >= min(a[2], b[2]))
+                 & (w[:, 2] <= max(a[3], b[3]))).any())
 
 
 def plan_target(course: C.Course, k: int) -> int:
@@ -302,6 +313,8 @@ def plan_horizon(course: C.Course, k: int, kind: str, cfg: "AssistConfig") -> in
     ``BOUNCE_PLAN_HORIZON`` for slime jumps and ``LADDER_PLAN_HORIZON`` for ladder climbs."""
     h = horizons(cfg)[kind]
     sp = course.specs[k] if k < len(course.specs) else None
+    if kind != "approach" and water_jump(course, k):
+        return max(h, WATER_PLAN_HORIZON)
     if kind == "approach" or sp is None:
         return h
     if sp.bounce:
@@ -760,7 +773,11 @@ def search(pool: CoursePool, rules: Rules, arrivals: list[dict], device, cfg: As
             s.yaw = torch.remainder(y + math.pi, 2 * math.pi) - math.pi
             a_t = torch.stack([acts[k][:, t] for k in HEADS], -1)
             s = physics.simulate(pool.world, cidx, s, action_to_controls(a_t))
-            alive &= ~rules.on_obstacle(s, cidx) & (s.pos[:, 1] > top_r - 1.0)
+            if pool.world.water is None:
+                alive &= ~rules.on_obstacle(s, cidx) & (s.pos[:, 1] > top_r - 1.0)
+            else:  # in water (a pool between the platforms): neither the fall line nor an obstacle
+                wet = physics.in_water(pool.world, cidx, s.pos)
+                alive &= ~(rules.on_obstacle(s, cidx) & ~wet) & ((s.pos[:, 1] > top_r - 1.0) | wet)
             on = standing_on(pool, s, cidx)
             now = on.gather(1, tgt[:, None]).squeeze(1) & alive & ~landed
             dist = torch.linalg.norm(s.pos - goal_r, dim=-1)

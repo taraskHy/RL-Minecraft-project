@@ -205,7 +205,11 @@ def search(pool: CoursePool, arrivals: list[dict], device, samples: int, iterati
             ctrl = torch.stack((m == 2, m == 0, acts["strafe"][:, t] == 0, acts["strafe"][:, t] == 2,
                                 acts["jump"][:, t] == 1, acts["sprint"][:, t] == 1), -1)
             s = physics.simulate(pool.world, cidx, s, ctrl)
-            alive &= ~on_obstacle(pool, s, cidx) & (s.pos[:, 1] > tops - 1.0)
+            if pool.world.water is None:
+                alive &= ~on_obstacle(pool, s, cidx) & (s.pos[:, 1] > tops - 1.0)
+            else:  # (as neo_assist.search: in water neither the fall line nor an obstacle)
+                wet = physics.in_water(pool.world, cidx, s.pos)
+                alive &= ~(on_obstacle(pool, s, cidx) & ~wet) & ((s.pos[:, 1] > tops - 1.0) | wet)
             on = standing_on(pool, s, cidx)
             now = on.gather(1, target[:, None]).squeeze(1) & alive & ~landed
             land_tick = torch.where(now, torch.full_like(land_tick, t + 1), land_tick)
@@ -287,7 +291,11 @@ def _rollout(model, pool, arrivals, idx, given, fixed, device):
             s.yaw = torch.remainder(y + math.pi, 2 * math.pi) - math.pi
             s = physics.simulate(pool.world, cidx, s, torch.stack((a[:, 0] == 2, a[:, 0] == 0, a[:, 1] == 0, a[:, 1] == 2,
                                                                     a[:, 2] == 1, a[:, 3] == 1), -1))
-            alive &= ~on_obstacle(pool, s, cidx) & (s.pos[:, 1] > tops - 1.0)
+            if pool.world.water is None:
+                alive &= ~on_obstacle(pool, s, cidx) & (s.pos[:, 1] > tops - 1.0)
+            else:  # (as neo_assist.search: in water neither the fall line nor an obstacle)
+                wet = physics.in_water(pool.world, cidx, s.pos)
+                alive &= ~(on_obstacle(pool, s, cidx) & ~wet) & ((s.pos[:, 1] > tops - 1.0) | wet)
             cp, stand = _advance(pool, s, cidx, cp, target)
             touched = touched | stand.gather(1, touch.clamp(min=0)[:, None]).squeeze(1)
             now = stand.gather(1, target[:, None]).squeeze(1) & alive & ~landed & touched
