@@ -1,0 +1,22 @@
+{
+ "candidates": 92,
+ "rules": "HANDOFF.md section 3, 1 Nov 19:21:21, 20:03:18, 20:36:25, 20:51:45",
+ "slime": {
+  "run": "slime-skill-sp3c",
+  "updates": 75,
+  "skill": "runs/slime-skill-sp3c/checkpoints/updates_00075.pt",
+  "sha1": "57e864224252",
+  "family55": 275,
+  "family57": 270
+ },
+ "posts": {
+  "run": "slime-skill-sp3c",
+  "updates": 50,
+  "skill": "runs/slime-skill-sp3c/checkpoints/updates_00050.pt",
+  "sha1": "564b41df5a80",
+  "family55": 263,
+  "family57": 285
+ },
+ "best_55_before_round_3c": 273,
+ "note": "Round 3c added 2 on family 55 (best before it 273), less than 5, so the rounds end; the solid bar was 288."
+}

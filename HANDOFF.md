@@ -648,6 +648,36 @@ at 18:05:14, before any run on the two-neo sets:**
     labels started at 21:14 (`runs/slime_skill_dagger_v2_starts.log`); its
     two runs are queued when they are done; the choice over all candidates
     comes after them.
+  - **Round 3c (labels 21:14-21:28, runs 21:29-22:05):** sp2 updates 100's
+    own states on 1,195 slime-bank courses of kinds 1 and 5: 2,997 arrivals
+    (1,110 episode starts, 173 takeoffs, 519 in the air, 1,195 exits), 1,371
+    with a planned landing, 24,146 pairs (`runs/slime_skill_dagger_v2_starts.pt`).
+    Family 55 / 57 for updates 25-300: sp3c 267/281, 263/285, **275**/270,
+    266/278, 268/275, 269/266, 269/274, 261/274, 255/279, 270/275, 267/273,
+    263/261; sp3d 258/282, 256/276, 254/271, 257/269, 259/267, 258/270,
+    263/265, 262/258, 263/270, 266/265, 256/270, 263/266
+    (`runs/slime-skill-r3c-eval-snapshots.log`; sp3d's last snapshot was
+    scored again after an OpenMP thread-affinity error at its start).
+  - **The choice (22:05, by the rules, over all 92 candidates;
+    `results/neo/slime_choice.json`):** the slime skill **sp3c updates 75**
+    (`57e864224252`, now `results/slime_skill.pt`): **275 of 320** on family
+    55 (85.9%; the planner 304); for posts **sp3c updates 50**
+    (`564b41df5a80`, now `results/posts_skill.pt`): **285 of 320** on family
+    57 (sp3 updates 75 and sp3b updates 175 tie with more updates). Not
+    solid (275 against 288), and round 3c added 2 over round 3's 273, less
+    than 5, so the rounds end and the tests follow.
+  - **Tests, each played once (22:06; simulator, CPU, course list;
+    `results/neo/skill_test.jsonl`):** slime-heavy family 56 with the slime
+    skill **261 of 320** (81.6%; 51 courses lost off a pad, 8 at an ordinary
+    jump); post-heavy family 58 with the posts choice **285 of 320** (89.1%;
+    26 off a pad, 9 onto a post). The planner's references on 56 and 58 run
+    when the CPU allows (after the water reference; `planners_when_cpu_free`).
+  - **The bots, the first 64 courses of 56 (`results/games/slime56-first64-courses.json`):**
+    the offline bot with the slime skill 48 of 64, the simulator's outcome on
+    every course, replay 7.1e-15 blocks (`runs/slime56-offline-skill-sp3c`).
+    Real Minecraft waits: the course builder Ethan started at 20:52 (`run.cmd
+    builder`) holds the server on port 25570; the live run starts by itself
+    once that server is gone (`runs/slime56-live-skill-sp3c`).
 - **Water, step 1: the physics (20:16; code only, no run).** `parkour/physics.py`
   (a black box, section 5) gets an opt-in water grid, `World(water=...)`: each
   cell's water level (block metadata, -1 where none), and prismarine-physics
@@ -771,6 +801,25 @@ at 18:05:14, before any run on the two-neo sets:**
     `runs/neo_skill_bank_water_v1.stopped-2133.*`);
     it is built again on the GPU when round 3c's runs end, then w1 and w2
     are queued.
+  - **The water physics on the GPU (21:54, before any water training;
+    `c35d267`):** the water code now handles every cell of the player's
+    window at once instead of one cell at a time, with the same arithmetic
+    per element and the same order of the sums, and skips work no row needs
+    only on the CPU (a host sync; `physics.SYNC_SKIPS`). The states and the
+    water observation are the same to the last bit, on the CPU and the GPU,
+    over 250 ticks of 96 courses (`runs/water_vectorized_check.*`), and the
+    parity tests against the real engine pass. A water step now launches
+    2,353 GPU kernels instead of 8,567 (1,276 without water) and takes 100 ms
+    instead of 261 beside two trainers (256 courses). The default path
+    (no water) is untouched.
+  - **Round 1 started (22:09):** the bank `runs/neo_skill_bank_water_v1.pt`
+    (22:05-22:09 on the GPU alone: 24,113 of 24,192 courses with a start,
+    23,900 from the simulator's start and 23,845 after 10 settle ticks);
+    `water-skill-w1` and `water-skill-w2` running through the queue, every
+    snapshot scored on family 100 as it appears
+    (`runs/water-skill-r1-eval-snapshots.log`). At the first update the
+    widened final policy falls on every block (it drops into the gap before
+    the pool or lands on its wall), as it does alone.
 - **The course builder (built 1 Nov, beside the GPU runs; nothing chosen or
   trained on it):** `run.cmd builder` (`parkour.builder`, `parkour.build_session`,
   `bridge/builder_bot.js`) starts the local server and a bot in build mode.
@@ -2051,10 +2100,10 @@ re-run the offline and real-Minecraft checks.
 
 | Part | Why | Guarded by |
 | --- | --- | --- |
-| `parkour/physics.py` | exact float64 port of prismarine-physics 1.11.1 (operand order kept) plus vanilla's 1e-7 `COLLISION_EPSILON`; the optional ice grid (`World(slip=...)`) and shape grid (`World(shape=...)`) are off unless passed | `tests/test_physics_parity.py` (also with ice and shapes), `test_shapes.py`, `test_corner_slip.py`, `test_inside_block.py` |
+| `parkour/physics.py` | exact float64 port of prismarine-physics 1.11.1 (operand order kept) plus vanilla's 1e-7 `COLLISION_EPSILON`; the optional ice grid (`World(slip=...)`), shape grid (`World(shape=...)`) and water grid (`World(water=...)`, prismarine-physics' liquid movement; 1 Nov) are off unless passed | `tests/test_physics_parity.py` (also with ice, shapes and water), `test_shapes.py`, `test_corner_slip.py`, `test_inside_block.py`, `test_water.py` |
 | `configs/block_shapes.json` | the collision boxes of the shaped blocks, written by `bridge/export_shapes.js` from prismarine-block | `node bridge/export_shapes.js --check` (in `test_physics_parity.py`) |
 | `bridge/physics_patch.js` | the same tolerance in the bot; must change together with `physics.py` | `tests/test_physics_parity.py` |
-| `bridge/policy.js` <-> `parkour/env.py` (observation, fall and stall rules), `bridge/planner.js` <-> `parkour/planner.py` | the bot mirrors the Python code; the 255-number observation is what every shipped policy expects | `tests/test_bridge_parity.py`, `test_extended_obs.py`, `test_planner.py` |
+| `bridge/policy.js` <-> `parkour/env.py` (observation, fall and stall rules), `bridge/planner.js` <-> `parkour/planner.py` | the bot mirrors the Python code; the 255-number observation is what every shipped policy expects (the water observation, 355, is opt-in: `EnvConfig.water_obs`, `observeSlots(..., waterMeta)`) | `tests/test_bridge_parity.py`, `test_extended_obs.py`, `test_planner.py`, `test_water.py` |
 | Seed families in `parkour/train.py` (training 0, test 1, validation 2, stress 3, obstacle test 4, obstacle validation 5) and default course generation in `parkour/courses.py` | every test number is on exactly these courses (`course_hash`); new course features are opt-in (like `wide_neo`) | `tests/test_courses.py` |
 | `configs/jump_levels*.json`, `configs/jump_feasibility*.json` | outputs of the feasibility study; they define the difficulty levels | regenerate with `run.cmd feasibility`, never edit by hand |
 | `results/final_policy.*`, `results/final_policy_v1.*` | shipped policies quoted everywhere | a new policy gets a new file; the old one is kept (`_v1` pattern) |

@@ -685,6 +685,114 @@ def two_neos(out: Path) -> list:
     return lines + [""]
 
 
+def _rows(f: Path) -> list:
+    return [json.loads(x) for x in open(f, encoding="utf-8") if x.strip()] if f.exists() else []
+
+
+def _best_per_run(rows: list, metric) -> list:
+    """Per training run (the snapshot's folder), its best snapshot by ``metric`` (ties: fewer updates)."""
+    import re
+    best = {}
+    for r in rows:
+        m = re.search(r"runs[\\/]([^\\/]+)[\\/]checkpoints[\\/]updates_(\d+)\.pt", r.get("skill", ""))
+        if not m:
+            continue
+        run, u = m.group(1), int(m.group(2))
+        key = (-metric(r), u)
+        if run not in best or key < best[run][0]:
+            best[run] = (key, u, r)
+    return [(run, u, r) for run, (_, u, r) in best.items()]
+
+
+def slime_posts(out: Path) -> list:
+    """The slime-heavy and post-heavy sets (``neo_assist --set slime / posts``; HANDOFF.md section 3, rules of 1 Nov
+    19:21:21 on): the networks alone, the planner, the slime skill's rounds, the tests and the bots."""
+    val = _rows(out / "neo" / "assist_validation.jsonl")
+    test = _rows(out / "neo" / "assist_test.jsonl")
+    skills = [r for r in _rows(out / "neo" / "skill_validation.jsonl") if r.get("set") in ("slime", "posts")]
+    if not skills:
+        return []
+    alone = [r for r in val if r.get("set") in ("slime", "posts") and not r.get("assist")]
+    planner = {r.get("run_id"): r for r in val + test if r.get("set") in ("slime", "posts") and r.get("assist")}
+    lines = ["## Slime-heavy and post-heavy courses (simulator; HANDOFF.md section 3, rules of 1 Nov 19:21:21)", "",
+             "320 courses per family, 8 jump specs: slime-heavy, 4 slime bounces (a pad and its exit; families 55",
+             "validation, 56 test); post-heavy, 4 narrow posts (fence and wall posts, end rods, iron bars) and 2 slime",
+             "bounces (57, 58). The slime skill (`parkour.neo_skill` on slime blocks) plays each pad's block (and each",
+             "post's, `--skill-blocks special`) from the takeoff onto it to its exit; the final policy plays the rest.", "",
+             "| Player | Family 55 | Family 57 |", "| --- | --- | --- |"]
+    by = {}
+    for r in alone:
+        by.setdefault(r["checkpoint"], {})[r["family"]] = r["completed"]
+    for ck, fam in by.items():
+        lines.append(f"| `{ck}` alone | {fam.get(55, '-')} | {fam.get(57, '-')} |")
+    ref = planner.get("assist_parts/slime55-val-planner")
+    if ref:
+        lines.append(f"| final policy + planner (its chosen setting) | {ref['completed']} | - |")
+    s55 = [r for r in skills if r.get("family") == 55]
+    p57 = {r["skill_sha1"]: r for r in skills if r.get("family") == 57}
+    lines += ["", "Each training run's best snapshot on family 55 (every snapshot of every run was played on 55 and 57):", "",
+              "| Run | Updates | Family 55 | Family 57 (same snapshot) |", "| --- | --- | --- | --- |"]
+    for run, u, r in sorted(_best_per_run(s55, lambda r: r["completed_neo_done"]), key=lambda x: x[0]):
+        q = p57.get(r["skill_sha1"])
+        lines.append(f"| {run} | {u} | {r['completed_neo_done']} | {q['completed_neo_done'] if q else '-'} |")
+    choice = out / "neo" / "slime_choice.json"  # written by the choice (the rules of 19:21:21 to 20:51:45)
+    if choice.exists():
+        c = json.loads(choice.read_text())
+        lines += ["", f"Chosen over all {c['candidates']} candidates: the slime skill `{c['slime']['skill']}` "
+                  f"(`{c['slime']['sha1']}`, {c['slime']['family55']} on family 55); for posts `{c['posts']['skill']}` "
+                  f"(`{c['posts']['sha1']}`, {c['posts']['family57']} on family 57). {c['note']}"]
+    tests = [r for r in _rows(out / "neo" / "skill_test.jsonl") if r.get("set") in ("slime", "posts")]
+    if tests:
+        lines += ["", "Tests, each played once (course list):", "", "| Player | Set | Completed |", "| --- | --- | --- |"]
+        for r in tests:
+            lines.append(f"| `{r['skill']}` (`{r['skill_sha1']}`) as the slime skill | {r['set']} {r['family']} | "
+                         f"{r['completed_neo_done']} of {r['courses']} |")
+        for name in ("assist_parts/slime56-test-planner", "assist_parts/posts58-test-planner"):
+            if name in planner:
+                r = planner[name]
+                lines.append(f"| final policy + planner | {r['set']} {r['family']} | {r['completed']} of {r['courses']} |")
+    games = [g for g in (game_row(out, n) for n in sorted(x.name for x in (out / "games").glob("slime56-*-skill-*")
+                                                           if x.is_dir())) if g]
+    if games:
+        lines += ["", "The bots on the first 64 slime-heavy test courses, from the bots' start:", ""] + GAME_HEADER + games
+    return lines + [""]
+
+
+def water_sets(out: Path) -> list:
+    """The water sets (``neo_assist --set water``; HANDOFF.md section 3, rules of 1 Nov 21:20:41): the final policy
+    alone, the planner, the water skill's snapshots, the tests and the bots."""
+    val = _rows(out / "neo" / "assist_validation.jsonl")
+    test = _rows(out / "neo" / "assist_test.jsonl")
+    rows = [r for r in val + test if r.get("set") == "water"]
+    if not rows:
+        return []
+    lines = ["## Water (simulator; HANDOFF.md section 3, rules of 1 Nov 21:20:41)", "",
+             "288 courses per family, 8 jump specs, 2 of them water pieces of 24 kinds (a pool breaking a drop, a",
+             "column to swim up, a gap to swim across; `parkour.water`; families 100 validation, 101 test). The water",
+             "physics is prismarine-physics' (checked against the real engine). The water skill sees 100 more numbers",
+             "(in water, the surface above the feet, the water surface over the block scan) and plays each water jump's",
+             "block, from the platform before the takeoff to the exit; the final policy plays the rest.", "",
+             "| Player | Family | Completed |", "| --- | --- | --- |"]
+    for r in rows:
+        who = "final policy + planner (its chosen setting)" if r.get("assist") else f"`{r['checkpoint']}` alone"
+        lines.append(f"| {who} | {r['family']} ({r['split']}) | {r['completed']} of {r['courses']} |")
+    skills = [r for r in _rows(out / "neo" / "skill_validation.jsonl") if r.get("set") == "water"]
+    if skills:
+        lines += ["", "Each water-skill run's best snapshot on family 100:", "", "| Run | Updates | Family 100 |",
+                  "| --- | --- | --- |"]
+        for run, u, r in sorted(_best_per_run(skills, lambda r: r["completed"]), key=lambda x: x[0]):
+            lines.append(f"| {run} | {u} | {r['completed']} of {r['courses']} |")
+    tests = [r for r in _rows(out / "neo" / "skill_test.jsonl") if r.get("set") == "water"]
+    for r in tests:
+        lines.append(f"\nTest, played once: `{r['skill']}` (`{r['skill_sha1']}`) as the water skill, family {r['family']}: "
+                     f"{r['completed']} of {r['courses']}.")
+    games = [g for g in (game_row(out, n) for n in sorted(x.name for x in (out / "games").glob("water101-*")
+                                                           if x.is_dir())) if g]
+    if games:
+        lines += ["", "The bots on the first 64 water test courses, from the bots' start:", ""] + GAME_HEADER + games
+    return lines + [""]
+
+
 def one_network(out: Path) -> list:
     """The one network and the gate on test, per skill group, from results/skills/ and results/runs/gate-r1/."""
     f = out / "skills" / "combined_test_comparison.json"
@@ -934,7 +1042,7 @@ def main(argv=None):
         if rows:
             lines += GAME_HEADER + rows + [""]
 
-    lines += learned_router(out) + neo_routing(out) + neo_skill(out) + two_neos(out)
+    lines += learned_router(out) + neo_routing(out) + neo_skill(out) + two_neos(out) + slime_posts(out) + water_sets(out)
 
     # The final policy since 28 October: discount 0.995 (section "Hyperparameters").
     v2 = RUNS / "obstacles-g995" / "summary.json"
