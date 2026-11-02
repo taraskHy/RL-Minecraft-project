@@ -1,0 +1,557 @@
+<title>Real-Minecraft Replays</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a row of recording sets over a course list beside one large 3D stage (HUD on the stage, transport
+   controls under it, the recording's facts below), like a replay editor. */
+:root {
+  --bg: #eef1f3;
+  --panel: #fbfcfc;
+  --fg: #182128;
+  --muted: #5a6670;
+  --line: #d4dade;
+  --accent: #3d7f39;
+  --accent-ink: #ffffff;
+  --policy: #2f64c8;
+  --skill: #c96a12;
+  --good: #1f7a45;
+  --bad: #b3352f;
+  --warn: #8f6400;
+  --sky-top: #b9d6ee;
+  --sky-low: #e8f1f8;
+  --hud: rgba(251, 252, 252, 0.88);
+  --font-display: "Pixelify Sans", "Courier New", monospace;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1316; --panel: #151c21; --fg: #e3e9ed; --muted: #95a2ac; --line: #27323a; --accent: #6cbf67;
+    --accent-ink: #0b170a; --policy: #7ea8ff; --skill: #f2a14e; --good: #5cc98a; --bad: #f27d73; --warn: #e2b44f;
+    --sky-top: #0b1724; --sky-low: #1a2d42; --hud: rgba(21, 28, 33, 0.86);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1316; --panel: #151c21; --fg: #e3e9ed; --muted: #95a2ac; --line: #27323a; --accent: #6cbf67;
+  --accent-ink: #0b170a; --policy: #7ea8ff; --skill: #f2a14e; --good: #5cc98a; --bad: #f27d73; --warn: #e2b44f;
+  --sky-top: #0b1724; --sky-low: #1a2d42; --hud: rgba(21, 28, 33, 0.86);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--bg); }
+body { color: var(--fg); font-family: var(--font-body); font-size: 14px; line-height: 1.5; }
+.wrap { max-width: 1440px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 32px; display: grid; gap: 14px; }
+header { display: grid; gap: 4px; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: 30px; line-height: 1.1; margin: 0; letter-spacing: 0.01em; text-wrap: balance; }
+.sub { margin: 0; color: var(--muted); max-width: 78ch; }
+.totals { margin: 0; font-family: var(--font-mono); font-size: 12.5px; color: var(--fg); display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.totals b { font-weight: 600; }
+nav.sets { display: flex; flex-wrap: wrap; gap: 6px; }
+nav.sets button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 5px; padding: 6px 11px 5px; cursor: pointer; display: grid; gap: 0; text-align: left; min-width: 0; }
+nav.sets button .t { font-family: var(--font-display); font-size: 15px; font-weight: 500; line-height: 1.2; }
+nav.sets button .n { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+nav.sets button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+nav.sets button[aria-selected="true"] .n { color: var(--accent-ink); opacity: 0.85; }
+nav.sets button:focus-visible, .ctl button:focus-visible, .ctl select:focus-visible, .list li:focus-visible, .filters button:focus-visible { outline: 2px solid var(--policy); outline-offset: 2px; }
+.note { margin: 0; color: var(--fg); max-width: 92ch; }
+.main { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 14px; align-items: start; }
+.list { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; display: grid; grid-template-rows: auto minmax(0, 1fr); max-height: 720px; min-width: 0; }
+.filters { display: flex; gap: 4px; padding: 8px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.filters button { font: inherit; font-size: 12.5px; border: 1px solid var(--line); background: transparent; color: var(--fg); border-radius: 4px; padding: 2px 9px; cursor: pointer; }
+.filters button[aria-pressed="true"] { border-color: var(--fg); font-weight: 600; }
+.list ol { list-style: none; margin: 0; padding: 4px; overflow-y: auto; min-height: 0; }
+.list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; padding: 6px 8px; border-radius: 4px; cursor: pointer; }
+.list li:hover { background: color-mix(in srgb, var(--fg) 6%, transparent); }
+.list li[aria-current="true"] { background: color-mix(in srgb, var(--policy) 16%, transparent); }
+.list .name { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list .tags { grid-column: 1 / -1; color: var(--muted); font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pill { font-family: var(--font-mono); font-size: 11px; padding: 1px 7px; border-radius: 99px; border: 1px solid currentColor; align-self: center; white-space: nowrap; }
+.pill.success { color: var(--good); }
+.pill.fell { color: var(--bad); }
+.pill.truncated { color: var(--warn); }
+.viewer { display: grid; gap: 10px; min-width: 0; }
+.stage { position: relative; width: 100%; aspect-ratio: 16 / 9; max-height: 640px; min-height: 300px; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); background: linear-gradient(var(--sky-top), var(--sky-low)); max-width: 100%; }
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.hud { position: absolute; left: 10px; top: 10px; background: var(--hud); border: 1px solid var(--line); border-radius: 5px; padding: 6px 10px; font-family: var(--font-mono); font-size: 12px; line-height: 1.55; font-variant-numeric: tabular-nums; pointer-events: none; max-width: calc(100% - 20px); }
+.hud b { font-family: var(--font-body); font-weight: 600; font-size: 13px; }
+.who { position: absolute; right: 10px; top: 10px; background: var(--hud); border: 1px solid var(--line); border-radius: 5px; padding: 5px 10px; font-size: 12.5px; pointer-events: none; display: flex; align-items: center; gap: 7px; }
+.who i { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+.toast { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); background: var(--hud); border: 1px solid var(--line); border-radius: 5px; padding: 6px 14px; font-weight: 600; pointer-events: none; white-space: nowrap; }
+.toast.success { color: var(--good); } .toast.fell { color: var(--bad); } .toast.truncated { color: var(--warn); }
+.ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ctl button, .ctl select { font: inherit; font-size: 13px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 4px; padding: 4px 10px; cursor: pointer; }
+.ctl button.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); min-width: 64px; }
+.ctl input[type="range"] { flex: 1 1 200px; min-width: 120px; accent-color: var(--accent); }
+.ctl label { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+.facts { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 22px; margin: 0; }
+.facts div { display: grid; grid-template-columns: 9.5em minmax(0, 1fr); gap: 8px; min-width: 0; }
+.facts dt { color: var(--muted); font-size: 12.5px; }
+.facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.facts code, footer code { font-family: var(--font-mono); font-size: 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 13px; height: 13px; border-radius: 2px; display: inline-block; border: 1px solid color-mix(in srgb, var(--fg) 25%, transparent); }
+.legend i.line { height: 4px; width: 18px; border: 0; border-radius: 2px; }
+footer { color: var(--muted); font-size: 12.5px; max-width: 100ch; }
+.keys { color: var(--muted); font-size: 12px; }
+@media (max-width: 860px) {
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .viewer { order: -1; }
+  .list { max-height: 360px; }
+  h1 { font-size: 24px; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Real-Minecraft Replays</h1>
+    <p class="sub">Every run here happened on a real Minecraft 1.21.4 server, with the trained networks driving a Mineflayer bot on courses they had never seen. Each recording replays the game's own ticks (20 per second), failures included.</p>
+    <p class="totals" id="totals"></p>
+  </header>
+
+  <nav class="sets" id="sets" role="tablist" aria-label="Recording sets"></nav>
+  <p class="note" id="setNote"></p>
+
+  <div class="main">
+    <aside class="list" aria-label="Courses in this set">
+      <div class="filters" role="group" aria-label="Show">
+        <button type="button" id="fAll" aria-pressed="true">All</button>
+        <button type="button" id="fMade" aria-pressed="false">Made it</button>
+        <button type="button" id="fFail" aria-pressed="false">Failed</button>
+      </div>
+      <ol id="courses"></ol>
+    </aside>
+
+    <section class="viewer" aria-label="Replay">
+      <div class="stage" id="stage">
+        <div class="hud" id="hud"></div>
+        <div class="who" id="who"><i id="whoSw"></i><span id="whoText"></span></div>
+        <div class="toast" id="toast" hidden></div>
+      </div>
+      <div class="ctl">
+        <button type="button" id="prev" title="Previous course ([)">Prev</button>
+        <button type="button" id="play" class="primary" title="Play or pause (space)">Play</button>
+        <button type="button" id="next" title="Next course (])">Next</button>
+        <input type="range" id="scrub" min="0" max="1" step="1" value="0" aria-label="Tick">
+        <label for="speed">Speed <select id="speed"><option value="0.25">0.25x</option><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option><option value="4">4x</option></select></label>
+        <label for="cam">Camera <select id="cam"><option value="follow" selected>Follow</option><option value="overview">Overview (drag to turn)</option></select></label>
+      </div>
+      <p class="keys">Keys: space plays or pauses, left and right arrows step one tick, [ and ] change course.</p>
+      <dl class="facts" id="facts"></dl>
+    </section>
+  </div>
+
+  <section class="legend" aria-label="Legend">
+    <span><i style="background:#8d9196"></i>stone platform</span>
+    <span><i style="background:#6f9a4a"></i>start (platform 0)</span>
+    <span><i style="background:#e0b63a"></i>goal</span>
+    <span><i style="background:#4a4f56"></i>extra stone: neo walls, beams, pillars, basins</span>
+    <span><i style="background:#79c25a"></i>slime block</span>
+    <span><i style="background:#3f76e4"></i>water</span>
+    <span><i style="background:#a9d2f2"></i>ice</span>
+    <span><i style="background:#9c6b3b"></i>ladder, trapdoor, fence</span>
+    <span><i class="line" style="background:var(--policy)"></i>path while the final policy (or the one network) acts</span>
+    <span><i class="line" style="background:var(--skill)"></i>path while a skill network acts</span>
+  </section>
+
+  <footer>Data: each set's recordings come from <code>results/games/</code> in the project repository (the folder names are in the facts panel), recorded by <code>parkour.live</code> in real Minecraft. "Same as the simulator" means the simulator's own run of the same networks on the same course from the bot's start ended the same way. The replay check re-ran the recorded actions in the simulator; the largest position difference is in the facts panel.</footer>
+</div>
+
+<script type="application/json" id="replay-data">__REPLAY_DATA__</script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+;(function () {
+'use strict'
+const DATA = JSON.parse(document.getElementById('replay-data').textContent)
+const $ = id => document.getElementById(id)
+const ROOT = document.documentElement
+const css = name => getComputedStyle(ROOT).getPropertyValue(name).trim()
+
+// ---------- totals ----------
+;(function totals () {
+  let n = 0, made = 0, same = 0, corr = 0
+  for (const s of DATA.sets) { n += s.totals.n; made += s.totals.made; same += s.totals.same; corr += s.totals.corr }
+  $('totals').innerHTML = `<span><b>${n}</b> recordings in ${DATA.sets.length} sets</span><span><b>${made}</b> courses made</span>` +
+    `<span>outcome the same as the simulator on <b>${same} of ${n}</b></span><span><b>${corr}</b> server corrections</span>`
+})()
+
+// ---------- three.js scene ----------
+const stage = $('stage')
+if (!window.THREE) { $('hud').textContent = 'The 3D library did not load, so the replays cannot be drawn.'; return }
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+stage.prepend(renderer.domElement)
+const scene = new THREE.Scene()
+const camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.05, 600)
+const controls = new THREE.OrbitControls(camera, renderer.domElement)
+controls.enableDamping = true
+controls.enabled = false
+scene.add(new THREE.AmbientLight(0xffffff, 0.62))
+const sun = new THREE.DirectionalLight(0xffffff, 0.62)
+sun.position.set(0.45, 1, 0.3)
+scene.add(sun)
+const fill = new THREE.DirectionalLight(0xffffff, 0.18)
+fill.position.set(-0.5, 0.4, -0.7)
+scene.add(fill)
+
+// Pixel textures, 16 x 16 like Minecraft's, from a seeded noise (scene colours are the blocks' own, in both themes).
+function rng (seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296 } }
+function tex (base, spread, seed, opts = {}) {
+  const c = document.createElement('canvas'); c.width = c.height = 16
+  const g = c.getContext('2d'); const r = rng(seed)
+  const [br, bg, bb] = base
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    let k = (r() - 0.5) * 2 * spread
+    if (opts.rim && (x === 0 || y === 0 || x === 15 || y === 15)) k -= opts.rim
+    if (opts.planks && y % 4 === 0) k -= 18
+    g.fillStyle = `rgb(${Math.max(0, Math.min(255, br + k))},${Math.max(0, Math.min(255, bg + k))},${Math.max(0, Math.min(255, bb + k))})`
+    g.fillRect(x, y, 1, 1)
+  }
+  const t = new THREE.CanvasTexture(c)
+  t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter
+  return t
+}
+const lam = (map, extra = {}) => new THREE.MeshLambertMaterial({ map, ...extra })
+const M = {
+  stone: lam(tex([141, 145, 150], 16, 1)),
+  stoneTop: lam(tex([150, 154, 159], 14, 2)),
+  start: lam(tex([111, 154, 74], 18, 3)),
+  goal: lam(tex([224, 182, 58], 16, 4, { rim: 30 })),
+  wall: lam(tex([74, 79, 86], 12, 5)),
+  slime: lam(tex([121, 194, 90], 14, 6, { rim: 26 }), { transparent: true, opacity: 0.78 }),
+  ice: lam(tex([169, 210, 242], 10, 7), { transparent: true, opacity: 0.9 }),
+  water: lam(tex([63, 118, 228], 10, 8), { transparent: true, opacity: 0.55, depthWrite: false }),
+  wood: lam(tex([156, 107, 59], 12, 9, { planks: true }))
+}
+const SHAPE_COLOR = { bottom_slab: [195, 198, 200], soul_sand: [91, 68, 52], dirt_path: [154, 123, 69], enchanting_table: [122, 39, 49],
+  daylight_detector: [194, 168, 120], bottom_trapdoor: [184, 142, 82], carpet: [238, 240, 240], fence_post: [127, 92, 48],
+  wall_post: [111, 111, 111], end_rod: [242, 237, 226] }
+const shapeMat = {}
+const matOfShape = name => {
+  if (name.startsWith('ladder_')) return M.wood
+  if (!shapeMat[name]) shapeMat[name] = lam(tex(SHAPE_COLOR[name] || [176, 141, 90], 12, 20 + Object.keys(shapeMat).length))
+  return shapeMat[name]
+}
+const CUBE = new THREE.BoxGeometry(1, 1, 1)
+CUBE.translate(0.5, 0.5, 0.5)
+
+// The player: 0.6 wide, 1.8 tall, facing -Z at yaw 0 (Mineflayer: forward is (-sin yaw, 0, -cos yaw)).
+const player = new THREE.Group()
+const box = (w, h, d, color, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color })); m.position.set(x, y, z); player.add(m); return m }
+box(0.5, 0.72, 0.28, 0x2c3e75, 0, 0.36, 0) // legs
+box(0.56, 0.62, 0.3, 0x2aa6b0, 0, 1.03, 0) // shirt
+box(0.46, 0.44, 0.46, 0xc89a72, 0, 1.56, 0) // head
+box(0.1, 0.07, 0.02, 0x1d2430, -0.1, 1.6, -0.235) // eyes, on the -Z face
+box(0.1, 0.07, 0.02, 0x1d2430, 0.1, 1.6, -0.235)
+scene.add(player)
+
+let courseGroup = null
+let trail = null
+
+function addCell (g, x, y, z, mats) { const m = new THREE.Mesh(CUBE, mats); m.position.set(x, y, z); g.add(m) }
+function addBoxes (g, x, y, z, boxes, mat) {
+  for (const b of boxes) {
+    const geo = new THREE.BoxGeometry(b[3] - b[0], b[4] - b[1], b[5] - b[2])
+    const m = new THREE.Mesh(geo, mat)
+    m.position.set(x + (b[0] + b[3]) / 2, y + (b[1] + b[4]) / 2, z + (b[2] + b[5]) / 2)
+    g.add(m)
+  }
+}
+const sides = (side, top) => [side, side, top, side, side, side]
+
+function buildCourse (c) {
+  if (courseGroup) {
+    scene.remove(courseGroup)
+    courseGroup.traverse(o => { if (o.geometry && o.geometry !== CUBE) o.geometry.dispose() })
+  }
+  const g = new THREE.Group()
+  const slime = new Set(c.slime || []); const ice = new Set(c.ice || [])
+  const last = c.platforms.length - 1
+  c.platforms.forEach((p, k) => {
+    const shape = (c.shapes || {})[String(k)]
+    for (let x = p[0]; x <= p[1]; x++) for (let z = p[2]; z <= p[3]; z++) {
+      if (shape) { addBoxes(g, x, p[4], z, DATA.shapes[shape] || [[0, 0, 0, 1, 1, 1]], matOfShape(shape)); continue }
+      let mats
+      if (slime.has(k)) mats = M.slime
+      else if (ice.has(k)) mats = M.ice
+      else if (k === 0) mats = sides(M.stone, M.start)
+      else if (k === last) mats = sides(M.stone, M.goal)
+      else mats = sides(M.stone, M.stoneTop)
+      addCell(g, x, p[4], z, mats)
+    }
+  })
+  for (const [x, y, z] of c.extra || []) addCell(g, x, y, z, M.wall)
+  for (const [x, y, z, f] of c.ladders || []) addBoxes(g, x, y, z, DATA.shapes['ladder_' + ['north', 'east', 'south', 'west'][f]], M.wood)
+  if (c.water) {
+    const wet = new Set(c.water.map(w => `${w[0]},${w[1]},${w[2]}`))
+    for (const [x, y, z, level] of c.water) {
+      const h = wet.has(`${x},${y + 1},${z}`) ? 1 : (8 - Math.min(level, 7)) / 9
+      const m = new THREE.Mesh(new THREE.BoxGeometry(1, h, 1), M.water)
+      m.position.set(x + 0.5, y + h / 2, z + 0.5); m.renderOrder = 2
+      g.add(m)
+    }
+  }
+  scene.add(g)
+  courseGroup = g
+  // Bounds, for the overview camera.
+  const bb = new THREE.Box3().setFromObject(g)
+  return bb
+}
+
+function buildTrail (ep) {
+  if (trail) { scene.remove(trail); trail.geometry.dispose() }
+  const n = ep.yaw.length
+  const pos = new Float32Array(n * 3); const col = new Float32Array(n * 3)
+  const pc = new THREE.Color(css('--policy')); const sc = new THREE.Color(css('--skill'))
+  for (let i = 0; i < n; i++) {
+    pos[3 * i] = ep.pos[3 * i] / 1000; pos[3 * i + 1] = ep.pos[3 * i + 1] / 1000 + 0.05; pos[3 * i + 2] = ep.pos[3 * i + 2] / 1000
+    const k = ep.ctrl && ep.ctrl[Math.min(i, ep.ctrl.length - 1)] === '1' ? sc : pc
+    col[3 * i] = k.r; col[3 * i + 1] = k.g; col[3 * i + 2] = k.b
+  }
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3))
+  geo.setDrawRange(0, 1)
+  trail = new THREE.Line(geo, new THREE.LineBasicMaterial({ vertexColors: true }))
+  scene.add(trail)
+}
+
+// ---------- state ----------
+let set = DATA.sets[0]
+let epIndex = 0
+let ep = null
+let course = null
+let bounds = null
+let t = 0
+let playing = false
+let filter = 'all'
+let camYaw = 0
+let camInit = false
+
+function resultText (e, c) {
+  if (e.result === 'success') return `Made it in ${(e.ticks / 20).toFixed(2)} s`
+  if (e.result === 'fell') return `Fell after platform ${e.cp} of ${c.platforms.length - 1}`
+  return `Timed out on platform ${e.cp} of ${c.platforms.length - 1} (10 s without a new platform)`
+}
+const resultShort = e => e.result === 'success' ? 'made it' : e.result === 'fell' ? 'fell' : 'timed out'
+function courseName (e, c, i) {
+  if (c.name) return c.name.charAt(0).toUpperCase() + c.name.slice(1) + ' course'
+  // Levels 0-5 are the standard difficulty levels; the special sets label every course alike, so they show none.
+  return `Course ${i + 1}` + ((set.id === 'standard' || set.id === 'obstacles') && c.level !== undefined && c.level !== null ? ` · level ${c.level}` : '')
+}
+
+function renderSets () {
+  const nav = $('sets'); nav.innerHTML = ''
+  for (const s of DATA.sets) {
+    const b = document.createElement('button')
+    b.type = 'button'; b.setAttribute('role', 'tab'); b.id = 'set-' + s.id
+    b.setAttribute('aria-selected', String(s === set))
+    b.innerHTML = `<span class="t">${s.title}</span><span class="n">${s.totals.made} of ${s.totals.n} made</span>`
+    b.addEventListener('click', () => selectSet(s.id, true))
+    nav.appendChild(b)
+  }
+}
+
+function visibleEpisodes () {
+  return set.episodes.map((e, i) => [e, i]).filter(([e]) => filter === 'all' || (filter === 'made') === (e.result === 'success'))
+}
+
+function renderList () {
+  const ol = $('courses'); ol.innerHTML = ''
+  for (const [e, i] of visibleEpisodes()) {
+    const c = set.courses[e.c]
+    const li = document.createElement('li')
+    li.tabIndex = 0
+    li.setAttribute('aria-current', String(i === epIndex))
+    const tags = [c.jumps + ' jumps', ...c.tags]
+    if (set.id === 'hand') tags.unshift(e.who)
+    li.innerHTML = `<span class="name">${courseName(e, c, set.id === 'hand' ? i : e.c)}</span><span class="pill ${e.result}">${resultShort(e)}</span><span class="tags">${tags.join(' · ')}</span>`
+    li.addEventListener('click', () => selectEpisode(i, true))
+    li.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); selectEpisode(i, true) } })
+    ol.appendChild(li)
+  }
+}
+
+function renderFacts () {
+  const c = course; const e = ep
+  const items = [
+    ['Set', `${set.title}: recording ${epIndex + 1} of ${set.episodes.length}`],
+    ['Played by', e.who],
+    ['Result', resultText(e, c)],
+    ['Course', `${c.jumps} jumps, ${c.platforms.length} platforms` + (c.tags.length ? ` · ${c.tags.join(', ')}` : '')],
+    ['Simulator', e.simSame ? `same outcome${e.simTicks === e.ticks ? `, same ${e.ticks} ticks` : ''}` : 'a different outcome'],
+    ['Server corrections', String(e.corr)],
+    ['Replay check', e.err === null || e.err === undefined ? 'not recorded' : `largest difference ${e.err.toExponential(1)} blocks`],
+    ['Recording', `results/games/${e.run}`]
+  ]
+  if (e.ctrl) items.splice(3, 0, ['Skill ticks', `${(e.ctrl.match(/1/g) || []).length} of ${e.ctrl.length} ticks played by the skill network`])
+  $('facts').innerHTML = items.map(([k, v]) => `<div><dt>${k}</dt><dd>${k === 'Recording' ? `<code>${v}</code>` : v}</dd></div>`).join('')
+}
+
+function selectSet (id, user) {
+  const s = DATA.sets.find(x => x.id === id) || DATA.sets[0]
+  set = s
+  filter = 'all'; setFilterButtons()
+  $('setNote').textContent = s.note + ` Real game: ${s.totals.made} of ${s.totals.n} made; the outcome was the same as the simulator's on ${s.totals.same} of ${s.totals.n}; ${s.totals.corr} server corrections.`
+  renderSets()
+  try { if (user && history.replaceState) history.replaceState(null, '', '#' + s.id) } catch (err) { /* the frame may refuse */ }
+  selectEpisode(0, user)
+}
+
+function selectEpisode (i, autoplay) {
+  epIndex = Math.max(0, Math.min(set.episodes.length - 1, i))
+  ep = set.episodes[epIndex]
+  course = set.courses[ep.c]
+  bounds = buildCourse(course)
+  buildTrail(ep)
+  t = 0; camInit = false
+  $('scrub').max = String(ep.yaw.length - 1)
+  $('toast').hidden = true
+  renderList(); renderFacts()
+  // Keep the chosen course in view inside the list only (scrolling the page would jump away from the stage).
+  const ol = $('courses'); const cur = ol.querySelector('[aria-current="true"]')
+  if (cur) {
+    const r = cur.getBoundingClientRect(); const o = ol.getBoundingClientRect()
+    if (r.top < o.top || r.bottom > o.bottom) ol.scrollTop += r.top - o.top - 8
+  }
+  setOverview()
+  playing = !!autoplay && !REDUCED
+  $('play').textContent = playing ? 'Pause' : 'Play'
+  draw()
+}
+
+function setFilterButtons () {
+  $('fAll').setAttribute('aria-pressed', String(filter === 'all'))
+  $('fMade').setAttribute('aria-pressed', String(filter === 'made'))
+  $('fFail').setAttribute('aria-pressed', String(filter === 'fail'))
+}
+for (const [id, f] of [['fAll', 'all'], ['fMade', 'made'], ['fFail', 'fail']]) {
+  $(id).addEventListener('click', () => {
+    filter = f; setFilterButtons(); renderList()
+    const vis = visibleEpisodes()
+    if (vis.length && !vis.some(([, i]) => i === epIndex)) selectEpisode(vis[0][1], false)
+  })
+}
+
+// ---------- playback ----------
+function stateAt (tt) {
+  const n = ep.yaw.length
+  const i = Math.max(0, Math.min(n - 1, Math.floor(tt))); const j = Math.min(n - 1, i + 1); const f = Math.min(1, Math.max(0, tt - i))
+  const P = ep.pos
+  const lerp = (a, b) => a + (b - a) * f
+  let dy = (ep.yaw[j] - ep.yaw[i]) / 1e4
+  if (dy > Math.PI) dy -= 2 * Math.PI
+  if (dy < -Math.PI) dy += 2 * Math.PI
+  return {
+    i, x: lerp(P[3 * i], P[3 * j]) / 1000, y: lerp(P[3 * i + 1], P[3 * j + 1]) / 1000, z: lerp(P[3 * i + 2], P[3 * j + 2]) / 1000,
+    yaw: ep.yaw[i] / 1e4 + dy * f,
+    vx: (P[3 * j] - P[3 * i]) / 1000 * 20, vz: (P[3 * j + 2] - P[3 * i + 2]) / 1000 * 20
+  }
+}
+
+function setOverview () {
+  if (!bounds) return
+  const ctr = bounds.getCenter(new THREE.Vector3()); const size = bounds.getSize(new THREE.Vector3())
+  controls.target.copy(ctr)
+  if ($('cam').value === 'overview') {
+    const r = Math.max(size.x, size.z, 8)
+    camera.position.set(ctr.x + r * 0.55, ctr.y + r * 0.75, ctr.z + r * 0.8)
+    controls.update()
+  }
+}
+
+function draw () {
+  const s = stateAt(t)
+  player.position.set(s.x, s.y, s.z)
+  player.rotation.y = s.yaw
+  if (trail) trail.geometry.setDrawRange(0, s.i + 1)
+  if ($('cam').value === 'follow') {
+    if (!camInit) { camYaw = s.yaw; camInit = true }
+    let d = s.yaw - camYaw
+    while (d > Math.PI) d -= 2 * Math.PI
+    while (d < -Math.PI) d += 2 * Math.PI
+    camYaw += d * 0.06
+    const dist = 5.2; const up = 2.9
+    camera.position.set(s.x + Math.sin(camYaw) * dist, s.y + up, s.z + Math.cos(camYaw) * dist)
+    camera.lookAt(s.x - Math.sin(camYaw) * 1.5, s.y + 0.6, s.z - Math.cos(camYaw) * 1.5)
+  } else {
+    controls.update()
+  }
+  // HUD
+  const n = course.platforms.length - 1
+  const k = ep.cpAt[s.i]
+  const skillNow = ep.ctrl && ep.ctrl[Math.min(s.i, ep.ctrl.length - 1)] === '1'
+  const sp = Math.hypot(s.vx, s.vz)
+  $('hud').innerHTML = `<b>${courseName(ep, course, set.id === 'hand' ? epIndex : ep.c)}</b><br>tick ${String(s.i).padStart(3, ' ')} / ${ep.yaw.length - 1} · ${(s.i / 20).toFixed(2)} s<br>platform ${k} of ${n} · ${sp.toFixed(2)} blocks/s<br>${ep.ground[s.i - 1] === '1' || s.i === 0 ? 'on the ground' : 'in the air'}`
+  $('whoSw').style.background = skillNow ? 'var(--skill)' : 'var(--policy)'
+  $('whoText').textContent = skillNow ? 'skill network acting' : (ep.ctrl ? 'final policy acting' : ep.who)
+  $('scrub').value = String(s.i)
+  const end = s.i >= ep.yaw.length - 1
+  const toast = $('toast')
+  if (end) { toast.hidden = false; toast.className = 'toast ' + ep.result; toast.textContent = resultText(ep, course) } else toast.hidden = true
+  renderer.render(scene, camera)
+}
+
+const REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+let lastTime = performance.now()
+function loop (now) {
+  const dt = Math.min(0.1, (now - lastTime) / 1000); lastTime = now
+  if (playing && ep) {
+    t = Math.min(ep.yaw.length - 1, t + dt * 20 * Number($('speed').value))
+    if (t >= ep.yaw.length - 1) { playing = false; $('play').textContent = 'Replay' }
+  }
+  if (ep) draw()
+  requestAnimationFrame(loop)
+}
+
+$('play').addEventListener('click', () => {
+  if (!ep) return
+  if (t >= ep.yaw.length - 1) t = 0
+  playing = !playing
+  $('play').textContent = playing ? 'Pause' : 'Play'
+})
+$('prev').addEventListener('click', () => step(-1))
+$('next').addEventListener('click', () => step(1))
+function step (d) {
+  const vis = visibleEpisodes().map(([, i]) => i)
+  if (!vis.length) return
+  const at = vis.indexOf(epIndex)
+  const nxt = vis[(at + d + vis.length) % vis.length]
+  selectEpisode(nxt, true)
+}
+$('scrub').addEventListener('input', ev => { t = Number(ev.target.value); playing = false; $('play').textContent = 'Play' })
+$('cam').addEventListener('change', () => { controls.enabled = $('cam').value === 'overview'; camInit = false; setOverview() })
+document.addEventListener('keydown', ev => {
+  if (ev.target && /INPUT|SELECT|TEXTAREA/.test(ev.target.tagName)) return
+  if (ev.key === ' ') { ev.preventDefault(); $('play').click() }
+  else if (ev.key === 'ArrowRight') { t = Math.min(ep.yaw.length - 1, Math.floor(t) + 1); playing = false; $('play').textContent = 'Play' }
+  else if (ev.key === 'ArrowLeft') { t = Math.max(0, Math.ceil(t) - 1); playing = false; $('play').textContent = 'Play' }
+  else if (ev.key === ']') step(1)
+  else if (ev.key === '[') step(-1)
+})
+
+function resize () {
+  const w = stage.clientWidth; const h = stage.clientHeight
+  renderer.setSize(w, h, false)
+  camera.aspect = w / Math.max(1, h); camera.updateProjectionMatrix()
+}
+new ResizeObserver(resize).observe(stage)
+// Re-colour the path when the theme changes.
+const mq = window.matchMedia('(prefers-color-scheme: dark)')
+const recolour = () => { if (ep) buildTrail(ep) }
+if (mq.addEventListener) mq.addEventListener('change', recolour)
+new MutationObserver(recolour).observe(ROOT, { attributes: true, attributeFilter: ['data-theme'] })
+
+resize()
+const start = (location.hash || '').slice(1)
+selectSet(DATA.sets.some(s => s.id === start) ? start : DATA.sets[0].id, false)
+playing = !REDUCED
+$('play').textContent = playing ? 'Pause' : 'Play'
+requestAnimationFrame(loop)
+})()
+</script>

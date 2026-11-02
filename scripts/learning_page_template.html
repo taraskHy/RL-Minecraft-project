@@ -1,0 +1,677 @@
+<title>How the Parkour Bot Learned</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a technical notebook. A sticky contents rail on the left, one reading column (about 72 characters)
+   with figures that widen to the full column; formulas set in mono blocks; every number cites its file. */
+:root {
+  --bg: #f1f3f4;
+  --surface: #fcfcfb;
+  --fg: #141a1f;
+  --muted: #56616a;
+  --line: #d6dbdf;
+  --accent: #3d7f39;
+  --accent-soft: #e4efe2;
+  --code-bg: #e8ecee;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --lvl4: #5598e7;
+  --lvl5: #104281;
+  --quiet: #b3bbc1;
+  --good: #1f7a45;
+  --bad: #b3352f;
+  --warn: #8f6400;
+  --font-display: "Pixelify Sans", "Courier New", monospace;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111416; --surface: #1a1a19; --fg: #eceeec; --muted: #a2aaa6; --line: #2c3236; --accent: #6cbf67;
+    --accent-soft: #1d2a1c; --code-bg: #20262a; --series-1: #3987e5; --series-2: #d95926; --lvl4: #3987e5;
+    --lvl5: #cde2fb; --quiet: #4b5459; --good: #5cc98a; --bad: #f27d73; --warn: #e2b44f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111416; --surface: #1a1a19; --fg: #eceeec; --muted: #a2aaa6; --line: #2c3236; --accent: #6cbf67;
+  --accent-soft: #1d2a1c; --code-bg: #20262a; --series-1: #3987e5; --series-2: #d95926; --lvl4: #3987e5;
+  --lvl5: #cde2fb; --quiet: #4b5459; --good: #5cc98a; --bad: #f27d73; --warn: #e2b44f;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--bg); }
+body { color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.62; }
+.page { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 56px; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 40px; }
+nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); align-self: start; font-size: 13.5px; line-height: 1.45; max-height: calc(100vh - 32px); overflow-y: auto; }
+nav.toc p { font-family: var(--font-display); font-size: 15px; margin: 0 0 8px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; counter-reset: toc; }
+nav.toc li { counter-increment: toc; display: grid; grid-template-columns: 1.8em minmax(0, 1fr); }
+nav.toc li::before { content: counter(toc); color: var(--muted); font-family: var(--font-mono); font-size: 12px; padding-top: 1px; }
+nav.toc a { color: var(--fg); text-decoration: none; }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--accent); text-decoration: underline; }
+main { min-width: 0; display: block; }
+header.hero { display: grid; gap: 10px; padding-bottom: 22px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: 40px; line-height: 1.08; margin: 0; text-wrap: balance; }
+.lede { font-size: 18px; margin: 0; max-width: 68ch; }
+section { padding-block: 26px 6px; border-bottom: 1px solid var(--line); scroll-margin-top: 12px; }
+section:last-of-type { border-bottom: 0; }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: 26px; line-height: 1.15; margin: 0 0 12px; text-wrap: balance; }
+h2 .num { color: var(--muted); font-family: var(--font-mono); font-size: 15px; font-weight: 400; margin-right: 10px; vertical-align: 3px; }
+h3 { font-size: 17px; font-weight: 600; margin: 22px 0 6px; }
+p, ul, ol { max-width: 72ch; }
+p { margin: 0 0 12px; }
+ul, ol { margin: 0 0 12px; padding-left: 1.3em; }
+li { margin-bottom: 4px; }
+a { color: var(--series-1); }
+code, .mono { font-family: var(--font-mono); font-size: 0.86em; }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+.formula { font-family: var(--font-mono); font-size: 14px; background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 4px; padding: 12px 14px; margin: 4px 0 14px; overflow-x: auto; white-space: pre; line-height: 1.7; max-width: 100%; }
+.formula .c { color: var(--muted); }
+.cap { font-size: 13px; color: var(--muted); margin: 6px 0 14px; max-width: 80ch; }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin: 6px 0 14px; }
+.summary div { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; min-width: 0; }
+.summary h3 { margin: 0 0 4px; font-size: 15px; }
+.summary p { margin: 0; font-size: 14.5px; }
+.tablebox { overflow-x: auto; margin: 4px 0 14px; max-width: 100%; }
+table { border-collapse: collapse; font-size: 14px; min-width: 100%; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; font-size: 13px; color: var(--muted); }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); font-size: 13px; white-space: nowrap; }
+tr.hl td { background: var(--accent-soft); }
+.obsbar { display: flex; width: 100%; height: 46px; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); margin: 6px 0 4px; }
+.obsbar div { display: grid; place-items: center; font-family: var(--font-mono); font-size: 11.5px; color: #0e1418; border-right: 2px solid var(--surface); min-width: 0; overflow: hidden; white-space: nowrap; }
+.obsbar div:last-child { border-right: 0; }
+.obslegend { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 4px 18px; font-size: 13.5px; margin: 6px 0 14px; }
+.obslegend span { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 8px; align-items: start; }
+.obslegend i { width: 14px; height: 14px; border-radius: 2px; margin-top: 3px; display: block; }
+.heads { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 6px 0 14px; }
+.heads div { background: var(--surface); border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px; min-width: 0; }
+.heads b { display: block; font-size: 13.5px; }
+.heads span { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); }
+.chart { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px 12px 6px; margin: 8px 0 4px; position: relative; min-width: 0; }
+.chart h4 { margin: 0 0 2px; font-size: 14.5px; font-weight: 600; }
+.chart .sub { margin: 0 0 6px; font-size: 12.5px; color: var(--muted); }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12.5px; color: var(--fg); margin: 4px 0 2px; }
+.chart .legend span { display: inline-flex; align-items: center; gap: 6px; }
+.chart .legend i { width: 16px; height: 3px; border-radius: 2px; display: inline-block; }
+.chart .legend i.dot { width: 9px; height: 9px; border-radius: 50%; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 5px; padding: 6px 9px; font-size: 12.5px; line-height: 1.45; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12); font-variant-numeric: tabular-nums; z-index: 3; max-width: 260px; }
+.tip b { font-weight: 600; }
+.tip .k { color: var(--muted); }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+details { margin: 4px 0 14px; font-size: 14px; }
+summary { cursor: pointer; color: var(--muted); }
+.widget { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; margin: 8px 0 14px; display: grid; gap: 8px; }
+.widget label { font-size: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.widget input[type="range"] { flex: 1 1 240px; accent-color: var(--accent); }
+.readout { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+.readout div { border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px; min-width: 0; }
+.readout b { font-family: var(--font-mono); font-size: 20px; display: block; font-variant-numeric: tabular-nums; }
+.readout span { font-size: 13px; color: var(--muted); }
+.callout { background: var(--accent-soft); border-radius: 6px; padding: 12px 14px; margin: 6px 0 14px; max-width: 76ch; }
+.callout p:last-child { margin-bottom: 0; }
+pre.mermaid { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 10px; overflow-x: auto; max-width: 100%; }
+dl.gloss { display: grid; grid-template-columns: minmax(130px, max-content) minmax(0, 1fr); gap: 6px 18px; max-width: 80ch; margin: 0 0 12px; }
+dl.gloss dt { font-weight: 600; }
+dl.gloss dd { margin: 0; }
+footer { font-size: 13px; color: var(--muted); padding-top: 18px; max-width: 80ch; }
+:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+@media (max-width: 900px) {
+  .page { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  nav.toc { position: static; max-height: none; border-bottom: 1px solid var(--line); padding-bottom: 12px; }
+  nav.toc ol { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+  h1 { font-size: 30px; }
+  .heads { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+
+<div class="page">
+<nav class="toc" aria-label="Contents">
+  <p>Contents</p>
+  <ol>
+    <li><a href="#short">The short version</a></li>
+    <li><a href="#world">The world it learned in</a></li>
+    <li><a href="#mdp">What it sees and does</a></li>
+    <li><a href="#reward">The reward</a></li>
+    <li><a href="#ablation">What each reward term bought</a></li>
+    <li><a href="#ppo">The algorithm: PPO</a></li>
+    <li><a href="#curve">Learning over time</a></li>
+    <li><a href="#discount">The discount and the horizon</a></li>
+    <li><a href="#neo">Where PPO failed: neo jumps</a></li>
+    <li><a href="#skills">Skills for hard pieces</a></li>
+    <li><a href="#router">The router: learning the route</a></li>
+    <li><a href="#one">One network for every skill</a></li>
+    <li><a href="#real">From simulator to real Minecraft</a></li>
+    <li><a href="#glossary">Glossary</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="hero">
+  <p class="eyebrow">Minecraft parkour · deep reinforcement learning · technical notes</p>
+  <h1>How the Parkour Bot Learned</h1>
+  <p class="lede">A network of about 300,000 weights learned to run Minecraft parkour courses it had never seen, from trial and error in a simulator, and then ran them in the real game. This page explains how: what it sees, what it is rewarded for, the algorithm that trains it, where that algorithm got stuck, and what fixed it.</p>
+</header>
+
+<section id="short">
+  <h2><span class="num">1</span>The short version</h2>
+  <div class="summary">
+    <div><h3>Kind of learning</h3><p>Deep reinforcement learning with PPO: model-free, on-policy, actor-critic. It never learns a model of the physics; it learns which action to take from what it sees.</p></div>
+    <div><h3>How it practised</h3><p>16,384 games at once in an exact copy of Minecraft's movement physics on the GPU: 1.57 billion game ticks for the main run, about 2 hours on one RTX 5080.</p></div>
+    <div><h3>What it was paid for</h3><p>Getting closer to the goal along the course, +1 per new platform, +10 at the goal, −5 for falling, −0.01 per tick.</p></div>
+    <div><h3>Where it got stuck</h3><p>Neo jumps (around the end of a wall): it learned to stand still instead. Imitating a search-based planner (behaviour cloning, then DAgger) taught them.</p></div>
+  </div>
+  <p>The final policy completes <b>98.4%</b> of unseen standard courses and <b>95.2%</b> with obstacles (simulator, test sets played once), and in real Minecraft it finished exactly the courses the simulator said it would. The rest of this page goes one layer down at a time.</p>
+</section>
+
+<section id="world">
+  <h2><span class="num">2</span>The world it learned in</h2>
+  <p>A course is a chain of stone platforms floating in the void. The player starts on platform 0 and must reach the last one. Courses are generated at random, so every test course is new to the agent.</p>
+  <p>Training in the real game would be far too slow (20 ticks per second, one player). Instead, the project ported <b>prismarine-physics</b>, the engine a Mineflayer bot uses to move, to batched PyTorch on the GPU. The port keeps every expression and its operand order in 64-bit floats, so it is not an approximation: over 99,000 random ticks against the real library, the largest position error was <b>1.4e-14 blocks</b> (<code>results/physics_parity.json</code>). The simulator runs about one million game ticks per second.</p>
+  <p>Two properties of this world shape everything below:</p>
+  <ul>
+    <li><b>It is deterministic.</b> The same state and action always give the same next state. The only randomness in training is which course is drawn and which action the policy samples.</li>
+    <li><b>It is exact.</b> Whatever the network learns in the simulator is what happens in Minecraft. There is no simulation-to-reality gap to bridge, only rounding error.</li>
+  </ul>
+</section>
+
+<section id="mdp">
+  <h2><span class="num">3</span>What it sees and does</h2>
+  <p>Reinforcement learning frames the task as a <b>Markov decision process</b>: at every step the agent observes the state, picks an action, the world moves on, and a reward comes back. Here a step is one game tick (50 ms), the same rate a human player's inputs are read at.</p>
+
+  <h3>The observation: 255 numbers</h3>
+  <p>The network never sees the whole course. Each tick it gets 255 numbers, measured in the player's own frame (so "ahead" is always the same direction to it):</p>
+  <div class="obsbar" role="img" aria-label="The 255 observation numbers by part: 6 own motion, 5 previous action, 44 platforms, 196 block scan, 3 goal, 1 progress">
+    <div style="flex:6;background:#9ec5f4" title="own motion: 6">6</div>
+    <div style="flex:5;background:#b7d3f6" title="previous action: 5">5</div>
+    <div style="flex:44;background:#eda100">platforms 44</div>
+    <div style="flex:196;background:#86c79f">block scan 196</div>
+    <div style="flex:3;background:#e87ba4" title="goal: 3">3</div>
+    <div style="flex:1;background:#c3c2b7" title="progress: 1"></div>
+  </div>
+  <div class="obslegend">
+    <span><i style="background:#9ec5f4"></i><span><b>Own motion (6):</b> velocity, on the ground or not, jump cooldown, touching a wall sideways.</span></span>
+    <span><i style="background:#b7d3f6"></i><span><b>Previous action (5):</b> what it pressed last tick.</span></span>
+    <span><i style="background:#eda100"></i><span><b>Platforms (44):</b> the platform it last stood on and the next three: the four corners of each top face, its height, whether it is the goal.</span></span>
+    <span><i style="background:#86c79f"></i><span><b>Block scan (196):</b> floor height and a ceiling flag at 98 points, from 1 block behind to 5.5 ahead and 1.5 to each side.</span></span>
+    <span><i style="background:#e87ba4"></i><span><b>Goal (3):</b> where the goal is.</span></span>
+    <span><i style="background:#c3c2b7"></i><span><b>Progress (1):</b> the fraction of platforms reached.</span></span>
+  </div>
+  <p>Because platforms beyond the next three, and obstacles outside the scan, are hidden, the agent technically faces a <i>partially observable</i> problem (a POMDP), and it plays it with a memoryless network. Each input is standardised by a running mean and variance and clipped to ±5 before the network sees it.</p>
+
+  <h3>The action: 252 combinations, chosen as 5 independent choices</h3>
+  <div class="heads">
+    <div><b>Move</b><span>back · none · forward</span></div>
+    <div><b>Strafe</b><span>left · none · right</span></div>
+    <div><b>Jump</b><span>no · yes</span></div>
+    <div><b>Sprint</b><span>no · yes</span></div>
+    <div><b>Turn</b><span>−20 −6 −1.5 0 1.5 6 20°</span></div>
+  </div>
+  <p>The network outputs 17 numbers, one per option, split into five softmax distributions. It picks each part independently and the probability of the whole action is the product: 3 × 3 × 2 × 2 × 7 = 252 combinations. A policy that knows nothing picks uniformly, and its entropy is ln 252 = 5.53. The main run's first iteration logged 5.52, its last 2.15 (<code>results/runs/main-g995/train_log.csv</code>): training is the policy becoming more certain.</p>
+
+  <h3>The network</h3>
+  <p>Two separate multilayer perceptrons, each 255 → 512 → 256 → 128 with ELU activations: the <b>actor</b> ends in the 17 action logits, the <b>critic</b> in one number, its estimate of how much reward is still to come from this state (the <i>value</i>). The critic is only used during training; the bot runs the actor alone and takes the most likely option of each part.</p>
+</section>
+
+<section id="reward">
+  <h2><span class="num">4</span>The reward</h2>
+  <p>The reward is the only thing that tells the agent what "good" means. The project started from three ideas (distance to the goal, number of jumps, height) and made each one a term. The reward for one tick is:</p>
+  <div class="formula">r<sub>t</sub> = 1 · (d<sub>t−1</sub> − d<sub>t</sub>)      <span class="c">progress: how much shorter the path to the goal got</span>
+    + 1 · (k<sub>t</sub> − k<sub>t−1</sub>)      <span class="c">landing: +1 per new platform reached (skipped ones count)</span>
+    + 10 · [goal reached]      <span class="c">ends the episode</span>
+    − 5 · [fell]               <span class="c">ends the episode</span>
+    − 0.01                     <span class="c">time: every tick costs a little</span></div>
+  <p><b>d</b> is the remaining path length: the distance from the feet to the next platform's top centre, plus the centre-to-centre distances from there to the goal. Measuring along the course rather than straight to the goal is what makes winding courses work. <b>k</b> is the furthest platform stood on.</p>
+  <div class="tablebox"><table>
+    <thead><tr><th>Term (first idea)</th><th>Reward</th><th>Episode</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>progress (distance to the goal)</td><td>decrease of the path left, weight 1</td><td>continues</td><td>a dense signal every tick, so learning does not wait for a lucky landing</td></tr>
+      <tr><td>landing (number of jumps)</td><td>+1 per platform k advances</td><td>continues</td><td>marks the moment that matters: being on the next platform</td></tr>
+      <tr><td>goal</td><td>+10</td><td>ends (success)</td><td>the task itself</td></tr>
+      <tr><td>fall (height)</td><td>−5</td><td>ends (failure)</td><td>feet more than 1 block below the lowest top of platforms k−1 to k+2, or standing on an obstacle; there is no way back up, so ending early saves samples</td></tr>
+      <tr><td>stall</td><td>0 (optional −5)</td><td>cut off, value bootstrapped</td><td>200 ticks (10 s) without a new platform ends the episode</td></tr>
+      <tr><td>time</td><td>−0.01 per tick</td><td>continues</td><td>prefer fast routes; standing still is not free</td></tr>
+    </tbody>
+  </table></div>
+  <p class="cap">Code: <code>parkour/env.py</code>, <code>RewardConfig</code> and <code>ParkourEnv.step</code>. These are the defaults the final policy trained with.</p>
+
+  <h3>The reward on two real games</h3>
+  <p>To make the formula concrete, two games the final policy played in <b>real Minecraft</b> were stepped again through the training environment with their recorded actions, so every tick gets exactly the reward training would have paid. The replayed positions match the recordings to within 2.1e-14 blocks.</p>
+  <div class="chart" id="traceChart">
+    <h4>Return collected during two real games</h4>
+    <p class="sub">Running total of the reward per tick; dots mark landings on a new platform. Hover for each tick's terms.</p>
+    <div class="legend" id="traceLegend"></div>
+    <svg id="traceSvg" viewBox="0 0 760 300" role="img" aria-label="Cumulative return over ticks for two real games"></svg>
+  </div>
+  <p class="cap" id="traceCap"></p>
+  <p>In the level-5 game, most of the return is progress (each block of path closed pays 1), with ten +1 landings and the +10 goal on top. In the neo course, the bot reached platform 1 in a few ticks, then <b>stood still for 200 ticks</b> until the stall rule cut the episode. Standing still cost it only 0.01 per tick, which is the heart of the neo problem in section 9.</p>
+</section>
+
+<section id="ablation">
+  <h2><span class="num">5</span>What each reward term bought</h2>
+  <p>To see which terms matter, the training was repeated with one piece removed at a time, three seeds per arm, 0.52 billion game ticks each, and scored on held-out test courses:</p>
+  <div class="grid2">
+    <div class="chart"><h4>All levels</h4><p class="sub">Final test success, mean and range of 3 seeds</p><svg id="ablA" viewBox="0 0 380 250" role="img" aria-label="Final success per ablation arm"></svg></div>
+    <div class="chart"><h4>Level 5 only (hardest)</h4><p class="sub">Final test success, mean and range of 3 seeds</p><svg id="ablB" viewBox="0 0 380 250" role="img" aria-label="Level-5 success per ablation arm"></svg></div>
+  </div>
+  <p class="cap">Data: <code>results/README.md</code> (reward and curriculum ablation), from <code>results/runs/{full,sparse,nolanding,nofall,uniform,noroute}-s*</code>. Dashed line: the full reward's mean.</p>
+  <ul>
+    <li><b>The fall penalty matters most.</b> Without it, level-5 success drops from 72.0% to 55.2%, below every seed of the full reward.</li>
+    <li><b>Distance shaping speeds learning up</b> without changing the end result: 0.14 billion ticks to reach 80% without it, against 0.05 with it.</li>
+    <li><b>The landing bonus</b> helps level 5 on average (72.0% against 59.5%), but the seeds overlap, so three seeds show no reliable effect.</li>
+    <li><b>The curriculum</b> did not raise the final score at this budget; uniform sampling learned a little more slowly.</li>
+    <li><b>Seeing the route matters most of all.</b> With the platform inputs hidden (only the block scan and the goal), success ends at 82.4%: after a turn the next platform is often outside the scan.</li>
+  </ul>
+  <details><summary>Show the numbers</summary><div class="tablebox"><table id="ablTable"></table></div></details>
+</section>
+
+<section id="ppo">
+  <h2><span class="num">6</span>The algorithm: PPO</h2>
+  <p><b>Proximal Policy Optimization</b> is a policy-gradient method: it nudges the network to make actions that turned out better than expected more likely, and worse ones less likely, without moving too far from the policy that collected the data. One training iteration:</p>
+  <ol>
+    <li><b>Collect.</b> 16,384 games run in parallel for 32 ticks each: 524,288 (observation, action, reward) samples. Actions are <i>sampled</i> from the policy, which is how it explores. A finished game restarts at once on a new course.</li>
+    <li><b>Score each action (GAE).</b> For every sample, compute the <i>advantage</i>: how much better the outcome was than the critic expected.</li>
+    <li><b>Update.</b> 4 passes over the samples in 8 minibatches, adjusting both networks to lower the loss below.</li>
+  </ol>
+  <h3>Advantages: generalised advantage estimation</h3>
+  <div class="formula">δ<sub>t</sub> = r<sub>t</sub> + γ · V(s<sub>t+1</sub>) · (1 − done<sub>t</sub>) − V(s<sub>t</sub>)      <span class="c">one-step surprise</span>
+Â<sub>t</sub> = δ<sub>t</sub> + γλ · (1 − done<sub>t</sub>) · Â<sub>t+1</sub>                <span class="c">γ = 0.995, λ = 0.95</span>
+R<sub>t</sub> = Â<sub>t</sub> + V(s<sub>t</sub>)                                    <span class="c">the critic's target</span></div>
+  <p>A cut-off by the stall rule is not a real ending, so the value of the last state is still counted (<i>bootstrapped</i>). A fall or the goal is a real ending, so nothing follows it. The advantages are normalised per batch.</p>
+  <h3>The loss</h3>
+  <div class="formula">ρ = π<sub>new</sub>(a|s) / π<sub>old</sub>(a|s)                         <span class="c">log-ratio clamped to ±20</span>
+L<sub>π</sub> = −mean( min(ρ·Â, clip(ρ, 0.8, 1.2)·Â) )               <span class="c">clipped surrogate, ε = 0.2</span>
+      where Â &lt; 0: max(that, 3·Â)                           <span class="c">dual clip</span>
+L<sub>V</sub> = ½ · mean( max((V − R)², (V<sub>clip</sub> − R)²) )           <span class="c">value clipped like the policy</span>
+L   = L<sub>π</sub> + 1.0 · L<sub>V</sub> − 0.005 · H(π)                     <span class="c">H: entropy, keeps it exploring</span></div>
+  <p>The clip stops one batch of lucky samples from changing the policy too much. The dual clip, the log-ratio clamp, a stop when one minibatch moves the policy more than KL 0.05, and a learning rate that adapts to keep the per-minibatch KL near 0.01 (between 1e-5 and 1e-3) were all added after the first runs collapsed three times: the policy change jumped from about 0.004 to 0.3, 1.3 and once infinity, and training success fell from about 75-80% to 15-17% within two iterations. With these four safeguards, no collapse came back.</p>
+  <div class="tablebox"><table>
+    <thead><tr><th>Setting</th><th class="n">Value</th><th>Setting</th><th class="n">Value</th></tr></thead>
+    <tbody>
+      <tr><td>parallel games</td><td class="n">16,384</td><td>discount γ</td><td class="n">0.995</td></tr>
+      <tr><td>rollout length</td><td class="n">32 ticks</td><td>GAE λ</td><td class="n">0.95</td></tr>
+      <tr><td>samples per iteration</td><td class="n">524,288</td><td>clip ε</td><td class="n">0.2 (dual 3.0)</td></tr>
+      <tr><td>epochs × minibatches</td><td class="n">4 × 8</td><td>entropy weight</td><td class="n">0.005</td></tr>
+      <tr><td>learning rate</td><td class="n">3e-4, adaptive</td><td>value weight</td><td class="n">1.0</td></tr>
+      <tr><td>target KL / stop</td><td class="n">0.01 / 0.05</td><td>gradient norm clip</td><td class="n">1.0</td></tr>
+      <tr><td>iterations (main run)</td><td class="n">3,000</td><td>game ticks</td><td class="n">1.57 billion</td></tr>
+    </tbody>
+  </table></div>
+  <p class="cap">From <code>results/runs/main-g995/config.json</code>. Code: <code>parkour/train.py</code>.</p>
+  <p><b>Why PPO and not a table or a planner?</b> The state is continuous and every course is a new geometry, so a lookup table cannot generalise; a function approximator (the network) is required. Search-based planning does work (section 9 uses it), but it needs the exact simulator at play time and seconds of computation per jump. The network decides in microseconds from what it sees.</p>
+</section>
+
+<section id="curve">
+  <h2><span class="num">7</span>Learning over time</h2>
+  <p>At iteration 1, the policy is uniformly random: 99.9% of its games end in a fall and it collects −5.4 per game on average. By the end it finishes 96.7% of its training games, with an average return of +53.6 (<code>train_log.csv</code>).</p>
+  <div class="chart" id="curveChart">
+    <h4>Success on held-out courses, by difficulty level</h4>
+    <p class="sub">The main run with discount 0.995 (<code>main-g995</code>), 200 test courses per level every 50 iterations. These curves were logged during training and never used to choose anything.</p>
+    <div class="legend" id="curveLegend"></div>
+    <svg id="curveSvg" viewBox="0 0 760 300" role="img" aria-label="Held-out success per level over training"></svg>
+  </div>
+  <div class="chart" id="frontChart">
+    <h4>The curriculum frontier</h4>
+    <p class="sub">The hardest level in regular training; the next level is sampled three times as often as each level up to the frontier.</p>
+    <svg id="frontSvg" viewBox="0 0 760 150" role="img" aria-label="Curriculum frontier level over training"></svg>
+  </div>
+  <p class="cap">Data: <code>results/runs/main-g995/eval_log.csv</code> and <code>train_log.csv</code>.</p>
+  <p>Levels 0 to 4 all pass 90% within 0.08 billion ticks (iteration 150). Level 5 (4-block gaps onto small platforms, with a forgiveness of about 1%, see below) takes most of the run. The frontier reached level 1 by iteration 30, level 3 by 40, level 4 by 70 and level 5 by 460 (the log is read every 10 iterations).</p>
+  <h3>The curriculum: levels by forgiveness</h3>
+  <p>Before any training, a feasibility study (<code>parkour/feasibility.py</code>) tried 4,032 scripted strategies on every jump type (gap 0 to 5 blocks, height −3 to +1, sideways 0 to 2, landing 1x1 to 3x3). The fraction that lands is the jump's <b>forgiveness</b>, and it sorts the 194 possible types into six levels:</p>
+  <div class="tablebox"><table>
+    <thead><tr><th>Jump (onto a 1x1 block)</th><th class="n">Forgiveness</th><th class="n">Level</th></tr></thead>
+    <tbody>
+      <tr><td>flat, 1-block gap</td><td class="n">0.47</td><td class="n">0</td></tr>
+      <tr><td>flat, 2-block gap</td><td class="n">0.15</td><td class="n">1</td></tr>
+      <tr><td>up 1, 2-block gap</td><td class="n">0.12</td><td class="n">2</td></tr>
+      <tr><td>flat, 3-block gap</td><td class="n">0.08</td><td class="n">3</td></tr>
+      <tr><td>up 1, 3-block gap</td><td class="n">0.02</td><td class="n">4</td></tr>
+      <tr><td>flat, 4-block gap</td><td class="n">0.01</td><td class="n">5</td></tr>
+      <tr><td>flat, 5-block gap</td><td class="n">0</td><td class="n">impossible</td></tr>
+    </tbody>
+  </table></div>
+  <p>The adaptive curriculum samples the levels up to a frontier with weight 1 and the next level with weight 3, and moves the frontier up when the next level's success reaches 60% over 2,000 games. Half the jumps of a level-L course come from level L and half from easier levels.</p>
+</section>
+
+<section id="discount">
+  <h2><span class="num">8</span>The discount and the horizon</h2>
+  <p>A reward n ticks in the future counts γ<sup>n</sup> as much as one now. That single number decides how far ahead the agent "cares". Move the slider:</p>
+  <div class="widget">
+    <label for="nTicks">Ticks ahead: <b id="nOut" class="mono">200</b> (<span id="sOut">10.0</span> s)<input type="range" id="nTicks" min="0" max="600" step="10" value="200"></label>
+    <div class="readout">
+      <div><b id="g99">0.134</b><span>weight with γ = 0.99 (the default)</span></div>
+      <div><b id="g995">0.367</b><span>weight with γ = 0.995 (the final policy)</span></div>
+    </div>
+  </div>
+  <div class="chart" id="discChart">
+    <h4>How much a future reward counts</h4>
+    <div class="legend" id="discLegend"></div>
+    <svg id="discSvg" viewBox="0 0 760 240" role="img" aria-label="Discount weight against ticks ahead for two discounts"></svg>
+  </div>
+  <p>A 10-jump course takes 120 to 200 ticks. With γ = 0.99 the +10 goal bonus is worth 30% to 13% of its value at the start; with 0.995, 55% to 37%, so the far goal pulls harder. In a sweep of one setting at a time, γ = 0.995 was the only change that beat the defaults by 3 points on validation in all three seeds (95.4% against 91.8%; level 5 on test: 76.3% against 72.0%), so the final policy uses it (<code>configs/sweep_hparams.json</code>).</p>
+</section>
+
+<section id="neo">
+  <h2><span class="num">9</span>Where PPO failed: neo jumps</h2>
+  <p>A <b>neo</b> is a jump around the end of a wall: take off beside it, swing around its end in the air, land on the far side. It is possible but extremely tight: a cross-entropy search found a landing for 16 of 18 single-neo layouts, but only 1 in 2,000 to 16,000 sampled action sequences landed.</p>
+  <h3>The diagnosis: the agent learned to refuse</h3>
+  <p>Trained on courses with neos, the policy made none of the 13 single-neo jump types from a standing start: on 11 of them it stood still until the 200-tick stall rule every time. Under this reward that is the rational choice:</p>
+  <div class="callout">
+    <p><b>Refusing</b> costs only the time penalty: 200 ticks × 0.01, and the cut-off is bootstrapped, so the agent keeps the value of where it stands.</p>
+    <p><b>Trying</b> almost never lands for a policy exploring at random, and a miss costs −5 and ends the game.</p>
+    <p>The fall penalty that helped most on normal courses (section 5) is exactly what taught the refusal here. The real game in section 4's chart shows it: platform 1, then 200 ticks of nothing.</p>
+  </div>
+  <p><b>A stall penalty did not fix it.</b> Making the stall end the game with −5 should have removed the incentive, but with γ = 0.99 a penalty 200 ticks away counts only 0.99<sup>200</sup> = 0.13 (see the slider). After 1,000 iterations the policy still made none of the 13 types.</p>
+  <h3>The fix: learn from a teacher</h3>
+  <ol>
+    <li><b>Demonstrations.</b> A cross-entropy search over the bot's own 252 actions, using the exact simulator, found 50,706 landing action sequences.</li>
+    <li><b>Behaviour cloning beside PPO.</b> An imitation term is added to the PPO loss, pulling the policy towards the searched actions:
+      <div class="formula">L = L<sub>PPO</sub> + w · ( −log π(a<sub>teacher</sub> | s) )      <span class="c">w = 1, later 0.3</span></div>
+      Now the policy made all 13 types from a standing start (54.8% of attempts).</li>
+    <li><b>DAgger.</b> On a real course the bot reaches a neo moving, not from rest, in states the demonstrations never covered. DAgger (Ross et al., 2011) fixes this: let the policy play, and at every neo takeoff it actually reaches, ask the search for a landing from that exact state. Add those (state, action) pairs to the data and train again.</li>
+  </ol>
+  <pre class="mermaid">
+flowchart LR
+  P[Policy plays training courses] --> S[At each neo takeoff it reaches,<br/>the search plans a landing<br/>from its exact state]
+  S --> D[New observation-action pairs<br/>added to the dataset]
+  D --> T[Train: PPO plus imitation<br/>on all pairs so far]
+  T --> P
+  </pre>
+  <div class="tablebox"><table>
+    <thead><tr><th>Neo policy (210 test courses with a neo, levels 6 to 8)</th><th class="n">Courses</th><th class="n">Neo jumps passed</th></tr></thead>
+    <tbody>
+      <tr><td>stall penalty only</td><td class="n">0.0%</td><td class="n">0 of 202</td></tr>
+      <tr><td>+ imitation of searched landings</td><td class="n">23.3%</td><td class="n">82 of 227</td></tr>
+      <tr><td>+ DAgger round 1</td><td class="n">29.5%</td><td class="n">99 of 228</td></tr>
+      <tr><td>+ DAgger round 3, chosen on validation</td><td class="n">29.0%</td><td class="n">97 of 224</td></tr>
+    </tbody>
+  </table></div>
+  <p class="cap">Simulator, from <code>docs/report_draft.md</code> section 7.7. One DAgger attempt collapsed (86.5% to 5% on levels 0 to 8) because the search filled ticks where the action does not matter with random actions. The search now starts from the policy's own probabilities and keeps the policy's choice wherever the neo still lands.</p>
+</section>
+
+<section id="skills">
+  <h2><span class="num">10</span>Skills for hard pieces</h2>
+  <p>Training a policy to do neos itself levelled off near 30% of neo courses. What worked better was a division of labour: the final policy plays every ordinary jump, and a <b>skill</b>, a second network of the same shape, plays only the hard piece. A fixed rule (the course list's neo detector, or the router's choice) hands control over and takes it back, much like an <i>option</i> in hierarchical reinforcement learning.</p>
+  <h3>How a skill is trained</h3>
+  <ul>
+    <li><b>Short episodes.</b> An episode is only the piece's <i>block</i>: from the platform before the takeoff to the platform after the target (<code>train.py --segments</code>). Reaching the end is the goal; skipping a platform of the block counts as a fall; otherwise the reward is the same as above.</li>
+    <li><b>Real starting states.</b> Each episode starts in a state where the final policy really arrived on such courses: a bank of tens of thousands of exact states, collected by letting the final policy play.</li>
+    <li><b>Practice where it fails.</b> Each piece type is drawn with weight 0.25 + its failure rate, so hard types come up more often.</li>
+    <li><b>PPO plus a teacher.</b> PPO on these episodes, and for the hardest types, DAgger labels from the planner at the skill's own takeoffs and in its own flight (imitation weight 0.3).</li>
+  </ul>
+  <div class="tablebox"><table>
+    <thead><tr><th>Courses (test, played once, simulator)</th><th class="n">Skill network, no search</th><th class="n">Planner search</th><th class="n">Real Minecraft (first 64)</th></tr></thead>
+    <tbody>
+      <tr><td>one neo (1,280 courses over 4 sets)</td><td class="n">86.25%</td><td class="n">88.4%</td><td class="n">55 of 64</td></tr>
+      <tr><td>two neos</td><td class="n">73.75%</td><td class="n">76.6%</td><td class="n">48 of 64</td></tr>
+      <tr><td>slime-heavy (4 bounces per course)</td><td class="n">81.6%</td><td class="n">95.3%</td><td class="n">48 of 64</td></tr>
+      <tr><td>narrow posts</td><td class="n">89.1%</td><td class="n">97.2%</td><td class="n">not played</td></tr>
+      <tr><td>water (2 pools per course)</td><td class="n">90.3%</td><td class="n">98.6%</td><td class="n">60 of 64</td></tr>
+    </tbody>
+  </table></div>
+  <p class="cap">Without the skill, the final policy alone completes 0 of 320 slime-heavy and 7 of 288 water validation courses. Data: <code>results/neo/skill_test.jsonl</code>, <code>assist_test.jsonl</code>, <code>results/games/</code>. Every real-Minecraft run had the simulator's outcome on every course.</p>
+</section>
+
+<section id="router">
+  <h2><span class="num">11</span>The router: learning the route</h2>
+  <p>Everything above gets the course list: it is told which platform comes next. The router removes that. It is a second, higher-level policy that looks at the platforms in view and picks the next one; the final policy then jumps there. This is <b>hierarchical reinforcement learning</b>, built on the teammate's PC.</p>
+  <ul>
+    <li><b>Decisions</b> only at the start and after each landing on a new platform: a semi-MDP, where one action lasts many ticks.</li>
+    <li><b>Observation:</b> one token per platform in view (position, size, gap, height change, flags), plus global numbers.</li>
+    <li><b>Network:</b> a small set transformer (2 layers, width 128, 4 heads, no position encoding, so the order of the tokens does not matter) that scores each selectable platform: a pointer network.</li>
+    <li><b>Reward:</b> the environment's own reward summed over the ticks until the next decision, discounted 0.997 per tick, with −5 if the game ends by the stall or time limit.</li>
+    <li><b>Training:</b> PPO plus an imitation term towards the course's next platform. The course is used for the reward and this training signal only, never as an input.</li>
+  </ul>
+  <p>Result: <b>97.8%</b> of standard and <b>95.0%</b> of obstacle test courses (simulator, played once), against the hand-written greedy planner's 92.3% and 90.5%; in real Minecraft 57/60 and 56/60. The honest finding: once warm-started, most of the router's quality came from the on-policy imitation, and PPO without it drifted down (<code>results/routing/README.md</code>).</p>
+</section>
+
+<section id="one">
+  <h2><span class="num">12</span>One network for every skill</h2>
+  <p>Separate specialists were trained for the basic levels, the advanced levels (neos, run-ups, wide jumps) and the new blocks (head hitters, ice, shaped blocks, slime, ladders). <b>Policy distillation</b> then trained one student network with PPO plus a term that pulls its action distribution towards the right teacher's on each course:</p>
+  <div class="formula">L = L<sub>PPO</sub> + w · KL( π<sub>teacher</sub>(·|s) ‖ π<sub>student</sub>(·|s) )</div>
+  <p>The one network (<code>results/combined_policy.pt</code>) averages 86.4% over the four skill groups on test, a match for the best specialist of each group, and plays the final policy's real-game courses at 59/60 and 59/60.</p>
+</section>
+
+<section id="real">
+  <h2><span class="num">13</span>From simulator to real Minecraft</h2>
+  <p>The trained actor is exported as JSON and run in JavaScript inside the bot's physics tick. After each tick the bot builds the same 255 numbers from what the game shows it (checked against the Python version to float32 rounding), takes the most likely action and sets its controls. The bot only builds the course and teleports to the start with server commands; during a run it uses movement controls only.</p>
+  <p>Because the simulator is exact, two checks follow every real run: the <b>replay check</b> re-simulates the recorded actions and compares positions tick by tick (largest difference 2.1e-14 blocks on the main runs), and the <b>policy check</b> plays the same course in the simulator and compares outcomes. In the 448 recordings on the replay page, every outcome matched the simulator's, with 0 server corrections; across all of the project's real-game runs a few server corrections did happen, at a wall's corner, where the game's collision order can differ from the simulator's. The <a href="https://claude.ai/artifact/Ernsmju6arpz3f7cWAE1Mp">real-Minecraft replays</a> show 448 of them in 3D.</p>
+</section>
+
+<section id="glossary">
+  <h2><span class="num">14</span>Glossary</h2>
+  <dl class="gloss">
+    <dt>Policy (actor)</dt><dd>The network that maps an observation to a probability for each action.</dd>
+    <dt>Value (critic)</dt><dd>The network's estimate of the discounted reward still to come from a state.</dd>
+    <dt>Advantage</dt><dd>How much better an action turned out than the critic expected; positive advantages make the action more likely.</dd>
+    <dt>On-policy</dt><dd>Learning only from data the current policy collected; PPO discards each batch after its update.</dd>
+    <dt>Model-free</dt><dd>Learning what to do without learning how the world moves.</dd>
+    <dt>Entropy</dt><dd>How spread out the action probabilities are; ln 252 = 5.53 means fully random.</dd>
+    <dt>Bootstrapping</dt><dd>Using the critic's value of the last state in place of the rewards that were cut off.</dd>
+    <dt>Curriculum</dt><dd>Ordering training from easy to hard, here by the jumps' forgiveness.</dd>
+    <dt>Behaviour cloning</dt><dd>Supervised learning of a teacher's actions: maximise log π(a<sub>teacher</sub>|s).</dd>
+    <dt>DAgger</dt><dd>Dataset aggregation: label the states the learner itself visits with the teacher's actions, so it learns to recover from its own mistakes.</dd>
+    <dt>Distillation</dt><dd>Training a student to match teachers' action distributions.</dd>
+    <dt>Semi-MDP / option</dt><dd>A decision that lasts many ticks: the router's choice of platform, a skill's whole block.</dd>
+    <dt>Validation / test</dt><dd>Separate held-out course families: choices are made on validation, and each test set is played once and only reported.</dd>
+  </dl>
+</section>
+
+<footer>Every number on this page comes from a file in the project repository (<code>results/</code>, <code>runs/</code> or <code>configs/</code>; the main ones are named beside each figure) and is a simulator result unless it says real Minecraft. The two reward traces were computed for this page by replaying the recorded games <code>results/games/v2-live</code> (course 51) and <code>results/games/v2-live-showcase</code> (course 4) through <code>parkour.env.ParkourEnv</code>.</footer>
+</main>
+</div>
+
+<script type="application/json" id="learning-data">__LEARNING__</script>
+<script type="application/json" id="trace-data">__TRACES__</script>
+<script>
+;(function () {
+'use strict'
+const L = JSON.parse(document.getElementById('learning-data').textContent)
+const TR = JSON.parse(document.getElementById('trace-data').textContent)
+const $ = id => document.getElementById(id)
+const NS = 'http://www.w3.org/2000/svg'
+const fmt = (v, d = 1) => Number(v).toFixed(d)
+function el (tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag)
+  for (const k in attrs) e.setAttribute(k, attrs[k])
+  if (parent) parent.appendChild(e)
+  return e
+}
+function text (parent, x, y, s, attrs = {}) {
+  const t = el('text', { x, y, fill: 'var(--muted)', 'font-size': 11, 'font-family': 'var(--font-body)', ...attrs }, parent)
+  t.textContent = s
+  return t
+}
+const scale = (d0, d1, r0, r1) => v => r0 + (v - d0) / (d1 - d0) * (r1 - r0)
+function ticks (lo, hi, n) {
+  const span = hi - lo; const step0 = span / n
+  const mag = Math.pow(10, Math.floor(Math.log10(step0)))
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= step0)
+  const out = []
+  for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10))
+  return out
+}
+// Axes with a recessive grid; returns the plot frame.
+function frame (svg, w, h, m, xd, yd, xt, yt, xfmt, yfmt, xlabel, ylabel) {
+  svg.innerHTML = ''
+  const x = scale(xd[0], xd[1], m.l, w - m.r); const y = scale(yd[0], yd[1], h - m.b, m.t)
+  for (const v of yt) {
+    el('line', { x1: m.l, x2: w - m.r, y1: y(v), y2: y(v), stroke: 'var(--line)', 'stroke-width': 1 }, svg)
+    text(svg, m.l - 6, y(v) + 4, yfmt(v), { 'text-anchor': 'end' })
+  }
+  for (const v of xt) text(svg, x(v), h - m.b + 16, xfmt(v), { 'text-anchor': 'middle' })
+  el('line', { x1: m.l, x2: w - m.r, y1: h - m.b, y2: h - m.b, stroke: 'var(--muted)', 'stroke-width': 1 }, svg)
+  if (xlabel) text(svg, (m.l + w - m.r) / 2, h - 4, xlabel, { 'text-anchor': 'middle' })
+  if (ylabel) text(svg, m.l, m.t - 8, ylabel, { 'text-anchor': 'start' })
+  return { x, y }
+}
+function path (pts) { return pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join('') }
+function legend (box, items) {
+  box.innerHTML = items.map(([label, color, dot, dash]) => `<span><i class="${dot ? 'dot' : ''}" style="background:${color}${dash ? ';background:repeating-linear-gradient(90deg,' + color + ' 0 4px,transparent 4px 7px)' : ''}"></i>${label}</span>`).join('')
+}
+// A hover layer: a crosshair at the nearest x, and a tooltip.
+function hover (svg, chart, w, h, m, xs, xToPx, html) {
+  const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; chart.appendChild(tip)
+  const cross = el('line', { y1: m.t, y2: h - m.b, stroke: 'var(--muted)', 'stroke-width': 1, 'stroke-dasharray': '3 3', visibility: 'hidden' }, svg)
+  const hit = el('rect', { x: m.l, y: m.t, width: w - m.l - m.r, height: h - m.t - m.b, fill: 'transparent' }, svg)
+  function show (ev) {
+    const r = svg.getBoundingClientRect(); const sx = (ev.clientX - r.left) / r.width * w
+    let best = 0; let bd = Infinity
+    xs.forEach((v, i) => { const d = Math.abs(xToPx(v) - sx); if (d < bd) { bd = d; best = i } })
+    const px = xToPx(xs[best])
+    cross.setAttribute('x1', px); cross.setAttribute('x2', px); cross.setAttribute('visibility', 'visible')
+    tip.innerHTML = html(best); tip.hidden = false
+    const cr = chart.getBoundingClientRect()
+    let left = ev.clientX - cr.left + 14; const top = ev.clientY - cr.top + 10
+    if (left + tip.offsetWidth > cr.width - 4) left = ev.clientX - cr.left - tip.offsetWidth - 14
+    tip.style.left = Math.max(4, left) + 'px'; tip.style.top = top + 'px'
+  }
+  hit.addEventListener('pointermove', show)
+  hit.addEventListener('pointerdown', show)
+  hit.addEventListener('pointerleave', () => { tip.hidden = true; cross.setAttribute('visibility', 'hidden') })
+}
+
+// ---------- reward traces ----------
+function drawTraces () {
+  const svg = $('traceSvg'); const w = 760; const h = 300; const m = { l: 44, r: 112, t: 22, b: 34 }
+  const series = TR.map((tr, i) => {
+    let cum = 0
+    const pts = tr.rows.map(r => { cum += r.total; return [r.t, cum, r] })
+    return { tr, pts, color: i === 0 ? 'var(--series-1)' : 'var(--series-2)',
+      label: i === 0 ? `Level-5 course, made it (${tr.rows.length} ticks)` : `Hand-designed neo course, stood still (${tr.rows.length} ticks)` }
+  })
+  const xmax = Math.max(...series.map(s => s.pts.length)); const ymax = Math.max(...series.flatMap(s => s.pts.map(p => p[1])))
+  const yt = ticks(0, Math.ceil(ymax / 20) * 20, 4)
+  const f = frame(svg, w, h, m, [0, xmax], [-5, yt[yt.length - 1]], ticks(0, xmax, 6), yt, v => v, v => v, 'tick (20 per second)', 'return so far')
+  el('line', { x1: m.l, x2: w - m.r, y1: f.y(0), y2: f.y(0), stroke: 'var(--muted)', 'stroke-width': 1, 'stroke-dasharray': '2 3' }, svg)
+  for (const s of series) {
+    el('path', { d: path([[f.x(0), f.y(0)], ...s.pts.map(p => [f.x(p[0]), f.y(p[1])])]), fill: 'none', stroke: s.color, 'stroke-width': 2, 'stroke-linejoin': 'round' }, svg)
+    for (const p of s.pts) if (p[2].landing > 0) el('circle', { cx: f.x(p[0]), cy: f.y(p[1]), r: 4, fill: s.color, stroke: 'var(--surface)', 'stroke-width': 2 }, svg)
+    const last = s.pts[s.pts.length - 1]
+    text(svg, f.x(last[0]) + 8, f.y(last[1]) + 4, `${fmt(last[1], 1)} ${s.tr.result === 'success' ? '(goal)' : '(stall)'}`, { fill: 'var(--fg)', 'font-size': 12 })
+  }
+  legend($('traceLegend'), series.map(s => [s.label, s.color, false]))
+  hover(svg, $('traceChart'), w, h, m, Array.from({ length: xmax }, (_, i) => i + 1), v => f.x(v), i => {
+    return series.map(s => {
+      const p = s.pts[Math.min(i, s.pts.length - 1)]; const r = p[2]
+      const parts = [`progress ${fmt(r.progress, 3)}`]
+      if (r.landing) parts.push(`landing +${r.landing}`)
+      if (r.goal) parts.push('goal +10')
+      if (r.fall) parts.push('fall −5')
+      parts.push('time −0.01')
+      return `<b>${s.tr.result === 'success' ? 'Level 5' : 'Neo course'}, tick ${r.t}${i >= s.pts.length ? ' (ended)' : ''}</b><br><span class="k">platform ${r.cp} · ${parts.join(' · ')}</span><br>reward ${fmt(r.total, 3)} · total ${fmt(p[1], 2)}`
+    }).join('<br>')
+  })
+  const a = TR[0]; const b = TR[1]
+  const sum = (tr, k) => tr.rows.reduce((x, r) => x + r[k], 0)
+  $('traceCap').innerHTML = `Level-5 game: return ${fmt(a.return, 1)} = progress ${fmt(sum(a, 'progress'), 1)} + landings ${sum(a, 'landing')} + goal ${fmt(sum(a, 'goal'), 0)} − time ${fmt(-sum(a, 'time'), 2)}. ` +
+    `Neo course: return ${fmt(b.return, 1)} = progress ${fmt(sum(b, 'progress'), 1)} + landings ${sum(b, 'landing')} − time ${fmt(-sum(b, 'time'), 2)}. ` +
+    `Recordings: <code>results/games/${a.run}</code> (course ${a.index + 1}) and <code>results/games/${b.run}</code> (course ${b.index + 1}).`
+}
+
+// ---------- ablation ----------
+const ARM = { full: 'full reward', sparse: 'no distance shaping', nolanding: 'no landing bonus', nofall: 'no fall penalty', uniform: 'no curriculum', noroute: 'route hidden' }
+function drawAbl (svgId, key, lo, hi, xmin) {
+  const svg = $(svgId); const w = 380; const h = 250; const m = { l: 128, r: 18, t: 14, b: 34 }
+  const rows = L.ablation
+  const x = scale(xmin, 100, m.l, w - m.r)
+  svg.innerHTML = ''
+  const band = (h - m.t - m.b) / rows.length
+  for (const v of ticks(xmin, 100, 4)) {
+    el('line', { x1: x(v), x2: x(v), y1: m.t, y2: h - m.b, stroke: 'var(--line)' }, svg)
+    text(svg, x(v), h - m.b + 16, v + '%', { 'text-anchor': 'middle' })
+  }
+  const full = rows.find(r => r.arm === 'full')
+  el('line', { x1: x(full[key]), x2: x(full[key]), y1: m.t, y2: h - m.b, stroke: 'var(--fg)', 'stroke-dasharray': '4 3', 'stroke-width': 1 }, svg)
+  rows.forEach((r, i) => {
+    const cy = m.t + band * (i + 0.5)
+    text(svg, m.l - 8, cy + 4, ARM[r.arm], { 'text-anchor': 'end', fill: 'var(--fg)', 'font-size': 12 })
+    el('line', { x1: x(r[lo]), x2: x(r[hi]), y1: cy, y2: cy, stroke: 'var(--series-1)', 'stroke-width': 2, 'stroke-linecap': 'round', opacity: 0.55 }, svg)
+    const dot = el('circle', { cx: x(r[key]), cy, r: 5, fill: 'var(--series-1)', stroke: 'var(--surface)', 'stroke-width': 2 }, svg)
+    const hit = el('rect', { x: m.l, y: cy - band / 2, width: w - m.l - m.r, height: band, fill: 'transparent' }, svg)
+    const t = el('title', {}, hit); t.textContent = `${ARM[r.arm]}: mean ${r[key]}%, seeds ${r[lo]}-${r[hi]}%`
+    dot.style.pointerEvents = 'none'
+  })
+  text(svg, (m.l + w - m.r) / 2, h - 4, 'test success', { 'text-anchor': 'middle' })
+}
+function ablTable () {
+  $('ablTable').innerHTML = '<thead><tr><th>Arm</th><th>What changes</th><th class="n">Final, mean (range)</th><th class="n">Level 5, mean (range)</th><th class="n">Ticks to 80%</th></tr></thead><tbody>' +
+    L.ablation.map(r => `<tr${r.arm === 'full' ? ' class="hl"' : ''}><td>${ARM[r.arm]}</td><td>${r.what}</td><td class="n">${r.final} (${r.fmin}-${r.fmax})</td><td class="n">${r.l5} (${r.l5min}-${r.l5max})</td><td class="n">${r.to80} B</td></tr>`).join('') + '</tbody>'
+}
+
+// ---------- learning curve ----------
+function drawCurve () {
+  const svg = $('curveSvg'); const w = 760; const h = 300; const m = { l: 44, r: 92, t: 22, b: 34 }
+  const C = L.curve; const xmax = C[C.length - 1].ticks / 1e9
+  const f = frame(svg, w, h, m, [0, xmax], [0, 1], ticks(0, xmax, 6), [0, 0.25, 0.5, 0.75, 1], v => v + ' B', v => Math.round(v * 100) + '%', 'game ticks (billions)', 'success')
+  const S = [
+    ...[0, 1, 2, 3].map(k => ({ key: 'L' + k, color: 'var(--quiet)', width: 1.25, label: 'level ' + k })),
+    { key: 'L4', color: 'var(--lvl4)', width: 2, label: 'level 4' },
+    { key: 'L5', color: 'var(--lvl5)', width: 2.5, label: 'level 5' },
+    { key: 'all', color: 'var(--fg)', width: 1.5, dash: '5 4', label: 'all levels' }
+  ]
+  for (const s of S) {
+    const pts = [[f.x(0), f.y(0)], ...C.map(c => [f.x(c.ticks / 1e9), f.y(c[s.key])])]
+    el('path', { d: path(pts), fill: 'none', stroke: s.color, 'stroke-width': s.width, 'stroke-dasharray': s.dash || 'none', 'stroke-linejoin': 'round' }, svg)
+  }
+  const last = C[C.length - 1]
+  text(svg, w - m.r + 8, f.y(last.L5) + 4, `level 5: ${Math.round(last.L5 * 1000) / 10}%`, { fill: 'var(--fg)', 'font-size': 12 })
+  text(svg, w - m.r + 8, f.y(last.all) - 8, `all: ${Math.round(last.all * 1000) / 10}%`, { fill: 'var(--fg)', 'font-size': 12 })
+  legend($('curveLegend'), [['levels 0-3', 'var(--quiet)'], ['level 4', 'var(--lvl4)'], ['level 5', 'var(--lvl5)'], ['all levels', 'var(--fg)', false, true]])
+  hover(svg, $('curveChart'), w, h, m, C.map(c => c.ticks / 1e9), v => f.x(v), i => {
+    const c = C[i]
+    return `<b>${fmt(c.ticks / 1e9, 2)} B ticks · iteration ${c.it}</b><br>` + [0, 1, 2, 3, 4, 5].map(k => `level ${k}: ${fmt(c['L' + k] * 100, 1)}%`).join('<br>') + `<br><b>all: ${fmt(c.all * 100, 1)}%</b>`
+  })
+  // Frontier, same x.
+  const fs = $('frontSvg'); const fh = 150; const fm = { l: 44, r: 92, t: 14, b: 32 }
+  const T = L.train
+  const g = frame(fs, w, fh, fm, [0, xmax], [0, 5], ticks(0, xmax, 6), [0, 1, 2, 3, 4, 5], v => v + ' B', v => 'L' + v, 'game ticks (billions)', '')
+  const pts = []
+  T.forEach((r, i) => { const xx = g.x(r.ticks / 1e9); if (i) pts.push([xx, g.y(T[i - 1].frontier)]); pts.push([xx, g.y(r.frontier)]) })
+  el('path', { d: path(pts), fill: 'none', stroke: 'var(--series-1)', 'stroke-width': 2 }, fs)
+  hover(fs, $('frontChart'), w, fh, fm, T.map(r => r.ticks / 1e9), v => g.x(v), i => {
+    const r = T[i]
+    return `<b>iteration ${r.it}</b><br>frontier: level ${r.frontier}<br><span class="k">training success ${fmt(r.success * 100, 1)}% · fell ${fmt(r.fell * 100, 1)}% · return ${fmt(r.ret, 1)} · entropy ${fmt(r.entropy, 2)}</span>`
+  })
+}
+
+// ---------- discount ----------
+function drawDiscount () {
+  const svg = $('discSvg'); const w = 760; const h = 240; const m = { l: 44, r: 92, t: 18, b: 34 }
+  const N = 600
+  const f = frame(svg, w, h, m, [0, N], [0, 1], [0, 100, 200, 300, 400, 500, 600], [0, 0.25, 0.5, 0.75, 1], v => v, v => v, 'ticks ahead', 'weight')
+  const G = [[0.99, 'var(--series-1)', 'γ = 0.99'], [0.995, 'var(--series-2)', 'γ = 0.995']]
+  for (const [g, color, label] of G) {
+    const pts = []
+    for (let n = 0; n <= N; n += 5) pts.push([f.x(n), f.y(Math.pow(g, n))])
+    el('path', { d: path(pts), fill: 'none', stroke: color, 'stroke-width': 2 }, svg)
+    text(svg, w - m.r + 8, f.y(Math.pow(g, N)) + (g === 0.99 ? 10 : -2), label, { fill: 'var(--fg)', 'font-size': 12 })
+  }
+  // The 120-200 tick band of a 10-jump course.
+  el('rect', { x: f.x(120), y: m.t, width: f.x(200) - f.x(120), height: h - m.t - m.b, fill: 'var(--accent)', opacity: 0.1 }, svg)
+  text(svg, f.x(160), m.t + 12, '10-jump course', { 'text-anchor': 'middle', fill: 'var(--fg)', 'font-size': 11 })
+  const marker = el('line', { y1: m.t, y2: h - m.b, stroke: 'var(--fg)', 'stroke-width': 1, 'stroke-dasharray': '3 3' }, svg)
+  const d1 = el('circle', { r: 5, fill: 'var(--series-1)', stroke: 'var(--surface)', 'stroke-width': 2 }, svg)
+  const d2 = el('circle', { r: 5, fill: 'var(--series-2)', stroke: 'var(--surface)', 'stroke-width': 2 }, svg)
+  legend($('discLegend'), G.map(([, c, l]) => [l, c]))
+  function set (n) {
+    $('nOut').textContent = n; $('sOut').textContent = (n / 20).toFixed(1)
+    $('g99').textContent = Math.pow(0.99, n).toFixed(3); $('g995').textContent = Math.pow(0.995, n).toFixed(3)
+    marker.setAttribute('x1', f.x(n)); marker.setAttribute('x2', f.x(n))
+    d1.setAttribute('cx', f.x(n)); d1.setAttribute('cy', f.y(Math.pow(0.99, n)))
+    d2.setAttribute('cx', f.x(n)); d2.setAttribute('cy', f.y(Math.pow(0.995, n)))
+  }
+  $('nTicks').addEventListener('input', e => set(Number(e.target.value)))
+  set(Number($('nTicks').value))
+}
+
+drawTraces(); drawAbl('ablA', 'final', 'fmin', 'fmax', 80); drawAbl('ablB', 'l5', 'l5min', 'l5max', 30); ablTable(); drawCurve(); drawDiscount()
+})()
+</script>

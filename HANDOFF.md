@@ -2401,18 +2401,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `92edb06` (2026-11-02 16:02, branch `main`): The planner's references for the 1 Nov sets, played once overnight (simulator): slime-heavy test 305 of 320, post-heavy test 311 of 320, water validation 288 of 288, water test 284 of 288; the builder closed and the real-Minecraft slime run started (16:01)
+Generated on top of commit `63d3cd6` (2026-11-02 16:36, branch `main`): Slime and water skills in real Minecraft, first 64 test courses: slime 48 of 64, water 60 of 64, each the simulator's outcome and tick count on every course and the offline bot's result, 0 server corrections, replays within 6e-14 blocks
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 117 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 118 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `d905229` 2026-11-01 20:01 | 21 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 301 |
-| `docs/report_draft.md` | `b6c7b2b` 2026-10-31 15:38 | 29 |
-| `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | `acda174` 2026-11-01 23:06 | 1 |
+| `TEAM_STATUS.md` | `63d3cd6` 2026-11-02 16:36 | 0 |
+| `README.md` | `d905229` 2026-11-01 20:01 | 22 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 302 |
+| `docs/report_draft.md` | `b6c7b2b` 2026-10-31 15:38 | 30 |
+| `results/README.md` | `63d3cd6` 2026-11-02 16:36 | 0 |
+| `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -2672,7 +2672,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 
 ### In `results/` but not yet in `results/DATA.md`
 
-`games/slime56-live-skill-sp3c/`, `games/slime56-offline-skill-sp3c/`, `games/two53-live-skill-t1/`, `games/two53-live-skill-t1-router/`, `games/two53-offline-skill-t1/`, `games/two53-offline-skill-t1-router/`, `games/water101-live-skill-w1-u300/`, `games/water101-offline-skill-w1-u300/`, `neo/slime_choice.json`, `neo/water_choice.json`, `neo_skill_v3.json`, `neo_skill_v3.pt`
+`games/slime56-offline-skill-sp3c/`, `games/two53-live-skill-t1-router/`, `games/two53-offline-skill-t1/`, `games/two53-offline-skill-t1-router/`, `games/water101-offline-skill-w1-u300/`, `neo/slime_choice.json`, `neo/water_choice.json`, `neo_skill_v3.json`, `neo_skill_v3.pt`
 
 <!-- END AUTO-SNAPSHOT -->
 
@@ -2690,6 +2690,9 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **2 Nov 2026, 21:49, Claude (Claude Code, training PC, main session):** two new pages (Ethan: replays, and a technical page on how the model learned), published as private artifacts and added here with their builders (`results/DATA.md`, "Pages to show").
+  - `results/real_replays.html` ("Real-Minecraft Replays", `scripts/make_real_replays.py`): 448 real-game recordings in 8 sets, every outcome the simulator's, 0 server corrections.
+  - `results/learning.html` ("How the Parkour Bot Learned", `scripts/make_learning_page.py`): the reward on two real games replayed through `ParkourEnv` (the level-5 course 51 of `v2-live`, return 67.2; the hand-designed neo course, 2.9 after 200 ticks standing still; both within 2.1e-14 blocks of the recording), the ablation, PPO, curves, neos and DAgger, skills, router, distillation. No new result; nothing chosen or trained.
 - **2 Nov 2026, 16:36, Claude (Claude Code, training PC, main session):** Ethan: commit the overnight results and start the real-Minecraft slime and water runs.
   - The planner's four references, run unattended overnight (simulator, each once), recorded in section 3: water validation 288 of 288, water test 284 of 288 (the water skill 260); slime-heavy test 305 of 320 (the slime skill 261), post-heavy test 311 of 320 (the posts choice 285). The water choice stays solid (the bar stays 260).
   - The course builder (no player since 21:06) ended at 16:00 with the world saved; the waiting chain copied the world (`runs/world-backups/parkour-20261102-160134`, again before the second run) and played both skills in real Minecraft on the first 64 test courses: the slime skill 48 of 64 (16:01-16:13), the water skill 60 of 64 (16:14-16:34), each the simulator's outcome and tick count on every course and the offline bot's result, 0 server corrections, replays within 6e-14 blocks.
