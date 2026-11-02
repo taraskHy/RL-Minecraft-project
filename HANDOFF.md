@@ -670,14 +670,23 @@ at 18:05:14, before any run on the two-neo sets:**
     `results/neo/skill_test.jsonl`):** slime-heavy family 56 with the slime
     skill **261 of 320** (81.6%; 51 courses lost off a pad, 8 at an ordinary
     jump); post-heavy family 58 with the posts choice **285 of 320** (89.1%;
-    26 off a pad, 9 onto a post). The planner's references on 56 and 58 run
-    when the CPU allows (after the water reference; `planners_when_cpu_free`).
+    26 off a pad, 9 onto a post). **The planner's references, each once (2 Nov,
+    00:15-01:03 and 01:07-05:11, unattended while the CPU allowed;
+    `runs/planner-references-1nov.log`, `results/neo/assist_test.jsonl`):**
+    family 56 **305 of 320** (95.3%; 14 lost off a pad, 1 at an ordinary jump),
+    family 58 **311 of 320** (97.2%; 6 off a pad, 2 onto a shaped block, 1 at
+    an ordinary jump). So on test the slime skill is 44 courses below the
+    search and the posts choice 26.
   - **The bots, the first 64 courses of 56 (`results/games/slime56-first64-courses.json`):**
     the offline bot with the slime skill 48 of 64, the simulator's outcome on
     every course, replay 7.1e-15 blocks (`runs/slime56-offline-skill-sp3c`).
-    Real Minecraft waits: the course builder Ethan started at 20:52 (`run.cmd
-    builder`) holds the server on port 25570; the live run starts by itself
-    once that server is gone (`runs/slime56-live-skill-sp3c`).
+    Real Minecraft waited for the course builder Ethan started at 20:52
+    (`run.cmd builder`), which held the server on port 25570. On 2 Nov at
+    16:00 (Ethan: start the real-Minecraft slime and water runs; no player
+    on the builder since 21:06) the main session ended the builder's bot, so
+    its session stopped the server (every chunk saved,
+    `runs/builder-20261101-205245/server.log`), and the waiting chain started
+    the live run (`runs/slime56-live-skill-sp3c`, then the water run).
 - **Water, step 1: the physics (20:16; code only, no run).** `parkour/physics.py`
   (a black box, section 5) gets an opt-in water grid, `World(water=...)`: each
   cell's water level (block metadata, -1 where none), and prismarine-physics
@@ -838,9 +847,15 @@ at 18:05:14, before any run on the two-neo sets:**
     builder's server on port 25570 is gone, after copying the world to
     `runs/world-backups/` (the builder shares it and the live bot clears its
     course area; `runs/live-chain-1nov.log`). The planner's references on
-    100, 56, 58 and 101 run unattended while Task Manager reads under 62%
+    100, 56, 58 and 101 ran unattended while Task Manager read under 62%
     (stopped after two readings above 85%; `runs/planner-references-1nov.log`,
-    rows in `results/neo/assist_*.jsonl`); not yet recorded here.
+    rows in `results/neo/assist_*.jsonl`).
+  - **The planner's references, each once (simulator, CPU):** water
+    validation 100 **288 of 288** (1 Nov 23:10-2 Nov 00:11, 16 parts), water
+    test 101 **284 of 288** (98.6%; 05:15-06:05; the 4 lost at ordinary
+    jumps). The planner is above 260 on 100, so the solid bar stays 260 and
+    the choice (268) stays solid; on test the water skill is 24 courses below
+    the search, nearly all at the ordinary jumps beside the pools.
 - **The course builder (built 1 Nov, beside the GPU runs; nothing chosen or
   trained on it):** `run.cmd builder` (`parkour.builder`, `parkour.build_session`,
   `bridge/builder_bot.js`) starts the local server and a bot in build mode.
@@ -2377,18 +2392,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `91f9d00` (2026-11-01 22:33, branch `main`): Water DAgger labels (opt-in, neo_skill dagger --water [--water-every N]): a water skill's own states on the water takeoff, in its flight off it and in the pool, searched to the exit in up to 160 ticks; the policy prior, the simplify rollouts and the pairs with the water observation for a 355-input skill. The default paths are unchanged (test_neo_skill, test_slime); the water path has not run yet. Water round 1's first scores (family 100)
+Generated on top of commit `acda174` (2026-11-01 23:06, branch `main`): Water: the water skill chosen by the rule (w1 updates 300, 268 of 288 on validation, solid) as results/water_skill.pt; test once on 101: 260 of 288; offline bot 60/64, the simulator's outcomes; real-Minecraft runs and the planner's references left running unattended
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 115 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 116 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
 | `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `d905229` 2026-11-01 20:01 | 19 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 299 |
-| `docs/report_draft.md` | `b6c7b2b` 2026-10-31 15:38 | 27 |
+| `README.md` | `d905229` 2026-11-01 20:01 | 20 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 300 |
+| `docs/report_draft.md` | `b6c7b2b` 2026-10-31 15:38 | 28 |
 | `results/README.md` | updated together with this snapshot | 0 |
-| `results/DATA.md` | updated together with this snapshot | 0 |
+| `results/DATA.md` | `acda174` 2026-11-01 23:06 | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -2646,7 +2661,7 @@ Simulator, held-out test set. "Picked" is the validation-selected checkpoint (`b
 
 ### In `results/` but not yet in `results/DATA.md`
 
-`games/slime56-offline-skill-sp3c/`, `games/two53-live-skill-t1/`, `games/two53-live-skill-t1-router/`, `games/two53-offline-skill-t1/`, `games/two53-offline-skill-t1-router/`, `games/water101-offline-skill-w1-u300/`, `neo/slime_choice.json`, `neo/water_choice.json`, `neo_skill_v3.json`, `neo_skill_v3.pt`
+`games/slime56-live-skill-sp3c/`, `games/slime56-offline-skill-sp3c/`, `games/two53-live-skill-t1/`, `games/two53-live-skill-t1-router/`, `games/two53-offline-skill-t1/`, `games/two53-offline-skill-t1-router/`, `games/water101-offline-skill-w1-u300/`, `neo/slime_choice.json`, `neo/water_choice.json`, `neo_skill_v3.json`, `neo_skill_v3.pt`
 
 <!-- END AUTO-SNAPSHOT -->
 
@@ -2664,6 +2679,9 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **2 Nov 2026, 16:02, Claude (Claude Code, training PC, main session):** Ethan: commit the overnight results and start the real-Minecraft slime and water runs.
+  - The planner's four references, run unattended overnight (simulator, each once), recorded in section 3: water validation 288 of 288, water test 284 of 288 (the water skill 260); slime-heavy test 305 of 320 (the slime skill 261), post-heavy test 311 of 320 (the posts choice 285). The water choice stays solid (the bar stays 260).
+  - The course builder (no player since 21:06) ended at 16:00 with the world saved; the waiting chain copied the world (`runs/world-backups/parkour-20261102-160134`) and started the slime skill's real-Minecraft run at 16:01 (first 64 courses of 56); the water skill's (first 64 of 101) follows. Next: record both against their simulator re-runs.
 - **1 Nov 2026, 23:06, Claude (Claude Code, training PC; the fork):** water finished (Ethan, ~23:00: little Claude usage left, finish locally and wrap up). The water skill (w1 updates 300, `results/water_skill.pt`): 268 of 288 on validation (solid), 260 of 288 on test 101 (played once), the offline bot 60/64 with the simulator's outcomes. Unattended on the PC: the real-Minecraft runs of the slime and water skills (they wait for the builder's server to close; the world is copied first) and the planner's references on 100, 56, 58 and 101 (they wait for the CPU). Next: record those four references and the two live runs (`runs/live-chain-1nov.log`, `runs/planner-references-1nov.log`).
 - **1 Nov 2026, 22:12, Claude (Claude Code, training PC; the fork that took over the main session's work):** Ethan's 1 Nov requests, continued (section 3).
   - Slime and posts: rounds 3 and 3c (DAgger labels for the two slime kinds the skill missed; 3c added the episodes' takeoff starts). Chosen by the rules over 92 candidates: `results/slime_skill.pt` (275 of 320 on 55; not solid, 288) and `results/posts_skill.pt` (285 on 57); the rounds ended (3c added 2). Tests once: 261 of 320 on 56, 285 of 320 on 58; offline bot 48/64 on 56's first 64 (the simulator's outcomes). Open: real Minecraft (the builder Ethan started holds the server), the planner's references on 56 and 58 (they wait for the CPU).

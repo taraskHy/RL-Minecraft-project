@@ -382,6 +382,8 @@ Tests, each played once (course list):
 | --- | --- | --- |
 | `results/slime_skill.pt` (`57e864224252`) as the slime skill | slime 56 | 261 of 320 |
 | `results/posts_skill.pt` (`564b41df5a80`) as the slime skill | posts 58 | 285 of 320 |
+| final policy + planner | slime 56 | 305 of 320 |
+| final policy + planner | posts 58 | 311 of 320 |
 
 The bots on the first 64 slime-heavy test courses, from the bots' start:
 
@@ -400,6 +402,8 @@ block, from the platform before the takeoff to the exit; the final policy plays 
 | Player | Family | Completed |
 | --- | --- | --- |
 | `results/final_policy.pt` alone | 100 (validation) | 7 of 288 |
+| final policy + planner (its chosen setting) | 100 (validation) | 288 of 288 |
+| final policy + planner (its chosen setting) | 101 (test) | 284 of 288 |
 
 Each water-skill run's best snapshot on family 100:
 
@@ -571,6 +575,7 @@ are the chosen settings.
 | validation | posts (family 57) | `combined_policy` | policy alone |  | 226/320 (70.6) | 0/0 |  |
 | validation | slime (family 55) | `final_policy` | slime-heavy validation: the planner's chosen setting, the reference (rules of 1 Nov 19:21:21) | all | 304/320 (95.0) | 0/0 | 2463/2463 |
 | validation | water (family 100) | `final_policy` | policy alone |  | 7/288 (2.4) | 0/0 |  |
+| validation | water (family 100) | `final_policy` | water validation: the planner's chosen setting, the reference (rules of 1 Nov 21:20:41) | all | 288/288 (100.0) | 0/0 | 2288/2288 |
 | test | random (family 12) | `final_policy` | policy alone |  | 33/200 (16.5) | 1/162 |  |
 | test | official (family 1) | `final_policy` | policy alone |  | 0/210 (0.0) | 0/124 |  |
 | test | mixed (family 14) | `final_policy` | policy alone |  | 35/200 (17.5) | 0/16 |  |
@@ -580,6 +585,9 @@ are the chosen settings.
 | test | single (family 50) | `final_policy` | TEST (fresh set 50, a reference for the neo skill d2): final policy + planner (all, retries 1, brake 14, retry horizon 48, restarts 3), the family-41 test setting | all | 285/320 (89.1) | 296/319 | 3021/3021 |
 | test | single (family 51) | `final_policy` | TEST (fresh set 51, a reference for the neo skill d4): final policy + planner (all, retries 1, brake 14, retry horizon 48, restarts 3), the family-41 test setting | all | 286/320 (89.4) | 290/317 | 2993/2993 |
 | test | two (family 53) | `final_policy` | two-neo test, played once: the planner's chosen setting, the reference (rules of 1 Nov 18:05 and 18:33) | all | 245/320 (76.6) | 544/608 | 2794/2794 |
+| test | slime (family 56) | `final_policy` | slime-heavy test: the planner's chosen setting, the reference, once (rules of 1 Nov 19:21:21) | all | 305/320 (95.3) | 0/0 | 2475/2475 |
+| test | posts (family 58) | `final_policy` | post-heavy test: the planner's chosen setting, the reference, once (rules of 1 Nov 19:21:21) | all | 311/320 (97.2) | 0/0 | 3773/3773 |
+| test | water (family 101) | `final_policy` | water test: the planner's chosen setting, the reference, once (rules of 1 Nov 21:20:41) | all | 284/288 (98.6) | 0/0 | 2273/2273 |
 
 The assist in the bots, on the neo course set of the neo policy's runs (`configs/neo_live_courses.json`:
 the first 10 held-out test courses with a neo of levels 6, 7 and 8, and the showcase neo course; the
