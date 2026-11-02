@@ -389,6 +389,7 @@ The bots on the first 64 slime-heavy test courses, from the bots' start:
 
 | Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |
 | --- | --- | --- | --- | --- | --- | --- |
+| slime56-live-skill-sp3c | live (Minecraft 1.21.4 server) | 48/64 | 75.0 | 100.0 | 0 | 2.1e-14 |
 | slime56-offline-skill-sp3c | offline (prismarine-physics, no server) | 48/64 | 75.0 | 100.0 | - | 7.1e-15 |
 
 ## Water (simulator; HANDOFF.md section 3, rules of 1 Nov 21:20:41)
@@ -418,6 +419,7 @@ The bots on the first 64 water test courses, from the bots' start:
 
 | Run | Where | Completed | Simulator, same courses | Same outcome | Server corrections | Replay error (blocks) |
 | --- | --- | --- | --- | --- | --- | --- |
+| water101-live-skill-w1-u300 | live (Minecraft 1.21.4 server) | 60/64 | 93.8 | 100.0 | 0 | 5.9e-14 |
 | water101-offline-skill-w1-u300 | offline (prismarine-physics, no server) | 60/64 | 93.8 | 100.0 | - | 7.1e-15 |
 
 ## Final policy: discount 0.995
