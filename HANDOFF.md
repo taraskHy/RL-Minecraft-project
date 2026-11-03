@@ -2401,18 +2401,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `63d3cd6` (2026-11-02 16:36, branch `main`): Slime and water skills in real Minecraft, first 64 test courses: slime 48 of 64, water 60 of 64, each the simulator's outcome and tick count on every course and the offline bot's result, 0 server corrections, replays within 6e-14 blocks
+Generated on top of commit `f4d87cd` (2026-11-02 21:49, branch `main`): Two pages and their builders: results/real_replays.html (448 real-Minecraft recordings in 8 sets, scripts/make_real_replays.py) and results/learning.html (how the bot learned: the reward on two real games replayed through ParkourEnv, PPO, curves, neos and DAgger, skills, router, distillation; scripts/make_learning_page.py)
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 118 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 119 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | `63d3cd6` 2026-11-02 16:36 | 0 |
-| `README.md` | `d905229` 2026-11-01 20:01 | 22 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 302 |
-| `docs/report_draft.md` | `b6c7b2b` 2026-10-31 15:38 | 30 |
-| `results/README.md` | `63d3cd6` 2026-11-02 16:36 | 0 |
-| `results/DATA.md` | updated together with this snapshot | 0 |
+| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
+| `README.md` | `d905229` 2026-11-01 20:01 | 23 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 303 |
+| `docs/report_draft.md` | updated together with this snapshot | 0 |
+| `results/README.md` | `63d3cd6` 2026-11-02 16:36 | 1 |
+| `results/DATA.md` | `f4d87cd` 2026-11-02 21:49 | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -2690,6 +2690,9 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **3 Nov 2026, 20:02, Claude (Claude Code, training PC, main session):** the course brief (`final_project.pdf`, Ethan's download) checked against the project, and the report and slides brought up to it (Ethan: "yes update them", practical impact left out for now).
+  - `docs/report_draft.md`: a team line (`[names and student IDs]`, to fill), contribution 8 and section 7.11 (two neos, slime, posts, water; the skill against the planner, real-game counts), water in section 3, the held-out families in section 4, the builder in section 6, section 8's real-game totals recounted from `results/games/` (2,173 episodes in 66 runs; 4 outcomes unlike the simulator's and 5 server corrections, all at neo-wall corners: one planner run before the corner check, three neo-skill runs), the conclusion, and a "Use of AI tools" note. Cuts to stay at 20 pages: the unstable-run figure (figures renumbered), the level-5 recipe paragraph, and shorter 7.4, 7.8, 7.9, 7.10, 8 and 9. Export at 20:00: the body ends on page 20.
+  - Slide draft (artifact version 14): a new slide on the new pieces, "Limitations and next steps" rewritten, the course's name on the cover (names still to fill), the neo slide's note says d4.
 - **2 Nov 2026, 21:49, Claude (Claude Code, training PC, main session):** two new pages (Ethan: replays, and a technical page on how the model learned), published as private artifacts and added here with their builders (`results/DATA.md`, "Pages to show").
   - `results/real_replays.html` ("Real-Minecraft Replays", `scripts/make_real_replays.py`): 448 real-game recordings in 8 sets, every outcome the simulator's, 0 server corrections.
   - `results/learning.html` ("How the Parkour Bot Learned", `scripts/make_learning_page.py`): the reward on two real games replayed through `ParkourEnv` (the level-5 course 51 of `v2-live`, return 67.2; the hand-designed neo course, 2.9 after 200 ticks standing still; both within 2.1e-14 blocks of the recording), the ablation, PPO, curves, neos and DAgger, skills, router, distillation. No new result; nothing chosen or trained.
