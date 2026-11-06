@@ -1,5 +1,4 @@
 """Routing (parkour.route_env): the GPU perception equals the planner's own."""
-import math
 import unittest
 
 import numpy as np

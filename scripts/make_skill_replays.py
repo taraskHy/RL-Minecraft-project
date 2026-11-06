@@ -269,7 +269,6 @@ PLANNER_POLICY = "results/final_policy.pt"  # the planner's policy: the final po
 PLANNER_EXPORT = "results/final_policy.json"  # its bot export; meta.checkpoint names its source
 PLANNER_SETTING = {"jumps": "all", "retries": 1, "brake": 14, "retry_horizon": 48, "restarts": 3}  # the --assist JSON
 ASSIST_VALIDATION = "results/neo/assist_validation.jsonl"  # where the setting was chosen (single-neo, family 40)
-COURSES_FILE = "results/games/skill-replays-courses-65.json"  # the 65 courses the bots play
 FIRST_COURSES_FILE = "results/games/skill-replays-courses.json"  # the first 45, written before the 20 were added
 N_JUMPS = 10
 FAMILY = 42  # extra and advanced groups (never used before 29 Oct 2026)

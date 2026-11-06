@@ -7,7 +7,6 @@ A plan job may name its own starting checkpoint (``init``, default
 results/final_policy.pt). With ``"auto_seeds": false`` in the control file the
 queue adds no further seeds of the best recipe when the plan is done.
 """
-import argparse
 import json
 import msvcrt
 import os

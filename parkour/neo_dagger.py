@@ -43,10 +43,10 @@ import torch
 
 from . import courses as C
 from . import physics
-from .env import (OBS_DIM, OBS_DIM_WATER, PLATFORM_SLOTS, YAW_STEPS_DEG, CoursePool, EnvConfig, Observer, ParkourEnv,
-                  on_obstacle, standing_on)
+from .env import (OBS_DIM, OBS_DIM_WATER, YAW_STEPS_DEG, CoursePool, EnvConfig, Observer, ParkourEnv, on_obstacle,
+                  standing_on)
 from .live import load_model
-from .train import course_hash, held_out_courses, obstacle_courses
+from .train import course_hash, held_out_courses
 
 HORIZON = 32
 ELITE = 0.05

@@ -81,7 +81,6 @@ COLLISION_EPSILON = 1e-7
 
 # Control channels, in this order, in every controls tensor.
 FORWARD, BACK, LEFT, RIGHT, JUMP, SPRINT = range(6)
-N_CONTROLS = 6
 
 
 @lru_cache(maxsize=None)
@@ -668,14 +667,6 @@ def simulate(world: World, course: torch.Tensor, state: PlayerState, controls: t
         my = torch.where(out, const(OUT_OF_LIQUID_IMPULSE), my)
     return PlayerState(pos=pos, vel=torch.stack((mx, my, mz), -1), yaw=state.yaw.clone(),
                        on_ground=on_ground, jump_ticks=jt, collided_h=collided_h, collided_v=collided_v)
-
-
-def forward_vector(yaw: torch.Tensor) -> torch.Tensor:
-    return torch.stack((-torch.sin(yaw), torch.zeros_like(yaw), -torch.cos(yaw)), -1)
-
-
-def right_vector(yaw: torch.Tensor) -> torch.Tensor:
-    return torch.stack((torch.cos(yaw), torch.zeros_like(yaw), -torch.sin(yaw)), -1)
 
 
 def inside_solid(world: World, course: torch.Tensor, pos: torch.Tensor, eps: float = 1e-7) -> torch.Tensor:

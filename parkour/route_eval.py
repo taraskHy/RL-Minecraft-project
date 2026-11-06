@@ -38,8 +38,6 @@ from .route_train import router_choosers
 from .train import (OBSTACLE_TEST_FAMILY, OBSTACLE_VALIDATION_FAMILY, TEST_SEED_FAMILY, VALIDATION_FAMILY, evaluate,
                     held_out_courses)
 
-RULES = ("local", "remaining")
-
 
 def course_sets(which: str, per_level: int) -> dict:
     levels = C.load_levels()

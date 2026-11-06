@@ -15,8 +15,8 @@ class Shapes(unittest.TestCase):
         world_cls = physics.World
 
         class ZeroShapes(world_cls):
-            def __init__(self, solid, slip=None, shape=None, *rest):
-                super().__init__(solid, slip, torch.zeros(solid.shape, dtype=torch.uint8), *rest)
+            def __init__(self, solid, slip=None, shape=None, *rest, **kw):
+                super().__init__(solid, slip, torch.zeros(solid.shape, dtype=torch.uint8), *rest, **kw)
 
         parity.physics.World = ZeroShapes
         try:
@@ -67,10 +67,6 @@ class Shapes(unittest.TestCase):
             self.assertEqual(float(s.pos[0, 1]), top, name)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 @unittest.skipUnless(__import__("parkour.paths", fromlist=["NODE"]).NODE.exists(), "portable Node runtime not installed")
 class ShapedCoursesBotParity(unittest.TestCase):
     def test_offline_bot_plays_shaped_courses_like_the_simulator(self):
@@ -104,3 +100,7 @@ class ShapedCoursesBotParity(unittest.TestCase):
         self.assertEqual([e["ticks"] for e in js], [int(v) for v in py["ticks"]])
         self.assertEqual([e["cp"] for e in js], [round(pr * (c.n - 1)) for pr, c in zip(py["progress"], cs)])
         self.assertGreater(sum(e["cp"] >= 2 for e in js), 6)  # most get past their first shaped platform
+
+
+if __name__ == "__main__":
+    unittest.main()

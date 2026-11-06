@@ -7,9 +7,6 @@
     "node": ">=22"
   },
   "packageManager": "pnpm@11.25.0",
-  "scripts": {
-    "test": "node --test policy.test.js"
-  },
   "dependencies": {
     "minecraft-data": "3.117.0",
     "mineflayer": "4.39.0",

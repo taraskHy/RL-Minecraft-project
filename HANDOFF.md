@@ -2026,11 +2026,11 @@ Concrete work, most important first. Nothing here needs new research.
    the 60 + 60 real-Minecraft courses and the stress tests (PC).
 3. **Hardest level:** level 5 is 93.5% standard and 81.0% with obstacles;
    most remaining failures of the final policy are there. Where exactly
-   (`scripts/jump_failures.py` -> `results/jump_failures.json`, simulator,
+   (`scripts/jump_failures.py`, removed on 6 Nov, in Git at `640e040` -> `results/jump_failures.json`, simulator,
    test sets): the 19 standard failures are all falls, 13 at level 5,
    spread over many jump types (none fails more than 3 times); 12 of them
    are at the 7th to 9th jump, but on 3,000 extra level-5 courses (seed
-   family 11, analysis only, `scripts/level5_positions.py` ->
+   family 11, analysis only, `scripts/level5_positions.py`, removed on 6 Nov, in Git at `640e040` ->
    `results/level5_by_position.json`) the failure rate is flat along the
    course (0.8-1.4% per jump), so that was noise. What the larger sample
    shows: 94% of the failures are on level-5 jumps, and those fail in
@@ -2038,7 +2038,7 @@ Concrete work, most important first. Nothing here needs new research.
    later in the course: the hardest jumps are harder when the bot arrives
    moving. Making it stop does not help: pausing 3-10 ticks after each
    landing lowers level-5 success from 90.2% to 70-80%
-   (`scripts/level5_pause_test.py`, `results/level5_pause_test.jsonl`). Of the 57 obstacle failures,
+   (`scripts/level5_pause_test.py`, removed on 6 Nov, in Git at `640e040`; `results/level5_pause_test.jsonl`). Of the 57 obstacle failures,
    17 are on a jump under a head-hitter beam (12 of the 38 at level 5).
    Worst case: a 5-block gap down 3 with a 2-block sideways offset onto
    one block fails in 5 of its 10 attempts under a beam, 3 of 27 without.
@@ -2380,10 +2380,9 @@ before restarting; held part locks prevent duplicate evaluation.
 - Report in the submission format: `results/report_draft.docx` / `.pdf`,
   written by `scripts/report_docx.py --pdf` from `docs/report_draft.md`
   (exported on 30 Oct, 22:47, after the trim) [31 Oct: exported again at
-  07:02, with neo routing (pull requests #3 and #4) and the level-5 control]. Page estimate without pandoc
-  or LibreOffice: `scripts/report_pages.py` (can be a page off).
+  07:02, with neo routing (pull requests #3 and #4) and the level-5 control].
 - Failure analysis of the final policy by jump type: `results/jump_failures.json`
-  (`scripts/jump_failures.py`).
+  (`scripts/jump_failures.py`, removed on 6 Nov, in Git at `640e040`).
 - Claim audit: `results/audit_claims.json` (829 claims checked against the
   run files on 28 Oct).
 - Sweeps: `scripts/sweep.py configs/<sweep>.json --slots N` (skips finished
@@ -2401,18 +2400,18 @@ Git and `results/` (the report step runs it too).
 
 <!-- BEGIN AUTO-SNAPSHOT: written by `python -m parkour.handoff`; edits inside are overwritten -->
 
-Generated on top of commit `f4d87cd` (2026-11-02 21:49, branch `main`): Two pages and their builders: results/real_replays.html (448 real-Minecraft recordings in 8 sets, scripts/make_real_replays.py) and results/learning.html (how the bot learned: the reward on two real games replayed through ParkourEnv, PPO, curves, neos and DAgger, skills, router, distillation; scripts/make_learning_page.py)
+Generated on top of commit `640e040` (2026-11-03 20:02, branch `main`): Report and slides brought up to the course brief: a team line to fill, the 1 Nov work (section 7.11: two neos, slime, posts, water; water in section 3, the builder in section 6), section 8's real-game totals recounted (2,173 episodes in 66 runs), a note on the AI tools used; cuts keep the body at 20 pages
 
 | Document | Last change | Commits since |
 | --- | --- | --- |
-| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 119 |
+| `AGENTS.md` | `2ceba5f` 2026-10-29 22:40 | 120 |
 | `HANDOFF.md` | updated together with this snapshot | 0 |
-| `TEAM_STATUS.md` | updated together with this snapshot | 0 |
-| `README.md` | `d905229` 2026-11-01 20:01 | 23 |
-| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 303 |
-| `docs/report_draft.md` | updated together with this snapshot | 0 |
-| `results/README.md` | `63d3cd6` 2026-11-02 16:36 | 1 |
-| `results/DATA.md` | `f4d87cd` 2026-11-02 21:49 | 0 |
+| `TEAM_STATUS.md` | `640e040` 2026-11-03 20:02 | 0 |
+| `README.md` | `d905229` 2026-11-01 20:01 | 24 |
+| `docs/design.md` | `8adb005` 2026-10-28 18:22 | 304 |
+| `docs/report_draft.md` | `640e040` 2026-11-03 20:02 | 0 |
+| `results/README.md` | `63d3cd6` 2026-11-02 16:36 | 2 |
+| `results/DATA.md` | updated together with this snapshot | 0 |
 
 <!-- snapshot data: compared by `python -m parkour.handoff --check` -->
 
@@ -2690,6 +2689,10 @@ At the end of a session, or after each result:
 
 ## Session log
 
+- **6 Nov 2026, 23:11, Claude (Claude Code, training PC, main session):** code cleanup (Ethan: "only what is necessary, no garbage"). Kept: everything that runs, trains, tests or builds a results page, video or the report, and every script behind a number the report or the results READMEs cite; results, runs and recordings untouched.
+  - Deleted (in Git at `640e040`): `bridge/debug_commands.js`, `scripts/report_pages.py` (superseded by `report_docx.py`), `scripts/make_neo_demo.py` (unreferenced, outputs not kept), and the one-off checks `defaults_check.py`, `jump_failures.py`, `level5_pause_test.py`, `level5_positions.py` (their outputs stay in `results/`; DATA.md and sections 4 and 8 say where the scripts went).
+  - Dead code: `report.fig_training` and its helpers `read_train`, `_smooth`; `cem.demo`; `physics.forward_vector`, `right_vector`, `N_CONTROLS` (unused; behaviour unchanged, the parity tests pass); `route_eval.RULES`; a `COURSES_FILE` constant; 7 unused imports; `bridge/package.json`'s test script (it named a missing file). `cem.merge_into_levels`, which made the advanced levels' neo specs but sat after the main guard, is now `python -m parkour.cem --merge-levels`.
+  - Tests: the full suite after the cleanup, 252 passed and 1 failed (`test_shapes.py::test_full_cube_shape_grid_is_the_original_path`, failing on `640e040` too since the 1 Nov water argument: its stand-in `World` took no `water=`); fixed, `tests/test_shapes.py` 5 passed.
 - **3 Nov 2026, 20:02, Claude (Claude Code, training PC, main session):** the course brief (`final_project.pdf`, Ethan's download) checked against the project, and the report and slides brought up to it (Ethan: "yes update them", practical impact left out for now).
   - `docs/report_draft.md`: a team line (`[names and student IDs]`, to fill), contribution 8 and section 7.11 (two neos, slime, posts, water; the skill against the planner, real-game counts), water in section 3, the held-out families in section 4, the builder in section 6, section 8's real-game totals recounted from `results/games/` (2,173 episodes in 66 runs; 4 outcomes unlike the simulator's and 5 server corrections, all at neo-wall corners: one planner run before the corner check, three neo-skill runs), the conclusion, and a "Use of AI tools" note. Cuts to stay at 20 pages: the unstable-run figure (figures renumbered), the level-5 recipe paragraph, and shorter 7.4, 7.8, 7.9, 7.10, 8 and 9. Export at 20:00: the body ends on page 20.
   - Slide draft (artifact version 14): a new slide on the new pieces, "Limitations and next steps" rewritten, the course's name on the cover (names still to fill), the neo slide's note says d4.
